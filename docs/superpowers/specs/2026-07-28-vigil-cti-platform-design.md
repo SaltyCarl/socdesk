@@ -1,8 +1,8 @@
-# WATCHFIRE — Public CTI Platform Design
+# VIGIL — Public CTI Platform Design
 
 **Date:** 2026-07-28
 **Status:** Draft for review
-**Repo:** `C:\Users\Carl\Desktop\Projects\WATCHFIRE` (public GitHub repo under SaltyCarl)
+**Repo:** `C:\Users\Carl\Desktop\Projects\VIGIL` (public GitHub repo under SaltyCarl)
 
 ## 1. Purpose
 
@@ -13,12 +13,12 @@ public URL with nothing to install.
 
 Origin: a ChatGPT-generated reference site ("Vantage CTI") had the right idea
 (daily intelligence, repository, collection health, source registry) but a
-broken data layer — all fetches ran client-side and died on CORS. WATCHFIRE
+broken data layer — all fetches ran client-side and died on CORS. VIGIL
 rebuilds the concept with a real collection pipeline and adds MSSP-practical
 workflows plus a locally-inferred daily brief.
 
-The name: a watchfire is the fire a sentry keeps burning through the night
-watch to signal danger. Sibling to HEARTH in the fire-named tool family.
+The name: a vigil is the act of staying awake through the night to keep
+watch — the SOC night watch, as a tool.
 
 ## 2. Goals and non-goals
 
