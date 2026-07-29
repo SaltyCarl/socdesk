@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+  <title>Example Vendor Blog</title>
+  <item>
+    <title>Akira ransomware exploiting CVE-2026-1111 in Fortinet devices</title>
+    <link>https://blog.example/akira-fortinet</link>
+    <description>Akira affiliates deploy Cobalt Strike after exploiting FortiOS.</description>
+    <pubDate>Mon, 27 Jul 2026 15:00:00 GMT</pubDate>
+  </item>
+  <item>
+    <title>Quarterly trends report</title>
+    <link>https://blog.example/trends</link>
+    <description>General overview of the quarter.</description>
+    <pubDate>Mon, 20 Jul 2026 09:00:00 GMT</pubDate>
+  </item>
+</channel></rss>
