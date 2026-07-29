@@ -1,0 +1,17 @@
+{"type": "bundle", "objects": [
+  {"type": "intrusion-set", "id": "intrusion-set--aaa", "name": "APT9999",
+   "aliases": ["APT9999", "Test Panda"], "description": "Test actor.",
+   "external_references": [{"source_name": "mitre-attack", "external_id": "G9999"}]},
+  {"type": "malware", "id": "malware--bbb", "name": "TestRAT",
+   "description": "Test malware.",
+   "external_references": [{"source_name": "mitre-attack", "external_id": "S9999"}]},
+  {"type": "attack-pattern", "id": "attack-pattern--ccc", "name": "Phishing",
+   "external_references": [{"source_name": "mitre-attack", "external_id": "T1566"}]},
+  {"type": "relationship", "relationship_type": "uses",
+   "source_ref": "intrusion-set--aaa", "target_ref": "attack-pattern--ccc"},
+  {"type": "relationship", "relationship_type": "uses",
+   "source_ref": "intrusion-set--aaa", "target_ref": "malware--bbb"},
+  {"type": "intrusion-set", "id": "intrusion-set--ddd", "name": "Deprecated Actor",
+   "revoked": true,
+   "external_references": [{"source_name": "mitre-attack", "external_id": "G0000"}]}
+]}
