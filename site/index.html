@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VIGIL — pipeline status</title>
+<style>
+  body { background:#0F161C; color:#E8E1CF; font-family:system-ui, sans-serif;
+         max-width:900px; margin:2rem auto; padding:0 1rem; }
+  h1 { font-size:1.2rem; letter-spacing:.2em; }
+  h1 b { color:#E2513A; }
+  .note { color:#8799A6; font-size:.85rem; }
+  table { border-collapse:collapse; width:100%; margin:1rem 0; }
+  td, th { border-bottom:1px solid #263644; padding:.4rem .6rem;
+           text-align:left; font-size:.9rem; }
+  .ok { color:#7CC492; } .fail { color:#FF5E49; }
+  li { margin:.35rem 0; font-size:.9rem; }
+  a { color:#6FA8DC; }
+</style>
+</head>
+<body>
+<h1>V<b>I</b>GIL</h1>
+<p class="note">Phase A pipeline status page — replaced by the Chart Room interface in Phase B.</p>
+<div id="app">loading…</div>
+<script>
+(async () => {
+  const app = document.getElementById("app");
+  try {
+    const [health, feed] = await Promise.all([
+      fetch("data/health.json").then(r => r.json()),
+      fetch("data/feed.json").then(r => r.json()),
+    ]);
+    const rows = health.sources.map(s =>
+      `<tr><td>${s.source}</td>
+           <td class="${s.ok ? "ok" : "fail"}">${s.ok ? "OK" : "FAIL"}</td>
+           <td>${s.items}</td><td>${s.last_success_at || "—"}</td>
+           <td>${(s.error || "").slice(0, 80)}</td></tr>`).join("");
+    const items = feed.items.slice(0, 10).map(i =>
+      `<li>[${i.severity}] <a href="${i.url}">${i.title}</a></li>`).join("");
+    app.innerHTML = `
+      <p class="note">data generated ${health.generated_at} —
+         ${feed.items.length} feed items in window
+         ${health.pipeline_warnings ? " — warnings: " + health.pipeline_warnings.join("; ") : ""}</p>
+      <table><tr><th>source</th><th>status</th><th>items</th>
+             <th>last success</th><th>error</th></tr>${rows}</table>
+      <h2 style="font-size:1rem">latest items</h2><ul>${items}</ul>`;
+  } catch (e) { app.textContent = "no data yet — pipeline has not run: " + e; }
+})();
+</script>
+</body>
+</html>
