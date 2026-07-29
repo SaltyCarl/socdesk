@@ -1,0 +1,15 @@
+{
+  "totalResults": 1,
+  "vulnerabilities": [
+    {"cve": {
+      "id": "CVE-2026-2222",
+      "published": "2026-07-27T09:00:00.000",
+      "lastModified": "2026-07-27T10:00:00.000",
+      "descriptions": [{"lang": "en", "value": "RCE in ExampleServer."}],
+      "metrics": {"cvssMetricV31": [{"cvssData": {"baseScore": 9.8, "baseSeverity": "CRITICAL"}}]},
+      "configurations": [{"nodes": [{"cpeMatch": [
+        {"criteria": "cpe:2.3:a:examplecorp:exampleserver:1.0:*:*:*:*:*:*:*"}
+      ]}]}]
+    }}
+  ]
+}
