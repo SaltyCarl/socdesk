@@ -1,0 +1,8 @@
+[
+  {"victim": "Example Manufacturing", "group": "akira",
+   "discovered": "2026-07-28 02:15:00", "country": "US",
+   "activity": "Manufacturing", "claim_url": "https://ransomware.live/id/x1"},
+  {"victim": "Beispiel GmbH", "group": "play",
+   "discovered": "2026-07-27 22:00:00", "country": "DE",
+   "activity": "Logistics", "claim_url": "https://ransomware.live/id/x2"}
+]
