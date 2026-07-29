@@ -1,213 +1,259 @@
-# VIGIL Design System
+# VIGIL Design System — v2
 
-Build contract for all VIGIL UI work — mockups, the production site, and every
-iteration after. Derived from a three-lens research sweep (security-product
-patterns / 2026 dashboard aesthetics / dense-dark typography+color) on
-2026-07-28. Violations of the **Hard bans** section are rejected without
-discussion.
+Build contract for all VIGIL UI work. v2 supersedes v1 after round-one mockups
+were rejected as too flat/utilitarian. Derived from two research sweeps:
+(1) 2026 InfoSec product design language (HTB, GreyNoise, ProjectDiscovery,
+Tines, Wiz, Censys, ANY.RUN, Tria.ge), (2) React-era polish mechanics
+translated to vanilla HTML/CSS/JS. Violations of **Hard bans** are rejected
+without discussion.
 
 ## 1. Identity
 
-VIGIL is a night-watch console: calm, near-monochrome, ruthlessly scannable.
-The screen is ~95% neutral ramp; chroma is reserved for *signal* (severity,
-status, one interactive accent). The strongest color on screen should always
-be the threat data, never the chrome. Density is a feature; decoration is not.
+VIGIL is a search-first threat-intelligence hub with the production quality of
+a funded security startup. The reference energy: Hack The Box's tinted navy +
+signature lime, GreyNoise's verdict discipline, VirusTotal's search-centered
+IA, ANY.RUN's report anatomy, Linear-class motion restraint.
 
-Five rules that settle most arguments:
+Core principles:
 
-1. **Hierarchy first, depth on demand.** Verdict/summary up top, evidence
-   below, detail in a drawer — never navigate away from a queue to inspect
-   one row.
-2. **Mono = copy-pasteable.** JetBrains Mono for anything an analyst would
-   paste into a query (hashes, IPs, domains, CVE IDs, timestamps, ports).
-   Inter for anything read as language. No exceptions either direction.
-3. **Color is meaning.** Severity hues mean severity, green/red status means
-   up/down, purple means AI-generated, the accent means interactive. Never
-   use any of these decoratively.
-4. **Surfaces, not shadows.** Elevation = lighter surface + 1px hairline
-   border. `box-shadow` only for the focus ring and (subtle) popover lift.
-5. **Keyboard is first-class.** Cmd/Ctrl+K palette, visible `<kbd>` hints,
-   `/` focuses search. Portfolio-signal and analyst-speed in one move.
+1. **Search is the product.** The hero omnibox (paste any IOC → composed
+   threat report) is the center of gravity; everything else orbits it.
+2. **Verdict first, evidence under it.** Every report leads with
+   score + verdict word + tags + one-line summary before any table.
+3. **Tinted, never default.** Navy-tinted surfaces and blue-gray text — pure
+   black backgrounds and pure white text are what make pages read unstyled.
+4. **Depth is layered and deniable.** Elevation = lighter surface + hairline +
+   inner top light edge + soft dark shadow, all subtle enough to be felt not
+   seen. Glow attaches only to meaning (search focus, verdicts, live dots).
+5. **Mono = copy-pasteable.** JetBrains Mono for anything pasted into a query
+   (hashes, IPs, domains, CVEs, timestamps, ports); Inter for language.
+6. **Motion is scarce and fast.** 120–240ms, transform/opacity only, enters
+   expo-out, exits faster than enters.
 
 ## 2. Tokens
 
+Two selectable themes share every structural token; only the palette block
+differs. Default = Theme N ("Nightwatch", navy+lime). Alt = Theme S
+("Signal", charcoal+electric blue) for A/B.
+
 ```css
 :root {
-  /* Surfaces — blue-tinted neutral ramp (hue ~218, sat ≤10%). Never #000. */
-  --bg-0: #0D1117;            /* page base */
-  --bg-1: #141A22;            /* cards, panels, table body */
-  --bg-2: #1B222C;            /* nested surfaces, sticky headers, inputs */
-  --bg-3: #232B37;            /* popovers, menus, tooltips */
-  --bg-hover: rgba(255,255,255,0.055);
-  --bg-selected: rgba(76,194,255,0.10);
-  --border-subtle: rgba(255,255,255,0.08);   /* row hairlines, card edges */
-  --border-strong: rgba(255,255,255,0.14);   /* inputs, section dividers */
+  /* ---- THEME N — "Nightwatch" (default): HTB-energy navy + lime ---- */
+  --bg-page: #0D1420;         /* page base — tinted navy, never #000 */
+  --bg-card: #151E2E;         /* raised surfaces */
+  --bg-elev: #1C2740;         /* inputs, sticky headers, nested surfaces */
+  --bg-pop:  #223050;         /* popovers, menus, tooltips */
+  --border:  #2A3752;         /* hairlines — lighter tint of bg, not gray */
+  --border-strong: #3A4A6B;
+  --text-hi:  #E6EDF7;
+  --text-body:#A4B1CD;        /* HTB blue-gray — the "designed" text tone */
+  --text-mute:#5C6B8A;
+  --accent:      #9FEF00;     /* signature lime */
+  --accent-dim:  #86CC00;
+  --accent-bg:   rgba(159,239,0,0.10);
+  --accent-ring: rgba(159,239,0,0.18);
+  --on-accent:   #0D1420;     /* dark text on lime fills */
 
-  /* Text — never #FFFFFF */
-  --text-primary: #E8ECF2;
-  --text-secondary: #A3AEBF;  /* metadata, timestamps, secondary cells */
-  --text-muted: #5C6875;      /* placeholders, disabled, empty states */
+  /* ---- Semantic verdict/severity ramp (never decorative) ---- */
+  --sev-critical: #FF3E3E;  --sev-critical-bg: rgba(255,62,62,0.12);
+  --sev-high:     #FF8A3D;  --sev-high-bg:     rgba(255,138,61,0.12);
+  --sev-medium:   #FFAF00;  --sev-medium-bg:   rgba(255,175,0,0.12);
+  --sev-low:      #9FEF00;  --sev-low-bg:      rgba(159,239,0,0.10);
+  --sev-info:     #5CB2FF;  --sev-info-bg:     rgba(92,178,255,0.12);
+  --sev-unknown:  #8B96A5;  --sev-unknown-bg:  rgba(139,150,165,0.10);
 
-  /* Type */
+  /* ---- AI marker — purple is RESERVED for AI-generated content ---- */
+  --ai: #B386F9;  --ai-bg: rgba(179,134,249,0.10);  --ai-bd: rgba(179,134,249,0.35);
+
+  /* ---- Type ---- */
   --font-ui: "InterVariable", "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  --fs-body: 14px;   --lh-body: 1.5;
-  --fs-cell: 13px;   --lh-cell: 1.4;
-  --fs-label: 11px;  --lh-label: 1.2;  --ls-label: 0.08em;  /* UPPERCASE */
-  --fs-mono: 12px;   --lh-mono: 1.45;  /* ≈0.92em of cell size */
-  --fs-h1: 20px;     --ls-h1: -0.014em;
-  --fs-micro: 11px;  /* timestamps, counts */
+  --fs-body: 14px; --fs-cell: 13px; --fs-label: 11px; --fs-mono: 12px;
+  --fs-h1: 22px;   --fs-hero-input: 15px;
+  /* labels: UPPERCASE, +0.08em, weight 500. Headings 600, never heavier. */
 
-  /* Accent — ONE hue (cyan-blue), <5% of pixels on any screen */
-  --accent: #2E9BE6;                       /* solid: primary buttons, active nav */
-  --accent-hover: #4FADEF;
-  --accent-text: #4CC2FF;                  /* links, interactive text */
-  --accent-muted: rgba(76,194,255,0.14);   /* selected/chip backgrounds */
-  --accent-border: rgba(76,194,255,0.35);
-  --focus-ring: 0 0 0 2px rgba(76,194,255,0.55);
+  /* ---- Depth recipes ---- */
+  --shadow-card:
+    0 0 0 1px rgba(255,255,255,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    0 1px 2px rgba(0,0,0,0.40),
+    0 8px 24px rgba(0,0,0,0.30);
+  --shadow-pop:
+    0 0 0 1px rgba(255,255,255,0.06),
+    0 4px 12px rgba(0,0,0,0.45),
+    0 16px 40px rgba(0,0,0,0.40);
+  --glow-search: 0 0 0 1px var(--accent), 0 0 24px rgba(159,239,0,0.14);
+  --focus-ring: 0 0 0 2px var(--bg-page), 0 0 0 4px var(--accent);
 
-  /* AI marker — purple is RESERVED for AI-generated content (Daily Brief) */
-  --ai: #B386F9;
-  --ai-bg: rgba(179,134,249,0.10);
-  --ai-border: rgba(179,134,249,0.35);
+  /* ---- Motion ---- */
+  --dur-fast: 120ms; --dur-base: 180ms; --dur-slow: 240ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:  cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
-  /* Severity triads: text / tinted bg / border. AA on --bg-0. */
-  --sev-critical: #F8615A; --sev-critical-bg: rgba(248,81,73,0.14);  --sev-critical-bd: rgba(248,81,73,0.35);
-  --sev-high:     #F0883E; --sev-high-bg:     rgba(219,109,40,0.14); --sev-high-bd:     rgba(219,109,40,0.35);
-  --sev-medium:   #E3B341; --sev-medium-bg:   rgba(187,128,9,0.14);  --sev-medium-bd:   rgba(187,128,9,0.35);
-  --sev-low:      #57AB5A; --sev-low-bg:      rgba(70,149,74,0.14);  --sev-low-bd:      rgba(70,149,74,0.35);
-  --sev-info:     #8B96A5; --sev-info-bg:     rgba(139,150,165,0.12);--sev-info-bd:     rgba(139,150,165,0.30);
+  /* ---- Geometry ---- */
+  --radius-chip: 5px; --radius-control: 8px; --radius-card: 10px; --radius-pop: 12px;
+  --row-h: 40px;      /* default rows; 36px only inside explicitly dense tables */
+  --header-h: 56px;
+}
 
-  /* Status (collection health, deltas) */
-  --status-up: #57AB5A;  --status-degraded: #E3B341;  --status-down: #F8615A;
-
-  /* Geometry */
-  --radius-chip: 4px;  --radius-control: 6px;  --radius-card: 8px;  --radius-popover: 10px;
-  --space: 4px;        /* base unit; scale: 4/8/12/16/24/32 */
-  --row-h-dense: 36px; --row-h-regular: 44px;
-  --cell-pad-y: 8px;   --cell-pad-x: 12px;
-  --sidebar-w: 240px;  --header-h: 56px;
+[data-theme="signal"] {
+  /* ---- THEME S — "Signal": ProjectDiscovery-energy charcoal + blue ---- */
+  --bg-page: #0B0E14; --bg-card: #12161F; --bg-elev: #181D29; --bg-pop: #1E2432;
+  --border: #262D3D;  --border-strong: #364057;
+  --text-hi: #EDF0F7; --text-body: #A9B1C3; --text-mute: #5E6878;
+  --accent: #4D9FFF; --accent-dim: #3D86DB;
+  --accent-bg: rgba(77,159,255,0.12); --accent-ring: rgba(77,159,255,0.20);
+  --on-accent: #0B0E14;
+  --glow-search: 0 0 0 1px var(--accent), 0 0 24px rgba(77,159,255,0.16);
+  --sev-low: #3FB950; --sev-low-bg: rgba(63,185,80,0.10); /* green low when accent is blue */
 }
 ```
 
-Font features: globally `font-feature-settings: "liga" 1, "calt" 1, "cv05" 1;`
-tables and metrics add `"tnum" 1, "zero" 1;` uppercase labels add `"case" 1;`
-mono IOC strings set `font-feature-settings: "liga" 0;` (no ligature fusion in
-indicators).
+Font features: global `"liga" 1, "calt" 1, "cv05" 1`; tables/metrics add
+`"tnum" 1, "zero" 1`; uppercase labels add `"case" 1`; mono IOC strings set
+`"liga" 0`.
 
-## 3. Typography rules
+## 3. Iconography (new in v2 — mandatory)
 
-- Body 14px/1.5 · table cells 13px/1.4 · overline labels 11px UPPERCASE
-  +0.08em tracking, weight 500 · mono data 12px/1.45.
-- Weights: 400 body, 500 labels/emphasis/buttons, 600 headings only. Nothing
-  heavier at any size — bold text blooms on dark.
-- Tracking inversion rule: positive tracking only on small caps labels;
-  negative tracking only at heading sizes (−0.014em at 20px); nothing between.
-- Numbers in tables: right-aligned, `tnum`. Text left-aligned. Never centered.
-  Header alignment matches column alignment.
-- JetBrains Mono at 0.92× the surrounding Inter size, weight 400 always.
+Icons are the single fastest perceived-quality upgrade; their absence was a
+core v1 failure. Lucide, inlined as one hidden `<svg>` `<symbol>` sprite,
+used via `<svg class="icon"><use href="#name"/></svg>`.
 
-## 4. Color usage rules
+- 24×24 grid, `stroke-width: 2`, round caps/joins, `stroke="currentColor"`.
+- Sizes: 16px inline/buttons, 20px nav. `.icon { flex-shrink: 0 }`.
+- Icons inherit text color — never their own hue.
+- Core set (~22): shield, shield-alert, alert-triangle, activity, radar,
+  globe, server, network, terminal, search, filter, clock, eye,
+  external-link, chevron-down, chevron-right, x, check, copy,
+  more-horizontal, bell, trending-up.
 
-- **Accent discipline:** interactive elements only — links, primary button,
-  active nav item, focus ring, selection. If a screenshot is more than ~5%
-  accent-colored, remove accent uses until it isn't.
-- **Severity:** tinted-chip triad (colored text on 14%-alpha same-hue bg,
-  35%-alpha border) for tables; 3px left border stripe in feed lists; 6px dot
-  + neutral text where space is tight. Never solid saturated chip fills; if a
-  solid critical treatment is ever unavoidable, dark text on the light color,
-  never white-on-red.
-- **Purple = AI, nowhere else.** The Daily Brief header, its "AI-generated"
-  chip, and brief-sourced callouts use the `--ai` triad. No other purple
-  anywhere in the product, ever. (Convention borrowed from Elastic EUI.)
-- **Gray means unknown, not safe.** Unknown/unclassified gets `--sev-info`
-  treatment, not green.
-- Colorblind safety: severity is never color-alone — chips carry the severity
-  word, stripes pair with the chip, status dots pair with text.
+## 4. Atmosphere & depth rules
 
-## 5. Core component specs
+- Every raised surface uses `--shadow-card` (shadow-as-border + inner top
+  light edge + key + ambient). Popovers/menus use `--shadow-pop`.
+- Hero zone only: a radial accent wash
+  `radial-gradient(600px 240px at 50% -10%, <accent at 7% alpha>, transparent 70%)`
+  plus an optional dot-grid texture at 2–4% opacity. Nowhere else.
+- Glow whitelist: hero search focus (`--glow-search`), verdict banner accent,
+  live-dot pulse. Colored glow alpha never exceeds 0.18.
+- Sticky headers gain a shadow only once scrolled (IntersectionObserver
+  sentinel → `.stuck`).
+- Custom thin scrollbars on dark; accent-tinted `::selection`.
 
-- **Buttons:** primary = `--accent` solid, dark text if luminance demands,
-  6px radius; secondary = `--bg-2` + `--border-strong`; ghost for row
-  actions. Height 32px (28px in dense contexts), 13px/500.
-- **Chips/badges:** 4px radius, 2px 8px padding, 11–12px. Severity chips per
-  §4; neutral pills are `--bg-2` bg + `--text-secondary`.
-- **Tables:** sticky header on `--bg-2`; 36px dense rows (density toggle to
-  44px); 1px `--border-subtle` row hairlines — **no zebra striping**; hover
-  `--bg-hover`; hover-revealed cell actions (copy, filter) so resting state
-  stays clean; IOC columns mono + truncate-middle.
-- **Feed rows:** 3px severity left-stripe, title 13px/500, source + time in
-  11px `--text-secondary`, entity chips inline. Unread indicator = 6px accent
-  dot. "New since last visit" divider = 1px accent-border line + label.
-- **Details drawer:** 420px right-side flyout over the table/feed (Elastic
-  pattern), `--bg-1`, hairline left border. Never a route change for row
-  inspection.
-- **IOC lookup:** omnibox that auto-detects type (hash/IP/domain/URL) —
-  verdict-first result header (big classification, colored) with evidence
-  listed under it (sources, first/last seen, attribution). Paste-answer in
-  one motion, no type selector.
-- **Collection health:** Statuspage pattern — one row per source, 90-day
-  segment bar (2px gap segments, status colors), uptime %, hover for detail.
-- **KPI cards:** metric (20px, `tnum`) + delta (colored text + arrow, color
-  the delta never the card) + axis-less sparkline (1.5px line, 10% area fill,
-  no gridlines).
-- **Command palette:** Ctrl/Cmd+K, centered 560px panel on `--bg-3`,
-  fuzzy list with `<kbd>` hints. Keycaps: 11px mono, `--bg-2`, hairline
-  border, 4px radius.
-- **Empty/loading states:** skeletons matching final layout for >500ms loads
-  (subtle shimmer, no spinners); empty states name the cause and the fix in
-  text — no illustrations.
-- **Toasts:** bottom-right, `--bg-3` + hairline, stacked, no icon circles.
-- **Staleness honesty:** every data panel shows its `generated_at` in 11px
-  mono; stale (>2h feed, >26h brief) flips the timestamp to `--sev-medium`.
+## 5. Hero search (the product's center)
 
-## 6. Layout & density
+- Centered, ~720px wide, 56–64px tall, `--bg-elev`, `--radius-card`,
+  16px icon left, mono placeholder with a real example:
+  `8.8.8.8 · evil-updates[.]example · SHA256…`
+- Auto-detects type as you type; detected-type chip appears inline right.
+- Focus: `--glow-search` + slight scale-none (no zoom) — glow only.
+- Beneath: IOC-type chips (Hash / IP / Domain / URL / CVE) and clickable
+  example pills; below those, a live strip (recent lookups / trending
+  entities in mono) — the "tool is warm" signal.
+- `/` focuses it from anywhere; Ctrl+K opens the command palette.
 
-- Desktop-first; sensible down to ~1280px, no mobile heroics in v1.
-- Spacing on the 4px scale; card padding 16px; section gaps 24px; page
-  gutters 24–32px; 240px sidebar / 56px header if the chosen IA uses them.
-- Information architecture is NOT prescribed here — mockup directions own it.
-  Whatever the IA: inspecting a row never loses queue position (drawer, not
-  navigation), and the IOC omnibox is reachable from everywhere (palette
-  and/or persistent affordance).
+## 6. Threat report anatomy (search result)
 
-## 7. Hard bans (anti-examples)
+Order is fixed (ANY.RUN/Tria.ge/VT synthesis):
 
-Rejected on sight, with the tell they signal:
+1. **Verdict banner:** severity-colored score chip (0–100) + verdict word
+   (MALICIOUS / SUSPICIOUS / CLEAN / UNKNOWN in tracked caps) + family/actor
+   tags + one-line summary. Banner carries a soft severity-colored left glow.
+2. **Sticky section tabs:** Overview / Network & IOCs / TTPs / Related.
+3. **Evidence sections:** sources with first/last seen; every IOC a mono,
+   copy-equipped, clickable pivot; MITRE technique chips linking to actor
+   profiles; related feed items.
+4. **Pivot row:** consistent icon-chips deep-linking the indicator into free
+   external tools — VirusTotal, urlscan, ANY.RUN, Tria.ge, Censys, Shodan.
+   (This is the v1 "sandboxing" story: one-click detonation/pivot handoff.)
+5. Unknown-indicator result is a designed state: UNKNOWN verdict (gray, not
+   green), what was searched, which sources missed, same pivot row.
 
-1. **Editorial/display serif anywhere** — italic serif headlines, cream/paper
-   backgrounds, "literary" voice. (Six rounds of prior mockup rejection back
-   this; the lone approved exception in past work was one brutalist cheat
-   sheet, which VIGIL is not.)
-2. **Indigo→purple gradients** or any gradient on components; gradient text
-   on metrics. Gradients survive only as barely-perceptible radial glows
-   behind hero content, if at all.
-3. **Glassmorphism** / frosted floating cards / backdrop-blur decoration.
-4. **Giant radii** (>12px) on in-product elements; soft ambient drop shadows
-   instead of borders; cards nested inside cards.
-5. **Three identical icon-cards in a row** with thin-line icons; feature-grid
-   "bento" filler; widget-cramming as decoration.
-6. **Emoji in headings or UI chrome**; bounce/elastic easing; marketing copy
-   in the product ("Build faster. Ship smarter.").
-7. **Tailwind-default look**: untinted slate surfaces + `indigo-500` accent.
-8. **Pure #000 backgrounds, pure #FFF text, white-on-red badges, zebra
-   striping on dark, centered numeric columns, solid saturated chip rows.**
-9. **Purple used for anything but AI content** (see §4).
-10. **CRT/retro-terminal cosplay** — scanlines, phosphor glow, ASCII borders.
-    VIGIL is a modern console, not a costume.
+## 7. Interactive-state matrix (mandatory completeness)
 
-## 8. Pattern sources (steal list)
+Every interactive component implements rest / hover / active / focus-visible
+/ selected / disabled (/ loading where async). Reference values:
+
+- Buttons: hover = one surface step up + border lighten; active =
+  `translateY(1px)`; focus = `--focus-ring` (two-layer, bg-offset); loading
+  swaps label for 14px spinner preserving width. Primary = accent fill with
+  `--on-accent` text.
+- Rows: hover `rgba(255,255,255,0.035)`; selected = accent-tinted bg +
+  `inset 2px 0 0 var(--accent)`; row actions hidden at rest, revealed on
+  `:hover` and `:focus-within`.
+- Inputs: focus = accent border + 3px `--accent-ring` halo.
+- Chips/filters: selected = accent-tinted bg + accent text.
+
+## 8. Motion rules
+
+- Dropdowns/popovers: scale 0.96→1 + fade, `--dur-base` `--ease-out`,
+  transform-origin at trigger side. Drawer: slide+fade, 300–400ms
+  `--ease-drawer`. Tab underline: translateX slide, `--dur-base`.
+- Skeleton shimmer (1.8s linear) for loads >500ms; number count-up 600ms
+  cubic-out with `tabular-nums`; staggered list entrance 30ms/item capped at
+  8 items, first paint only.
+- Never animate: keyboard-repeated actions, data refreshes, table sorts.
+- Full `prefers-reduced-motion` kill switch.
+
+## 9. Color usage rules
+
+- Accent = interactive + brand moments only (primary CTA, focus, active nav,
+  live indicators, links). Severity ramp = verdicts/severity only. Purple =
+  AI-generated content only (Daily Brief marker). Gray = unknown, never
+  green. Charts single-hue accent unless encoding severity.
+- Severity chips: tinted bg + colored text + severity word (never
+  color-alone); feed rows may add a 3px severity left-stripe.
+- Solid accent fills carry `--on-accent` dark text.
+
+## 10. Typography rules
+
+- Body 14px/1.5 · cells 13px/1.4 · labels 11px caps +0.08em/500 · mono data
+  12px/1.45 (≈0.92× surrounding Inter) · h1 22px/600 −0.014em.
+- Weights: 400 body, 500 labels/emphasis, 600 headings. Nothing heavier.
+- Numbers right-aligned with `tnum`; text left; never centered columns.
+- kbd keycaps: 11px mono, 2px 5px pad, `--bg-elev`, hairline border,
+  `inset 0 -1px 0 rgba(255,255,255,0.06)`.
+
+## 11. Charts
+
+Inline-SVG sparklines: 1.5px accent line + vertical gradient fill
+(accent 25% → 0), no axes/gridlines/legends; hover crosshair (1px line +
+3px dot + mono tooltip). KPI card = 20px `tnum` metric + colored delta
+(color the delta, never the card) + sparkline. Thresholds as 4-4 dashed
+lines at 30% opacity.
+
+## 12. Hard bans
+
+1. Editorial/display serif; cream/paper; "literary" voice.
+2. Gradients ON components (buttons/cards/text). Washes live behind the hero
+   section only, per §4.
+3. Glassmorphism / `backdrop-filter` blur on more than the one modal overlay.
+4. Colored glow above 0.18 alpha, or glow on non-interactive/non-verdict
+   elements.
+5. Pure #000 backgrounds; pure #FFF text; untinted gray borders.
+6. Emoji in UI; bounce/elastic easing; marketing copy in-product.
+7. Three identical icon-cards in a row; bento filler; cards nested in cards.
+8. Zebra striping; centered numeric columns; white-on-red badges.
+9. Purple anywhere except AI content.
+10. CRT/Matrix cosplay: scanlines, phosphor trails, ASCII borders, rain.
+    (The dot-grid at ≤4% and mono data voice are the sanctioned amount of
+    "hacker".)
+11. Green for "unknown" (gray owns unknown); multiple competing neon hues.
+
+## 13. Pattern sources
 
 | Pattern | Source |
 |---|---|
-| Details flyout over queue | Elastic Security |
-| Severity token discipline; purple=AI | Elastic EUI |
-| Verdict-first IOC lookup, auto-detect omnibox | VirusTotal / GreyNoise |
-| Evidence-under-score | Recorded Future intel cards |
+| Tinted navy base + lime signature + blue-gray text | Hack The Box |
+| Charcoal + electric blue alt theme | ProjectDiscovery |
+| Verdict-first report; score chip; family tags | Tria.ge / ANY.RUN / VirusTotal |
+| Hero search + example chips + recent-activity strip | VirusTotal / Censys / urlscan |
+| Purple = AI; severity token discipline | Elastic EUI |
+| Depth recipe (shadow-as-border, inner light edge) | Vercel Geist / shadcn dark |
+| Motion tokens & rules | Emil Kowalski (Sonner/cmdk/Vaul) |
+| Icon system | Lucide |
+| KPI + sparkline | Stripe / Tremor |
+| Details drawer over queue | Elastic Security |
 | 90-day segment health bars | Atlassian Statuspage |
-| Surface ladder + hairlines, no shadows | Linear / Raycast |
-| Neutral-ramp restraint, mono-for-identifiers | Vercel Geist |
-| KPI card: metric + delta + sparkline | Stripe / Tremor |
-| Blue-tinted dark neutral family | GitHub Primer dark |
-| Cmd+K palette with kbd hints | Linear / Raycast / Superhuman |
 ```
