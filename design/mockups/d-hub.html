@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="nightwatch">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VIGIL — Public CTI Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════
+   TOKENS — Theme N (Nightwatch) + Theme S (Signal)
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg-page: #0D1420;
+  --bg-card: #151E2E;
+  --bg-elev: #1C2740;
+  --bg-pop:  #223050;
+  --border:  #2A3752;
+  --border-strong: #3A4A6B;
+  --text-hi:  #E6EDF7;
+  --text-body:#A4B1CD;
+  --text-mute:#5C6B8A;
+  --accent:      #9FEF00;
+  --accent-dim:  #86CC00;
+  --accent-bg:   rgba(159,239,0,0.10);
+  --accent-ring: rgba(159,239,0,0.18);
+  --on-accent:   #0D1420;
+  --sev-critical: #FF3E3E; --sev-critical-bg: rgba(255,62,62,0.12);
+  --sev-high:     #FF8A3D; --sev-high-bg:     rgba(255,138,61,0.12);
+  --sev-medium:   #FFAF00; --sev-medium-bg:   rgba(255,175,0,0.12);
+  --sev-low:      #9FEF00; --sev-low-bg:      rgba(159,239,0,0.10);
+  --sev-info:     #5CB2FF; --sev-info-bg:     rgba(92,178,255,0.12);
+  --sev-unknown:  #8B96A5; --sev-unknown-bg:  rgba(139,150,165,0.10);
+  --ai: #B386F9; --ai-bg: rgba(179,134,249,0.10); --ai-bd: rgba(179,134,249,0.35);
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --fs-body: 14px; --fs-cell: 13px; --fs-label: 11px; --fs-mono: 12px;
+  --fs-h1: 22px; --fs-hero-input: 15px;
+  --shadow-card:
+    0 0 0 1px rgba(255,255,255,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    0 1px 2px rgba(0,0,0,0.40),
+    0 8px 24px rgba(0,0,0,0.30);
+  --shadow-pop:
+    0 0 0 1px rgba(255,255,255,0.06),
+    0 4px 12px rgba(0,0,0,0.45),
+    0 16px 40px rgba(0,0,0,0.40);
+  --glow-search: 0 0 0 1px var(--accent), 0 0 24px rgba(159,239,0,0.14);
+  --focus-ring: 0 0 0 2px var(--bg-page), 0 0 0 4px var(--accent);
+  --dur-fast: 120ms; --dur-base: 180ms; --dur-slow: 240ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:  cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --radius-chip: 5px; --radius-control: 8px; --radius-card: 10px; --radius-pop: 12px;
+  --row-h: 40px;
+  --header-h: 56px;
+}
+[data-theme="signal"] {
+  --bg-page: #0B0E14; --bg-card: #12161F; --bg-elev: #181D29; --bg-pop: #1E2432;
+  --border: #262D3D; --border-strong: #364057;
+  --text-hi: #EDF0F7; --text-body: #A9B1C3; --text-mute: #5E6878;
+  --accent: #4D9FFF; --accent-dim: #3D86DB;
+  --accent-bg: rgba(77,159,255,0.12); --accent-ring: rgba(77,159,255,0.20);
+  --on-accent: #0B0E14;
+  --glow-search: 0 0 0 1px var(--accent), 0 0 24px rgba(77,159,255,0.16);
+  --sev-low: #3FB950; --sev-low-bg: rgba(63,185,80,0.10);
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESET + BASE
+   ═══════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:var(--fs-body);font-family:var(--font-ui);background:var(--bg-page);color:var(--text-body);-webkit-font-smoothing:antialiased;font-feature-settings:"liga" 1,"calt" 1,"cv05" 1;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+::selection{background:var(--accent-bg);color:var(--accent)}
+body{min-height:100vh;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,textarea{font-family:inherit}
+svg.icon{flex-shrink:0;display:inline-block;vertical-align:middle}
+
+/* ═══════════════════════════════════════════════════════
+   TYPOGRAPHY HELPERS
+   ═══════════════════════════════════════════════════════ */
+.label{font-size:var(--fs-label);font-weight:500;text-transform:uppercase;letter-spacing:0.08em;font-feature-settings:"case" 1}
+.mono{font-family:var(--font-mono);font-size:var(--fs-mono);font-feature-settings:"liga" 0}
+.tnum{font-feature-settings:"tnum" 1,"zero" 1}
+.text-hi{color:var(--text-hi)}
+.text-body{color:var(--text-body)}
+.text-mute{color:var(--text-mute)}
+.text-accent{color:var(--accent)}
+
+/* ═══════════════════════════════════════════════════════
+   KBD KEYCAPS
+   ═══════════════════════════════════════════════════════ */
+kbd{font-family:var(--font-mono);font-size:11px;padding:2px 5px;background:var(--bg-elev);border:1px solid var(--border);border-radius:4px;box-shadow:inset 0 -1px 0 rgba(255,255,255,0.06);color:var(--text-mute);line-height:1}
+
+/* ═══════════════════════════════════════════════════════
+   CHIP + SEVERITY
+   ═══════════════════════════════════════════════════════ */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:var(--radius-chip);font-size:var(--fs-label);font-weight:500;text-transform:uppercase;letter-spacing:0.08em;line-height:20px;white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
+.chip-ghost{background:transparent;border:1px solid var(--border);color:var(--text-body)}
+.chip-ghost:hover{background:var(--bg-elev);border-color:var(--border-strong);color:var(--text-hi)}
+.chip-ghost.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.chip-accent{background:var(--accent-bg);border:1px solid rgba(159,239,0,0.25);color:var(--accent)}
+[data-theme="signal"] .chip-accent{border-color:rgba(77,159,255,0.25)}
+.sev-critical{background:var(--sev-critical-bg);color:var(--sev-critical);border:none}
+.sev-high{background:var(--sev-high-bg);color:var(--sev-high);border:none}
+.sev-medium{background:var(--sev-medium-bg);color:var(--sev-medium);border:none}
+.sev-low{background:var(--sev-low-bg);color:var(--sev-low);border:none}
+.sev-info{background:var(--sev-info-bg);color:var(--sev-info);border:none}
+.sev-unknown{background:var(--sev-unknown-bg);color:var(--sev-unknown);border:none}
+.chip-ai{background:var(--ai-bg);border:1px solid var(--ai-bd);color:var(--ai)}
+
+/* ═══════════════════════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════════════════════ */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--radius-control);font-size:var(--fs-body);font-weight:500;line-height:1.4;transition:all var(--dur-fast) var(--ease-out);outline:none}
+.btn:focus-visible{box-shadow:var(--focus-ring)}
+.btn-primary{background:var(--accent);color:var(--on-accent)}
+.btn-primary:hover{background:var(--accent-dim)}
+.btn-primary:active{transform:translateY(1px)}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-body)}
+.btn-ghost:hover{background:var(--bg-elev);border-color:var(--border-strong);color:var(--text-hi)}
+.btn-ghost:active{transform:translateY(1px)}
+.btn-icon{padding:6px;border-radius:var(--radius-control);color:var(--text-mute);transition:all var(--dur-fast) var(--ease-out)}
+.btn-icon:hover{background:var(--bg-elev);color:var(--text-body)}
+.btn-icon:active{transform:translateY(1px)}
+.btn-icon:focus-visible{box-shadow:var(--focus-ring)}
+
+/* ═══════════════════════════════════════════════════════
+   CARD
+   ═══════════════════════════════════════════════════════ */
+.card{background:var(--bg-card);border-radius:var(--radius-card);box-shadow:var(--shadow-card)}
+
+/* ═══════════════════════════════════════════════════════
+   TOPBAR
+   ═══════════════════════════════════════════════════════ */
+.topbar{position:fixed;top:0;left:0;right:0;height:var(--header-h);background:var(--bg-card);border-bottom:1px solid var(--border);z-index:100;display:flex;align-items:center;gap:0;padding:0 24px;box-shadow:var(--shadow-card)}
+.topbar-wordmark{font-size:15px;font-weight:600;color:var(--text-hi);letter-spacing:-0.01em;margin-right:32px;display:flex;align-items:center;gap:8px}
+.topbar-wordmark .dot-live{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse-live 2s infinite}
+@keyframes pulse-live{0%,100%{opacity:1;box-shadow:0 0 6px var(--accent)}50%{opacity:.55;box-shadow:0 0 12px var(--accent)}}
+.topbar-nav{display:flex;align-items:center;gap:2px;flex:1}
+.nav-item{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius-control);font-size:var(--fs-body);font-weight:500;color:var(--text-mute);cursor:pointer;transition:all var(--dur-fast) var(--ease-out);background:none;border:none;font-family:inherit}
+.nav-item:hover{color:var(--text-hi);background:var(--bg-elev)}
+.nav-item.active{color:var(--text-hi);background:var(--accent-bg)}
+.nav-item.active .nav-icon{color:var(--accent)}
+.nav-item:focus-visible{box-shadow:var(--focus-ring);outline:none}
+.topbar-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.search-chip{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius-control);color:var(--text-mute);font-size:13px;cursor:pointer;transition:all var(--dur-fast) var(--ease-out)}
+.search-chip:hover{border-color:var(--border-strong);color:var(--text-body)}
+.theme-toggle{display:flex;align-items:center;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius-control);overflow:hidden}
+.theme-btn{padding:4px 10px;font-size:11px;font-weight:600;font-family:var(--font-mono);color:var(--text-mute);cursor:pointer;transition:all var(--dur-fast) var(--ease-out);background:none;border:none}
+.theme-btn.active{background:var(--accent-bg);color:var(--accent)}
+
+/* ═══════════════════════════════════════════════════════
+   LAYOUT SHELL
+   ═══════════════════════════════════════════════════════ */
+.shell{padding-top:var(--header-h);min-height:100vh}
+.view{display:none;animation:fadeIn var(--dur-base) var(--ease-out) both}
+.view.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ═══════════════════════════════════════════════════════
+   HERO SECTION
+   ═══════════════════════════════════════════════════════ */
+.hero{position:relative;padding:80px 24px 60px;display:flex;flex-direction:column;align-items:center;text-align:center;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(600px 240px at 50% -10%,rgba(159,239,0,0.07),transparent 70%);pointer-events:none}
+[data-theme="signal"] .hero::before{background:radial-gradient(600px 240px at 50% -10%,rgba(77,159,255,0.07),transparent 70%)}
+.hero-dotgrid{position:absolute;inset:0;background-image:radial-gradient(circle,var(--border) 1px,transparent 1px);background-size:24px 24px;opacity:.03;pointer-events:none}
+.hero-tagline{font-size:var(--fs-h1);font-weight:600;color:var(--text-hi);letter-spacing:-0.014em;margin-bottom:8px;position:relative;z-index:1}
+.hero-sub{font-size:13px;color:var(--text-mute);margin-bottom:32px;position:relative;z-index:1}
+.hero-search-wrap{width:100%;max-width:720px;position:relative;z-index:2;margin-bottom:16px}
+.hero-search{display:flex;align-items:center;gap:12px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius-card);padding:0 16px;height:56px;transition:box-shadow var(--dur-base) var(--ease-out),border-color var(--dur-base) var(--ease-out)}
+.hero-search:focus-within{box-shadow:var(--glow-search);border-color:var(--accent)}
+.hero-search-input{flex:1;background:none;border:none;outline:none;font-family:var(--font-mono);font-size:var(--fs-hero-input);color:var(--text-hi);font-feature-settings:"liga" 0}
+.hero-search-input::placeholder{color:var(--text-mute)}
+.type-chip{padding:2px 8px;background:var(--accent-bg);border:1px solid rgba(159,239,0,0.25);border-radius:var(--radius-chip);font-size:10px;font-weight:600;font-family:var(--font-mono);color:var(--accent);white-space:nowrap;transition:opacity var(--dur-fast)}
+[data-theme="signal"] .type-chip{border-color:rgba(77,159,255,0.25)}
+.ioc-chips{display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap;justify-content:center;position:relative;z-index:1}
+.example-pills{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;position:relative;z-index:1;margin-bottom:20px}
+.example-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:99px;font-family:var(--font-mono);font-size:11px;color:var(--text-mute);cursor:pointer;transition:all var(--dur-fast) var(--ease-out)}
+.example-pill:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.example-pill:focus-visible{box-shadow:var(--focus-ring);outline:none}
+.trending-strip{width:100%;max-width:720px;position:relative;z-index:1;display:flex;align-items:center;gap:12px;overflow:hidden}
+.trending-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-mute);white-space:nowrap}
+.trending-items{display:flex;gap:16px;overflow:hidden;font-family:var(--font-mono);font-size:11px;color:var(--text-mute)}
+.trending-item{white-space:nowrap;cursor:pointer;transition:color var(--dur-fast)}
+.trending-item:hover{color:var(--text-body)}
+.trending-sep{color:var(--border-strong)}
+
+/* ═══════════════════════════════════════════════════════
+   HOME BODY GRID
+   ═══════════════════════════════════════════════════════ */
+.home-body{max-width:1392px;margin:0 auto;padding:32px 24px 80px;display:grid;grid-template-columns:1fr 320px;gap:24px}
+.home-main{display:flex;flex-direction:column;gap:24px}
+.home-side{display:flex;flex-direction:column;gap:16px}
+
+/* AI Brief card */
+.brief-card{padding:20px;position:relative}
+.brief-header{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.brief-title{font-size:15px;font-weight:600;color:var(--text-hi)}
+.brief-meta{font-size:11px;color:var(--text-mute);margin-left:auto}
+.brief-story{padding:12px 0;border-bottom:1px solid var(--border)}
+.brief-story:last-child{border-bottom:none;padding-bottom:0}
+.brief-story-title{font-size:var(--fs-body);font-weight:500;color:var(--text-hi);margin-bottom:4px}
+.brief-story-why{font-size:13px;color:var(--text-body);line-height:1.5}
+.brief-story-tags{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+/* skeleton shimmer */
+.skeleton{background:linear-gradient(90deg,var(--bg-elev) 25%,var(--bg-pop) 50%,var(--bg-elev) 75%);background-size:200% 100%;animation:shimmer 1.8s linear infinite;border-radius:4px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* latest intel */
+.intel-card{padding:0;overflow:hidden}
+.intel-card-header{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.intel-row{display:flex;align-items:center;gap:10px;padding:0 16px;height:var(--row-h);border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--dur-fast) var(--ease-out);position:relative}
+.intel-row:last-child{border-bottom:none}
+.intel-row::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:0 2px 2px 0}
+.intel-row.sev-c::before{background:var(--sev-critical)}
+.intel-row.sev-h::before{background:var(--sev-high)}
+.intel-row.sev-m::before{background:var(--sev-medium)}
+.intel-row.sev-l::before{background:var(--sev-low)}
+.intel-row:hover{background:rgba(255,255,255,0.035)}
+.intel-row:focus-visible{box-shadow:inset 0 0 0 2px var(--accent);outline:none}
+.intel-row-title{flex:1;font-size:13px;color:var(--text-hi);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:8px}
+.intel-row-source{font-size:11px;color:var(--text-mute);white-space:nowrap}
+.intel-row-time{font-family:var(--font-mono);font-size:11px;color:var(--text-mute);white-space:nowrap}
+
+/* KPI cards */
+.kpi-card{padding:16px 20px;display:flex;flex-direction:column;gap:6px}
+.kpi-label{font-size:var(--fs-label);font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-mute)}
+.kpi-row{display:flex;align-items:flex-end;gap:12px}
+.kpi-value{font-size:28px;font-weight:600;color:var(--text-hi);font-feature-settings:"tnum" 1,"zero" 1;line-height:1}
+.kpi-delta{font-size:12px;font-weight:500;padding:2px 6px;border-radius:var(--radius-chip)}
+.kpi-delta.up{color:var(--sev-high);background:var(--sev-high-bg)}
+.kpi-delta.dn{color:var(--sev-low);background:var(--sev-low-bg)}
+
+/* mini health */
+.health-mini{padding:14px 16px}
+.health-row{display:flex;align-items:center;gap:8px;padding:4px 0}
+.health-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.health-dot.live{background:var(--sev-low);box-shadow:0 0 5px var(--sev-low)}
+.health-dot.degraded{background:var(--sev-medium);animation:pulse-live 2s infinite}
+.health-dot.down{background:var(--sev-critical)}
+.health-name{flex:1;font-size:13px;color:var(--text-body)}
+.health-pct{font-family:var(--font-mono);font-size:11px;color:var(--text-mute);font-feature-settings:"tnum" 1}
+
+/* KEV mini */
+.kev-mini{padding:0;overflow:hidden}
+.kev-row{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--dur-fast)}
+.kev-row:last-child{border-bottom:none}
+.kev-row:hover{background:rgba(255,255,255,0.035)}
+.kev-id{font-family:var(--font-mono);font-size:11px;color:var(--text-body);white-space:nowrap;font-feature-settings:"liga" 0}
+.kev-epss{font-family:var(--font-mono);font-size:11px;font-feature-settings:"tnum" 1;margin-left:auto;white-space:nowrap}
+
+/* ═══════════════════════════════════════════════════════
+   REPORT VIEW
+   ═══════════════════════════════════════════════════════ */
+.report-wrap{max-width:1100px;margin:0 auto;padding:32px 24px 80px}
+.verdict-banner{border-radius:var(--radius-card);padding:24px 28px;margin-bottom:24px;box-shadow:var(--shadow-card);display:flex;align-items:flex-start;gap:20px;position:relative;overflow:hidden}
+.verdict-banner::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:0}
+.verdict-malicious::before{background:var(--sev-critical);box-shadow:8px 0 24px rgba(255,62,62,0.18)}
+.verdict-suspicious::before{background:var(--sev-high);box-shadow:8px 0 24px rgba(255,138,61,0.18)}
+.verdict-clean::before{background:var(--sev-low);box-shadow:8px 0 24px rgba(159,239,0,0.14)}
+.verdict-unknown::before{background:var(--sev-unknown)}
+.verdict-score{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0}
+.score-ring{width:64px;height:64px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:3px solid var(--sev-critical);background:var(--sev-critical-bg)}
+.score-ring.suspicious{border-color:var(--sev-high);background:var(--sev-high-bg)}
+.score-ring.clean{border-color:var(--sev-low);background:var(--sev-low-bg)}
+.score-ring.unknown{border-color:var(--sev-unknown);background:var(--sev-unknown-bg)}
+.score-num{font-size:22px;font-weight:600;color:var(--text-hi);font-feature-settings:"tnum" 1}
+.verdict-meta{flex:1;min-width:0}
+.verdict-word{font-size:13px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px}
+.verdict-word.malicious{color:var(--sev-critical)}
+.verdict-word.suspicious{color:var(--sev-high)}
+.verdict-word.clean{color:var(--sev-low)}
+.verdict-word.unknown{color:var(--sev-unknown)}
+.verdict-ioc{font-family:var(--font-mono);font-size:14px;color:var(--text-hi);font-feature-settings:"liga" 0;margin-bottom:8px}
+.verdict-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.verdict-summary{font-size:13px;color:var(--text-body);line-height:1.5}
+.verdict-pivots{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.pivot-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius-chip);font-size:12px;font-weight:500;color:var(--text-body);cursor:pointer;transition:all var(--dur-fast) var(--ease-out)}
+.pivot-chip:hover{border-color:var(--border-strong);color:var(--text-hi);background:var(--bg-pop)}
+.pivot-chip:focus-visible{box-shadow:var(--focus-ring);outline:none}
+
+/* sticky section tabs */
+.section-tabs{position:sticky;top:var(--header-h);background:var(--bg-page);z-index:50;display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:24px;transition:box-shadow var(--dur-fast)}
+.section-tabs.stuck{box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.tab-btn{padding:12px 18px;font-size:var(--fs-body);font-weight:500;color:var(--text-mute);cursor:pointer;border:none;background:none;font-family:inherit;position:relative;transition:color var(--dur-base) var(--ease-out)}
+.tab-btn::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent);border-radius:2px 2px 0 0;transform:scaleX(0);transition:transform var(--dur-base) var(--ease-out)}
+.tab-btn.active{color:var(--text-hi)}
+.tab-btn.active::after{transform:scaleX(1)}
+.tab-btn:hover{color:var(--text-body)}
+.tab-btn:focus-visible{box-shadow:var(--focus-ring) inset;outline:none}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* evidence sections */
+.section-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.section-title{font-size:13px;font-weight:600;color:var(--text-hi)}
+.evidence-table{width:100%;border-collapse:collapse;margin-bottom:24px}
+.evidence-table th{font-size:var(--fs-label);font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-mute);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.evidence-table td{font-size:var(--fs-cell);color:var(--text-body);padding:10px 12px;border-bottom:1px solid rgba(42,55,82,0.5);vertical-align:top}
+.evidence-table tr:last-child td{border-bottom:none}
+.evidence-table tr:hover td{background:rgba(255,255,255,0.02)}
+.ioc-cell{display:flex;align-items:center;gap:6px}
+.copy-btn{display:inline-flex;align-items:center;padding:3px;border-radius:4px;color:var(--text-mute);cursor:pointer;opacity:0;transition:opacity var(--dur-fast),color var(--dur-fast);background:none;border:none}
+tr:hover .copy-btn,.ioc-cell:focus-within .copy-btn{opacity:1}
+.copy-btn:hover{color:var(--text-body)}
+.copy-btn:active{color:var(--accent)}
+.mitre-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius-chip);font-family:var(--font-mono);font-size:11px;color:var(--text-body);cursor:pointer;transition:all var(--dur-fast) var(--ease-out);margin:2px}
+.mitre-chip:hover{border-color:var(--border-strong);color:var(--text-hi)}
+
+/* ═══════════════════════════════════════════════════════
+   FEED VIEW
+   ═══════════════════════════════════════════════════════ */
+.feed-wrap{max-width:1200px;margin:0 auto;padding:24px 24px 80px}
+.filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.feed-table{width:100%;border-collapse:collapse}
+.feed-table th{font-size:var(--fs-label);font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-mute);padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);background:var(--bg-page);position:sticky;top:calc(var(--header-h) + 1px);z-index:40;font-feature-settings:"tnum" 1}
+.feed-table th.stuck{box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.feed-row{cursor:pointer;transition:background var(--dur-fast) var(--ease-out);position:relative}
+.feed-row td{padding:0 12px;height:var(--row-h);font-size:var(--fs-cell);color:var(--text-body);border-bottom:1px solid rgba(42,55,82,0.5);vertical-align:middle}
+.feed-row:hover td{background:rgba(255,255,255,0.035)}
+.feed-row.selected td{background:var(--accent-bg)}
+.feed-row.selected td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.feed-row:focus-visible{outline:none}
+.feed-row:focus-visible td{background:rgba(255,255,255,0.035);box-shadow:inset 0 0 0 2px var(--accent)}
+.feed-stripe{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:0 2px 2px 0}
+.feed-row-actions{display:flex;gap:4px;opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
+.feed-row:hover .feed-row-actions,.feed-row:focus-within .feed-row-actions{opacity:1}
+.entity-chip{display:inline-flex;align-items:center;padding:2px 6px;background:var(--bg-elev);border:1px solid var(--border);border-radius:3px;font-size:11px;color:var(--text-body);margin:1px;white-space:nowrap}
+
+/* ═══════════════════════════════════════════════════════
+   DRAWER
+   ═══════════════════════════════════════════════════════ */
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;opacity:0;pointer-events:none;transition:opacity var(--dur-slow) var(--ease-out)}
+.drawer-overlay.open{opacity:1;pointer-events:all}
+.drawer{position:fixed;right:0;top:0;bottom:0;width:420px;background:var(--bg-card);border-left:1px solid var(--border);box-shadow:var(--shadow-pop);z-index:201;transform:translateX(100%);transition:transform 320ms var(--ease-drawer);display:flex;flex-direction:column}
+.drawer.open{transform:translateX(0)}
+.drawer-header{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px}
+.drawer-body{flex:1;overflow-y:auto;padding:16px 20px}
+.drawer-actions{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px}
+.drawer-close{margin-left:auto;flex-shrink:0}
+
+/* ═══════════════════════════════════════════════════════
+   VULNS VIEW
+   ═══════════════════════════════════════════════════════ */
+.vulns-wrap{max-width:1200px;margin:0 auto;padding:24px 24px 80px}
+.vuln-table{width:100%;border-collapse:collapse}
+.vuln-table th{font-size:var(--fs-label);font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-mute);padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:calc(var(--header-h) + 1px);background:var(--bg-page);z-index:40}
+.vuln-table th.r{text-align:right}
+.vuln-table td{font-size:var(--fs-cell);padding:10px 12px;border-bottom:1px solid rgba(42,55,82,0.5);color:var(--text-body);vertical-align:middle;font-feature-settings:"tnum" 1}
+.vuln-table td.r{text-align:right}
+.vuln-table tr:hover td{background:rgba(255,255,255,0.025)}
+.kev-badge{display:inline-block;padding:1px 6px;background:var(--sev-critical-bg);color:var(--sev-critical);border-radius:3px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em}
+
+/* ═══════════════════════════════════════════════════════
+   HEALTH VIEW
+   ═══════════════════════════════════════════════════════ */
+.health-wrap{max-width:960px;margin:0 auto;padding:24px 24px 80px}
+.health-source{background:var(--bg-card);border-radius:var(--radius-card);box-shadow:var(--shadow-card);padding:16px 20px;margin-bottom:12px}
+.health-src-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.health-src-name{font-size:var(--fs-body);font-weight:600;color:var(--text-hi);flex:1}
+.health-src-uptime{font-family:var(--font-mono);font-size:12px;color:var(--text-mute);font-feature-settings:"tnum" 1}
+.seg-bar{display:flex;gap:2px;height:8px}
+.seg{flex:1;border-radius:2px;transition:opacity var(--dur-fast)}
+.seg.ok{background:var(--sev-low);opacity:0.7}
+.seg.deg{background:var(--sev-medium);opacity:0.8}
+.seg.down{background:var(--sev-critical);opacity:0.8}
+.seg.empty{background:var(--bg-elev)}
+.seg:hover{opacity:1}
+
+/* ═══════════════════════════════════════════════════════
+   TOOLBELT VIEW
+   ═══════════════════════════════════════════════════════ */
+.toolbelt-wrap{max-width:1100px;margin:0 auto;padding:24px 24px 80px;display:grid;grid-template-columns:1fr 320px;gap:24px}
+.tool-card{background:var(--bg-card);border-radius:var(--radius-card);box-shadow:var(--shadow-card);padding:20px;display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
+.tool-label{font-size:var(--fs-label);font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-mute);margin-bottom:4px}
+.tool-textarea{width:100%;min-height:96px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius-control);padding:10px 12px;font-family:var(--font-mono);font-size:var(--fs-mono);color:var(--text-hi);resize:vertical;outline:none;transition:border-color var(--dur-fast),box-shadow var(--dur-fast);font-feature-settings:"liga" 0}
+.tool-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring)}
+.lolbin-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.lolbin-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;transition:background var(--dur-fast)}
+.lolbin-item:hover{background:var(--bg-elev)}
+.lolbin-name{font-family:var(--font-mono);font-size:12px;color:var(--text-hi);width:120px;flex-shrink:0}
+.lolbin-desc{font-size:12px;color:var(--text-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ═══════════════════════════════════════════════════════
+   ACTORS VIEW
+   ═══════════════════════════════════════════════════════ */
+.actors-wrap{max-width:1200px;margin:0 auto;padding:24px 24px 80px}
+.actors-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.actor-card{background:var(--bg-card);border-radius:var(--radius-card);box-shadow:var(--shadow-card);padding:16px;cursor:pointer;transition:all var(--dur-fast) var(--ease-out)}
+.actor-card:hover{transform:translateY(-1px);box-shadow:var(--shadow-pop)}
+.actor-card:focus-visible{box-shadow:var(--focus-ring);outline:none}
+.actor-name{font-size:var(--fs-body);font-weight:600;color:var(--text-hi);margin-bottom:4px}
+.actor-alias{font-size:12px;color:var(--text-mute);margin-bottom:8px}
+.actor-tags{display:flex;gap:4px;flex-wrap:wrap}
+
+/* ═══════════════════════════════════════════════════════
+   COMMAND PALETTE
+   ═══════════════════════════════════════════════════════ */
+.palette-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding-top:15vh;opacity:0;pointer-events:none;transition:opacity var(--dur-base) var(--ease-out)}
+.palette-overlay.open{opacity:1;pointer-events:all}
+.palette{width:560px;background:var(--bg-pop);border-radius:var(--radius-pop);box-shadow:var(--shadow-pop);overflow:hidden;transform:scale(0.96);transition:transform var(--dur-base) var(--ease-out);transform-origin:50% 0}
+.palette-overlay.open .palette{transform:scale(1)}
+.palette-search{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.palette-input{flex:1;background:none;border:none;outline:none;font-family:inherit;font-size:15px;color:var(--text-hi)}
+.palette-input::placeholder{color:var(--text-mute)}
+.palette-items{padding:6px}
+.palette-group{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-mute);padding:6px 8px 4px}
+.palette-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background var(--dur-fast) var(--ease-out)}
+.palette-item:hover,.palette-item.focused{background:var(--bg-elev)}
+.palette-item-label{flex:1;font-size:var(--fs-body);color:var(--text-hi)}
+.palette-item-hint{font-size:11px;color:var(--text-mute)}
+
+/* ═══════════════════════════════════════════════════════
+   UNKNOWN REPORT STATE
+   ═══════════════════════════════════════════════════════ */
+.unknown-state{display:flex;flex-direction:column;align-items:center;padding:60px 24px;text-align:center;gap:16px}
+.unknown-state svg{color:var(--text-mute);opacity:.5}
+.unknown-state h2{font-size:18px;font-weight:600;color:var(--text-hi)}
+.unknown-state p{font-size:13px;color:var(--text-mute);max-width:400px;line-height:1.6}
+
+/* ═══════════════════════════════════════════════════════
+   PAGE HEADER (view titles)
+   ═══════════════════════════════════════════════════════ */
+.page-header{padding:28px 24px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;max-width:100%}
+.page-title{font-size:var(--fs-h1);font-weight:600;color:var(--text-hi);letter-spacing:-0.014em}
+.page-sub{font-size:13px;color:var(--text-mute);margin-left:auto}
+
+/* ═══════════════════════════════════════════════════════
+   VERSION TAG
+   ═══════════════════════════════════════════════════════ */
+.version-tag{position:fixed;bottom:16px;left:16px;font-family:var(--font-mono);font-size:10px;color:var(--text-mute);background:var(--bg-elev);border:1px solid var(--border);padding:4px 8px;border-radius:4px;z-index:500;pointer-events:none}
+
+/* ═══════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═══════════════════════════════════════════════════════ */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}}
+
+/* ═══════════════════════════════════════════════════════
+   STAGGERED ENTRANCE
+   ═══════════════════════════════════════════════════════ */
+.stagger-item{opacity:0;transform:translateY(6px);animation:staggerIn var(--dur-slow) var(--ease-out) forwards}
+@keyframes staggerIn{to{opacity:1;transform:translateY(0)}}
+.stagger-item:nth-child(1){animation-delay:0ms}
+.stagger-item:nth-child(2){animation-delay:30ms}
+.stagger-item:nth-child(3){animation-delay:60ms}
+.stagger-item:nth-child(4){animation-delay:90ms}
+.stagger-item:nth-child(5){animation-delay:120ms}
+.stagger-item:nth-child(6){animation-delay:150ms}
+.stagger-item:nth-child(7){animation-delay:180ms}
+.stagger-item:nth-child(8){animation-delay:210ms}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ LUCIDE ICON SPRITE ═══════════ -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+<symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+<symbol id="ic-shield-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
+<symbol id="ic-alert-triangle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+<symbol id="ic-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+<symbol id="ic-radar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 006.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1021.31 8.35"/><path d="M16.24 7.76A6 6 0 008.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0115.77 6"/><circle cx="12" cy="12" r="2"/><path d="M13.41 10.59L19 5"/></symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></symbol>
+<symbol id="ic-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></symbol>
+<symbol id="ic-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="9" y="16" width="6" height="6" rx="1"/><rect x="2" y="9" width="6" height="6" rx="1"/><rect x="16" y="9" width="6" height="6" rx="1"/><path d="M12 8v8M8 12H6M16 12h2M12 8c0-2 0-4 0-4M12 16c0 2 0 4 0 4"/><line x1="7.5" y1="7.5" x2="9" y2="9"/><line x1="15" y1="9" x2="16.5" y2="7.5"/><line x1="9" y1="15" x2="7.5" y2="16.5"/><line x1="16.5" y1="16.5" x2="15" y2="15"/></symbol>
+<symbol id="ic-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
+<symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+<symbol id="ic-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></symbol>
+<symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+<symbol id="ic-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="ic-external-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
+<symbol id="ic-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></symbol>
+<symbol id="ic-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></symbol>
+<symbol id="ic-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+<symbol id="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></symbol>
+<symbol id="ic-more-horizontal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+<symbol id="ic-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></symbol>
+<symbol id="ic-trending-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
+<symbol id="ic-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></symbol>
+<symbol id="ic-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></symbol>
+</svg>
+
+<!-- ═══════════ TOPBAR ═══════════ -->
+<header class="topbar">
+  <div class="topbar-wordmark">
+    <svg class="icon" width="20" height="20"><use href="#ic-radar"/></svg>
+    VIGIL
+    <span class="dot-live"></span>
+  </div>
+  <nav class="topbar-nav" role="navigation">
+    <button class="nav-item active" onclick="showView('home')" aria-current="page">
+      <svg class="icon nav-icon" width="16" height="16"><use href="#ic-activity"/></svg>Feed
+    </button>
+    <button class="nav-item" onclick="showView('vulns')">
+      <svg class="icon nav-icon" width="16" height="16"><use href="#ic-alert-triangle"/></svg>Vulnerabilities
+    </button>
+    <button class="nav-item" onclick="showView('actors')">
+      <svg class="icon nav-icon" width="16" height="16"><use href="#ic-shield-alert"/></svg>Actors
+    </button>
+    <button class="nav-item" onclick="showView('health')">
+      <svg class="icon nav-icon" width="16" height="16"><use href="#ic-server"/></svg>Health
+    </button>
+    <button class="nav-item" onclick="showView('toolbelt')">
+      <svg class="icon nav-icon" width="16" height="16"><use href="#ic-wrench"/></svg>Toolbelt
+    </button>
+  </nav>
+  <div class="topbar-right">
+    <button class="search-chip" onclick="openPalette()" aria-label="Command palette">
+      <svg class="icon" width="14" height="14"><use href="#ic-search"/></svg>
+      <span>Search</span>
+      <kbd>Ctrl K</kbd>
+    </button>
+    <div class="theme-toggle" role="group" aria-label="Color theme">
+      <button class="theme-btn active" id="btn-n" onclick="setTheme('nightwatch')" aria-pressed="true">N</button>
+      <button class="theme-btn" id="btn-s" onclick="setTheme('signal')" aria-pressed="false">S</button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════ SHELL ═══════════ -->
+<div class="shell">
+
+<!-- ═══════════ HOME VIEW ═══════════ -->
+<div class="view active" id="view-home">
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-dotgrid" aria-hidden="true"></div>
+    <h1 class="hero-tagline">Threat intelligence, operationalized.</h1>
+    <p class="hero-sub">Paste any IOC — IP, domain, hash, URL, or CVE — for an instant verdict.</p>
+    <div class="hero-search-wrap">
+      <div class="hero-search">
+        <svg class="icon" width="20" height="20" style="color:var(--text-mute);flex-shrink:0"><use href="#ic-search"/></svg>
+        <input class="hero-search-input" id="hero-input" type="text"
+          placeholder="8.8.8.8 · evil-updates[.]example · 44d88612fea8a8f36de82e1278abb02f · CVE-2024-3094"
+          autocomplete="off" spellcheck="false"
+          oninput="detectIOCType(this.value)"
+          onkeydown="if(event.key==='Enter')doSearch(this.value)"
+          aria-label="Search for IOC or CVE"
+        />
+        <span class="type-chip" id="type-chip" style="opacity:0">IP</span>
+      </div>
+    </div>
+    <div class="ioc-chips" role="group" aria-label="IOC type filters">
+      <span class="chip chip-ghost active" onclick="filterChip(this,'all')">All</span>
+      <span class="chip chip-ghost" onclick="filterChip(this,'hash')">
+        <svg class="icon" width="12" height="12"><use href="#ic-cpu"/></svg>Hash
+      </span>
+      <span class="chip chip-ghost" onclick="filterChip(this,'ip')">
+        <svg class="icon" width="12" height="12"><use href="#ic-globe"/></svg>IP
+      </span>
+      <span class="chip chip-ghost" onclick="filterChip(this,'domain')">
+        <svg class="icon" width="12" height="12"><use href="#ic-network"/></svg>Domain
+      </span>
+      <span class="chip chip-ghost" onclick="filterChip(this,'url')">
+        <svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>URL
+      </span>
+      <span class="chip chip-ghost" onclick="filterChip(this,'cve')">
+        <svg class="icon" width="12" height="12"><use href="#ic-alert-triangle"/></svg>CVE
+      </span>
+    </div>
+    <div class="example-pills" aria-label="Example searches">
+      <button class="example-pill" onclick="doSearch('185.220.101.42')">
+        <svg class="icon" width="11" height="11"><use href="#ic-globe"/></svg>185.220.101.42
+      </button>
+      <button class="example-pill" onclick="doSearch('update-microsoft[.]com')">
+        <svg class="icon" width="11" height="11"><use href="#ic-network"/></svg>update-microsoft[.]com
+      </button>
+      <button class="example-pill" onclick="doSearch('44d88612fea8a8f36de82e1278abb02f')">
+        <svg class="icon" width="11" height="11"><use href="#ic-cpu"/></svg>44d88612fea8a8f36de82e1278abb02f
+      </button>
+      <button class="example-pill" onclick="doSearch('CVE-2024-3094')">
+        <svg class="icon" width="11" height="11"><use href="#ic-alert-triangle"/></svg>CVE-2024-3094
+      </button>
+    </div>
+    <div class="trending-strip" aria-label="Trending threats">
+      <span class="trending-label">
+        <svg class="icon" width="12" height="12" style="margin-right:3px"><use href="#ic-trending-up"/></svg>TRENDING
+      </span>
+      <div class="trending-items">
+        <span class="trending-item" onclick="doSearch('LockBit 4.0')">LockBit 4.0</span>
+        <span class="trending-sep">·</span>
+        <span class="trending-item" onclick="doSearch('CVE-2025-21298')">CVE-2025-21298</span>
+        <span class="trending-sep">·</span>
+        <span class="trending-item" onclick="doSearch('Kimsuky')">Kimsuky</span>
+        <span class="trending-sep">·</span>
+        <span class="trending-item" onclick="doSearch('DarkComet')">DarkComet RAT</span>
+        <span class="trending-sep">·</span>
+        <span class="trending-item" onclick="doSearch('185.220.101.42')">185.220.101.42</span>
+        <span class="trending-sep">·</span>
+        <span class="trending-item" onclick="doSearch('XZ backdoor')">XZ backdoor</span>
+        <span class="trending-sep">·</span>
+        <span class="trending-item" onclick="doSearch('SocGholish')">SocGholish</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOME BODY -->
+  <div class="home-body">
+    <div class="home-main">
+
+      <!-- AI Daily Brief -->
+      <div class="card brief-card" id="brief-card">
+        <div class="brief-header">
+          <svg class="icon" width="16" height="16" style="color:var(--ai)"><use href="#ic-shield"/></svg>
+          <span class="brief-title">AI Daily Brief</span>
+          <span class="chip chip-ai" style="font-size:10px">AI</span>
+          <span class="brief-meta">
+            <svg class="icon" width="12" height="12" style="margin-right:3px"><use href="#ic-clock"/></svg>
+            Generated 06:02 UTC
+          </span>
+        </div>
+        <!-- skeleton placeholder that fades to content -->
+        <div id="brief-skeleton" style="display:none">
+          <div class="skeleton" style="height:14px;width:60%;margin-bottom:8px"></div>
+          <div class="skeleton" style="height:11px;width:90%;margin-bottom:4px"></div>
+          <div class="skeleton" style="height:11px;width:75%;margin-bottom:16px"></div>
+          <div class="skeleton" style="height:14px;width:50%;margin-bottom:8px"></div>
+          <div class="skeleton" style="height:11px;width:85%"></div>
+        </div>
+        <div id="brief-content">
+          <div class="brief-story">
+            <div class="brief-story-title">LockBit 4.0 affiliate infrastructure resurfaces across Eastern Europe</div>
+            <div class="brief-story-why">Why it matters — Active C2 beaconing observed on 3 IPs flagged in ThreatFox within 18h of takedown expiry; MSSP teams should re-validate recent LockBit blocks on perimeter.</div>
+            <div class="brief-story-tags">
+              <span class="chip sev-critical">Critical</span>
+              <span class="chip chip-ghost">Ransomware</span>
+              <span class="chip chip-ghost">LockBit</span>
+            </div>
+          </div>
+          <div class="brief-story">
+            <div class="brief-story-title">CISA adds CVE-2025-21298 (Windows OLE RCE) to KEV; patch by 2025-02-04</div>
+            <div class="brief-story-why">Why it matters — EPSS 0.94, public PoC circulating on GitHub. Affects all unpatched Windows Server 2016–2022 and Win10/11. Zero-click via malicious RTF in email.</div>
+            <div class="brief-story-tags">
+              <span class="chip sev-critical">Critical</span>
+              <span class="chip chip-ghost">CVE</span>
+              <span class="chip chip-ghost">KEV</span>
+            </div>
+          </div>
+          <div class="brief-story">
+            <div class="brief-story-title">Kimsuky resumes spear-phishing against defense research orgs</div>
+            <div class="brief-story-why">Why it matters — Unit 42 report documents fresh TTPs: CHM-based dropper delivered via LinkedIn InMail. New C2 domain pattern observed; IOCs added to collection.</div>
+            <div class="brief-story-tags">
+              <span class="chip sev-high">High</span>
+              <span class="chip chip-ghost">APT</span>
+              <span class="chip chip-ghost">Kimsuky</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Latest Intel feed (condensed) -->
+      <div class="card intel-card">
+        <div class="intel-card-header">
+          <svg class="icon" width="16" height="16" style="color:var(--accent)"><use href="#ic-activity"/></svg>
+          <span class="label text-body">Latest Intel</span>
+          <button class="btn btn-ghost" style="margin-left:auto;padding:4px 10px;font-size:12px" onclick="showView('feed')">View all</button>
+        </div>
+        <div id="home-feed">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+    </div><!-- /home-main -->
+
+    <div class="home-side">
+
+      <!-- KPI: New IOCs -->
+      <div class="card kpi-card stagger-item">
+        <span class="kpi-label">New IOCs (24h)</span>
+        <div class="kpi-row">
+          <span class="kpi-value tnum" id="kpi-ioc">0</span>
+          <span class="kpi-delta up">+12%</span>
+          <svg style="margin-left:auto" width="80" height="32" viewBox="0 0 80 32" fill="none">
+            <defs>
+              <linearGradient id="sg1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0 28 L10 22 L20 24 L30 18 L40 20 L50 12 L60 15 L70 8 L80 4" stroke="var(--accent)" stroke-width="1.5" fill="none"/>
+            <path d="M0 28 L10 22 L20 24 L30 18 L40 20 L50 12 L60 15 L70 8 L80 4 L80 32 L0 32Z" fill="url(#sg1)"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- KPI: KEV CVEs -->
+      <div class="card kpi-card stagger-item">
+        <span class="kpi-label">KEV CVEs Active</span>
+        <div class="kpi-row">
+          <span class="kpi-value tnum" id="kpi-kev">0</span>
+          <span class="kpi-delta up">+3 this week</span>
+          <svg style="margin-left:auto" width="80" height="32" viewBox="0 0 80 32" fill="none">
+            <defs>
+              <linearGradient id="sg2" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--sev-critical)" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="var(--sev-critical)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0 20 L10 18 L20 22 L30 14 L40 16 L50 10 L60 12 L70 6 L80 8" stroke="var(--sev-critical)" stroke-width="1.5" fill="none"/>
+            <path d="M0 20 L10 18 L20 22 L30 14 L40 16 L50 10 L60 12 L70 6 L80 8 L80 32 L0 32Z" fill="url(#sg2)"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- KEV Top 5 -->
+      <div class="card kev-mini">
+        <div class="intel-card-header">
+          <svg class="icon" width="16" height="16" style="color:var(--sev-critical)"><use href="#ic-alert-triangle"/></svg>
+          <span class="label text-body">Top KEV + EPSS</span>
+        </div>
+        <div class="kev-row stagger-item" onclick="showView('vulns')">
+          <span class="kev-id">CVE-2025-21298</span>
+          <span class="chip sev-critical" style="font-size:10px">CRITICAL</span>
+          <span class="kev-epss" style="color:var(--sev-critical)">0.94</span>
+        </div>
+        <div class="kev-row stagger-item" onclick="showView('vulns')">
+          <span class="kev-id">CVE-2024-47575</span>
+          <span class="chip sev-critical" style="font-size:10px">CRITICAL</span>
+          <span class="kev-epss" style="color:var(--sev-critical)">0.97</span>
+        </div>
+        <div class="kev-row stagger-item" onclick="showView('vulns')">
+          <span class="kev-id">CVE-2024-3094</span>
+          <span class="chip sev-critical" style="font-size:10px">CRITICAL</span>
+          <span class="kev-epss" style="color:var(--sev-high)">0.88</span>
+        </div>
+        <div class="kev-row stagger-item" onclick="showView('vulns')">
+          <span class="kev-id">CVE-2024-21413</span>
+          <span class="chip sev-high" style="font-size:10px">HIGH</span>
+          <span class="kev-epss" style="color:var(--sev-high)">0.79</span>
+        </div>
+        <div class="kev-row stagger-item" onclick="showView('vulns')">
+          <span class="kev-id">CVE-2024-49138</span>
+          <span class="chip sev-high" style="font-size:10px">HIGH</span>
+          <span class="kev-epss" style="color:var(--sev-medium)">0.61</span>
+        </div>
+      </div>
+
+      <!-- Collection Health mini -->
+      <div class="card health-mini">
+        <div class="intel-card-header" style="padding:0 0 10px">
+          <svg class="icon" width="16" height="16" style="color:var(--sev-low)"><use href="#ic-server"/></svg>
+          <span class="label text-body">Collection Health</span>
+          <button class="btn-icon" onclick="showView('health')" aria-label="Full health view" style="margin-left:auto">
+            <svg class="icon" width="14" height="14"><use href="#ic-chevron-right"/></svg>
+          </button>
+        </div>
+        <div class="health-row"><span class="health-dot live"></span><span class="health-name">CISA KEV</span><span class="health-pct">100%</span></div>
+        <div class="health-row"><span class="health-dot live"></span><span class="health-name">ThreatFox</span><span class="health-pct">100%</span></div>
+        <div class="health-row"><span class="health-dot live"></span><span class="health-name">URLhaus</span><span class="health-pct">100%</span></div>
+        <div class="health-row"><span class="health-dot live"></span><span class="health-name">MalwareBazaar</span><span class="health-pct">98%</span></div>
+        <div class="health-row"><span class="health-dot degraded"></span><span class="health-name">FIRST EPSS</span><span class="health-pct" style="color:var(--sev-medium)">71%</span></div>
+        <div class="health-row"><span class="health-dot live"></span><span class="health-name">NVD</span><span class="health-pct">99%</span></div>
+        <div class="health-row"><span class="health-dot live"></span><span class="health-name">Ransomware.live</span><span class="health-pct">100%</span></div>
+        <div class="health-row"><span class="health-dot live"></span><span class="health-name">MITRE ATT&amp;CK</span><span class="health-pct">100%</span></div>
+        <div class="health-row"><span class="health-dot live"></span><span class="health-name">RSS Pool</span><span class="health-pct">96%</span></div>
+      </div>
+
+    </div><!-- /home-side -->
+  </div><!-- /home-body -->
+</div><!-- /view-home -->
+
+<!-- ═══════════ REPORT VIEW ═══════════ -->
+<div class="view" id="view-report">
+  <div class="report-wrap">
+
+    <!-- Verdict banner — MALICIOUS -->
+    <div class="verdict-banner card verdict-malicious" id="report-banner" style="background:var(--bg-card)">
+      <div class="verdict-score">
+        <div class="score-ring" id="score-ring">
+          <span class="score-num tnum" id="score-num">87</span>
+        </div>
+        <span class="label" style="color:var(--text-mute);font-size:10px">SCORE</span>
+      </div>
+      <div class="verdict-meta">
+        <div class="verdict-word malicious" id="verdict-word">MALICIOUS</div>
+        <div class="verdict-ioc" id="verdict-ioc">185.220.101.42</div>
+        <div class="verdict-tags" id="verdict-tags">
+          <span class="chip sev-critical">Cobalt Strike C2</span>
+          <span class="chip sev-high">Tor Exit Node</span>
+          <span class="chip chip-ghost">AS3209 Vodafone DE</span>
+          <span class="chip chip-ghost">DE / Frankfurt</span>
+        </div>
+        <div class="verdict-summary" id="verdict-summary">
+          Known Cobalt Strike C2 exit node used in multiple ransomware campaigns; flagged by ThreatFox (high confidence), URLhaus, and Ransomware.live within the past 14 days.
+        </div>
+        <div class="verdict-pivots">
+          <span class="label" style="color:var(--text-mute);font-size:10px;margin-right:4px;align-self:center">PIVOT TO</span>
+          <a class="pivot-chip" href="https://www.virustotal.com/gui/ip-address/185.220.101.42" target="_blank" rel="noopener">
+            <svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>VirusTotal
+          </a>
+          <a class="pivot-chip" href="https://urlscan.io/search/#ip%3A185.220.101.42" target="_blank" rel="noopener">
+            <svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>urlscan
+          </a>
+          <a class="pivot-chip" href="https://app.any.run/tasks/" target="_blank" rel="noopener">
+            <svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>ANY.RUN
+          </a>
+          <a class="pivot-chip" href="https://tria.ge/" target="_blank" rel="noopener">
+            <svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>Tria.ge
+          </a>
+          <a class="pivot-chip" href="https://search.censys.io/hosts/185.220.101.42" target="_blank" rel="noopener">
+            <svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>Censys
+          </a>
+          <a class="pivot-chip" href="https://www.shodan.io/host/185.220.101.42" target="_blank" rel="noopener">
+            <svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>Shodan
+          </a>
+        </div>
+      </div>
+    </div><!-- /verdict-banner -->
+
+    <!-- Section tabs -->
+    <div class="section-tabs" id="section-tabs" role="tablist">
+      <button class="tab-btn active" role="tab" aria-selected="true" onclick="switchTab('overview',this)">Overview</button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('network',this)">Network &amp; IOCs</button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('ttps',this)">TTPs</button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('related',this)">Related</button>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px;padding-right:4px">
+        <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" onclick="showView('home')">
+          <svg class="icon" width="12" height="12"><use href="#ic-x"/></svg>Close
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB: Overview -->
+    <div class="tab-panel active" id="tab-overview">
+      <div class="section-head">
+        <svg class="icon" width="14" height="14" style="color:var(--accent)"><use href="#ic-eye"/></svg>
+        <span class="section-title">Source Intelligence</span>
+      </div>
+      <table class="evidence-table">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>First Seen</th>
+            <th>Last Seen</th>
+            <th>Confidence</th>
+            <th>Tags</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="chip chip-accent" style="font-size:11px">ThreatFox</span></td>
+            <td class="mono">2025-01-08 04:21 UTC</td>
+            <td class="mono">2025-01-27 09:14 UTC</td>
+            <td><span class="chip sev-critical">High</span></td>
+            <td><span class="entity-chip">cobalt_strike</span><span class="entity-chip">c2</span></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-accent" style="font-size:11px">URLhaus</span></td>
+            <td class="mono">2025-01-12 17:44 UTC</td>
+            <td class="mono">2025-01-26 22:07 UTC</td>
+            <td><span class="chip sev-high">Medium-High</span></td>
+            <td><span class="entity-chip">malware_download</span></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-accent" style="font-size:11px">Ransomware.live</span></td>
+            <td class="mono">2025-01-15 00:00 UTC</td>
+            <td class="mono">2025-01-24 18:30 UTC</td>
+            <td><span class="chip sev-medium">Medium</span></td>
+            <td><span class="entity-chip">lockbit</span><span class="entity-chip">victim_disclosure</span></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-accent" style="font-size:11px">MalwareBazaar</span></td>
+            <td class="mono">2025-01-19 11:02 UTC</td>
+            <td class="mono">2025-01-19 11:02 UTC</td>
+            <td><span class="chip sev-medium">Medium</span></td>
+            <td><span class="entity-chip">dropper</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-head">
+        <svg class="icon" width="14" height="14" style="color:var(--accent)"><use href="#ic-globe"/></svg>
+        <span class="section-title">Passive DNS / Reverse</span>
+      </div>
+      <table class="evidence-table">
+        <thead><tr><th>Hostname</th><th>First Seen</th><th>PTR</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="ioc-cell">
+                <span class="mono" style="color:var(--text-hi)">tor-exit-185-220-101-42[.]relaix[.]net</span>
+                <button class="copy-btn" onclick="copyText('tor-exit-185-220-101-42.relaix.net')" aria-label="Copy defanged">
+                  <svg class="icon" width="13" height="13"><use href="#ic-copy"/></svg>
+                </button>
+              </div>
+            </td>
+            <td class="mono">2024-11-03</td>
+            <td class="mono">185.220.101.42.in-addr.arpa</td>
+          </tr>
+          <tr>
+            <td>
+              <div class="ioc-cell">
+                <span class="mono" style="color:var(--text-hi)">exit42[.]tor-infrastructure[.]net</span>
+                <button class="copy-btn" onclick="copyText('exit42.tor-infrastructure.net')" aria-label="Copy defanged">
+                  <svg class="icon" width="13" height="13"><use href="#ic-copy"/></svg>
+                </button>
+              </div>
+            </td>
+            <td class="mono">2025-01-04</td>
+            <td class="mono">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div><!-- /tab-overview -->
+
+    <!-- TAB: Network & IOCs -->
+    <div class="tab-panel" id="tab-network">
+      <div class="section-head">
+        <svg class="icon" width="14" height="14" style="color:var(--accent)"><use href="#ic-network"/></svg>
+        <span class="section-title">Open Ports &amp; Services</span>
+      </div>
+      <table class="evidence-table">
+        <thead><tr><th>Port</th><th>Protocol</th><th>Banner</th><th>Flagged</th></tr></thead>
+        <tbody>
+          <tr><td class="mono tnum" style="color:var(--text-hi)">443</td><td class="mono">HTTPS</td><td class="mono" style="color:var(--text-mute)">Cobalt Strike default TLS profile</td><td><span class="chip sev-critical">Yes</span></td></tr>
+          <tr><td class="mono tnum" style="color:var(--text-hi)">80</td><td class="mono">HTTP</td><td class="mono" style="color:var(--text-mute)">nginx/1.18.0</td><td><span class="chip sev-info">No</span></td></tr>
+          <tr><td class="mono tnum" style="color:var(--text-hi)">9001</td><td class="mono">Tor OR</td><td class="mono" style="color:var(--text-mute)">Tor OR port (confirmed exit)</td><td><span class="chip sev-high">Yes</span></td></tr>
+          <tr><td class="mono tnum" style="color:var(--text-hi)">50050</td><td class="mono">TCP</td><td class="mono" style="color:var(--text-mute)">Cobalt Strike team server (default)</td><td><span class="chip sev-critical">Yes</span></td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-head">
+        <svg class="icon" width="14" height="14" style="color:var(--accent)"><use href="#ic-cpu"/></svg>
+        <span class="section-title">Associated IOCs</span>
+      </div>
+      <table class="evidence-table">
+        <thead><tr><th>Type</th><th>Value</th><th>Attribution</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="chip sev-info" style="font-size:10px">SHA256</span></td>
+            <td>
+              <div class="ioc-cell">
+                <span class="mono" style="color:var(--text-hi);font-size:11px">44d88612fea8a8f36de82e1278abb02f834ccd8be2f7191a</span>
+                <button class="copy-btn" onclick="copyText('44d88612fea8a8f36de82e1278abb02f834ccd8be2f7191a')" aria-label="Copy hash">
+                  <svg class="icon" width="13" height="13"><use href="#ic-copy"/></svg>
+                </button>
+              </div>
+            </td>
+            <td><span class="entity-chip">CobaltStrike.beacon</span></td>
+            <td class="mono" style="font-size:11px">MalwareBazaar</td>
+          </tr>
+          <tr>
+            <td><span class="chip sev-high" style="font-size:10px">Domain</span></td>
+            <td>
+              <div class="ioc-cell">
+                <span class="mono" style="color:var(--text-hi)">cdn-update[.]microsoftservices[.]io</span>
+                <button class="copy-btn" onclick="copyText('cdn-update.microsoftservices.io')" aria-label="Copy defanged">
+                  <svg class="icon" width="13" height="13"><use href="#ic-copy"/></svg>
+                </button>
+              </div>
+            </td>
+            <td><span class="entity-chip">c2_domain</span></td>
+            <td class="mono" style="font-size:11px">ThreatFox</td>
+          </tr>
+          <tr>
+            <td><span class="chip sev-medium" style="font-size:10px">URL</span></td>
+            <td>
+              <div class="ioc-cell">
+                <span class="mono" style="color:var(--text-hi);font-size:11px">hxxps://185.220.101[.]42/wp-content/plugins/beacon.dll</span>
+                <button class="copy-btn" onclick="copyText('https://185.220.101.42/wp-content/plugins/beacon.dll')" aria-label="Copy URL">
+                  <svg class="icon" width="13" height="13"><use href="#ic-copy"/></svg>
+                </button>
+              </div>
+            </td>
+            <td><span class="entity-chip">payload_url</span></td>
+            <td class="mono" style="font-size:11px">URLhaus</td>
+          </tr>
+        </tbody>
+      </table>
+    </div><!-- /tab-network -->
+
+    <!-- TAB: TTPs -->
+    <div class="tab-panel" id="tab-ttps">
+      <div class="section-head">
+        <svg class="icon" width="14" height="14" style="color:var(--accent)"><use href="#ic-shield-alert"/></svg>
+        <span class="section-title">MITRE ATT&amp;CK Techniques</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:24px">
+        <span class="mitre-chip"><span style="color:var(--accent);font-weight:600">T1071.001</span>&nbsp;Web Protocols C2</span>
+        <span class="mitre-chip"><span style="color:var(--accent);font-weight:600">T1027</span>&nbsp;Obfuscated Files</span>
+        <span class="mitre-chip"><span style="color:var(--accent);font-weight:600">T1548.002</span>&nbsp;Bypass UAC</span>
+        <span class="mitre-chip"><span style="color:var(--accent);font-weight:600">T1059.003</span>&nbsp;Windows Cmd Shell</span>
+        <span class="mitre-chip"><span style="color:var(--accent);font-weight:600">T1105</span>&nbsp;Ingress Tool Transfer</span>
+        <span class="mitre-chip"><span style="color:var(--accent);font-weight:600">T1082</span>&nbsp;System Info Discovery</span>
+        <span class="mitre-chip"><span style="color:var(--accent);font-weight:600">T1055</span>&nbsp;Process Injection</span>
+        <span class="mitre-chip"><span style="color:var(--accent);font-weight:600">T1486</span>&nbsp;Data Encrypted for Impact</span>
+      </div>
+
+      <div class="section-head">
+        <svg class="icon" width="14" height="14" style="color:var(--accent)"><use href="#ic-shield"/></svg>
+        <span class="section-title">Associated Actor</span>
+      </div>
+      <div class="card" style="padding:16px;display:flex;align-items:center;gap:16px;margin-bottom:24px">
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:600;color:var(--text-hi);margin-bottom:4px">LockBit (group)</div>
+          <div style="font-size:12px;color:var(--text-mute);margin-bottom:8px">aka GOLD MYSTIC, Bitwise Spider — RaaS operator, active since 2019</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span class="chip chip-ghost">Ransomware</span>
+            <span class="chip chip-ghost">RaaS</span>
+            <span class="chip chip-ghost">eCrime</span>
+          </div>
+        </div>
+        <button class="btn btn-ghost" onclick="showView('actors')" style="white-space:nowrap">
+          <svg class="icon" width="14" height="14"><use href="#ic-chevron-right"/></svg>Profile
+        </button>
+      </div>
+    </div><!-- /tab-ttps -->
+
+    <!-- TAB: Related -->
+    <div class="tab-panel" id="tab-related">
+      <div class="section-head">
+        <svg class="icon" width="14" height="14" style="color:var(--accent)"><use href="#ic-activity"/></svg>
+        <span class="section-title">Related Feed Items</span>
+      </div>
+      <div id="related-feed-list">
+        <!-- rendered by JS -->
+      </div>
+    </div><!-- /tab-related -->
+
+  </div><!-- /report-wrap -->
+</div><!-- /view-report -->
+
+<!-- ═══════════ UNKNOWN REPORT STATE ═══════════ -->
+<div class="view" id="view-unknown">
+  <div class="report-wrap">
+    <div class="verdict-banner card verdict-unknown" style="background:var(--bg-card)">
+      <div class="verdict-score">
+        <div class="score-ring unknown">
+          <span class="score-num tnum">—</span>
+        </div>
+        <span class="label" style="color:var(--text-mute);font-size:10px">SCORE</span>
+      </div>
+      <div class="verdict-meta">
+        <div class="verdict-word unknown">UNKNOWN</div>
+        <div class="verdict-ioc" id="unknown-ioc">update-microsoft[.]com</div>
+        <div class="verdict-tags">
+          <span class="chip sev-unknown">Not in Collection</span>
+        </div>
+        <div class="verdict-summary">
+          This indicator was not found in any active collection source. It may be clean, too new, or not yet cataloged. Use the pivot tools below to investigate externally.
+        </div>
+        <div class="verdict-pivots" style="margin-top:16px">
+          <span class="label" style="color:var(--text-mute);font-size:10px;margin-right:4px;align-self:center">PIVOT TO</span>
+          <a class="pivot-chip" href="#" target="_blank" rel="noopener"><svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>VirusTotal</a>
+          <a class="pivot-chip" href="#" target="_blank" rel="noopener"><svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>urlscan</a>
+          <a class="pivot-chip" href="#" target="_blank" rel="noopener"><svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>ANY.RUN</a>
+          <a class="pivot-chip" href="#" target="_blank" rel="noopener"><svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>Tria.ge</a>
+          <a class="pivot-chip" href="#" target="_blank" rel="noopener"><svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>Censys</a>
+          <a class="pivot-chip" href="#" target="_blank" rel="noopener"><svg class="icon" width="12" height="12"><use href="#ic-external-link"/></svg>Shodan</a>
+        </div>
+      </div>
+    </div>
+    <div class="section-head" style="margin-top:16px">
+      <span class="section-title">Sources Checked (0 hits)</span>
+    </div>
+    <table class="evidence-table">
+      <thead><tr><th>Source</th><th>Status</th><th>Last Checked</th></tr></thead>
+      <tbody>
+        <tr><td>ThreatFox</td><td><span class="chip sev-unknown">No match</span></td><td class="mono">Just now</td></tr>
+        <tr><td>URLhaus</td><td><span class="chip sev-unknown">No match</span></td><td class="mono">Just now</td></tr>
+        <tr><td>MalwareBazaar</td><td><span class="chip sev-unknown">No match</span></td><td class="mono">Just now</td></tr>
+        <tr><td>CISA KEV</td><td><span class="chip sev-unknown">No match</span></td><td class="mono">Just now</td></tr>
+        <tr><td>Ransomware.live</td><td><span class="chip sev-unknown">No match</span></td><td class="mono">Just now</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:16px">
+      <button class="btn btn-ghost" onclick="showView('home')">
+        <svg class="icon" width="14" height="14"><use href="#ic-x"/></svg>Back to Home
+      </button>
+    </div>
+  </div>
+</div><!-- /view-unknown -->
+
+<!-- ═══════════ FEED VIEW ═══════════ -->
+<div class="view" id="view-feed">
+  <div class="page-header">
+    <svg class="icon" width="20" height="20" style="color:var(--accent)"><use href="#ic-activity"/></svg>
+    <span class="page-title">Threat Feed</span>
+    <span class="page-sub"><svg class="icon" width="12" height="12" style="margin-right:4px"><use href="#ic-clock"/></svg>Updated 2 min ago</span>
+  </div>
+  <div class="feed-wrap">
+    <div class="filter-bar" role="group" aria-label="Feed filters">
+      <svg class="icon" width="14" height="14" style="color:var(--text-mute)"><use href="#ic-filter"/></svg>
+      <span class="chip chip-ghost active" onclick="feedFilter(this,'all')">All</span>
+      <span class="chip chip-ghost" onclick="feedFilter(this,'ransomware')">Ransomware</span>
+      <span class="chip chip-ghost" onclick="feedFilter(this,'vulnerability')">Vulnerability</span>
+      <span class="chip chip-ghost" onclick="feedFilter(this,'malware')">Malware</span>
+      <span class="chip chip-ghost" onclick="feedFilter(this,'apt')">APT</span>
+      <span class="chip chip-ghost" onclick="feedFilter(this,'campaign')">Campaign</span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <span class="chip sev-critical">Critical</span>
+        <span class="chip sev-high">High</span>
+        <span class="chip sev-medium">Medium</span>
+        <span class="chip sev-low">Low</span>
+      </div>
+    </div>
+    <table class="feed-table">
+      <thead>
+        <tr>
+          <th style="width:3px;padding:0"></th>
+          <th style="width:80px">Severity</th>
+          <th>Title</th>
+          <th style="width:120px">Category</th>
+          <th style="width:120px">Source</th>
+          <th style="width:110px;text-align:right;font-feature-settings:'tnum' 1">Published</th>
+          <th style="width:80px"></th>
+        </tr>
+      </thead>
+      <tbody id="feed-tbody">
+        <!-- rendered by JS -->
+      </tbody>
+    </table>
+  </div>
+</div><!-- /view-feed -->
+
+<!-- ═══════════ VULNS VIEW ═══════════ -->
+<div class="view" id="view-vulns">
+  <div class="page-header">
+    <svg class="icon" width="20" height="20" style="color:var(--sev-critical)"><use href="#ic-alert-triangle"/></svg>
+    <span class="page-title">Vulnerability Triage</span>
+    <span class="page-sub">KEV + EPSS risk-sorted · 180-day window</span>
+  </div>
+  <div class="vulns-wrap">
+    <div class="filter-bar" style="margin-bottom:16px">
+      <span class="chip chip-ghost active" onclick="vulnFilter(this,'all')">All</span>
+      <span class="chip chip-ghost" onclick="vulnFilter(this,'kev')">KEV Only</span>
+      <span class="chip chip-ghost" onclick="vulnFilter(this,'critical')">Critical</span>
+      <span class="chip chip-ghost" onclick="vulnFilter(this,'high')">High</span>
+    </div>
+    <table class="vuln-table">
+      <thead>
+        <tr>
+          <th>CVE ID</th>
+          <th>Description</th>
+          <th>KEV</th>
+          <th>CVSS</th>
+          <th class="r">EPSS</th>
+          <th>Severity</th>
+          <th>Vendor / Product</th>
+          <th style="text-align:right">Published</th>
+        </tr>
+      </thead>
+      <tbody id="vuln-tbody">
+        <!-- rendered by JS -->
+      </tbody>
+    </table>
+  </div>
+</div><!-- /view-vulns -->
+
+<!-- ═══════════ HEALTH VIEW ═══════════ -->
+<div class="view" id="view-health">
+  <div class="page-header">
+    <svg class="icon" width="20" height="20" style="color:var(--sev-low)"><use href="#ic-server"/></svg>
+    <span class="page-title">Collection Health</span>
+    <span class="page-sub">90-day segment view · 1 source degraded</span>
+  </div>
+  <div class="health-wrap">
+    <div id="health-sources-list">
+      <!-- rendered by JS -->
+    </div>
+  </div>
+</div><!-- /view-health -->
+
+<!-- ═══════════ TOOLBELT VIEW ═══════════ -->
+<div class="view" id="view-toolbelt">
+  <div class="page-header">
+    <svg class="icon" width="20" height="20" style="color:var(--accent)"><use href="#ic-wrench"/></svg>
+    <span class="page-title">Analyst Toolbelt</span>
+    <span class="page-sub">Client-side utilities — nothing leaves the browser</span>
+  </div>
+  <div class="toolbelt-wrap">
+    <div>
+      <!-- Defang / Refang -->
+      <div class="tool-card">
+        <div>
+          <div class="tool-label">Defang / Refang</div>
+          <div style="font-size:12px;color:var(--text-mute)">Converts IPs, domains, and URLs to/from safe notation</div>
+        </div>
+        <textarea class="tool-textarea" id="defang-input" placeholder="Paste IPs, domains, or URLs — one per line&#10;185.220.101.42&#10;https://evil-updates.example/payload.exe" oninput="runDefang(this.value)"></textarea>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="runDefang(document.getElementById('defang-input').value)">Defang</button>
+          <button class="btn btn-ghost" onclick="runRefang(document.getElementById('defang-output').value)">Refang</button>
+          <button class="btn btn-ghost" style="margin-left:auto" onclick="copyText(document.getElementById('defang-output').value)">
+            <svg class="icon" width="14" height="14"><use href="#ic-copy"/></svg>Copy
+          </button>
+        </div>
+        <textarea class="tool-textarea" id="defang-output" placeholder="Output appears here…" readonly style="min-height:64px"></textarea>
+      </div>
+      <!-- Base64 -->
+      <div class="tool-card">
+        <div>
+          <div class="tool-label">Base64 Decode</div>
+          <div style="font-size:12px;color:var(--text-mute)">UTF-8 and UTF-16LE aware decode</div>
+        </div>
+        <textarea class="tool-textarea" id="b64-input" placeholder="Paste Base64-encoded string…" oninput="runB64(this.value)"></textarea>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="runB64(document.getElementById('b64-input').value)">Decode</button>
+          <button class="btn btn-ghost" style="margin-left:auto" onclick="copyText(document.getElementById('b64-output').value)">
+            <svg class="icon" width="14" height="14"><use href="#ic-copy"/></svg>Copy
+          </button>
+        </div>
+        <textarea class="tool-textarea" id="b64-output" placeholder="Decoded output…" readonly style="min-height:64px"></textarea>
+      </div>
+      <!-- IOC Extraction -->
+      <div class="tool-card">
+        <div>
+          <div class="tool-label">IOC Extract</div>
+          <div style="font-size:12px;color:var(--text-mute)">Extracts IPs, domains, hashes, and CVEs from pasted text</div>
+        </div>
+        <textarea class="tool-textarea" id="extract-input" placeholder="Paste any text — email body, log excerpt, report…"></textarea>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="runExtract(document.getElementById('extract-input').value)">Extract IOCs</button>
+          <button class="btn btn-ghost" style="margin-left:auto" onclick="copyText(document.getElementById('extract-output').value)">
+            <svg class="icon" width="14" height="14"><use href="#ic-copy"/></svg>Copy
+          </button>
+        </div>
+        <textarea class="tool-textarea" id="extract-output" placeholder="Extracted IOCs appear here…" readonly style="min-height:64px"></textarea>
+      </div>
+    </div>
+    <!-- LOLBin sidebar -->
+    <div>
+      <div class="card" style="padding:16px">
+        <div class="intel-card-header" style="padding:0 0 12px;margin-bottom:4px">
+          <svg class="icon" width="16" height="16" style="color:var(--sev-high)"><use href="#ic-terminal"/></svg>
+          <span class="label text-body">LOLBin Quick Ref</span>
+        </div>
+        <input type="text" class="tool-textarea" id="lolbin-search" style="min-height:auto;height:36px;margin-bottom:8px"
+          placeholder="Filter…" oninput="filterLolbin(this.value)">
+        <ul class="lolbin-list" id="lolbin-list">
+          <!-- rendered by JS -->
+        </ul>
+      </div>
+    </div>
+  </div>
+</div><!-- /view-toolbelt -->
+
+<!-- ═══════════ ACTORS VIEW ═══════════ -->
+<div class="view" id="view-actors">
+  <div class="page-header">
+    <svg class="icon" width="20" height="20" style="color:var(--sev-high)"><use href="#ic-shield-alert"/></svg>
+    <span class="page-title">Threat Actors</span>
+    <span class="page-sub">ATT&amp;CK-derived profiles · 24 groups</span>
+  </div>
+  <div class="actors-wrap">
+    <div class="actors-grid" id="actors-grid">
+      <!-- rendered by JS -->
+    </div>
+  </div>
+</div><!-- /view-actors -->
+
+<!-- ═══════════ FEED DRAWER ═══════════ -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<aside class="drawer" id="feed-drawer" role="dialog" aria-modal="true" aria-label="Feed item detail">
+  <div class="drawer-header">
+    <div style="flex:1;min-width:0">
+      <div id="drawer-sev" style="margin-bottom:4px"></div>
+      <div id="drawer-title" style="font-size:14px;font-weight:600;color:var(--text-hi);line-height:1.4"></div>
+      <div id="drawer-meta" style="font-size:12px;color:var(--text-mute);margin-top:4px"></div>
+    </div>
+    <button class="btn-icon drawer-close" onclick="closeDrawer()" aria-label="Close drawer">
+      <svg class="icon" width="16" height="16"><use href="#ic-x"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <div id="drawer-summary" style="font-size:13px;color:var(--text-body);line-height:1.6;margin-bottom:16px"></div>
+    <div class="section-head"><span class="section-title">Entities</span></div>
+    <div id="drawer-entities" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px"></div>
+    <div class="section-head"><span class="section-title">IOCs</span></div>
+    <div id="drawer-iocs" style="display:flex;flex-direction:column;gap:6px"></div>
+  </div>
+  <div class="drawer-actions">
+    <button class="btn btn-primary" id="drawer-copy-defanged" onclick="copyDrawerDefanged()">
+      <svg class="icon" width="14" height="14"><use href="#ic-copy"/></svg>Copy defanged
+    </button>
+    <button class="btn btn-ghost" id="drawer-copy-blurb" onclick="copyDrawerBlurb()">
+      <svg class="icon" width="14" height="14"><use href="#ic-copy"/></svg>Copy blurb
+    </button>
+    <button class="btn btn-ghost" style="margin-left:auto" onclick="closeDrawer()">
+      <svg class="icon" width="14" height="14"><use href="#ic-x"/></svg>Close
+    </button>
+  </div>
+</aside>
+
+<!-- ═══════════ COMMAND PALETTE ═══════════ -->
+<div class="palette-overlay" id="palette-overlay" onclick="closePaletteOnOverlay(event)" role="dialog" aria-modal="true" aria-label="Command palette">
+  <div class="palette" id="palette">
+    <div class="palette-search">
+      <svg class="icon" width="16" height="16" style="color:var(--text-mute)"><use href="#ic-search"/></svg>
+      <input class="palette-input" id="palette-input" type="text" placeholder="Go to… or search IOC" autocomplete="off"
+        oninput="filterPalette(this.value)"
+        onkeydown="palettKeydown(event)"
+        aria-label="Command palette search"
+      />
+      <kbd>Esc</kbd>
+    </div>
+    <div id="palette-list" style="max-height:320px;overflow-y:auto;padding:6px">
+      <!-- rendered by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- VERSION TAG -->
+<div class="version-tag">V2 — HUB</div>
+
+</div><!-- /shell -->
+
+<script>
+/* ================================================================
+   DATA
+   ================================================================ */
+const FEED = [
+  {id:'f1',sev:'critical',cat:'ransomware',title:'LockBit 4.0 affiliate infrastructure resurfaces — 3 new C2 IPs confirmed in Frankfurt',source:'ThreatFox',published:'2025-01-27T09:14Z',entities:{actors:['LockBit'],malware:['Cobalt Strike'],cves:[]},iocs:[{type:'ip',v:'185[.]220[.]101[.]42'},{type:'domain',v:'cdn-update[.]microsoftservices[.]io'}],summary:'Three IPs previously attributed to LockBit infrastructure resumed beaconing within 18 hours of the January 2025 NCA takedown expiry window. MSSP analysts should re-verify perimeter blocks.'},
+  {id:'f2',sev:'critical',cat:'vulnerability',title:'CISA adds CVE-2025-21298 Windows OLE RCE to KEV — patch deadline 2025-02-04',source:'CISA KEV',published:'2025-01-27T06:00Z',entities:{actors:[],malware:[],cves:['CVE-2025-21298']},iocs:[],summary:'Zero-click RCE via malicious RTF in Outlook. EPSS 0.94 with a public PoC circulating on GitHub. Affects all unpatched Windows Server 2016-2022.'},
+  {id:'f3',sev:'high',cat:'apt',title:'Kimsuky resumes spear-phishing via LinkedIn InMail — CHM dropper documented',source:'RSS Pool',published:'2025-01-27T04:30Z',entities:{actors:['Kimsuky'],malware:['CHM Dropper'],cves:[]},iocs:[{type:'domain',v:'research-portal[.]nk-papers[.]org'}],summary:'Unit 42 documents fresh Kimsuky TTPs using LinkedIn InMail lures targeting defense research contacts. CHM payload drops a Golang backdoor calling back to a new C2 cluster.'},
+  {id:'f4',sev:'high',cat:'malware',title:'SocGholish campaign deploys NetSupport RAT via fake browser update pages',source:'URLhaus',published:'2025-01-26T22:44Z',entities:{actors:[],malware:['SocGholish','NetSupport RAT'],cves:[]},iocs:[{type:'url',v:'hxxps://fake-chrome-update[.]com/update[.]js'}],summary:'Ongoing SocGholish wave uses compromised WordPress sites to serve fake Chromium update overlays, deploying NetSupport RAT for initial access broker staging.'},
+  {id:'f5',sev:'high',cat:'vulnerability',title:'CVE-2024-47575 Fortinet FortiManager auth bypass exploited in wild',source:'CISA KEV',published:'2025-01-26T18:00Z',entities:{actors:[],malware:[],cves:['CVE-2024-47575']},iocs:[],summary:'Fortinet confirms active exploitation of the missing authentication flaw in FortiManager. EPSS 0.97. Patch immediately; no known mitigations short of patching.'},
+  {id:'f6',sev:'high',cat:'ransomware',title:'BlackSuit ransomware claims 7 new victims in manufacturing sector this week',source:'Ransomware.live',published:'2025-01-26T14:10Z',entities:{actors:['BlackSuit'],malware:['BlackSuit'],cves:[]},iocs:[],summary:'BlackSuit (Royal successor) posted 7 manufacturing victims on their leak site within 5 days, suggesting active intrusion campaigns. Average dwell time estimated at 9 days.'},
+  {id:'f7',sev:'medium',cat:'malware',title:'DarkComet RAT builder leaked — expect uptick in commodity campaigns',source:'MalwareBazaar',published:'2025-01-26T11:22Z',entities:{actors:[],malware:['DarkComet'],cves:[]},iocs:[{type:'sha256',v:'a3f8b2c...'}],summary:'A full DarkComet RAT builder package leaked on underground forums. Expect commodity threat actors to repurpose the C2 infrastructure defaults in phishing campaigns.'},
+  {id:'f8',sev:'medium',cat:'campaign',title:'AMOS Stealer targets macOS users via fake Homebrew package mirrors',source:'RSS Pool',published:'2025-01-26T09:55Z',entities:{actors:[],malware:['AMOS Stealer'],cves:[]},iocs:[{type:'domain',v:'homebrew-pkg[.]mirror[.]io'}],summary:'Atomic Stealer (AMOS) variant distributed via typosquatted Homebrew mirrors. Targets developer credential stores and browser-stored secrets.'},
+  {id:'f9',sev:'medium',cat:'vulnerability',title:'CVE-2024-3094 XZ Utils backdoor — NVD updates attribution to Jia Tan persona',source:'RSS Pool',published:'2025-01-25T20:00Z',entities:{actors:['Jia Tan'],malware:[],cves:['CVE-2024-3094']},iocs:[],summary:'NVD refreshes CVE-2024-3094 with attribution notes linking the Jia Tan persona to a suspected state-nexus supply chain operation targeting sshd on glibc Linux.'},
+  {id:'f10',sev:'low',cat:'campaign',title:'Phishing kit targeting Microsoft 365 adds adversary-in-the-middle evasion',source:'RSS Pool',published:'2025-01-25T15:30Z',entities:{actors:[],malware:['AiTM Kit'],cves:[]},iocs:[{type:'url',v:'hxxps://m365-signin[.]verify-tenant[.]co/login'}],summary:'Updated phishing kit detected with real-time session cookie theft via AiTM proxy, bypassing MFA. Delivered via HTML attachment in fake DocuSign notifications.'},
+  {id:'f11',sev:'critical',cat:'vulnerability',title:'CVE-2024-49138 CLFS EoP exploited in ransomware pre-encryption phase',source:'CISA KEV',published:'2025-01-25T12:00Z',entities:{actors:[],malware:[],cves:['CVE-2024-49138']},iocs:[],summary:'Windows CLFS driver EoP confirmed exploited by ransomware actors as part of the lateral movement + privilege escalation kill chain. Patch in January 2025 Patch Tuesday.'},
+  {id:'f12',sev:'high',cat:'apt',title:'APT29 Midnight Blizzard targeting EU diplomatic email infrastructure',source:'RSS Pool',published:'2025-01-24T22:15Z',entities:{actors:['APT29','Midnight Blizzard'],malware:[],cves:[]},iocs:[{type:'domain',v:'eu-mail-gateway[.]diplomat-secure[.]eu'}],summary:'Microsoft Threat Intel documents continued APT29 targeting of European diplomatic missions via spear-phishing with WINELOADER backdoor updates.'},
+  {id:'f13',sev:'medium',cat:'malware',title:'Lumma Stealer v4 adds browser extension harvesting capability',source:'MalwareBazaar',published:'2025-01-24T17:40Z',entities:{actors:[],malware:['Lumma Stealer'],cves:[]},iocs:[{type:'sha256',v:'9c2d5e1...'}],summary:'New Lumma Stealer variant detected with dedicated browser extension harvesting targeting MetaMask, Phantom, and 2FA authenticator extensions.'},
+  {id:'f14',sev:'high',cat:'ransomware',title:'Akira ransomware exploiting Cisco ASA/FTD VPN flaws for initial access',source:'ThreatFox',published:'2025-01-24T10:30Z',entities:{actors:['Akira'],malware:['Akira'],cves:['CVE-2023-20269']},iocs:[{type:'ip',v:'91[.]92[.]251[.]103'}],summary:'Akira ransomware group confirmed still exploiting Cisco ASA clientless SSL VPN CVE-2023-20269 for credential brute-force initial access months after public disclosure.'},
+  {id:'f15',sev:'low',cat:'vulnerability',title:'WordPress plugin Elementor Pro 3.25.x XSS — 11M sites potentially exposed',source:'RSS Pool',published:'2025-01-23T19:00Z',entities:{actors:[],malware:[],cves:['CVE-2025-0219']},iocs:[],summary:'Reflected XSS in Elementor Pro post-authentication. Low practical severity for enterprise but significant exposure surface for shared hosting and SMB clients.'},
+  {id:'f16',sev:'medium',cat:'campaign',title:'ClickFix social engineering wave delivering AsyncRAT via fake Captcha pages',source:'URLhaus',published:'2025-01-23T14:22Z',entities:{actors:[],malware:['AsyncRAT'],cves:[]},iocs:[{type:'url',v:'hxxps://captcha-verify[.]net/bot-check'}],summary:'ClickFix campaign using fake Cloudflare bot-verification overlays that paste PowerShell commands into the user clipboard then instruct manual execution.'},
+  {id:'f17',sev:'high',cat:'apt',title:'Lazarus Group new campaign drops updated BLINDINGCAN variant via LinkedIn',source:'RSS Pool',published:'2025-01-22T23:00Z',entities:{actors:['Lazarus Group'],malware:['BLINDINGCAN'],cves:[]},iocs:[{type:'domain',v:'career-portal[.]nk-recruits[.]com'}],summary:'Lazarus Group resumes Operation DreamJob lure with updated BLINDINGCAN implant delivered via fake job description PDF dropped from LinkedIn InMail.'},
+  {id:'f18',sev:'medium',cat:'malware',title:'New Python-based backdoor masquerades as pip package in PyPI supply chain',source:'RSS Pool',published:'2025-01-22T16:45Z',entities:{actors:[],malware:['PyPI backdoor'],cves:[]},iocs:[{type:'sha256',v:'b7e3c8a...'}],summary:'Malicious PyPI package "requests-enhanced-v2" with 4,200 downloads before removal contained a reverse shell beacon calling out to attacker-controlled VPS.'},
+  {id:'f19',sev:'critical',cat:'vulnerability',title:'CVE-2024-21413 Microsoft Outlook preview-pane RCE — new PoC raises exploitation risk',source:'CISA KEV',published:'2025-01-21T10:00Z',entities:{actors:[],malware:[],cves:['CVE-2024-21413']},iocs:[],summary:'New public PoC for the Outlook Moniker Link RCE raises re-exploitation concern on unpatched systems. EPSS 0.79. Originally patched Feb 2024, still unpatched on many on-prem Exchange deployments.'},
+  {id:'f20',sev:'low',cat:'campaign',title:'SEO poisoning campaign distributes GootLoader to law firm searches',source:'URLhaus',published:'2025-01-20T08:30Z',entities:{actors:[],malware:['GootLoader'],cves:[]},iocs:[{type:'url',v:'hxxps://legal-templates[.]download/contract-nda.js'}],summary:'GootLoader poisoning legal document search results to deliver staged JavaScript payload targeting law firms and professional services sectors.'},
+];
+
+const CVES = [
+  {id:'CVE-2025-21298',desc:'Windows OLE RCE via malicious RTF — zero-click in Outlook preview',kev:true,cvss:9.8,epss:0.94,sev:'critical',vendor:'Microsoft',product:'Windows',pub:'2025-01-14'},
+  {id:'CVE-2024-47575',desc:'Fortinet FortiManager missing auth on fgfmsd daemon',kev:true,cvss:9.8,epss:0.97,sev:'critical',vendor:'Fortinet',product:'FortiManager',pub:'2024-10-23'},
+  {id:'CVE-2024-3094',desc:'XZ Utils supply chain backdoor in sshd — glibc Linux',kev:true,cvss:10.0,epss:0.88,sev:'critical',vendor:'Tukaani',product:'XZ Utils',pub:'2024-03-29'},
+  {id:'CVE-2024-21413',desc:'Microsoft Outlook Moniker Link RCE — preview pane no-click',kev:true,cvss:9.8,epss:0.79,sev:'critical',vendor:'Microsoft',product:'Outlook',pub:'2024-02-13'},
+  {id:'CVE-2024-49138',desc:'Windows CLFS driver EoP — exploited in ransomware pre-encryption',kev:true,cvss:7.8,epss:0.61,sev:'high',vendor:'Microsoft',product:'Windows CLFS',pub:'2024-12-10'},
+  {id:'CVE-2023-20269',desc:'Cisco ASA/FTD clientless SSL VPN brute-force auth bypass',kev:true,cvss:9.1,epss:0.55,sev:'critical',vendor:'Cisco',product:'ASA / FTD',pub:'2023-09-06'},
+  {id:'CVE-2025-0219',desc:'Elementor Pro reflected XSS via page builder post-auth',kev:false,cvss:5.4,epss:0.06,sev:'medium',vendor:'Elementor',product:'Elementor Pro',pub:'2025-01-08'},
+  {id:'CVE-2024-38112',desc:'Windows MSHTML spoofing — MHTML URL handler exploit',kev:true,cvss:7.5,epss:0.73,sev:'high',vendor:'Microsoft',product:'Windows MSHTML',pub:'2024-07-09'},
+  {id:'CVE-2024-26169',desc:'Windows Error Reporting service EoP — 0-day in ransomware chain',kev:true,cvss:7.8,epss:0.48,sev:'high',vendor:'Microsoft',product:'WER',pub:'2024-03-12'},
+  {id:'CVE-2024-1709',desc:'ConnectWise ScreenConnect auth bypass — mass exploitation',kev:true,cvss:10.0,epss:0.98,sev:'critical',vendor:'ConnectWise',product:'ScreenConnect',pub:'2024-02-19'},
+  {id:'CVE-2024-20399',desc:'Cisco NX-OS CLI command injection — root via local account',kev:true,cvss:6.7,epss:0.41,sev:'medium',vendor:'Cisco',product:'NX-OS',pub:'2024-07-01'},
+  {id:'CVE-2024-5806',desc:'MOVEit Transfer SFTP auth bypass — SFTP-only module',kev:true,cvss:9.1,epss:0.66,sev:'critical',vendor:'Progress',product:'MOVEit Transfer',pub:'2024-06-25'},
+];
+
+const HEALTH_SOURCES = [
+  {name:'CISA KEV',uptime:100,segs:Array(90).fill('ok')},
+  {name:'ThreatFox',uptime:100,segs:Array(90).fill('ok')},
+  {name:'URLhaus',uptime:100,segs:Array(90).fill('ok')},
+  {name:'MalwareBazaar',uptime:98,segs:[...Array(88).fill('ok'),...Array(2).fill('down')]},
+  {name:'FIRST EPSS',uptime:71,segs:[...Array(64).fill('ok'),...Array(14).fill('deg'),...Array(8).fill('down'),...Array(4).fill('ok')]},
+  {name:'NVD',uptime:99,segs:[...Array(89).fill('ok'),...Array(1).fill('deg')]},
+  {name:'Ransomware.live',uptime:100,segs:Array(90).fill('ok')},
+  {name:'MITRE ATT&CK',uptime:100,segs:Array(90).fill('ok')},
+  {name:'RSS Pool',uptime:96,segs:[...Array(86).fill('ok'),...Array(4).fill('deg')]},
+];
+
+const ACTORS = [
+  {name:'LockBit',aliases:'GOLD MYSTIC · Bitwise Spider',tags:['Ransomware','RaaS','eCrime'],sev:'critical'},
+  {name:'Kimsuky',aliases:'APT43 · Velvet Chollima',tags:['APT','North Korea','Espionage'],sev:'high'},
+  {name:'APT29',aliases:'Midnight Blizzard · Cozy Bear',tags:['APT','Russia','SVR'],sev:'critical'},
+  {name:'Lazarus Group',aliases:'APT38 · HIDDEN COBRA',tags:['APT','North Korea','Financial'],sev:'critical'},
+  {name:'BlackSuit',aliases:'Royal (successor)',tags:['Ransomware','eCrime'],sev:'high'},
+  {name:'Akira',aliases:'Akira (2023+)',tags:['Ransomware','RaaS'],sev:'high'},
+  {name:'APT41',aliases:'WINNTI · Double Dragon',tags:['APT','China','Dual-use'],sev:'critical'},
+  {name:'Volt Typhoon',aliases:'Bronze Silhouette',tags:['APT','China','LOTL'],sev:'critical'},
+  {name:'FIN7',aliases:'Sangria Tempest · Carbon Spider',tags:['eCrime','POS','RaaS'],sev:'high'},
+  {name:'Scattered Spider',aliases:'UNC3944 · Muddled Libra',tags:['eCrime','Social Eng'],sev:'high'},
+  {name:'TA558',aliases:'TA558',tags:['eCrime','Latin America'],sev:'medium'},
+  {name:'Sandworm',aliases:'APT44 · Seashell Blizzard',tags:['APT','Russia','GRU','ICS'],sev:'critical'},
+];
+
+const LOLBINS = [
+  {name:'certutil.exe',desc:'Download/decode files, base64 encode/decode'},
+  {name:'mshta.exe',desc:'Execute HTA files, inline VBScript/JScript'},
+  {name:'regsvr32.exe',desc:'Register DLLs, execute remote SCT via /i:'},
+  {name:'rundll32.exe',desc:'Execute DLL exports, proxy malicious code'},
+  {name:'wscript.exe',desc:'Execute .js/.vbs scripts silently'},
+  {name:'cscript.exe',desc:'Console script host for .js/.vbs'},
+  {name:'powershell.exe',desc:'Encoded commands, download cradles, AMSI bypass'},
+  {name:'bitsadmin.exe',desc:'File transfer via BITS, persistence via jobs'},
+  {name:'forfiles.exe',desc:'Execute commands per-file, cmd injection via /c'},
+  {name:'msiexec.exe',desc:'Install/run remote MSI payloads via /q /i'},
+  {name:'wmic.exe',desc:'Process create, remote execution, info gather'},
+  {name:'schtasks.exe',desc:'Create scheduled tasks for persistence'},
+  {name:'regasm.exe',desc:'Execute .NET assembly code as COM object'},
+  {name:'installutil.exe',desc:'Execute .NET code via /logfile= InstallUtil'},
+  {name:'odbcconf.exe',desc:'Execute DLL via REGSVR action'},
+  {name:'xwizard.exe',desc:'Proxy DLL execution via COM'},
+  {name:'mavinject.exe',desc:'Inject DLL into running process'},
+  {name:'expand.exe',desc:'Expand cab/archive, used to stage payloads'},
+  {name:'msdt.exe',desc:'Microsoft Diagnostic Tool — Follina-class abuse'},
+  {name:'pcwrun.exe',desc:'Program Compatibility Wizard DLL sideload'},
+];
+
+/* ================================================================
+   NAVIGATION
+   ================================================================ */
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'"));
+  });
+  window.scrollTo(0,0);
+}
+
+/* ================================================================
+   THEME TOGGLE
+   ================================================================ */
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t === 'signal' ? 'signal' : 'nightwatch');
+  document.getElementById('btn-n').classList.toggle('active', t !== 'signal');
+  document.getElementById('btn-s').classList.toggle('active', t === 'signal');
+  document.getElementById('btn-n').setAttribute('aria-pressed', t !== 'signal');
+  document.getElementById('btn-s').setAttribute('aria-pressed', t === 'signal');
+}
+
+/* ================================================================
+   IOC TYPE DETECTION
+   ================================================================ */
+function detectIOCType(val) {
+  const chip = document.getElementById('type-chip');
+  if(!val.trim()){chip.style.opacity='0';return;}
+  const v = val.trim();
+  let label = '';
+  if(/^[0-9a-fA-F]{32,64}$/.test(v)) label = 'HASH';
+  else if(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\/\d+)?$/.test(v.replace(/[\[\]]/g,''))) label = 'IP';
+  else if(/^CVE-\d{4}-\d+$/i.test(v)) label = 'CVE';
+  else if(/^https?:\/\//i.test(v.replace(/hxxp/i,'http').replace(/\[.\]/g,'.'))) label = 'URL';
+  else if(/\.(com|net|org|io|cc|ru|cn|de|info|xyz|tk|top|pw)(\b|$)/i.test(v.replace(/\[.\]/g,'.'))) label = 'DOMAIN';
+  if(label){chip.textContent=label;chip.style.opacity='1';}
+  else chip.style.opacity='0';
+}
+
+/* ================================================================
+   SEARCH / REPORT
+   ================================================================ */
+function doSearch(q) {
+  document.getElementById('hero-input').value = q;
+  detectIOCType(q);
+  const knownIPs = ['185.220.101.42','185[.]220[.]101[.]42'];
+  if(knownIPs.some(k=>q.trim().toLowerCase().includes(k.toLowerCase()))) {
+    showView('report');
+  } else {
+    document.getElementById('unknown-ioc').textContent = q;
+    showView('unknown');
+  }
+}
+
+/* ================================================================
+   TAB SWITCHING (report)
+   ================================================================ */
+function switchTab(id, btn) {
+  document.querySelectorAll('#view-report .tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('#view-report .tab-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+  btn.setAttribute('aria-selected','true');
+}
+
+/* ================================================================
+   FILTER CHIPS (generic toggle)
+   ================================================================ */
+function filterChip(el, val) {
+  el.closest('.ioc-chips,.filter-bar').querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+function feedFilter(el) { filterChip(el); }
+function vulnFilter(el) { filterChip(el); }
+
+/* ================================================================
+   KPI COUNT-UP
+   ================================================================ */
+function countUp(id, target, dur=600) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  const start = performance.now();
+  function frame(now) {
+    const t = Math.min((now - start) / dur, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(ease * target).toLocaleString();
+    if(t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ================================================================
+   HOME FEED RENDER
+   ================================================================ */
+function renderHomeFeed() {
+  const el = document.getElementById('home-feed');
+  const items = FEED.slice(0,8);
+  el.innerHTML = items.map(item => `
+    <div class="intel-row sev-${item.sev.charAt(0)}" tabindex="0"
+      onclick="openDrawer('${item.id}')"
+      onkeydown="if(event.key==='Enter')openDrawer('${item.id}')">
+      <span class="chip sev-${item.sev}" style="font-size:10px;width:72px;justify-content:center">${item.sev.toUpperCase()}</span>
+      <span class="intel-row-title">${item.title}</span>
+      <span class="intel-row-source">${item.source}</span>
+      <span class="intel-row-time mono">${timeAgo(item.published)}</span>
+    </div>
+  `).join('');
+}
+
+/* ================================================================
+   FULL FEED RENDER
+   ================================================================ */
+function renderFeed() {
+  const tbody = document.getElementById('feed-tbody');
+  tbody.innerHTML = FEED.map((item,i) => `
+    <tr class="feed-row stagger-item" tabindex="0"
+      onclick="openDrawer('${item.id}')"
+      onkeydown="if(event.key==='Enter')openDrawer('${item.id}')">
+      <td style="padding:0;width:3px">
+        <div class="feed-stripe" style="background:var(--sev-${item.sev})"></div>
+      </td>
+      <td><span class="chip sev-${item.sev}" style="font-size:10px">${item.sev.toUpperCase()}</span></td>
+      <td style="max-width:460px">
+        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-hi)">${item.title}</div>
+        <div style="display:flex;gap:4px;margin-top:2px;flex-wrap:wrap">
+          ${item.entities.actors.map(a=>`<span class="entity-chip">${a}</span>`).join('')}
+          ${item.entities.malware.map(m=>`<span class="entity-chip">${m}</span>`).join('')}
+          ${item.entities.cves.map(c=>`<span class="entity-chip" style="color:var(--sev-high)">${c}</span>`).join('')}
+        </div>
+      </td>
+      <td><span class="chip chip-ghost" style="font-size:10px">${item.cat}</span></td>
+      <td style="font-size:12px;color:var(--text-mute)">${item.source}</td>
+      <td style="text-align:right;font-size:12px" class="mono tnum">${timeAgo(item.published)}</td>
+      <td>
+        <div class="feed-row-actions">
+          <button class="btn-icon" onclick="event.stopPropagation();copyText(item.iocs.map(x=>x.v).join('\\n'))" title="Copy IOCs" style="padding:4px">
+            <svg class="icon" width="13" height="13"><use href="#ic-copy"/></svg>
+          </button>
+          <button class="btn-icon" onclick="event.stopPropagation()" title="More" style="padding:4px">
+            <svg class="icon" width="13" height="13"><use href="#ic-more-horizontal"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ================================================================
+   VULN TABLE RENDER
+   ================================================================ */
+function renderVulns() {
+  const tbody = document.getElementById('vuln-tbody');
+  const sorted = [...CVES].sort((a,b)=>{
+    const aKev = a.kev?1:0, bKev = b.kev?1:0;
+    if(bKev!==aKev) return bKev-aKev;
+    return b.epss-a.epss;
+  });
+  tbody.innerHTML = sorted.map(c => `
+    <tr style="cursor:pointer" tabindex="0" onclick="doSearch('${c.id}')">
+      <td class="mono" style="color:var(--text-hi);white-space:nowrap">${c.id}</td>
+      <td style="max-width:340px;color:var(--text-body)">${c.desc}</td>
+      <td>${c.kev?'<span class="kev-badge">KEV</span>':'<span style="color:var(--text-mute);font-size:12px">—</span>'}</td>
+      <td class="tnum" style="color:var(--${c.cvss>=9?'sev-critical':c.cvss>=7?'sev-high':'sev-medium'})">${c.cvss.toFixed(1)}</td>
+      <td class="r tnum" style="color:var(--${c.epss>=0.9?'sev-critical':c.epss>=0.7?'sev-high':c.epss>=0.4?'sev-medium':'text-mute'})">${c.epss.toFixed(2)}</td>
+      <td><span class="chip sev-${c.sev}" style="font-size:10px">${c.sev.toUpperCase()}</span></td>
+      <td style="font-size:12px;color:var(--text-mute)">${c.vendor} / ${c.product}</td>
+      <td style="text-align:right;font-size:12px" class="mono tnum">${c.pub}</td>
+    </tr>
+  `).join('');
+}
+
+/* ================================================================
+   HEALTH VIEW RENDER
+   ================================================================ */
+function renderHealth() {
+  const el = document.getElementById('health-sources-list');
+  el.innerHTML = HEALTH_SOURCES.map(s => {
+    const statusCls = s.uptime===100?'live':s.uptime>80?'degraded':'down';
+    const segsHtml = s.segs.map(seg=>`<div class="seg ${seg}" title="${seg}"></div>`).join('');
+    return `
+      <div class="health-source">
+        <div class="health-src-header">
+          <span class="health-dot ${statusCls}"></span>
+          <span class="health-src-name">${s.name}</span>
+          <span class="chip ${statusCls==='live'?'sev-low':statusCls==='degraded'?'sev-medium':'sev-critical'}" style="font-size:10px">${statusCls.toUpperCase()}</span>
+          <span class="health-src-uptime">${s.uptime}% uptime (90d)</span>
+        </div>
+        <div class="seg-bar">${segsHtml}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ================================================================
+   ACTORS RENDER
+   ================================================================ */
+function renderActors() {
+  const el = document.getElementById('actors-grid');
+  el.innerHTML = ACTORS.map(a => `
+    <div class="actor-card stagger-item" tabindex="0" onclick="openDrawer(null,'${a.name}')"
+      onkeydown="if(event.key==='Enter')openDrawer(null,'${a.name}')">
+      <div class="actor-name">${a.name}</div>
+      <div class="actor-alias">${a.aliases}</div>
+      <div class="actor-tags">
+        ${a.tags.map(t=>`<span class="chip chip-ghost" style="font-size:10px">${t}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ================================================================
+   LOLBIN RENDER
+   ================================================================ */
+function renderLolbins(filter='') {
+  const el = document.getElementById('lolbin-list');
+  const items = filter ? LOLBINS.filter(l=>l.name.toLowerCase().includes(filter.toLowerCase())||l.desc.toLowerCase().includes(filter.toLowerCase())) : LOLBINS;
+  el.innerHTML = items.map(l=>`
+    <li class="lolbin-item">
+      <span class="lolbin-name">${l.name}</span>
+      <span class="lolbin-desc">${l.desc}</span>
+    </li>
+  `).join('');
+}
+function filterLolbin(v) { renderLolbins(v); }
+
+/* ================================================================
+   RELATED FEED
+   ================================================================ */
+function renderRelatedFeed() {
+  const el = document.getElementById('related-feed-list');
+  const items = FEED.filter(f=>f.entities.actors.includes('LockBit')||f.sev==='critical').slice(0,5);
+  el.innerHTML = items.map(item=>`
+    <div class="intel-row sev-${item.sev.charAt(0)}" tabindex="0" style="border:1px solid var(--border);border-radius:var(--radius-card);margin-bottom:8px;height:auto;padding:12px 16px"
+      onclick="openDrawer('${item.id}')" onkeydown="if(event.key==='Enter')openDrawer('${item.id}')">
+      <span class="chip sev-${item.sev}" style="font-size:10px">${item.sev.toUpperCase()}</span>
+      <span class="intel-row-title" style="white-space:normal;overflow:visible">${item.title}</span>
+      <span class="intel-row-time mono">${timeAgo(item.published)}</span>
+    </div>
+  `).join('');
+}
+
+/* ================================================================
+   DRAWER
+   ================================================================ */
+let currentDrawerItem = null;
+function openDrawer(feedId, actorName) {
+  const overlay = document.getElementById('drawer-overlay');
+  const drawer = document.getElementById('feed-drawer');
+  if(feedId) {
+    const item = FEED.find(f=>f.id===feedId);
+    if(!item) return;
+    currentDrawerItem = item;
+    document.getElementById('drawer-sev').innerHTML = `<span class="chip sev-${item.sev}" style="font-size:10px">${item.sev.toUpperCase()}</span><span class="chip chip-ghost" style="font-size:10px;margin-left:4px">${item.cat}</span>`;
+    document.getElementById('drawer-title').textContent = item.title;
+    document.getElementById('drawer-meta').innerHTML = `<span class="mono">${item.source}</span> · ${timeAgo(item.published)}`;
+    document.getElementById('drawer-summary').textContent = item.summary;
+    const ents = [...(item.entities.actors||[]),...(item.entities.malware||[]),...(item.entities.cves||[])];
+    document.getElementById('drawer-entities').innerHTML = ents.map(e=>`<span class="entity-chip">${e}</span>`).join('');
+    document.getElementById('drawer-iocs').innerHTML = (item.iocs||[]).map(i=>`
+      <div class="ioc-cell">
+        <span class="chip sev-info" style="font-size:10px;width:60px;text-align:center">${i.type.toUpperCase()}</span>
+        <span class="mono" style="color:var(--text-hi);flex:1">${i.v}</span>
+        <button class="copy-btn" style="opacity:1" onclick="copyText('${i.v}')">
+          <svg class="icon" width="13" height="13"><use href="#ic-copy"/></svg>
+        </button>
+      </div>
+    `).join('') || '<span style="font-size:12px;color:var(--text-mute)">No IOCs in this item</span>';
+  } else if(actorName) {
+    const actor = ACTORS.find(a=>a.name===actorName);
+    if(!actor) return;
+    currentDrawerItem = {title:actor.name, iocs:[]};
+    document.getElementById('drawer-sev').innerHTML = `<span class="chip sev-${actor.sev}" style="font-size:10px">ACTOR</span>`;
+    document.getElementById('drawer-title').textContent = actor.name;
+    document.getElementById('drawer-meta').innerHTML = actor.aliases;
+    document.getElementById('drawer-summary').textContent = 'ATT&CK-derived threat actor profile. Click Profile in the report view for full TTPs and associated campaigns.';
+    document.getElementById('drawer-entities').innerHTML = actor.tags.map(t=>`<span class="chip chip-ghost" style="font-size:10px">${t}</span>`).join('');
+    document.getElementById('drawer-iocs').innerHTML = '<span style="font-size:12px;color:var(--text-mute)">Open profile for full IOC listing</span>';
+  }
+  overlay.classList.add('open');
+  drawer.classList.add('open');
+  drawer.focus();
+}
+function closeDrawer() {
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('feed-drawer').classList.remove('open');
+}
+function copyDrawerDefanged() {
+  if(!currentDrawerItem) return;
+  const iocs = (currentDrawerItem.iocs||[]).map(i=>i.v).join('\n');
+  copyText(iocs||currentDrawerItem.title);
+}
+function copyDrawerBlurb() {
+  if(!currentDrawerItem) return;
+  const blurb = `[THREAT INTEL] ${currentDrawerItem.title}\n\n${currentDrawerItem.summary||''}\n\nSource: VIGIL CTI`;
+  copyText(blurb);
+}
+
+/* ================================================================
+   COMMAND PALETTE
+   ================================================================ */
+const PALETTE_ITEMS = [
+  {group:'Navigation',label:'Go to Feed',icon:'ic-activity',action:()=>showView('feed')},
+  {group:'Navigation',label:'Go to Vulnerabilities',icon:'ic-alert-triangle',action:()=>showView('vulns')},
+  {group:'Navigation',label:'Go to Actors',icon:'ic-shield-alert',action:()=>showView('actors')},
+  {group:'Navigation',label:'Go to Health',icon:'ic-server',action:()=>showView('health')},
+  {group:'Navigation',label:'Go to Toolbelt',icon:'ic-terminal',action:()=>showView('toolbelt')},
+  {group:'Navigation',label:'Go to Home',icon:'ic-radar',action:()=>showView('home')},
+  {group:'Actions',label:'Search 185.220.101.42 (example)',icon:'ic-search',action:()=>{closePalette();doSearch('185.220.101.42');}},
+  {group:'Actions',label:'Toggle theme (N/S)',icon:'ic-eye',action:()=>{const t=document.documentElement.getAttribute('data-theme');setTheme(t==='signal'?'nightwatch':'signal');}},
+];
+let paletteFiltered = [...PALETTE_ITEMS];
+let paletteFocus = 0;
+function openPalette() {
+  document.getElementById('palette-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('palette-input').focus(),50);
+  renderPalette('');
+}
+function closePalette() {
+  document.getElementById('palette-overlay').classList.remove('open');
+  document.getElementById('palette-input').value='';
+}
+function closePaletteOnOverlay(e) { if(e.target===document.getElementById('palette-overlay'))closePalette(); }
+function filterPalette(q) { renderPalette(q); }
+function renderPalette(q) {
+  paletteFiltered = q ? PALETTE_ITEMS.filter(i=>i.label.toLowerCase().includes(q.toLowerCase())) : PALETTE_ITEMS;
+  paletteFocus = 0;
+  const el = document.getElementById('palette-list');
+  const groups = [...new Set(paletteFiltered.map(i=>i.group))];
+  el.innerHTML = groups.map(g=>`
+    <div class="palette-group">${g}</div>
+    ${paletteFiltered.filter(i=>i.group===g).map((item,idx)=>`
+      <div class="palette-item ${idx===0&&g===groups[0]?'focused':''}"
+        data-idx="${PALETTE_ITEMS.indexOf(item)}"
+        onclick="execPaletteItem(${PALETTE_ITEMS.indexOf(item)})"
+        onmouseenter="setPaletteFocus(${PALETTE_ITEMS.indexOf(item)})">
+        <svg class="icon" width="14" height="14"><use href="#${item.icon}"/></svg>
+        <span class="palette-item-label">${item.label}</span>
+        <span class="palette-item-hint"><kbd>↵</kbd></span>
+      </div>
+    `).join('')}
+  `).join('');
+}
+function setPaletteFocus(idx) {
+  document.querySelectorAll('.palette-item').forEach(el=>el.classList.remove('focused'));
+  const el = document.querySelector(`.palette-item[data-idx="${idx}"]`);
+  if(el) el.classList.add('focused');
+  paletteFocus = idx;
+}
+function execPaletteItem(idx) {
+  const item = PALETTE_ITEMS[idx];
+  if(!item) return;
+  closePalette();
+  item.action();
+}
+function palettKeydown(e) {
+  if(e.key==='Escape'){closePalette();return;}
+  if(e.key==='Enter'){execPaletteItem(paletteFocus);return;}
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    const els = document.querySelectorAll('.palette-item');
+    const idxes = [...els].map(el=>parseInt(el.dataset.idx));
+    const cur = idxes.indexOf(paletteFocus);
+    let next = e.key==='ArrowDown'?Math.min(cur+1,idxes.length-1):Math.max(cur-1,0);
+    setPaletteFocus(idxes[next]);
+    e.preventDefault();
+  }
+}
+
+/* ================================================================
+   TOOLBELT FUNCTIONS
+   ================================================================ */
+function defang(s){return s.replace(/\./g,'[.]').replace(/^https?:\/\//i,m=>m.replace('http','hxxp'));}
+function refang(s){return s.replace(/\[\.\]/g,'.').replace(/^hxxp/i,'http');}
+function runDefang(v){document.getElementById('defang-output').value=v.split('\n').map(l=>defang(l.trim())).filter(Boolean).join('\n');}
+function runRefang(v){document.getElementById('defang-input').value=v.split('\n').map(l=>refang(l.trim())).filter(Boolean).join('\n');}
+function runB64(v){
+  try{
+    const bin=atob(v.trim());
+    let out='';
+    // try UTF-16LE first (odd 0-bytes = UTF-16LE)
+    const bytes=[...bin].map(c=>c.charCodeAt(0));
+    const nullCount=bytes.filter((b,i)=>b===0&&i%2===1).length;
+    if(nullCount>bytes.length/4){
+      const buf=new Uint8Array(bytes);
+      out=new TextDecoder('utf-16le').decode(buf);
+    } else {
+      out=decodeURIComponent(escape(bin));
+    }
+    document.getElementById('b64-output').value=out;
+  }catch(e){document.getElementById('b64-output').value='[Decode error: '+e.message+']';}
+}
+function runExtract(v){
+  const ips=v.match(/\b\d{1,3}(?:\[\.\]|\.)(?:\d{1,3}(?:\[\.\]|\.))+\d{1,3}\b/g)||[];
+  const domains=v.match(/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\[\.\]|\.))+(?:com|net|org|io|cc|ru|cn|de|info|xyz|tk|top)\b/gi)||[];
+  const hashes=v.match(/\b[0-9a-fA-F]{32,64}\b/g)||[];
+  const cves=v.match(/CVE-\d{4}-\d+/gi)||[];
+  const all=[...new Set([...ips,...domains,...hashes,...cves])];
+  document.getElementById('extract-output').value=all.join('\n')||'No IOCs detected';
+}
+
+/* ================================================================
+   UTILITIES
+   ================================================================ */
+function copyText(t) {
+  navigator.clipboard.writeText(t).catch(()=>{
+    const ta=document.createElement('textarea');
+    ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();
+  });
+}
+function timeAgo(iso) {
+  const diff=(Date.now()-new Date(iso))/1000;
+  if(diff<3600) return Math.round(diff/60)+'m ago';
+  if(diff<86400) return Math.round(diff/3600)+'h ago';
+  return Math.round(diff/86400)+'d ago';
+}
+
+/* ================================================================
+   STICKY SENTINEL
+   ================================================================ */
+function initSticky() {
+  const tabs = document.getElementById('section-tabs');
+  if(!tabs) return;
+  const sentinel = document.createElement('div');
+  sentinel.style.cssText='height:1px;margin-top:-1px';
+  tabs.parentElement.insertBefore(sentinel, tabs);
+  new IntersectionObserver(([e])=>tabs.classList.toggle('stuck',!e.isIntersecting)).observe(sentinel);
+}
+
+/* ================================================================
+   KEYBOARD SHORTCUTS
+   ================================================================ */
+document.addEventListener('keydown', e => {
+  if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();openPalette();}
+  if(e.key==='/'&&document.activeElement.tagName!=='INPUT'&&document.activeElement.tagName!=='TEXTAREA'){
+    e.preventDefault();
+    document.getElementById('hero-input').focus();
+    showView('home');
+  }
+  if(e.key==='Escape'){ closeDrawer(); closePalette(); }
+});
+
+/* ================================================================
+   INIT
+   ================================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  renderHomeFeed();
+  renderFeed();
+  renderVulns();
+  renderHealth();
+  renderActors();
+  renderLolbins();
+  renderRelatedFeed();
+  initSticky();
+  // KPI count-up
+  setTimeout(()=>{
+    countUp('kpi-ioc', 2847);
+    countUp('kpi-kev', 187);
+  }, 300);
+});
+</script>
+</body>
+</html>
+
+
+
+
