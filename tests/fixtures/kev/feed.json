@@ -1,0 +1,11 @@
+{
+  "vulnerabilities": [
+    {"cveID": "CVE-2026-1111", "vendorProject": "Fortinet", "product": "FortiOS",
+     "vulnerabilityName": "FortiOS Auth Bypass", "dateAdded": "2026-07-25",
+     "shortDescription": "Auth bypass in FortiOS.",
+     "knownRansomwareCampaignUse": "Known"},
+    {"cveID": "CVE-2020-9999", "vendorProject": "OldCo", "product": "Legacy",
+     "vulnerabilityName": "Old Bug", "dateAdded": "2020-01-01",
+     "shortDescription": "Ancient.", "knownRansomwareCampaignUse": "Unknown"}
+  ]
+}
