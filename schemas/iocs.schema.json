@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "iocs"],
+  "properties": {
+    "generated_at": {"type": "string"},
+    "schema_version": {"type": "integer"},
+    "iocs": {
+      "type": "object",
+      "properties": {
+        "ipv4": {"$ref": "#/$defs/entries"}, "domain": {"$ref": "#/$defs/entries"},
+        "url": {"$ref": "#/$defs/entries"}, "md5": {"$ref": "#/$defs/entries"},
+        "sha256": {"$ref": "#/$defs/entries"}
+      }
+    }
+  },
+  "$defs": {
+    "entries": {"type": "array", "items": {
+      "type": "object",
+      "required": ["value", "source", "first_seen", "last_seen"],
+      "properties": {
+        "value": {"type": "string"}, "source": {"type": "string"},
+        "malware": {"type": "string"}, "confidence": {"type": "integer"},
+        "first_seen": {"type": "string"}, "last_seen": {"type": "string"}
+      }
+    }}
+  }
+}

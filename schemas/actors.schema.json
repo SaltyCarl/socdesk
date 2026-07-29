@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "profiles"],
+  "properties": {
+    "generated_at": {"type": "string"},
+    "schema_version": {"type": "integer"},
+    "profiles": {"type": "array", "items": {
+      "type": "object",
+      "required": ["name", "attack_id"],
+      "properties": {
+        "name": {"type": "string"}, "attack_id": {"type": "string"},
+        "aliases": {"type": "array", "items": {"type": "string"}},
+        "description": {"type": "string"},
+        "techniques": {"type": "array", "items": {"type": "string"}},
+        "software": {"type": "array", "items": {"type": "string"}}
+      }
+    }}
+  }
+}

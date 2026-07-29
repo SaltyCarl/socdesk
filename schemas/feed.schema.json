@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "items"],
+  "properties": {
+    "generated_at": {"type": "string"},
+    "schema_version": {"type": "integer"},
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "source", "category", "title", "summary", "url",
+                     "severity", "entities", "iocs", "published_at", "collected_at"],
+        "properties": {
+          "id": {"type": "string", "minLength": 40, "maxLength": 40},
+          "source": {"type": "string"},
+          "category": {"enum": ["ransomware", "vulnerability", "malware",
+                                 "apt", "campaign", "report"]},
+          "title": {"type": "string", "minLength": 1},
+          "summary": {"type": "string"},
+          "url": {"type": "string"},
+          "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+          "entities": {
+            "type": "object",
+            "required": ["actors", "malware", "vendors", "cves"],
+            "properties": {
+              "actors": {"type": "array", "items": {"type": "string"}},
+              "malware": {"type": "array", "items": {"type": "string"}},
+              "vendors": {"type": "array", "items": {"type": "string"}},
+              "cves": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "iocs": {"type": "array", "items": {
+            "type": "object",
+            "required": ["type", "value"],
+            "properties": {
+              "type": {"enum": ["ipv4", "domain", "url", "md5", "sha256"]},
+              "value": {"type": "string"}
+            }
+          }},
+          "published_at": {"type": "string"},
+          "collected_at": {"type": "string"}
+        }
+      }
+    }
+  }
+}

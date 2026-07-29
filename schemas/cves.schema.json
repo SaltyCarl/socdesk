@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "cves"],
+  "properties": {
+    "generated_at": {"type": "string"},
+    "schema_version": {"type": "integer"},
+    "cves": {"type": "array", "items": {
+      "type": "object",
+      "required": ["cve", "kev", "last_modified"],
+      "properties": {
+        "cve": {"type": "string", "pattern": "^CVE-\\d{4}-\\d{4,7}$"},
+        "title": {"type": "string"},
+        "cvss": {"type": ["number", "null"]},
+        "cvss_severity": {"type": ["string", "null"]},
+        "epss": {"type": ["number", "null"]},
+        "epss_percentile": {"type": ["number", "null"]},
+        "kev": {"type": "boolean"},
+        "kev_date_added": {"type": "string"},
+        "kev_ransomware": {"type": "boolean"},
+        "vendors": {"type": "array", "items": {"type": "string"}},
+        "products": {"type": "array", "items": {"type": "string"}},
+        "published_at": {"type": "string"},
+        "last_modified": {"type": "string"}
+      }
+    }}
+  }
+}
