@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VIGIL — Daily Cyber Threat Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;800&family=Geist+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#050908; --panel:#0c1210; --panel-soft:#111a16; --raised:#16201b;
+  --line:#26342e; --line-bright:#3b5148; --paper:#edf4f0; --muted:#8fa198;
+  --acid:#b9ff38; --ink-on-acid:#050908;
+  --red:#ff6250; --amber:#ffc75a; --blue:#66d5ff; --green:#70e09d; --purple:#c99cff;
+  --sans:"Geist","Inter",system-ui,sans-serif;
+  --mono:"Geist Mono","JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;border-radius:0}
+html{scroll-behavior:smooth}
+body{
+  background:linear-gradient(#b9ff3806 1px,transparent 1px),
+             linear-gradient(90deg,#b9ff3806 1px,transparent 1px),var(--ink);
+  background-size:64px 64px,64px 64px,auto;
+  color:var(--paper);font-family:var(--sans);font-size:15px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,textarea{font:inherit;color:var(--paper);background:none;border:none;outline:none}
+::selection{background:#b9ff3833}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line);border:2px solid var(--ink)}
+.wrap{max-width:1360px;margin:0 auto;padding:0 40px}
+.caps{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.mono{font-family:var(--mono)}
+
+/* ---------- topbar ---------- */
+.topbar{border-bottom:1px solid var(--line);background:var(--ink)}
+.topbar .wrap{display:flex;align-items:center;height:70px;gap:40px}
+.logo{display:flex;align-items:center;gap:12px;font-weight:800;font-size:17px;letter-spacing:.02em}
+.logo svg{width:30px;height:30px}
+.logo em{font-style:normal;color:var(--muted);font-weight:400}
+nav{display:flex;gap:28px;margin-left:auto}
+nav a{color:var(--muted);font-size:13px;font-weight:500;letter-spacing:.01em;transition:color .12s}
+nav a:hover{color:var(--paper)}
+.live{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.live b{width:8px;height:8px;border-radius:50%;background:var(--acid);display:inline-block;animation:pulse 2.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ---------- hero ---------- */
+.hero{padding:88px 0 96px;border-bottom:1px solid var(--line)}
+.hero-grid{display:grid;grid-template-columns:1.18fr .82fr;gap:56px;align-items:start}
+.overline{color:var(--acid);font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;margin-bottom:34px}
+h1{font-size:clamp(58px,7.4vw,108px);font-weight:400;letter-spacing:-.065em;line-height:.95}
+h1 .acid{color:var(--acid)}
+.lede{color:var(--muted);font-size:16px;max-width:640px;margin:30px 0 40px}
+/* hero search — VIGIL's center of gravity, in-language */
+.search{display:flex;align-items:center;height:58px;background:var(--raised);border:1px solid var(--line-bright);padding:0 20px;gap:14px;transition:border-color .12s}
+.search:focus-within{border-color:var(--acid)}
+.search svg{width:18px;height:18px;stroke:var(--acid);flex-shrink:0}
+.search input{flex:1;font-family:var(--mono);font-size:14px;letter-spacing:0}
+.search input::placeholder{color:var(--muted);opacity:.75}
+.search .detect{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.11em;color:var(--acid);border:1px solid var(--line-bright);padding:5px 10px;white-space:nowrap;display:none}
+.search kbd{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);padding:3px 7px}
+.ex-row{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+.ex-chip{border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11px;padding:7px 12px;transition:border-color .12s,color .12s}
+.ex-chip:hover{border-color:var(--line-bright);color:var(--paper)}
+.ex-label{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-right:2px}
+/* operational picture panel */
+.op{background:var(--panel);border:1px solid var(--line)}
+.op-h{display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--line)}
+.op-h .caps{color:var(--muted);letter-spacing:.11em}
+.op-h .caps.acid{color:var(--acid)}
+.op-big{text-align:center;padding:44px 24px 40px}
+.op-big .n{font-family:var(--mono);font-size:64px;font-weight:800;color:var(--acid);line-height:1}
+.op-big .l{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:14px}
+.op-grid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
+.op-cell{padding:20px 24px;border-bottom:1px solid var(--line)}
+.op-cell:nth-child(odd){border-right:1px solid var(--line)}
+.op-cell .l{font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.op-cell .v{font-family:var(--mono);font-size:20px;font-weight:800;margin-top:8px}
+.op-f{display:flex;justify-content:space-between;padding:14px 24px}
+.op-f span{font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.op-f .ok{color:var(--acid)}
+
+/* ---------- sections ---------- */
+section{padding-top:96px}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:40px;padding-bottom:36px;border-bottom:1px solid var(--line)}
+.sec-title{display:flex;align-items:baseline;gap:22px}
+.sec-num{font-family:var(--mono);font-size:13px;font-weight:800;color:var(--acid)}
+.sec-num.purple{color:var(--purple)}
+h2{font-size:clamp(24px,5vw,64px);font-weight:400;letter-spacing:-.05em;line-height:1.02}
+.sec-desc{color:var(--muted);font-size:13px;max-width:420px;text-align:right;padding-bottom:8px}
+
+/* stat band */
+.band{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-top:none}
+.band button{display:flex;justify-content:space-between;align-items:center;padding:22px 26px;border-right:1px solid var(--line);font-size:13px;color:var(--muted);transition:background .12s,color .12s;text-align:left}
+.band button:last-child{border-right:none}
+.band b{font-family:var(--mono);font-size:19px;font-weight:800;color:var(--paper)}
+.band button:hover{background:var(--panel-soft)}
+.band button.on{background:var(--acid);color:var(--ink-on-acid)}
+.band button.on b{color:var(--ink-on-acid)}
+
+/* ops toolbar */
+.ops-tools{display:flex;align-items:center;border:1px solid var(--line);border-top:none;height:64px}
+.ops-tools .search2{display:flex;align-items:center;gap:14px;flex:1;padding:0 22px;height:100%}
+.ops-tools .search2 svg{width:16px;height:16px;stroke:var(--acid)}
+.ops-tools input{flex:1;font-size:14px}
+.ops-tools input::placeholder{color:var(--muted);opacity:.7}
+.res-chip{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);padding:7px 12px;margin-right:18px;white-space:nowrap}
+.export{background:var(--acid);color:var(--ink-on-acid);font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:0 30px;height:100%;transition:filter .12s}
+.export:hover{filter:brightness(1.08)}
+.filters{display:flex;gap:8px;padding:18px 0;flex-wrap:wrap}
+.fchip{border:1px solid var(--line);color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:8px 13px;display:flex;gap:9px;align-items:center;transition:border-color .12s,color .12s}
+.fchip b{font-family:var(--mono);font-weight:700;font-size:10px}
+.fchip:hover{border-color:var(--line-bright)}
+.fchip.on{border-color:var(--paper);color:var(--paper)}
+
+/* feed + rail */
+.ops-grid{display:grid;grid-template-columns:1fr 440px;gap:24px;margin-top:6px}
+.feed{border:1px solid var(--line)}
+.feed-h{display:flex;justify-content:space-between;padding:13px 20px;border-bottom:1px solid var(--line);color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+.row{display:grid;grid-template-columns:118px 1fr 64px;gap:18px;padding:16px 20px;border-bottom:1px solid var(--line);cursor:pointer;border-left:3px solid transparent;transition:background .12s}
+.row:last-child{border-bottom:none}
+.row:hover{background:var(--panel-soft)}
+.row.sel{background:var(--panel-soft);border-left-color:var(--acid)}
+.tag{align-self:start;justify-self:start;border:1px solid;font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:5px 8px;white-space:nowrap}
+.row .src{font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.row .t{font-size:14px;font-weight:800;margin:5px 0 4px;line-height:1.35}
+.row .s{color:var(--muted);font-size:12.5px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.row .tm{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right}
+/* rail */
+.rail{border:1px solid var(--line);background:var(--panel);align-self:start;position:sticky;top:24px}
+.rail-h{display:flex;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--line)}
+.rail-body{padding:24px}
+.rail-title{font-size:clamp(22px,2.2vw,30px);font-weight:400;letter-spacing:-.025em;line-height:1.18;margin-bottom:16px}
+.rail-text{color:var(--muted);font-size:13.5px}
+.meta{border-top:1px solid var(--line);padding:14px 24px}
+.meta .l{font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.meta .v{font-size:13px;margin-top:5px}
+.meta .v.mono{font-family:var(--mono);font-size:12px}
+/* verdict / report in rail */
+.verdict-num{font-family:var(--mono);font-size:74px;font-weight:800;line-height:1}
+.verdict-word{font-size:clamp(22px,2.2vw,30px);font-weight:400;letter-spacing:-.025em;margin:8px 0 14px}
+.vtags{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.vtag{border:1px solid;font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:5px 9px}
+.pivots{display:flex;flex-wrap:wrap;gap:8px;padding:16px 24px;border-top:1px solid var(--line)}
+.pivot{border:1px solid var(--line-bright);color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:8px 12px;transition:color .12s,border-color .12s}
+.pivot:hover{color:var(--acid);border-color:var(--acid)}
+.ev{border-top:1px solid var(--line);padding:14px 24px}
+.ev .l{font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.ev-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.ev-row:last-child{border-bottom:none}
+.ev-row .k{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.ev-row .d{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+/* ---------- tables ---------- */
+.vtable{width:100%;border:1px solid var(--line);border-collapse:collapse;margin-top:28px}
+.vtable th{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);text-align:left;padding:13px 18px;border-bottom:1px solid var(--line)}
+.vtable th.r,.vtable td.r{text-align:right}
+.vtable td{font-size:13px;padding:13px 18px;border-bottom:1px solid var(--line)}
+.vtable tr:last-child td{border-bottom:none}
+.vtable tbody tr{transition:background .12s}
+.vtable tbody tr:hover{background:var(--panel-soft)}
+.vtable td.mono{font-family:var(--mono);font-size:12px}
+.kev{border:1px solid var(--acid);color:var(--acid);font-size:9px;font-weight:800;letter-spacing:.09em;padding:3px 7px}
+.sev{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+
+/* ---------- brief ---------- */
+.brief-list{border:1px solid var(--line);border-top:none}
+.bitem{display:grid;grid-template-columns:56px 1fr 300px;gap:26px;padding:30px;border-bottom:1px solid var(--line)}
+.bitem:last-child{border-bottom:none}
+.bnum{font-family:var(--mono);font-size:13px;font-weight:800;color:var(--purple)}
+.bitem h3{font-size:22px;font-weight:400;letter-spacing:-.025em;line-height:1.25;margin-bottom:10px}
+.bitem p{color:var(--muted);font-size:13.5px}
+.why .l{font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--purple);margin-bottom:8px}
+.why p{font-size:13px;color:var(--paper)}
+.ai-chip{border:1px solid var(--purple);color:var(--purple);font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;padding:6px 11px}
+
+/* ---------- health ---------- */
+.hgrid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-top:none}
+.hcell{padding:24px 26px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.hcell:nth-child(3n){border-right:none}
+.hcell .hh{display:flex;justify-content:space-between;align-items:center}
+.hcell .hh span{font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block}
+.dot.deg{background:var(--amber)}
+.hcell .n{font-family:var(--mono);font-size:30px;font-weight:800;margin:14px 0 6px}
+.hcell .m{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+/* ---------- toolbelt ---------- */
+.belt{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px}
+.tool{border:1px solid var(--line);background:var(--panel)}
+.tool-h{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line)}
+.tool-h span{font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.tool textarea{width:100%;height:110px;background:var(--raised);border-bottom:1px solid var(--line);padding:14px 20px;font-family:var(--mono);font-size:12px;resize:none}
+.tool .out{padding:14px 20px;font-family:var(--mono);font-size:12px;color:var(--acid);min-height:52px;white-space:pre-wrap;word-break:break-all}
+.tool .act{background:none;border:1px solid var(--line-bright);color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:5px 10px;transition:color .12s,border-color .12s}
+.tool .act:hover{color:var(--acid);border-color:var(--acid)}
+
+/* ---------- footer ---------- */
+.fband{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);margin-top:110px}
+.fband div{padding:26px 30px;border-right:1px solid var(--line);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.fband div:last-child{border-right:none}
+.fband b{font-family:var(--mono);color:var(--acid)}
+.foot{display:flex;justify-content:space-between;padding:22px 0 34px;color:var(--muted);font-size:11px}
+.foot .mono{font-size:10px}
+.acid-t{color:var(--acid)}.red-t{color:var(--red)}.amber-t{color:var(--amber)}
+.blue-t{color:var(--blue)}.green-t{color:var(--green)}.muted-t{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <a class="logo" href="#top">
+      <svg viewBox="0 0 30 30" fill="none"><path d="M15 2 L28 15 L15 28 L2 15 Z" stroke="#b9ff38" stroke-width="2"/><path d="M10 14 L14 18 L20 11" stroke="#b9ff38" stroke-width="2"/></svg>
+      VIGIL<em>/CTI</em>
+    </a>
+    <nav>
+      <a href="#brief">Daily brief</a>
+      <a href="#operations">Threat operations</a>
+      <a href="#vulns">Vulnerabilities</a>
+      <a href="#health">Collection health</a>
+      <a href="#registry">Sources</a>
+      <a href="#toolbelt">Toolbelt</a>
+    </nav>
+    <span class="live"><b></b>9 collectors online</span>
+  </div>
+</header>
+
+<div class="wrap" id="top">
+  <section class="hero" style="padding-top:88px">
+    <div class="overline">Operational open source threat intelligence</div>
+    <div class="hero-grid">
+      <div>
+        <h1>Ransomware.<br>Malware. <span class="acid">IOCs.</span></h1>
+        <p class="lede">A daily operational picture of cyber attacks, active campaigns, APT activity,
+        ransomware operations, and vulnerabilities — with a verdict on any indicator you paste.
+        Every item preserves its source and publication time.</p>
+        <div class="search" id="heroSearch">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="q" placeholder="185.220.101.42 · evil-updates[.]example · SHA256 · CVE-2026-1173" spellcheck="false" autocomplete="off">
+          <span class="detect" id="detect"></span>
+          <kbd>/</kbd>
+        </div>
+        <div class="ex-row">
+          <span class="ex-label">Try</span>
+          <button class="ex-chip" data-q="185.220.101.42">185.220.101.42</button>
+          <button class="ex-chip" data-q="evil-updates.example">evil-updates[.]example</button>
+          <button class="ex-chip" data-q="CVE-2026-1173">CVE-2026-1173</button>
+        </div>
+      </div>
+      <aside class="op">
+        <div class="op-h"><span class="caps">Operational picture</span><span class="caps acid">Live</span></div>
+        <div class="op-big"><div class="n" id="bigCount">32,783</div><div class="l">Tracked objects and observations</div></div>
+        <div class="op-grid">
+          <div class="op-cell"><div class="l">Ransomware groups</div><div class="v">312</div></div>
+          <div class="op-cell"><div class="l">Victims this month</div><div class="v">487</div></div>
+          <div class="op-cell"><div class="l">KEV + high EPSS</div><div class="v red-t">187</div></div>
+          <div class="op-cell"><div class="l">IOCs on file</div><div class="v">28,406</div></div>
+        </div>
+        <div class="op-f"><span>Daily feed refreshed</span><span class="ok mono">4 min ago</span></div>
+      </aside>
+    </div>
+  </section>
+  <section id="brief">
+    <div class="sec-head">
+      <div class="sec-title"><span class="sec-num purple">01</span><h2>Daily brief.</h2></div>
+      <div style="display:flex;align-items:flex-end;gap:18px;flex-direction:column">
+        <span class="ai-chip">AI-generated · local inference</span>
+        <div class="sec-desc">Written on our hardware at 06:00 and 14:00 ET from the last 24 hours of collected intelligence. Generated <span class="mono">2026-07-29 06:00 ET</span>.</div>
+      </div>
+    </div>
+    <div class="brief-list">
+      <div class="bitem">
+        <span class="bnum">B1</span>
+        <div>
+          <h3>LockBit 4.0 affiliates concentrate on manufacturing after Frankfurt exchange takedown</h3>
+          <p>Fourteen new victim postings in 48 hours, twelve in EU manufacturing. Affiliates are re-forming under RansomHub and Qilin infrastructure; initial access is dominated by exploited edge devices rather than phishing.</p>
+        </div>
+        <div class="why"><div class="l">Why it matters</div><p>If your clients run Fortinet or Ivanti edge appliances, the KEV entries below are the active entry vector — patch windows are hours, not weeks.</p></div>
+      </div>
+      <div class="bitem">
+        <span class="bnum">B2</span>
+        <div>
+          <h3>Public PoC drops for exploited Check Point SmartConsole authentication bypass</h3>
+          <p>CVE-2026-1173 moved from "exploitation observed" to "commodity" overnight — PoC published, ThreatFox C2 tagging began within six hours, and mass scanning is visible across SANS ISC sensors.</p>
+        </div>
+        <div class="why"><div class="l">Why it matters</div><p>EPSS jumped from 0.31 to 0.87 in one day. Treat exposed SmartConsole as compromised until patched and hunt for the IOCs in the repository.</p></div>
+      </div>
+      <div class="bitem">
+        <span class="bnum">B3</span>
+        <div>
+          <h3>Midnight Blizzard phishing wave pivots to OAuth device-code flows against NATO-aligned orgs</h3>
+          <p>Microsoft and Google TIG both report the actor abandoning credential-harvest pages for device-code phishing delivered through compromised SMB tenants, bypassing password-based detections entirely.</p>
+        </div>
+        <div class="why"><div class="l">Why it matters</div><p>Conditional-access rules on device-code flow are the mitigation; the TTP chips on the actor profile map the full chain.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="operations">
+    <div class="sec-head">
+      <div class="sec-title"><span class="sec-num">02</span><h2>Threat operations.</h2></div>
+      <div class="sec-desc">Review daily cyber attack news, active campaigns, APT activity, malware, vulnerabilities, and source-verified threat research.</div>
+    </div>
+    <div class="band" id="band">
+      <button class="on" data-cat="all">Daily intelligence<b>304</b></button>
+      <button data-cat="ransomware">Ransomware<b>30,168</b></button>
+      <button data-cat="malware">Malware<b>2,071</b></button>
+      <button data-cat="apt">APT groups<b>174</b></button>
+    </div>
+    <div class="ops-tools">
+      <div class="search2">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="q2" placeholder="Search attacks, campaigns, APTs, malware, vulnerabilities, sources, or reports" spellcheck="false">
+      </div>
+      <span class="res-chip" id="resChip">304 results</span>
+      <button class="export">Export JSON ↓</button>
+    </div>
+    <div class="filters" id="filters">
+      <button class="fchip on" data-f="all">All<b>304</b></button>
+      <button class="fchip" data-f="cyber attack">Cyber attack<b>73</b></button>
+      <button class="fchip" data-f="campaign">Campaign<b>23</b></button>
+      <button class="fchip" data-f="apt">APT<b>19</b></button>
+      <button class="fchip" data-f="ransomware">Ransomware<b>9</b></button>
+      <button class="fchip" data-f="malware">Malware<b>58</b></button>
+      <button class="fchip" data-f="vulnerability">Vulnerability<b>152</b></button>
+      <button class="fchip" data-f="threat intel">Threat intel<b>304</b></button>
+    </div>
+    <div class="ops-grid">
+      <div class="feed">
+        <div class="feed-h"><span>Daily intelligence · <em id="fhCat" style="font-style:normal">All</em></span><span id="fhCount">Showing 1 to 12 of 304</span></div>
+        <div id="feedRows"></div>
+      </div>
+      <aside class="rail" id="rail"></aside>
+    </div>
+  </section>
+  <section id="vulns">
+    <div class="sec-head">
+      <div class="sec-title"><span class="sec-num">03</span><h2>Vulnerability triage.</h2></div>
+      <div class="sec-desc">CISA KEV membership joined with CVSS and EPSS exploitation probability. Default order: actively exploited and most likely to be exploited first.</div>
+    </div>
+    <table class="vtable">
+      <thead><tr>
+        <th>CVE</th><th>Severity</th><th class="r">CVSS</th><th class="r">EPSS</th><th>KEV</th><th>Product / vendor</th><th class="r">Published</th>
+      </tr></thead>
+      <tbody id="cveRows"></tbody>
+    </table>
+  </section>
+
+  <section id="health">
+    <div class="sec-head">
+      <div class="sec-title"><span class="sec-num">04</span><h2>Collection health.</h2></div>
+      <div class="sec-desc">Per-source collector status. One failing source degrades to a warning — it never breaks the picture.</div>
+    </div>
+    <div class="hgrid" id="healthGrid"></div>
+  </section>
+
+  <section id="registry">
+    <div class="sec-head">
+      <div class="sec-title"><span class="sec-num">05</span><h2>Source registry.</h2></div>
+      <div class="sec-desc">Twenty-four open collections: nine automated collector-backed feeds and fifteen curated reference sources. Every item on this page traces to one of them.</div>
+    </div>
+    <table class="vtable">
+      <thead><tr><th>Source</th><th>Type</th><th>Operational coverage</th><th class="r">Access</th></tr></thead>
+      <tbody id="regRows"></tbody>
+    </table>
+  </section>
+
+  <section id="toolbelt">
+    <div class="sec-head">
+      <div class="sec-title"><span class="sec-num">06</span><h2>Analyst toolbelt.</h2></div>
+      <div class="sec-desc">Paste artifacts straight from an alert. Everything runs client-side; nothing you paste leaves the page.</div>
+    </div>
+    <div class="belt">
+      <div class="tool">
+        <div class="tool-h"><span>Defang / refang</span><button class="act" id="defangBtn">Defang</button></div>
+        <textarea id="defangIn" spellcheck="false" placeholder="http://evil-updates.example/payload.exe  10.14.88.2"></textarea>
+        <div class="out" id="defangOut">—</div>
+      </div>
+      <div class="tool">
+        <div class="tool-h"><span>IOC extract</span><button class="act" id="extractBtn">Extract</button></div>
+        <textarea id="extractIn" spellcheck="false" placeholder="Paste alert text, email headers, or a report paragraph…"></textarea>
+        <div class="out" id="extractOut">—</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="fband">
+    <div>Daily news and research<b>·</b></div>
+    <div>Active campaign reports<b>·</b></div>
+    <div>Vulnerability records<b>·</b></div>
+    <div>Cyber attack reports<b>·</b></div>
+  </div>
+  <div class="foot">
+    <span>VIGIL — open-source threat intelligence, operationalized.</span>
+    <span class="mono">DATA REFRESHED EVERY 30 MIN · BRIEF 2× DAILY · $0 INFRASTRUCTURE</span>
+  </div>
+</div>
+<script>
+const CAT = {
+  "cyber attack":{c:"var(--red)"}, "ransomware":{c:"var(--amber)"},
+  "vulnerability":{c:"var(--blue)"}, "threat intel":{c:"var(--green)"},
+  "malware":{c:"var(--amber)"}, "campaign":{c:"var(--paper)"}, "apt":{c:"var(--paper)"}
+};
+const FEED = [
+ {cat:"vulnerability",src:"Rapid7 Research · Daily feed",t:"How AI is rewriting the zero-day playbook for preemptive security",s:"It's late in the day and a critical zero-day is disclosed. CISOs turn to their SOC with one question: are we exposed? The window between disclosure and exploitation keeps shrinking.",tm:"Now",pub:"Rapid7 Research",d:"Jul 29, 2026"},
+ {cat:"threat intel",src:"SecurityWeek · Daily feed",t:"Spur raises $200 million for IP intelligence platform",s:"The IP intelligence company will use the fresh investment to accelerate and scale its operations across residential-proxy and VPN detection datasets.",tm:"Now",pub:"SecurityWeek",d:"Jul 29, 2026"},
+ {cat:"vulnerability",src:"The Hacker News · Daily feed",t:"Public PoC released for exploited Check Point SmartConsole authentication bypass",s:"Researchers shared technical details of a recently patched critical flaw impacting Check Point Security Management Server and Multi-Domain Server deployments.",tm:"1h ago",pub:"The Hacker News",d:"Jul 29, 2026"},
+ {cat:"cyber attack",src:"SecurityWeek · Daily feed",t:"Dozens of Minnesota water utilities targeted in coordinated OT attacks",s:"State and federal agencies respond after intrusions disrupt automated controls at municipal water and wastewater utilities across the state.",tm:"2h ago",pub:"SecurityWeek",d:"Jul 29, 2026"},
+ {cat:"ransomware",src:"Ransomware.live · Collector",t:"Akira claims 14 new victims across EU manufacturing in 48 hours",s:"Twelve of fourteen postings are EU manufacturers. Initial access consistent with exploited edge appliances; double-extortion timelines have compressed to five days.",tm:"3h ago",pub:"Ransomware.live",d:"Jul 29, 2026"},
+ {cat:"apt",src:"Microsoft Threat Intelligence · Daily feed",t:"Midnight Blizzard pivots to OAuth device-code phishing against NATO-aligned orgs",s:"The actor has abandoned credential-harvest pages for device-code flows delivered through compromised SMB tenants, bypassing password-based detections.",tm:"4h ago",pub:"Microsoft Threat Intelligence",d:"Jul 29, 2026"},
+ {cat:"malware",src:"ThreatFox · Collector",t:"Lumma Stealer C2 rotation: 61 new domains fingerprinted in 24 hours",s:"High-confidence C2 infrastructure rotation with consistent JA4 fingerprints across new registrations on .shop and .top TLDs.",tm:"5h ago",pub:"abuse.ch ThreatFox",d:"Jul 29, 2026"},
+ {cat:"vulnerability",src:"CISA KEV · Collector",t:"KEV addition: CVE-2026-1173 Check Point SmartConsole — exploitation confirmed",s:"CISA added CVE-2026-1173 to the Known Exploited Vulnerabilities catalog with a remediation due date of Aug 19. Ransomware campaign use: known.",tm:"6h ago",pub:"CISA",d:"Jul 29, 2026"},
+ {cat:"campaign",src:"Unit 42 · Daily feed",t:"SocGholish fake-update campaign expands to compromised municipal sites",s:"Over 400 compromised sites now serve fake browser updates; payloads pivot from NetSupport RAT to Interlock ransomware staging within hours.",tm:"8h ago",pub:"Palo Alto Unit 42",d:"Jul 28, 2026"},
+ {cat:"threat intel",src:"The DFIR Report · Daily feed",t:"From ScreenConnect to domain admin in 47 minutes: an intrusion breakdown",s:"Full timeline of a hands-on-keyboard intrusion: ScreenConnect exploitation, Ligolo tunneling, LSASS access, and Veeam credential harvesting before deployment.",tm:"11h ago",pub:"The DFIR Report",d:"Jul 28, 2026"},
+ {cat:"ransomware",src:"Ransomware.live · Collector",t:"Qilin posts US healthcare network; 340GB claimed including imaging data",s:"The group claims exfiltration of patient imaging and scheduling systems. No encryption event confirmed; extortion-only pattern continues to grow.",tm:"14h ago",pub:"Ransomware.live",d:"Jul 28, 2026"},
+ {cat:"malware",src:"MalwareBazaar · Collector",t:"New Latrodectus loader build ships with sandbox-aware sleep skipping",s:"Fresh samples show refined evasion: WMI-based sandbox checks and staged unhooking before payload retrieval from bulletproof hosting.",tm:"16h ago",pub:"abuse.ch MalwareBazaar",d:"Jul 28, 2026"}
+];
+const CVES = [
+ {id:"CVE-2026-1173",sev:"critical",cvss:"9.8",epss:"87%",kev:true,p:"SmartConsole / Check Point",d:"2026-07-22"},
+ {id:"CVE-2026-0994",sev:"critical",cvss:"10.0",epss:"94%",kev:true,p:"FortiOS SSLVPN / Fortinet",d:"2026-07-18"},
+ {id:"CVE-2026-1044",sev:"critical",cvss:"9.6",epss:"91%",kev:true,p:"Connect Secure / Ivanti",d:"2026-07-15"},
+ {id:"CVE-2026-0871",sev:"high",cvss:"8.8",epss:"76%",kev:true,p:"ScreenConnect / ConnectWise",d:"2026-07-11"},
+ {id:"CVE-2026-1201",sev:"high",cvss:"8.1",epss:"68%",kev:true,p:"SharePoint Server / Microsoft",d:"2026-07-09"},
+ {id:"CVE-2026-0755",sev:"critical",cvss:"9.8",epss:"71%",kev:false,p:"vCenter Server / VMware",d:"2026-07-08"},
+ {id:"CVE-2026-1310",sev:"high",cvss:"7.8",epss:"52%",kev:true,p:"Windows CLFS / Microsoft",d:"2026-07-06"},
+ {id:"CVE-2026-0632",sev:"high",cvss:"8.6",epss:"44%",kev:false,p:"GlobalProtect / Palo Alto",d:"2026-07-02"},
+ {id:"CVE-2026-0518",sev:"medium",cvss:"6.7",epss:"31%",kev:false,p:"Backup & Replication / Veeam",d:"2026-06-28"},
+ {id:"CVE-2026-0477",sev:"high",cvss:"8.2",epss:"27%",kev:false,p:"MOVEit Transfer / Progress",d:"2026-06-24"}
+];
+const IOCS = {
+ "185.220.101.42":{type:"IPV4",score:87,verdict:"Malicious",word:"MALICIOUS",color:"var(--red)",
+   tags:[["COBALT STRIKE C2","var(--red)"],["TOR EXIT NODE","var(--amber)"],["AS3209 · VODAFONE DE","var(--muted)"]],
+   sum:"Known Cobalt Strike C2 exit node used in multiple ransomware campaigns. Flagged by ThreatFox (high confidence), URLhaus, and Ransomware.live within the past 14 days.",
+   ev:[["ThreatFox","var(--green)","2026-07-08 → 2026-07-27"],["URLhaus","var(--green)","2026-07-12 → 2026-07-26"],["Ransomware.live","var(--amber)","2026-07-15 → 2026-07-24"],["MalwareBazaar","var(--amber)","2026-07-19"]]},
+ "evil-updates.example":{type:"DOMAIN",score:74,verdict:"Malicious",word:"MALICIOUS",color:"var(--red)",
+   tags:[["LUMMA STEALER","var(--red)"],["PAYLOAD DELIVERY","var(--amber)"],["REGISTERED 11D AGO","var(--muted)"]],
+   sum:"Active Lumma Stealer distribution domain in the current C2 rotation set. First seen by ThreatFox eleven days ago; JA4 fingerprint matches the tracked cluster.",
+   ev:[["ThreatFox","var(--green)","2026-07-18 → 2026-07-29"],["URLhaus","var(--green)","2026-07-21 → 2026-07-28"]]},
+ "cve-2026-1173":{type:"CVE",score:94,verdict:"Actively exploited",word:"ACTIVELY EXPLOITED",color:"var(--red)",
+   tags:[["KEV · DUE AUG 19","var(--red)"],["EPSS 0.87","var(--amber)"],["POC PUBLIC","var(--amber)"]],
+   sum:"Check Point SmartConsole authentication bypass. KEV-listed with known ransomware use; public PoC released and mass scanning observed by SANS ISC within six hours.",
+   ev:[["CISA KEV","var(--red)","Added 2026-07-28"],["NVD · CVSS 9.8","var(--green)","2026-07-22"],["EPSS · 0.87 / P99","var(--green)","2026-07-29"]]}
+};
+const HEALTH = [
+ ["CISA KEV",1289,"OK","12 min ago"],["NVD + EPSS",28406,"OK","12 min ago"],
+ ["ThreatFox",8912,"OK","12 min ago"],["URLhaus",6260,"OK","12 min ago"],
+ ["MalwareBazaar",3118,"OK","12 min ago"],["Ransomware.live",4110,"OK","27 min ago"],
+ ["MITRE ATT&CK",1004,"OK","4 days ago (weekly)"],["RSS pool",2071,"OK","12 min ago"],
+ ["FIRST EPSS",0,"DEGRADED","2h 14m ago"]
+];
+const REG = [
+ ["CISA KEV","Collector","Actively exploited CVE catalog"],["NVD","Collector","CVE details, CVSS, affected products"],
+ ["FIRST EPSS","Collector","Exploitation probability scoring"],["ThreatFox","Collector","IOCs with malware attribution"],
+ ["URLhaus","Collector","Malicious URL tracking"],["MalwareBazaar","Collector","Sample hashes and families"],
+ ["Ransomware.live","Collector","Ransomware group activity and victims"],["MITRE ATT&CK","Collector","Adversary groups, software, techniques"],
+ ["Vendor & researcher RSS","Collector","Talos, Unit 42, DFIR Report, MSTIC, GTIG, ISC, more"],
+ ["CISA Advisories","Reference","US government advisories and alerts"],["Cisco Talos","Reference","Threat research and reversing"],
+ ["Palo Alto Unit 42","Reference","Threat research, actor tracking"],["The DFIR Report","Reference","Full intrusion breakdowns"],
+ ["Microsoft Threat Intelligence","Reference","Nation-state and crimeware tracking"],["Google TIG","Reference","Mandiant-lineage threat research"],
+ ["CrowdStrike","Reference","Adversary-focused research"],["SANS ISC","Reference","Daily handler diaries, port trends"],
+ ["BleepingComputer","Reference","Breaking security news"],["The Hacker News","Reference","Broad security news coverage"],
+ ["KrebsOnSecurity","Reference","Cybercrime investigative reporting"],["Securelist","Reference","APT and crimeware research"],
+ ["Trend Micro Research","Reference","Vulnerability and threat research"],["Sophos X-Ops","Reference","Threat research and incident writeups"],
+ ["Ransomlook","Reference","Ransomware leak-site monitoring"]
+];
+</script>
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+let filter = "all", selected = 0;
+
+function renderFeed(){
+  const items = FEED.filter(i => filter === "all" || i.cat === filter);
+  $("#feedRows").innerHTML = items.map((i, n) => `
+    <div class="row${n === selected ? " sel" : ""}" data-i="${n}">
+      <span class="tag" style="color:${CAT[i.cat].c};border-color:${CAT[i.cat].c}">${i.cat}</span>
+      <div><div class="src">${i.src}</div><div class="t">${i.t}</div><div class="s">${i.s}</div></div>
+      <span class="tm">${i.tm}</span>
+    </div>`).join("");
+  $("#fhCount").textContent = `Showing 1 to ${items.length} of ${filter === "all" ? 304 : items.length}`;
+  $("#fhCat").textContent = filter === "all" ? "All" : filter;
+  $("#resChip").textContent = `${filter === "all" ? 304 : items.length} results`;
+  $$(".row").forEach(r => r.onclick = () => { selected = +r.dataset.i; renderFeed(); renderRail(items[selected]); });
+  if (items[selected]) renderRail(items[selected]); else if (items[0]) { selected = 0; renderRail(items[0]); }
+}
+
+function renderRail(i){
+  $("#rail").innerHTML = `
+    <div class="rail-h"><span class="caps" style="color:${CAT[i.cat].c};letter-spacing:.11em">${i.cat} activity</span><span class="caps" style="color:var(--acid);letter-spacing:.11em">${i.tm}</span></div>
+    <div class="rail-body"><div class="rail-title">${i.t}</div><p class="rail-text">${i.s} ${i.s}</p></div>
+    <div class="meta"><div class="l">Publisher</div><div class="v">${i.pub}</div></div>
+    <div class="meta"><div class="l">Published</div><div class="v">${i.d}</div></div>
+    <div class="meta"><div class="l">Analyst actions</div><div class="v" style="display:flex;gap:8px;margin-top:9px">
+      <button class="pivot">Copy defanged</button><button class="pivot">Copy blurb</button><button class="pivot">Flag notable</button></div></div>`;
+}
+
+function renderReport(q, hit){
+  const r = hit || { type: detectType(q).toUpperCase(), score: "—", word: "UNKNOWN", color: "var(--muted)",
+    tags: [["NOT IN COLLECTED CORPUS","var(--muted)"], ["9 SOURCES CHECKED","var(--muted)"]],
+    sum: "No observations across the collected corpus in the current windows. Absence is not clearance — pivot to external services below for live enrichment.", ev: [] };
+  const piv = ["VirusTotal","urlscan","ANY.RUN","Tria.ge","Censys","Shodan"]
+    .map(p => `<a class="pivot" href="#" onclick="return false">${p} ↗</a>`).join("");
+  $("#rail").innerHTML = `
+    <div class="rail-h"><span class="caps" style="color:${r.color};letter-spacing:.11em">Indicator verdict · ${r.type}</span><span class="caps" style="color:var(--acid);letter-spacing:.11em">Now</span></div>
+    <div class="rail-body">
+      <div class="verdict-num" style="color:${r.color}">${r.score}</div>
+      <div class="verdict-word">${r.word}</div>
+      <div class="mono" style="font-size:13px;color:var(--paper);margin-bottom:14px;word-break:break-all">${q}</div>
+      <div class="vtags">${r.tags.map(t => `<span class="vtag" style="color:${t[1]};border-color:${t[1]}">${t[0]}</span>`).join("")}</div>
+      <p class="rail-text">${r.sum}</p>
+    </div>
+    ${r.ev.length ? `<div class="ev"><div class="l">Source intelligence</div>${r.ev.map(e =>
+      `<div class="ev-row"><span class="k" style="color:${e[1]}">${e[0]}</span><span class="d">${e[2]}</span></div>`).join("")}</div>` : ""}
+    <div class="ev"><div class="l">Pivot to</div></div>
+    <div class="pivots" style="border-top:none;padding-top:0">${piv}</div>`;
+  $("#operations").scrollIntoView({ behavior: "smooth" });
+}
+
+function detectType(q){
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(q)) return "ipv4";
+  if (/^[a-f0-9]{64}$/i.test(q)) return "sha256";
+  if (/^[a-f0-9]{32}$/i.test(q)) return "md5";
+  if (/^cve-\d{4}-\d{4,7}$/i.test(q)) return "cve";
+  if (/^https?:\/\//i.test(q)) return "url";
+  if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(q)) return "domain";
+  return "";
+}
+
+const qEl = $("#q");
+qEl.addEventListener("input", () => {
+  const t = detectType(qEl.value.trim().replace(/\[\.\]/g, "."));
+  const d = $("#detect");
+  if (t) { d.textContent = t.toUpperCase(); d.style.display = "block"; } else d.style.display = "none";
+});
+function runSearch(raw){
+  const q = raw.trim().replace(/\[\.\]/g, ".");
+  if (!q) return;
+  renderReport(q, IOCS[q.toLowerCase()] || IOCS[q]);
+}
+qEl.addEventListener("keydown", e => { if (e.key === "Enter") runSearch(qEl.value); });
+$$(".ex-chip").forEach(c => c.onclick = () => { qEl.value = c.dataset.q; qEl.dispatchEvent(new Event("input")); runSearch(c.dataset.q); });
+document.addEventListener("keydown", e => {
+  if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+    e.preventDefault(); qEl.focus();
+  }
+});
+
+$$("#band button").forEach(b => b.onclick = () => {
+  $$("#band button").forEach(x => x.classList.remove("on")); b.classList.add("on");
+  filter = b.dataset.cat === "all" ? "all" : b.dataset.cat; selected = 0; renderFeed();
+});
+$$("#filters .fchip").forEach(b => b.onclick = () => {
+  $$("#filters .fchip").forEach(x => x.classList.remove("on")); b.classList.add("on");
+  filter = b.dataset.f; selected = 0; renderFeed();
+});
+
+const SEVC = { critical: "var(--red)", high: "var(--amber)", medium: "var(--blue)", low: "var(--green)" };
+$("#cveRows").innerHTML = CVES.map(c => `
+  <tr><td class="mono" style="font-weight:700">${c.id}</td>
+  <td><span class="sev" style="color:${SEVC[c.sev]}">${c.sev}</span></td>
+  <td class="mono r">${c.cvss}</td><td class="mono r">${c.epss}</td>
+  <td>${c.kev ? '<span class="kev">KEV</span>' : '<span style="color:var(--muted)">—</span>'}</td>
+  <td>${c.p}</td><td class="mono r" style="color:var(--muted)">${c.d}</td></tr>`).join("");
+
+$("#healthGrid").innerHTML = HEALTH.map(h => `
+  <div class="hcell"><div class="hh"><span>${h[0]}</span><span class="dot${h[2] === "DEGRADED" ? " deg" : ""}"></span></div>
+  <div class="n"${h[2] === "DEGRADED" ? ' style="color:var(--amber)"' : ""}>${h[1].toLocaleString()}</div>
+  <div class="m">LAST RUN · ${h[3].toUpperCase()}</div></div>`).join("");
+
+$("#regRows").innerHTML = REG.map(r => `
+  <tr><td style="font-weight:800">${r[0]}</td>
+  <td><span class="sev" style="color:${r[1] === "Collector" ? "var(--acid)" : "var(--muted)"}">${r[1]}</span></td>
+  <td style="color:var(--muted)">${r[2]}</td><td class="mono r" style="color:var(--acid)">OPEN ↗</td></tr>`).join("");
+
+$("#defangBtn").onclick = () => {
+  const v = $("#defangIn").value;
+  $("#defangOut").textContent = v ? v.replace(/http/gi, "hxxp").replace(/\./g, "[.]") : "—";
+};
+$("#extractBtn").onclick = () => {
+  const v = $("#extractIn").value;
+  const found = [...new Set([...(v.match(/(\d{1,3}\.){3}\d{1,3}/g) || []),
+    ...(v.match(/\b[a-f0-9]{64}\b/gi) || []), ...(v.match(/\bCVE-\d{4}-\d{4,7}\b/gi) || []),
+    ...(v.match(/\b[a-z0-9-]+\.(com|net|org|io|example|top|shop|xyz)\b/gi) || [])])];
+  $("#extractOut").textContent = found.length ? found.join("\n") : "No indicators found.";
+};
+
+renderFeed();
+</script>
+</body>
+</html>
