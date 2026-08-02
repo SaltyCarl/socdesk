@@ -31,6 +31,16 @@ def test_merge_iocs_updates_last_seen():
     assert entry["confidence"] == 90
 
 
+def test_merge_iocs_caps_per_type():
+    entries = [{"type": "ipv4", "value": f"10.0.0.{n}", "source": "threatfox",
+                "malware": "", "confidence": 50,
+                "first_seen": f"2026-07-{10 + n:02d}T00:00:00Z",
+                "last_seen": f"2026-07-{10 + n:02d}T00:00:00Z"} for n in range(5)]
+    merged = merge_iocs([], entries, days=90, now=FIXED_NOW, max_per_type=3)
+    assert len(merged["ipv4"]) == 3
+    assert merged["ipv4"][0]["value"] == "10.0.0.4"   # newest kept
+
+
 def test_build_site_data_shapes():
     results = [
         CollectorResult(source="rss", items=[NEW_ITEM]),

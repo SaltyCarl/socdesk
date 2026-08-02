@@ -7,11 +7,15 @@ BASE = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 LOOKBACK_DAYS = 2
 
 
-def build_url(now):
+MAX_PAGES = 5
+
+
+def build_url(now, start_index=0):
     start = (now - timedelta(days=LOOKBACK_DAYS)).strftime("%Y-%m-%dT%H:%M:%S.000")
     end = now.strftime("%Y-%m-%dT%H:%M:%S.000")
-    return (f"{BASE}?lastModStartDate={start}&lastModEndDate={end}"
-            f"&resultsPerPage=2000")
+    url = (f"{BASE}?lastModStartDate={start}&lastModEndDate={end}"
+           f"&resultsPerPage=2000")
+    return url if start_index == 0 else f"{url}&startIndex={start_index}"
 
 
 def _cpe_vendors_products(cve):
@@ -39,8 +43,18 @@ def _cvss(cve):
 
 def collect(fetch, now):
     data = fetch(build_url(now))
+    vulns = list(data.get("vulnerabilities", []))
+    total = data.get("totalResults", len(vulns))
+    pages = 1
+    while len(vulns) < total and pages < MAX_PAGES:   # patch-week overflow guard
+        page = fetch(build_url(now, start_index=len(vulns)))
+        got = page.get("vulnerabilities", [])
+        if not got:
+            break
+        vulns.extend(got)
+        pages += 1
     rows = []
-    for entry in data.get("vulnerabilities", []):
+    for entry in vulns:
         cve = entry["cve"]
         score, sev = _cvss(cve)
         vendors, products = _cpe_vendors_products(cve)

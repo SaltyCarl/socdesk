@@ -1,9 +1,26 @@
 import hashlib
+import html
+import re
 from dataclasses import dataclass, field
+
+_TAG_RE = re.compile(r"<[^>]+>")
 
 
 def iso(dt):
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def clean_text(text):
+    """Strip HTML tags and entities from upstream text. Upstream strings are
+    attacker-influenced (RSS titles, victim names); nothing markup-shaped may
+    enter published data."""
+    return _TAG_RE.sub("", html.unescape(text or "")).strip()
+
+
+def safe_url(url):
+    """Only http(s) URLs are publishable as links."""
+    u = (url or "").strip()
+    return u if u.startswith(("http://", "https://")) else ""
 
 
 @dataclass
@@ -21,9 +38,9 @@ def make_item(source, native_id, category, title, summary, url, severity,
         "id": hashlib.sha1(f"{source}:{native_id}".encode("utf-8")).hexdigest(),
         "source": source,
         "category": category,
-        "title": title.strip()[:300],
-        "summary": (summary or "").strip()[:500],
-        "url": url,
+        "title": clean_text(title)[:300],
+        "summary": clean_text(summary)[:500],
+        "url": safe_url(url),
         "severity": severity,
         "entities": entities or {"actors": [], "malware": [], "vendors": [], "cves": []},
         "iocs": iocs or [],

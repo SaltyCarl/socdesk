@@ -4,6 +4,7 @@ from collectors.base import iso
 
 FEED_DAYS = 30
 IOC_DAYS = 90
+IOC_MAX_PER_TYPE = 25000   # payload-size guard once abuse.ch volume arrives
 SCHEMA_VERSION = 1
 IOC_TYPES = ("ipv4", "domain", "url", "md5", "sha256")
 
@@ -20,7 +21,7 @@ def merge_feed(prior_items, new_items, days, now):
     return sorted(kept, key=lambda i: i["published_at"], reverse=True)
 
 
-def merge_iocs(prior_entries, new_entries, days, now):
+def merge_iocs(prior_entries, new_entries, days, now, max_per_type=IOC_MAX_PER_TYPE):
     cutoff = iso(now - timedelta(days=days))
     merged = {}
     for e in list(prior_entries) + list(new_entries):
@@ -37,6 +38,7 @@ def merge_iocs(prior_entries, new_entries, days, now):
                 {k: v for k, v in e.items() if k != "type"})
     for t in by_type:
         by_type[t].sort(key=lambda e: e["last_seen"], reverse=True)
+        del by_type[t][max_per_type:]   # size guard: keep newest, cap payload
     return by_type
 
 

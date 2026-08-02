@@ -11,6 +11,19 @@ def test_make_item_shape():
     assert item["iocs"] == []
 
 
+def test_make_item_sanitizes_upstream_markup():
+    item = make_item("rss", "n2", "report",
+                     "Breaking <img src=x onerror=alert(1)> &amp; more",
+                     "<p>Body with <script>evil()</script> tags</p>",
+                     "javascript:alert(1)", "info", "p", FIXED_NOW)
+    assert item["title"] == "Breaking  & more"
+    assert item["summary"] == "Body with evil() tags"
+    assert item["url"] == ""                      # non-http scheme rejected
+    ok = make_item("rss", "n3", "report", "T", "S",
+                   "https://x.test/a", "info", "p", FIXED_NOW)
+    assert ok["url"] == "https://x.test/a"
+
+
 def test_make_item_id_is_stable():
     a = make_item("rss", "native-1", "report", "T", "S", "u", "info", "p", FIXED_NOW)
     b = make_item("rss", "native-1", "report", "T2", "S2", "u2", "low", "p2", FIXED_NOW)
