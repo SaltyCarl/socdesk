@@ -36,6 +36,26 @@ by scheduled collectors; zero infrastructure, zero cost.
 
 ## Data files
 
-`feed.json` (30-day window) · `iocs.json` (90-day) · `cves.json` (180-day,
-KEV+CVSS+EPSS join) · `actors.json` / `malware.json` (ATT&CK) ·
-`health.json` · `sources.json` · `brief.json` (optional, external writer)
+`feed.json` (30-day window) · `iocs.json` (90-day, capped per type) ·
+`cves.json` (180-day, KEV+CVSS+EPSS join) · `actors.json` / `malware.json`
+(ATT&CK) · `health.json` · `sources.json` · `brief.json` (optional,
+external writer)
+
+## Data sources, attribution, and terms
+
+All intelligence is aggregated from public sources; every item links back to
+its origin, and the Source Registry documents the full set. In particular:
+
+- ATT&CK® content: © 2026 The MITRE Corporation. This work is reproduced and
+  distributed with the permission of The MITRE Corporation. ATT&CK is a
+  registered trademark of The MITRE Corporation.
+- Exploit Prediction Scoring System (EPSS) scores provided by FIRST
+  (https://www.first.org/epss/). CISA KEV data is U.S. Government work in the
+  public domain. IOC data courtesy of the abuse.ch projects (ThreatFox,
+  URLhaus, MalwareBazaar) under their community terms. Ransomware activity
+  data via Ransomware.live. Headlines and summaries are excerpted with
+  attribution and link to the original publishers.
+
+This is an informational aggregation tool. No warranty is made about the
+accuracy or completeness of third-party data; verify independently before
+acting on any indicator.
