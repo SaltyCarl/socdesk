@@ -25,6 +25,15 @@ fixture + one registry row:
 - **Registry additions (reference kind):** APTnotes, ThreatMiner, Pulsedive,
   GreyNoise Visualizer.
 
+## Compliance gates (see COMPLIANCE.md — 2026-08-06 skeptical SME review)
+
+Launch is GATED. Must-fix before public deploy: cut Ransomware.live victim
+names (R3), resolve abuse.ch redistribution in writing or link-out (R4),
+per-verdict disclaimer + noindex (R5), remove case-note templates from repo
+(R6). Must-fix before any team use: written employer approval + CUI-scope
+exclusion (R1/R2/R7). Shared-team-state idea is now explicitly parked as
+public — auth-gated separate deploy only.
+
 ## Positioning note
 
 The heavyweight OSS CTI platforms (OpenCTI, MISP, IntelOwl, YETI) all require
