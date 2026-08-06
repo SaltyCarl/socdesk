@@ -1,9 +1,40 @@
 # VIGIL — Compliance Findings & Gates
 
-Skeptical compliance/legal review, 2026-08-06. **Verdict: publishable with
-changes — NOT as-is, and NOT as an MSSP-team tool without written employer
-approval.** This file is a launch gate; do not deploy publicly or promote
-internal use until the must-fix items are closed.
+Skeptical compliance/legal review, 2026-08-06. This file is a launch gate; do
+not deploy publicly until the must-fix items are closed.
+
+## 2026-08-06 scope correction (re-rates the register below)
+
+Owner clarified: **personally owned** (not the company), **primarily a
+portfolio/showcase project** shown to the team who *may* reference it — NOT
+mandated daily-driver tooling. Core functions: (1) consolidate IOC lookups,
+(2) output an IOC into a presentable escalation format, (3) current cyber
+news. This lowers several ratings:
+
+- **R1 (team adoption): CRITICAL → MEDIUM.** A personal showcase individuals
+  reference is not institutional shadow IT. Residual risk is unchanged by
+  ownership or "official" status: it returns the instant anyone pastes a
+  **real client-incident IOC** — that's a data-sensitivity fact, not a
+  framing fact. Control = "personal project; use PUBLIC indicators only"
+  stated plainly on the site + the pivot OPSEC footnote.
+- **R7 (CUI): MEDIUM → LOW**, same caveat — fine for public-indicator
+  research; document "not for CUI-scoped client-incident indicators."
+- **R2 (employer IP): UNCHANGED — HIGH.** Personal ownership is the *intent*,
+  but ownership is decided by the employment agreement's IP-assignment
+  clause, not by declaring it. "I own it" does not resolve this — reading the
+  clause does. Still the top thing to verify.
+- **R3/R4 (data redistribution): UNCHANGED** — republication rights don't
+  depend on who owns the site or whether use is "official." Still must-fix.
+  But they align with the core: see the IOC-model note.
+
+**IOC-model note (serves the #1 core function AND fixes R4):** favor the
+*aggregator/pivot* model over the *mirror* model. Analyst pastes an IOC →
+VIGIL detects type → shows a verdict from clearly-redistributable data it
+holds (KEV/EPSS/NVD, all CC0/public-domain/FIRST) + a row of deep-links to
+external reputation services (VT, GreyNoise, AbuseIPDB, urlscan…). Linking is
+not redistributing — this sidesteps the abuse.ch corpus-mirror problem (R4)
+and is a *better* one-stop-shop for lookups than holding a stale local IOC
+mirror. Keep the local corpus only for the public-domain vuln data.
 
 ## The correction that matters most
 
