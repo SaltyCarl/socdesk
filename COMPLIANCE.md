@@ -49,7 +49,56 @@ earlier assurances were wrong:
 - "the team can just use it" ignores that unapproved personal tooling in a
   client-incident workflow is itself the critical finding (R1).
 
-## Must-fix BEFORE public launch
+## 2026-08-06 RE-REVIEW (aggregator scope) — FINAL register, supersedes below
+
+Verified: KEV = CC0, NVD = US-Gov public domain (embedded CVE text CC0),
+EPSS = free to publish **with attribution, no implied endorsement**. So the
+local KEV/NVD/EPSS corpus is genuinely clean to hold. abuse.ch, AbuseIPDB,
+VirusTotal are NOT open-licensed — but a plain `<a href>` deep-link is not
+redistribution and doesn't touch their terms; a background `fetch()` would
+(CSP `connect-src 'self'` already blocks that — keep it).
+
+| # | Risk | Final | Note |
+|---|------|-------|------|
+| R1 | Team adoption / shadow-IT | MEDIUM | Not mandated + no backend/retention shrinks it; colleague-pastes-live-IOC residual remains |
+| R2 | **Employer IP** | **HIGH — the gate** | "Personally owned" does NOT defeat a "relates-to-employer's-business" assignment clause; turns on the actual contract + whether any employer time/equipment/confidential-info was used. Unverifiable here. |
+| R3 | Ransomware.live republication | LOW / resolved | Link-out only, nothing mirrored |
+| R4 | abuse.ch redistribution | LOW / resolved | No corpus held; deep-link ≠ redistribution |
+| R5 | Public verdicts | LOW-MED | KEV/EPSS = "known-exploited / probability", not "malicious" — smaller surface; keep sourced + timestamped |
+| R6 | Escalation template | **RE-OPENED MEDIUM** | Core function (b) revives it — must pass the generic test below |
+| R7 | CMMC/CUI handling | MEDIUM | Behavior-driven; **amplified** by one-click fan-out (faster/wider third-party disclosure) |
+| R8 | SIEM-query gen | LOW | Vendor-neutral framing |
+| R9 | RSS/attribution | LOW-MED | Headline+snippet+link only; attribute feeds |
+
+### Hard design constraints for Phase B (from the re-review)
+1. **Aggregator = explicit user-click deep-links ONLY.** No auto-fan-out
+   (one click must not spray an indicator to 6 services at once), no
+   background fetch of any third-party service. Keep CSP `connect-src 'self'`.
+2. **Prominent disclosure banner**, not a footnote: "Clicking a pivot
+   discloses this indicator to that third-party service. Use PUBLIC
+   indicators only." + urlscan public-scans-are-published caveat.
+3. **Escalation output must pass the generic test:** *"Could an analyst at
+   ANY company paste this unchanged, and does it reveal nothing about how MY
+   employer specifically notifies MY employer's clients?"* Author from
+   scratch (indicator, type, public verdict, KEV/EPSS context, neutral
+   next-steps). Must NOT reproduce employer ticket/notification template,
+   severity taxonomy, SLA language, or client-facing phrasing.
+4. **EPSS attribution** + no implied FIRST/NIST/CISA endorsement.
+
+### The two things still being rationalized past (owner must own these)
+- **R2 is the real gate and it's on Carl, not the code:** read the actual
+  employment IP-assignment agreement; confirm no employer time/equipment/
+  confidential info was used. "I personally own the domain" dissolves nothing.
+- **R7 didn't vanish, it moved to analyst behavior:** the single most likely
+  real use — a colleague pasting a LIVE client IOC to build an escalation — is
+  the CUI/DFARS exposure, and the one-click aggregator makes that disclosure
+  faster/wider. "Public indicators only" is a real control only if the banner
+  is prominent and nothing persists server-side (it doesn't). Treat it as a
+  genuine constraint, not launch copy.
+
+---
+
+## (superseded) Must-fix BEFORE public launch
 
 - **R3 — CRITICAL — Ransomware.live victim republication.** Their terms bar
   commercial use and free API is personal-use only; listings are unverified
