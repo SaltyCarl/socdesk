@@ -41,14 +41,21 @@ export function pivotsFor(type, q) {
     ["Censys", `https://search.censys.io/search?q=${enc(q)}`],
   ]);
   if (type === "url") add([
+    // Existing public scans first — inspecting someone else's completed scan
+    // discloses nothing new. Detonation submits the URL to that service.
     ["urlscan", `https://urlscan.io/search/#${enc(q)}`],
-    ["PhishTank", `https://phishtank.org/`],
     ["Pulsedive", `https://pulsedive.com/indicator/?ioc=${enc(q)}`],
+    ["PhishTank", `https://phishtank.org/`],
+    ["ANY.RUN ⚠", `https://any.run/report/${enc(q)}`],
+    ["Tria.ge ⚠", `https://tria.ge/s?q=${enc(q)}`],
+    ["Joe Sandbox ⚠", `https://www.joesandbox.com/search?q=${enc(q)}`],
   ]);
   if (type === "md5" || type === "sha1" || type === "sha256") add([
     ["MalwareBazaar", `https://bazaar.abuse.ch/browse.php?search=${enc(q)}`],
     ["MetaDefender", `https://metadefender.opswat.com/results/file/${enc(q)}/hash/overview`],
     ["Hybrid Analysis", `https://www.hybrid-analysis.com/search?query=${enc(q)}`],
+    ["Tria.ge", `https://tria.ge/s?q=${enc(q)}`],
+    ["ANY.RUN", `https://any.run/report/${enc(q)}`],
   ]);
   if (type === "cve") add([
     ["NVD", `https://nvd.nist.gov/vuln/detail/${enc(q)}`],
@@ -166,7 +173,8 @@ function nextSteps(v) {
   ];
   if (t === "domain" || t === "url") return [
     "Search DNS, proxy and mail logs for resolution or access.",
-    "Detonate in a sandbox rather than browsing directly.",
+    "Never browse it directly — check for an existing public scan first, and " +
+      "detonate in a sandbox only if none exists.",
     "Check registration age and hosting in the external references below.",
   ];
   if (t.startsWith("sha") || t === "md5") return [
