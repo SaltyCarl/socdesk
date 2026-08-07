@@ -10,6 +10,11 @@ const R = require("../lib/real");
 const CSP = R.cspFromHeaders();
 const INDEX = fs.readFileSync(path.join(R.SITE, "index.html"), "utf8");
 
+// The global config sets bypassCSP so app specs can use Playwright's own
+// instrumentation (which needs eval). THIS spec must not bypass — otherwise it
+// asserts nothing. Re-enable enforcement for the whole describe block.
+test.use({ bypassCSP: false });
+
 test.describe("published Content-Security-Policy", () => {
   test("the policy allows neither unsafe-inline nor unsafe-eval", () => {
     expect(CSP).not.toMatch(/unsafe-inline/i);
@@ -41,7 +46,9 @@ test.describe("published Content-Security-Policy", () => {
     ]);
 
     await page.goto("/index.html");
-    await page.waitForFunction(() => document.querySelectorAll("#feedRows .row").length > 0);
+    // NOT waitForFunction: it evaluates a string, which this very policy
+    // blocks (no 'unsafe-eval'). Locator polling needs no eval.
+    await expect(page.locator("#feedRows .row").first()).toBeVisible({ timeout: 15000 });
 
     // --- omnibox lookup (verdict card, gauge, escalation, pivots) -------------
     await page.fill("#q", R.topKevCve().cve);

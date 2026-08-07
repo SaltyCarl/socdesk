@@ -3,9 +3,18 @@
 <meta name="description" content="VIGIL — the night watch for open-source threat intelligence. Paste an indicator once: vulnerability verdict, pivots to every public reputation service, and an escalation-ready summary.">
 <meta name="robots" content="noindex">
 <title>VIGIL — Open-Source Threat Intelligence</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- CSP as a meta tag for GitHub Pages, which cannot serve _headers. On
+     Cloudflare Pages the header version in _headers is stronger (it can also
+     express frame-ancestors) and takes over. Both are the same policy. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="VIGIL — Open-Source Threat Intelligence">
+<meta property="og:description" content="Paste an indicator once: vulnerability verdict, pivots to every public reputation service, and an escalation-ready summary. No accounts, no tracking.">
+<meta property="og:image" content="og.svg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/chrome.css">

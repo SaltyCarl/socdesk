@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <pattern id="grat" width="56" height="56" patternUnits="userSpaceOnUse">
+      <path d="M56 0 L0 0 0 56" fill="none" stroke="#6FA8DC" stroke-width="1" opacity=".045"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="#0F161C"/>
+  <rect width="1200" height="630" fill="url(#grat)"/>
+
+  <!-- mark -->
+  <g transform="translate(80,74)">
+    <circle cx="26" cy="26" r="24" fill="none" stroke="#E8E1CF" stroke-width="3"/>
+    <path d="M26 6 L45 44 L7 44 Z" fill="none" stroke="#E8E1CF" stroke-width="3"/>
+    <circle cx="26" cy="26" r="6" fill="#E2513A"/>
+  </g>
+  <text x="152" y="118" fill="#E8E1CF" font-family="Archivo,Arial,sans-serif"
+        font-size="34" font-weight="800" letter-spacing="3">VIGIL</text>
+  <text x="262" y="118" fill="#8799A6" font-family="IBM Plex Mono,monospace"
+        font-size="17" letter-spacing="3">TLP:CLEAR</text>
+
+  <!-- wordmark -->
+  <text x="80" y="330" fill="#E8E1CF" font-family="Archivo,Arial Black,sans-serif"
+        font-size="184" font-weight="800" letter-spacing="-4">VIG<tspan fill="#E2513A">I</tspan>L</text>
+
+  <text x="80" y="392" fill="#8799A6" font-family="Archivo,Arial,sans-serif"
+        font-size="26" font-weight="600" letter-spacing="4">THE NIGHT WATCH FOR OPEN-SOURCE THREAT INTELLIGENCE</text>
+
+  <line x1="80" y1="430" x2="1120" y2="430" stroke="#3C566C" stroke-width="1"/>
+
+  <text x="80" y="480" fill="#E8E1CF" font-family="Archivo,Arial,sans-serif" font-size="27">
+    All bearings. One verdict.</text>
+  <text x="80" y="522" fill="#8799A6" font-family="IBM Plex Mono,monospace" font-size="18">
+    Paste an indicator once — vulnerability verdict, pivots to every public</text>
+  <text x="80" y="550" fill="#8799A6" font-family="IBM Plex Mono,monospace" font-size="18">
+    reputation service, and an escalation-ready summary.</text>
+
+  <text x="80" y="596" fill="#8799A6" font-family="IBM Plex Mono,monospace"
+        font-size="15" letter-spacing="2">CISA KEV · NVD · FIRST EPSS · MITRE ATT&amp;CK · NO ACCOUNTS · NO TRACKING</text>
+</svg>

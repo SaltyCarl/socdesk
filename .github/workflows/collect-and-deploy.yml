@@ -13,11 +13,16 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: write        # commit rolling state + history snapshots
+  pages: write           # deploy to GitHub Pages
+  id-token: write        # OIDC for the Pages deployment
 
 jobs:
   collect-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,9 +50,11 @@ jobs:
         # The Framework's brief.json pushes use a deploy key, so they DO
         # trigger this workflow. That asymmetry is intentional.
 
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy site --project-name=vigil
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
