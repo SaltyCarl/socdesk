@@ -10,6 +10,7 @@ SCHEMA_FOR = {
     "cves.json": "cves.schema.json",
     "health.json": "health.schema.json",
     "sources.json": "sources.schema.json",
+    "trends.json": "trends.schema.json",
     "actors.json": "actors.schema.json",
     "malware.json": "actors.schema.json",
 }

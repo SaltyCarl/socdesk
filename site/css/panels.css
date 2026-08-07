@@ -128,6 +128,26 @@
 .kev{border:1px solid var(--mark);color:var(--mark);font-size:9px;font-weight:800;
   letter-spacing:.09em;padding:3px 7px;white-space:nowrap}
 .sev{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+/* trends — what changed since the last snapshot */
+.trends{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);
+  border-top:none;margin-top:26px}
+.trend-col{border-right:1px solid var(--line);padding:18px 20px}
+.trend-col:last-child{border-right:none}
+.trend-h{font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:12px;display:flex;gap:8px}
+.trend-row{display:grid;grid-template-columns:132px 108px 74px 1fr;gap:12px;
+  align-items:center;width:100%;text-align:left;padding:7px 0;
+  border-bottom:1px solid var(--line);font-size:12px;transition:background .15s}
+.trend-row:last-child{border-bottom:none}
+.trend-row:hover{background:var(--panel-soft)}
+.trend-jump{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.trend-jump b{color:var(--paper);font-weight:600}
+.trend-delta{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
+.trend-prod{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trend-empty{font-size:12px;padding:6px 0}
+@media (max-width:900px){.trends{grid-template-columns:1fr}
+  .trend-col{border-right:none;border-bottom:1px solid var(--line)}}
+
 .wlbar{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-top:none;
   padding:14px 20px;flex-wrap:wrap}
 .wlbar input{font-family:var(--mono);font-size:12px;flex:1;min-width:200px}

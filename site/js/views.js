@@ -324,6 +324,50 @@ function renderVulns(onPick) {
   $$("#cveRows tr").forEach(tr => tr.onclick = () => onPick?.(tr.dataset.cve));
 }
 
+/* ---------------- trends: what CHANGED ---------------- */
+/**
+ * The static tier's answer to "what moved this week". Derived from committed
+ * daily snapshots — git is the datastore, no backend involved.
+ */
+export function renderTrends(trends, onPick) {
+  const box = $("#trends");
+  if (!box) return;
+  if (!trends || (!trends.epss_movers?.length && !trends.new_kev?.length)) {
+    box.innerHTML = `<div class="trend-empty sev-unknown">Trend history builds
+      from daily snapshots — comparisons appear after the second day of
+      collection.</div>`;
+    return;
+  }
+  const pct = n => Math.round((n ?? 0) * 100) + "%";
+  const movers = (trends.epss_movers ?? []).slice(0, 5).map(m => `
+    <button class="trend-row" data-cve="${esc(m.cve)}">
+      <span class="mono${m.kev ? " tone-mark" : ""}">${esc(m.cve)}</span>
+      <span class="trend-jump mono">${esc(pct(m.from))} → <b>${esc(pct(m.to))}</b></span>
+      <span class="trend-delta mono sev-critical">▲ ${esc(pct(m.delta))}</span>
+      <span class="trend-prod sev-unknown">${esc(m.product || "")}</span>
+    </button>`).join("");
+  const fresh = (trends.new_kev ?? []).slice(0, 5).map(k => `
+    <button class="trend-row" data-cve="${esc(k.cve)}">
+      <span class="mono tone-mark">${esc(k.cve)}</span>
+      <span class="trend-jump mono">${k.epss != null ? esc(pct(k.epss)) : "—"}</span>
+      <span class="trend-delta mono tone-mark">NEW KEV</span>
+      <span class="trend-prod sev-unknown">${esc(k.product || "")}</span>
+    </button>`).join("");
+  const since = trends.totals?.compared_to
+    ? `since ${esc(trends.totals.compared_to)}` : "";
+  box.innerHTML = `
+    <div class="trend-col">
+      <div class="trend-h">Biggest exploitation-probability rises <span class="sev-unknown">${since}</span></div>
+      ${movers || `<div class="trend-empty sev-unknown">No material movement.</div>`}
+    </div>
+    <div class="trend-col">
+      <div class="trend-h">Newly added to CISA KEV <span class="sev-unknown">${since}</span></div>
+      ${fresh || `<div class="trend-empty sev-unknown">No new entries.</div>`}
+    </div>`;
+  box.querySelectorAll("[data-cve]").forEach(b =>
+    b.onclick = () => onPick?.(b.dataset.cve));
+}
+
 /* ---------------- brief / health / registry ---------------- */
 export function renderBrief(brief) {
   const list = $("#briefList");

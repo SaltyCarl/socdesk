@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "epss_movers", "new_kev",
+               "volume", "totals"],
+  "properties": {
+    "generated_at": {"type": "string", "maxLength": 40},
+    "schema_version": {"type": "integer"},
+    "epss_movers": {
+      "type": "array", "maxItems": 50,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["cve", "from", "to", "delta", "kev"],
+        "properties": {
+          "cve": {"type": "string", "pattern": "^CVE-\\d{4}-\\d{4,7}$"},
+          "from": {"type": "number"}, "to": {"type": "number"},
+          "delta": {"type": "number"}, "kev": {"type": "boolean"},
+          "product": {"type": "string", "maxLength": 120}
+        }
+      }
+    },
+    "new_kev": {
+      "type": "array", "maxItems": 50,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["cve"],
+        "properties": {
+          "cve": {"type": "string", "pattern": "^CVE-\\d{4}-\\d{4,7}$"},
+          "product": {"type": "string", "maxLength": 120},
+          "epss": {"type": ["number", "null"]},
+          "added": {"type": "string", "maxLength": 40}
+        }
+      }
+    },
+    "volume": {
+      "type": "array", "maxItems": 400,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["date", "count"],
+        "properties": {
+          "date": {"type": "string", "maxLength": 12},
+          "count": {"type": "integer"}
+        }
+      }
+    },
+    "totals": {
+      "type": "object", "additionalProperties": false,
+      "required": ["feed_count", "feed_delta", "kev_count", "kev_delta"],
+      "properties": {
+        "feed_count": {"type": "integer"}, "feed_delta": {"type": "integer"},
+        "kev_count": {"type": "integer"}, "kev_delta": {"type": "integer"},
+        "compared_to": {"type": "string", "maxLength": 12}
+      }
+    }
+  }
+}

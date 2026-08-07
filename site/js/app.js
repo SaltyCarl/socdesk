@@ -5,7 +5,8 @@ import { g, decode, onEnter, sealStroke, sectionTimeline, EASE, DUR } from "./mo
 import { buildIndex, verdict, renderVerdict, splitIndicators, bulkRows,
          toCSV, toDefangedTxt, download } from "./verdict.js";
 import { renderChrome, initFeed, bindKeys, updateHandoff, renderItem,
-         initVulns, renderBrief, renderHealth, renderRegistry } from "./views.js";
+         initVulns, renderBrief, renderHealth, renderRegistry,
+         renderTrends } from "./views.js";
 // toolbelt is imported dynamically below: a static import would take the whole
 // module graph down if that file is missing or fails to parse.
 
@@ -34,6 +35,7 @@ document.documentElement.classList.add("js");
   const rail = $("#rail");
   initFeed(data, item => renderItem(rail, item, ent => runLookup(ent)));
   initVulns(data, cve => runLookup(cve));
+  renderTrends(data.trends, cve => runLookup(cve));
   bindKeys();
 
   /* ---- omnibox ---- */
@@ -162,6 +164,20 @@ document.documentElement.classList.add("js");
     initToolbelt({ onBulkLookup: list => runBulk(list) });
   } catch (err) {
     console.warn("toolbelt unavailable:", err.message);
+  }
+
+  /* ---- offline capability ---- */
+  // Registered last, so a failure here can never block the app. Offline means
+  // "the last pull, clearly labelled with its age" — never stale data dressed
+  // as live; the masthead's elapsed counter keeps telling the truth either way.
+  if ("serviceWorker" in navigator && location.protocol !== "file:") {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+    addEventListener("offline", () => {
+      $("#staleChips").insertAdjacentHTML("afterbegin",
+        `<span class="stale-chip" id="offlineChip">OFFLINE · CACHED DATA</span>`);
+    });
+    addEventListener("online", () => $("#offlineChip")?.remove());
+    if (!navigator.onLine) dispatchEvent(new Event("offline"));
   }
 
   /* ---- choreography ---- */
