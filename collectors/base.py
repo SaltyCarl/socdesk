@@ -2,8 +2,11 @@ import hashlib
 import html
 import re
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
-_TAG_RE = re.compile(r"<[^>]+>")
+_TAG_RE = re.compile(r"<[^>]*>")
+# Anything that could break out of an HTML attribute or start markup.
+_URL_BAD = re.compile(r"""[\s"'<>\\`{}|^]""")
 
 
 def iso(dt):
@@ -11,16 +14,39 @@ def iso(dt):
 
 
 def clean_text(text):
-    """Strip HTML tags and entities from upstream text. Upstream strings are
-    attacker-influenced (RSS titles, victim names); nothing markup-shaped may
-    enter published data."""
-    return _TAG_RE.sub("", html.unescape(text or "")).strip()
+    """Reduce upstream text to inert plain text.
+
+    Upstream strings are attacker-influenced (RSS titles, and — once a sensor
+    exists — usernames and shell commands chosen by whoever is attacking it).
+    Two bypasses this must defeat:
+      * entity-encoded markup surviving a single strip pass, so unescape first
+        and strip to a fixpoint;
+      * an UNTERMINATED tag (`<img src=x onerror=alert(1)//`) sailing through a
+        `<[^>]*>` regex and then borrowing the `>` from surrounding template
+        markup — so every residual angle bracket is deleted outright.
+    """
+    s = html.unescape(text or "")
+    prev = None
+    while prev != s:                      # entity/tag nesting -> fixpoint
+        prev = s
+        s = _TAG_RE.sub("", s)
+    s = s.replace("<", "").replace(">", "")   # residual/unterminated markup
+    return s.strip()
 
 
 def safe_url(url):
-    """Only http(s) URLs are publishable as links."""
+    """Only well-formed http(s) URLs are publishable as links.
+
+    A scheme-prefix check is NOT sufficient: `http://x/" onmouseover="…`
+    starts with http:// and still breaks out of an href attribute.
+    """
     u = (url or "").strip()
-    return u if u.startswith(("http://", "https://")) else ""
+    if not u or _URL_BAD.search(u):
+        return ""
+    parts = urlsplit(u)
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        return ""
+    return u
 
 
 @dataclass

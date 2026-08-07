@@ -26,11 +26,17 @@ def validate_payload(filename, payload, schemas_dir):
     return [f"{e.json_path}: {e.message}" for e in v.iter_errors(payload)][:20]
 
 
+MAX_PAYLOAD_BYTES = 8_000_000   # hard cap: adversarial or runaway upstream data
+
+
 def gate(candidate, prior, schemas_dir):
     """Validate each candidate payload; fall back to prior snapshot on failure."""
     published, problems = {}, []
     for filename, payload in candidate.items():
         errors = validate_payload(filename, payload, schemas_dir)
+        size = len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+        if size > MAX_PAYLOAD_BYTES:
+            errors = [f"payload {size} bytes exceeds {MAX_PAYLOAD_BYTES} cap"] + errors
         if not errors:
             published[filename] = payload
         elif filename in prior:

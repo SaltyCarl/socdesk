@@ -7,41 +7,49 @@
     "schema_version": {"type": "integer"},
     "items": {
       "type": "array",
+      "maxItems": 20000,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["id", "source", "category", "title", "summary", "url",
                      "severity", "entities", "iocs", "published_at", "collected_at"],
         "properties": {
           "id": {"type": "string", "minLength": 40, "maxLength": 40},
-          "source": {"type": "string"},
+          "source": {"type": "string", "maxLength": 32},
           "category": {"enum": ["ransomware", "vulnerability", "malware",
                                  "apt", "campaign", "report"]},
-          "title": {"type": "string", "minLength": 1},
-          "summary": {"type": "string"},
-          "url": {"type": "string"},
+          "title": {"type": "string", "minLength": 1, "maxLength": 300},
+          "summary": {"type": "string", "maxLength": 500},
+          "url": {"type": "string", "maxLength": 512},
           "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
           "entities": {
             "type": "object",
+            "additionalProperties": false,
             "required": ["actors", "malware", "vendors", "cves"],
             "properties": {
-              "actors": {"type": "array", "items": {"type": "string"}},
-              "malware": {"type": "array", "items": {"type": "string"}},
-              "vendors": {"type": "array", "items": {"type": "string"}},
-              "cves": {"type": "array", "items": {"type": "string"}}
+              "actors": {"$ref": "#/$defs/names"},
+              "malware": {"$ref": "#/$defs/names"},
+              "vendors": {"$ref": "#/$defs/names"},
+              "cves": {"$ref": "#/$defs/names"}
             }
           },
-          "iocs": {"type": "array", "items": {
+          "iocs": {"type": "array", "maxItems": 64, "items": {
             "type": "object",
+            "additionalProperties": false,
             "required": ["type", "value"],
             "properties": {
               "type": {"enum": ["ipv4", "domain", "url", "md5", "sha256"]},
-              "value": {"type": "string"}
+              "value": {"type": "string", "maxLength": 512}
             }
           }},
-          "published_at": {"type": "string"},
-          "collected_at": {"type": "string"}
+          "published_at": {"type": "string", "maxLength": 40},
+          "collected_at": {"type": "string", "maxLength": 40}
         }
       }
     }
+  },
+  "$defs": {
+    "names": {"type": "array", "maxItems": 64,
+              "items": {"type": "string", "maxLength": 96}}
   }
 }

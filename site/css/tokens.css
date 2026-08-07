@@ -1,0 +1,17 @@
+:root{
+  /* CHART ROOM — aviation-chart / banknote print: Prussian-slate ink,
+     bone paper carries the identity, vermilion is a seal not a light */
+  --ink:#0F161C; --panel:#141D26; --panel-soft:#1A2530; --raised:#213040;
+  --line:#263644; --line-bright:#3C566C;
+  --paper:#E8E1CF; --muted:#8799A6;
+  --accent:#E8E1CF; --accent-dim:#CFC7B2; --ink-on-accent:#10171D;
+  --mark:#E2513A;
+  --red:#FF5E49; --orange:#F09A4A; --gold:#D8C26E; --green:#7CC492;
+  --blue:#6FA8DC; --purple:#B9A0E8;
+  --sans:"Archivo",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  /* motion tokens — charter craft discipline 4; js/motion.js mirrors these */
+  --dur-tap:150ms; --dur-enter:600ms; --dur-draw:1100ms;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --ease-inout:cubic-bezier(.65,0,.35,1);
+}

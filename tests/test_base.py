@@ -24,6 +24,37 @@ def test_make_item_sanitizes_upstream_markup():
     assert ok["url"] == "https://x.test/a"
 
 
+def test_unterminated_tag_cannot_borrow_a_closing_bracket():
+    """Regression: `<[^>]*>` leaves an unterminated tag intact, which then
+    borrows the `>` from surrounding template markup and executes."""
+    item = make_item("rss", "x1", "report",
+                     "Breaking <img src=x onerror=alert(1)//", "s",
+                     "https://x.test/a", "info", "p", FIXED_NOW)
+    assert "<" not in item["title"] and ">" not in item["title"]
+    assert "onerror" in item["title"]      # kept as inert literal text
+
+
+def test_entity_encoded_markup_does_not_survive_stripping():
+    item = make_item("rss", "x2", "report",
+                     "&lt;script&gt;alert(1)&lt;/script&gt; hi", "s",
+                     "https://x.test/a", "info", "p", FIXED_NOW)
+    assert "<" not in item["title"] and ">" not in item["title"]
+
+
+def test_url_attribute_breakout_is_rejected():
+    """Regression: a scheme-prefix check passes `http://x/" onmouseover=…`,
+    which escapes the href attribute."""
+    bad = make_item("rss", "x3", "report", "T", "s",
+                    'http://x.test/" onmouseover="alert(1)', "info", "p", FIXED_NOW)
+    assert bad["url"] == ""
+    for u in ("javascript:alert(1)", "http://x.test/a b", "https://", "//evil.test"):
+        assert make_item("rss", u, "report", "T", "s", u, "info", "p",
+                         FIXED_NOW)["url"] == ""
+    ok = make_item("rss", "x4", "report", "T", "s",
+                   "https://x.test/a?b=1&c=2", "info", "p", FIXED_NOW)
+    assert ok["url"] == "https://x.test/a?b=1&c=2"
+
+
 def test_make_item_id_is_stable():
     a = make_item("rss", "native-1", "report", "T", "S", "u", "info", "p", FIXED_NOW)
     b = make_item("rss", "native-1", "report", "T2", "S2", "u2", "low", "p2", FIXED_NOW)

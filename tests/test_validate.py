@@ -30,6 +30,28 @@ def test_gate_falls_back_to_prior_on_invalid():
     assert problems and "feed.json" in problems[0]
 
 
+def test_gate_rejects_oversized_payload():
+    """Adversarial or runaway upstream data must not blow up the build."""
+    from pipeline import validate
+    huge = {"generated_at": "2026-07-28T12:00:00Z", "schema_version": 1,
+            "items": [dict(GOOD_FEED["items"][0])]}
+    original = validate.MAX_PAYLOAD_BYTES
+    validate.MAX_PAYLOAD_BYTES = 50          # force the cap
+    try:
+        published, problems = validate.gate({"feed.json": huge},
+                                            {"feed.json": GOOD_FEED}, "schemas")
+    finally:
+        validate.MAX_PAYLOAD_BYTES = original
+    assert published["feed.json"] == GOOD_FEED       # kept last-known-good
+    assert any("cap" in p for p in problems)
+
+
+def test_schema_bounds_reject_unbounded_strings():
+    over = {"generated_at": "2026-07-28T12:00:00Z", "schema_version": 1,
+            "items": [dict(GOOD_FEED["items"][0], title="x" * 5000)]}
+    assert validate_payload("feed.json", over, "schemas") != []
+
+
 def test_gate_skips_invalid_with_no_prior():
     published, problems = gate({"feed.json": BAD_FEED}, {}, "schemas")
     assert "feed.json" not in published

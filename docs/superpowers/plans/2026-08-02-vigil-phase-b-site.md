@@ -12,6 +12,40 @@
 
 ---
 
+## ⚠ 2026-08-06 AMENDMENT — aggregator scope (overrides conflicting text below)
+
+The compliance re-review (`COMPLIANCE.md`) and the owner's scope correction
+change four things. Where this amendment conflicts with a task below, the
+amendment wins.
+
+1. **No IOC corpus.** `iocs.json` no longer exists (pipeline refactored
+   2026-08-06). Any task step referencing `data.iocs`, `idx.ioc`, IOC-repository
+   evidence rows, or `iocs.json` is void. The verdict engine's authority
+   source is the KEV/NVD/EPSS join in `cves.json`; every other indicator type
+   resolves to a **router verdict**: detected type + escalation card + pivots.
+2. **Pivots are explicit user-clicked `<a href>` deep links only.** No
+   auto-fan-out (one click must never dispatch an indicator to several
+   services at once), no `fetch()` of any third-party service. Keep CSP
+   `connect-src 'self'`.
+3. **Disclosure banner, prominent** — persistent line in the search region,
+   not a footnote: "Pivot links disclose this indicator to that third-party
+   service (urlscan publishes public scans). Use public indicators only."
+   Plus the privacy statement: nothing you paste or save leaves your browser.
+4. **The escalation card is the product's centre of gravity** (owner's #2 core
+   function; the real differentiator vs. two seconds to VT). It is a
+   first-class panel of the verdict view, not an export afterthought, and it
+   must pass the **generic test**: *could an analyst at ANY company paste this
+   unchanged, revealing nothing about how one specific employer notifies its
+   clients?* Author from scratch — never reproduce an employer's ticket
+   template, severity taxonomy, SLA language, or client-facing phrasing.
+   Fields: indicator (defanged) · type · verdict + basis · KEV/EPSS/CVSS
+   context when a CVE · sources with timestamps · pivot URLs · neutral
+   suggested next steps. Copy as **Markdown** or **plain text**.
+
+Also folded in: keyboard triage (`j/k/r/n/Enter`, `/` focus), localStorage
+lookup history under the omnibox, watchlist badges on feed items, a
+**Clear analyst state** button, and EPSS attribution in the footer.
+
 ## File structure
 
 ```
