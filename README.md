@@ -1,8 +1,24 @@
 # VIGIL
 
-Public CTI console for SOC daily use: live threat feed, KEV+EPSS vulnerability
-triage, IOC repository, actor profiles, and analyst utilities. Static site fed
-by scheduled collectors; zero infrastructure, zero cost.
+A personal, public triage cockpit for open-source threat intelligence: paste
+an indicator once and get an authoritative vulnerability verdict, one-click
+pivots to every relevant public reputation service, and an escalation-ready
+summary — alongside a live cyber-news feed. Static site fed by scheduled
+collectors; zero infrastructure, zero cost.
+
+**Aggregator, not mirror.** VIGIL publishes only data it may clearly
+redistribute (CISA KEV, NVD, FIRST EPSS, MITRE ATT&CK, headline+link RSS).
+Reputation services (VirusTotal, AbuseIPDB, GreyNoise, urlscan, abuse.ch,
+Shodan) are reached through user-clicked deep links, never mirrored.
+
+> **Privacy:** there is no backend, no accounts, and no analytics. Anything
+> you paste, mark, or save stays in your browser (localStorage) and is never
+> transmitted — the site's Content-Security-Policy blocks outbound requests.
+> **Clicking a pivot link discloses that indicator to the third-party
+> service** (and urlscan publishes public scans). Use public indicators only.
+
+*Personal project by SaltyCarl — not affiliated with or endorsed by any
+employer, and not an official tool of any organization.*
 
 ## Architecture
 
@@ -29,17 +45,16 @@ by scheduled collectors; zero infrastructure, zero cost.
 3. Repo secrets (Settings → Secrets → Actions):
    - `CLOUDFLARE_API_TOKEN` — API token with Cloudflare Pages > Edit
    - `CLOUDFLARE_ACCOUNT_ID` — from the Cloudflare dashboard
-   - `ABUSECH_AUTH_KEY` — free key from https://auth.abuse.ch (used by
-     ThreatFox / URLhaus / MalwareBazaar collectors)
+   (No data-source keys are needed — every collector uses keyless public
+   endpoints.)
 4. Run the workflow once manually (Actions → collect-and-deploy → Run
    workflow) and open the `vigil.pages.dev` URL.
 
 ## Data files
 
-`feed.json` (30-day window) · `iocs.json` (90-day, capped per type) ·
-`cves.json` (180-day, KEV+CVSS+EPSS join) · `actors.json` / `malware.json`
-(ATT&CK) · `health.json` · `sources.json` · `brief.json` (optional,
-external writer)
+`feed.json` (30-day window) · `cves.json` (180-day, KEV+CVSS+EPSS join) ·
+`actors.json` / `malware.json` (ATT&CK) · `health.json` · `sources.json` ·
+`brief.json` (optional, external writer)
 
 ## Data sources, attribution, and terms
 

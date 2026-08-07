@@ -1,5 +1,5 @@
 from collectors.base import CollectorResult, iso, make_item
-from pipeline.publish import build_site_data, merge_feed, merge_iocs
+from pipeline.publish import build_site_data, merge_feed
 from tests.conftest import FIXED_NOW
 
 NEW_ITEM = make_item("rss", "n1", "report", "Fresh", "s", "https://x/1",
@@ -18,36 +18,9 @@ def test_merge_feed_window_and_dedup():
     assert merged[0]["published_at"] >= merged[-1]["published_at"]  # newest first
 
 
-def test_merge_iocs_updates_last_seen():
-    prior = [{"type": "ipv4", "value": "1.2.3.4", "source": "threatfox",
-              "malware": "X", "confidence": 50,
-              "first_seen": "2026-07-01T00:00:00Z", "last_seen": "2026-07-01T00:00:00Z"}]
-    fresh = [dict(prior[0], last_seen="2026-07-28T00:00:00Z", confidence=90)]
-    merged = merge_iocs(prior, fresh, days=90, now=FIXED_NOW)
-    assert len(merged["ipv4"]) == 1
-    entry = merged["ipv4"][0]
-    assert entry["first_seen"] == "2026-07-01T00:00:00Z"   # preserved
-    assert entry["last_seen"] == "2026-07-28T00:00:00Z"    # updated
-    assert entry["confidence"] == 90
-
-
-def test_merge_iocs_caps_per_type():
-    entries = [{"type": "ipv4", "value": f"10.0.0.{n}", "source": "threatfox",
-                "malware": "", "confidence": 50,
-                "first_seen": f"2026-07-{10 + n:02d}T00:00:00Z",
-                "last_seen": f"2026-07-{10 + n:02d}T00:00:00Z"} for n in range(5)]
-    merged = merge_iocs([], entries, days=90, now=FIXED_NOW, max_per_type=3)
-    assert len(merged["ipv4"]) == 3
-    assert merged["ipv4"][0]["value"] == "10.0.0.4"   # newest kept
-
-
 def test_build_site_data_shapes():
     results = [
         CollectorResult(source="rss", items=[NEW_ITEM]),
-        CollectorResult(source="threatfox", extra={"iocs": [
-            {"type": "domain", "value": "evil.example", "source": "threatfox",
-             "malware": "", "confidence": 10,
-             "first_seen": iso(FIXED_NOW), "last_seen": iso(FIXED_NOW)}]}),
         CollectorResult(source="attack", extra={
             "actors": [{"name": "A", "attack_id": "G1", "aliases": [],
                         "description": "", "techniques": [], "software": []}],
@@ -57,10 +30,21 @@ def test_build_site_data_shapes():
                "last_success_at": iso(FIXED_NOW)}]
     payloads = build_site_data(results, cve_rows=[], health=health,
                                prior={}, now=FIXED_NOW)
-    assert set(payloads) >= {"feed.json", "iocs.json", "cves.json",
-                             "health.json", "actors.json", "malware.json"}
+    assert set(payloads) == {"feed.json", "cves.json", "health.json",
+                             "actors.json", "malware.json"}
     for p in payloads.values():
         assert p["generated_at"] == iso(FIXED_NOW) and p["schema_version"] == 1
+
+
+def test_no_ioc_corpus_is_published():
+    """Compliance gate: reputation data is deep-linked at render time, never
+    mirrored (COMPLIANCE.md R4)."""
+    results = [CollectorResult(source="rss", items=[NEW_ITEM],
+                               extra={"iocs": [{"type": "ipv4", "value": "1.2.3.4"}]})]
+    payloads = build_site_data(results, cve_rows=[], health=[], prior={},
+                               now=FIXED_NOW)
+    assert "iocs.json" not in payloads
+    assert "1.2.3.4" not in str(payloads)
 
 
 def test_health_carries_forward_last_success():

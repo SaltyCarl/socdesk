@@ -1,5 +1,0 @@
-{"query_status": "ok", "urls": [
-  {"url": "http://bad.example/payload.exe", "url_status": "online",
-   "threat": "malware_download", "tags": ["exe", "Amadey"],
-   "date_added": "2026-07-28 04:00:00 UTC"}
-]}

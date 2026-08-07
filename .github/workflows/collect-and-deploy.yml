@@ -31,9 +31,7 @@ jobs:
       - run: python -m pytest tests/ -q
 
       - name: Run collectors
-        env:
-          ABUSECH_AUTH_KEY: ${{ secrets.ABUSECH_AUTH_KEY }}
-        run: python run_pipeline.py
+        run: python run_pipeline.py    # all sources are keyless/public
 
       - name: Commit state snapshots
         run: |

@@ -7,7 +7,6 @@ from jsonschema import Draft202012Validator
 # published filename -> schema filename
 SCHEMA_FOR = {
     "feed.json": "feed.schema.json",
-    "iocs.json": "iocs.schema.json",
     "cves.json": "cves.schema.json",
     "health.json": "health.schema.json",
     "sources.json": "sources.schema.json",
