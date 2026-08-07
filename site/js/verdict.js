@@ -5,7 +5,7 @@
 // reached by USER-CLICKED deep links only — never fetched, never mirrored.
 // Consequence: a CVE gets an authoritative verdict; every other indicator type
 // gets an honest ROUTER verdict (type + escalation scaffold + pivots).
-import { esc, safeUrl, detectType, refang, day } from "./data.js";
+import { esc, safeUrl, detectType, refang, day, copyToButton } from "./data.js";
 import { pushHistory } from "./state.js";
 
 export function buildIndex(data) {
@@ -257,12 +257,10 @@ export function renderVerdict(rail, v, onDone) {
 
   rail.querySelector("#escBody").textContent = escalation(v);
   rail.querySelectorAll("[data-esc]").forEach(b => b.onclick = () => {
-    const mode = b.dataset.esc;
+    const mode = b.dataset.esc, was = b.textContent;
     const text = escalation(v, { markdown: mode !== "txt" });
     if (mode === "dl") return download(`escalation-${v.q}.md`, text, "text/markdown");
-    navigator.clipboard?.writeText(text);
-    const was = b.textContent; b.textContent = "COPIED ✓";
-    setTimeout(() => { b.textContent = was; }, 1200);
+    copyToButton(b, text, was);
   });
   onDone?.(rail, v);
 }

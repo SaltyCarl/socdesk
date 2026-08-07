@@ -3,3 +3,6 @@ __pycache__/
 .venv/
 site/data/
 .pytest_cache/
+site-tests/node_modules/
+site-tests/test-results/
+site-tests/playwright-report/

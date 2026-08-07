@@ -38,6 +38,26 @@ export function rel(iso) {
   return `${Math.round(m / 1440)}d ago`;
 }
 
+/**
+ * Copy to the clipboard, honestly.
+ *
+ * navigator.clipboard.writeText() REJECTS — denied permission, an unfocused
+ * document, a browser that gates it behind a user gesture we have already lost.
+ * Firing it bare did two bad things: it raised an unhandled rejection into the
+ * console, and the button still flashed "COPIED ✓" for a copy that never
+ * happened, so an analyst pasted stale content into a ticket.
+ */
+export async function copyText(text) {
+  try { await navigator.clipboard?.writeText(text); return true; }
+  catch { return false; }
+}
+
+/** Copy, then say what actually happened on the button that triggered it. */
+export async function copyToButton(btn, text, was = btn.textContent) {
+  btn.textContent = (await copyText(text)) ? "COPIED ✓" : "COPY BLOCKED";
+  setTimeout(() => { btn.textContent = was; }, 1200);
+}
+
 export const day = iso => (iso || "").slice(0, 10) || "—";
 export const num = n => (n ?? 0).toLocaleString("en-US");
 

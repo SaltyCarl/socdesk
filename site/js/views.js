@@ -1,7 +1,8 @@
 // views.js — chrome, feed, rail detail, vulnerability triage, brief, health,
 // registry. Every data-derived string goes through esc(); every href through
 // safeUrl(). No inline styles or handlers (strict CSP, no unsafe-inline).
-import { esc, safeUrl, rel, day, num, elapsed, nextPull, staleness } from "./data.js";
+import { esc, safeUrl, rel, day, num, elapsed, nextPull, staleness,
+         copyToButton } from "./data.js";
 import { state, toggleReviewed, toggleNotable, notableCount, watchHit,
          addWatch, removeWatch } from "./state.js";
 import { countUp, onEnter, reflow, trackPointer, tick, startTicker } from "./motion.js";
@@ -56,10 +57,25 @@ export function renderChrome(data) {
 }
 
 /* ---------------- feed ---------------- */
-let feedState = { items: [], filter: "all", q: "", sel: 0, cursor: 0, onSelect: null };
+let feedState = { items: [], filter: "all", q: "", sel: 0, cursor: 0,
+                  onSelect: null, loaded: true };
+
+/**
+ * Degraded state for a feed payload that did not load. It lives HERE, in the
+ * only function that owns #feedRows: written anywhere else it is silently
+ * overwritten by the first render() and the page goes blank instead of
+ * explaining itself.
+ */
+const OFFLINE_ROW =
+  `<div class="row"><span class="tag tone-muted">offline</span>
+   <div><div class="t">No collected data available</div>
+   <div class="s">The pipeline has not published yet, or the data files
+   could not be loaded. Everything else on this page still works.</div></div>
+   <div class="right"></div></div>`;
 
 export function initFeed(data, onSelect) {
   feedState.items = data.feed?.items ?? [];
+  feedState.loaded = !!data.feed;
   feedState.onSelect = onSelect;
 
   const cats = ["all", ...new Set(feedState.items.map(i => i.category))];
@@ -106,7 +122,7 @@ function setFilter(f) {
   feedState.sel = 0; feedState.cursor = 0;
   $$("#filters .fchip").forEach(x => x.classList.toggle("on", x.dataset.f === f));
   $$("#band button").forEach(x => x.classList.toggle("on", x.dataset.cat === f));
-  reflow("#feedRows .row", render);
+  reflow(render);
 }
 
 function visible() {
@@ -118,6 +134,13 @@ function visible() {
 }
 
 function render() {
+  if (!feedState.loaded) {
+    $("#feedRows").innerHTML = OFFLINE_ROW;
+    $("#fhCount").textContent = "Unavailable";
+    $("#fhCat").textContent = feedState.filter;
+    $("#resChip").textContent = "0 results";
+    return;
+  }
   const items = visible();
   const boundaryAt = state.lastVisit
     ? items.findIndex(i => i.published_at <= state.lastVisit) : -1;
@@ -217,7 +240,7 @@ export function renderItem(rail, item, onEntity) {
     b.onclick = () => onEntity?.(b.dataset.ent));
 
   rail.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => {
-    const mode = b.dataset.copy;
+    const mode = b.dataset.copy, was = b.textContent;
     if (mode === "notable") {
       toggleNotable(item); b.classList.toggle("on"); updateHandoff(); return;
     }
@@ -225,9 +248,7 @@ export function renderItem(rail, item, onEntity) {
     const text = mode === "raw" ? item.url
       : mode === "defanged" ? defang(item.url)
       : `${item.title}\n\n${item.summary}\n\nSource: ${item.source} (${day(item.published_at)})\nReference: ${defang(item.url)}\n\nOpen-source reporting; shared for awareness.`;
-    navigator.clipboard?.writeText(text);
-    const was = b.textContent; b.textContent = "COPIED ✓";
-    setTimeout(() => { b.textContent = was; }, 1200);
+    copyToButton(b, text, was);
   });
 }
 
@@ -288,7 +309,7 @@ function renderVulns(onPick) {
     return `<tr data-cve="${esc(c.cve)}">
       <td class="mono">${esc(c.cve)}</td>
       <td><span class="sev sev-${esc(sev)}">${esc(sev)}</span></td>
-      <td class="mono r">${c.cvss ?? "—"}</td>
+      <td class="mono r">${esc(c.cvss ?? "—")}</td>
       <td class="mono r">${c.epss != null ? Math.round(c.epss * 100) + "%" : "—"}</td>
       <td>${c.kev ? `<span class="kev">KEV${c.kev_ransomware ? "·R" : ""}</span>` : `<span class="sev-unknown">—</span>`}</td>
       <td>${esc([c.products?.[0], c.vendors?.[0]].filter(Boolean).join(" / ") || "—")}
@@ -330,7 +351,7 @@ export function renderHealth(health) {
     <div class="hcell reveal" data-i="${n % 3}">
       <div class="hh"><span>${esc(s.source)}</span>
         <span class="dot${s.ok ? "" : " deg"}"></span></div>
-      <div class="n${s.ok ? "" : " sev-medium"}" data-count="${s.items}">0</div>
+      <div class="n${s.ok ? "" : " sev-medium"}" data-count="${esc(s.items)}">0</div>
       <div class="m">LAST OK · ${esc(s.last_success_at ? rel(s.last_success_at) : "NEVER")}</div>
       ${s.ok ? "" : `<div class="m sev-medium">${esc((s.error || "").slice(0, 80))}</div>`}
     </div>`).join("");

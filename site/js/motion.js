@@ -16,7 +16,7 @@ if (g) {
     typeof ScrambleTextPlugin !== "undefined" && ScrambleTextPlugin,
     typeof DrawSVGPlugin !== "undefined" && DrawSVGPlugin,
     typeof MotionPathPlugin !== "undefined" && MotionPathPlugin,
-    typeof Flip !== "undefined" && Flip,
+    // Flip is intentionally absent — see reflow() below.
   ].filter(Boolean);
   if (plugins.length) g.registerPlugin(...plugins);
 }
@@ -97,17 +97,17 @@ export function sectionTimeline(sec) {
   return tl;
 }
 
-/** Reflow a list honestly when it filters — FLIP, or a View Transition. */
-export function reflow(selector, render) {
-  if (g && typeof Flip !== "undefined") {
-    const snap = Flip.getState(selector);
-    render();
-    Flip.from(snap, { duration: .45, ease: EASE, stagger: .015, absolute: true,
-      onEnter: els => g.fromTo(els, { opacity: 0, y: 12 },
-                               { opacity: 1, y: 0, duration: .3 }),
-      onLeave: els => g.to(els, { opacity: 0, duration: .2 }) });
-    return;
-  }
+/**
+ * Reflow a list honestly when it filters — View Transition, or a plain render.
+ *
+ * GSAP's Flip plugin used to drive this and has been REMOVED deliberately: it
+ * applies layout by calling setAttribute("style", …), which our shipped policy
+ * (style-src 'self' — no 'unsafe-inline') blocks. The result in production was
+ * a silently dead animation plus a securitypolicyviolation on every filter
+ * click. Loosening the CSP for a decorative transition is not a trade we make;
+ * the View Transition below reads the same and needs no inline style.
+ */
+export function reflow(render) {
   if (document.startViewTransition) { document.startViewTransition(render); return; }
   render();
 }

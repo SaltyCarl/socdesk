@@ -1,5 +1,5 @@
 // app.js — boot order and wiring. Holds the DOM/module contract.
-import { loadAll, detectType, refang, esc, num } from "./data.js";
+import { loadAll, detectType, refang, esc, num, copyText } from "./data.js";
 import { beginSession, pruneReviewed, clearAll, state } from "./state.js";
 import { g, decode, onEnter, sealStroke, sectionTimeline, EASE, DUR } from "./motion.js";
 import { buildIndex, verdict, renderVerdict, splitIndicators, bulkRows,
@@ -18,14 +18,9 @@ document.documentElement.classList.add("js");
   beginSession();
   const data = await loadAll();
 
-  if (!data.feed) {
-    $("#feedRows").innerHTML =
-      `<div class="row"><span class="tag tone-muted">offline</span>
-       <div><div class="t">No collected data available</div>
-       <div class="s">The pipeline has not published yet, or the data files
-       could not be loaded. Everything else on this page still works.</div></div>
-       <div class="right"></div></div>`;
-  }
+  // A missing feed payload is rendered by initFeed/render() in views.js — the
+  // only owner of #feedRows. Writing the degraded notice here instead was a bug:
+  // initFeed's first render() ran straight afterwards and wiped it.
 
   pruneReviewed(new Set((data.feed?.items ?? []).map(i => i.id)));
   const idx = buildIndex(data);
@@ -141,7 +136,8 @@ document.documentElement.classList.add("js");
   drawHistory();
 
   /* ---- handoff digest ---- */
-  $("#handoffBtn").onclick = () => {
+  $("#handoffBtn").onclick = async () => {
+    const b = $("#handoffBtn"), was = b.textContent;
     const items = Object.values(state.notable).sort((a, b) => a.ts.localeCompare(b.ts));
     const head = `# VIGIL shift handoff — ${new Date().toISOString().slice(0, 16)}Z`;
     const text = !items.length
@@ -149,9 +145,7 @@ document.documentElement.classList.add("js");
       : [head, "", ...items.map(n =>
           `- **${n.title}** _(${n.source})_\n  ${n.url}\n  flagged ${n.ts.slice(0, 16)}Z`),
          "", `${items.length} item(s) flagged.`].join("\n");
-    navigator.clipboard?.writeText(text);
-    const b = $("#handoffBtn"), was = b.textContent;
-    b.textContent = "COPIED ✓";
+    b.textContent = (await copyText(text)) ? "COPIED ✓" : "COPY BLOCKED";
     setTimeout(() => { b.textContent = was; updateHandoff(); }, 1200);
   };
 
