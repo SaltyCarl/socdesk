@@ -1,0 +1,17 @@
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  Cross-Origin-Opener-Policy: same-origin
+  X-Frame-Options: DENY
+
+/data/*
+  Cache-Control: no-cache
+  X-Content-Type-Options: nosniff
+
+/css/*
+  Cache-Control: public, max-age=3600
+
+/js/*
+  Cache-Control: public, max-age=3600
