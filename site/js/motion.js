@@ -7,7 +7,9 @@ export const g = (typeof gsap !== "undefined" && motionOK) ? gsap : null;
 
 export const DUR = { tap: .15, enter: .6, draw: 1.1 };   // mirrors css tokens
 export const EASE = "expo.out", EASE_INOUT = "power2.inOut";
-const SCRAM = "!<>-_\\/[]{}—=+*^?#";
+// No `<` or `>`: ScrambleText writes through innerHTML, so angle brackets are
+// parsed as markup mid-flight and surface as mangled entities ("-lt;").
+const SCRAM = "!-_\\/[]{}—=+*^?#·:;~";
 
 if (g) {
   const plugins = [
