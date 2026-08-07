@@ -375,8 +375,19 @@ export function psParseCommandLine(cmdline) {
 
       result.flags.push({ raw: token, resolved: resolved, value: value });
 
-      // Check risk
+      // Check risk.
+      // VIGIL FIX (deliberate divergence from the CARL snapshot): the original
+      // lookup is case-sensitive on the flag VALUE, so the overwhelmingly
+      // common real-world `-w hidden` resolves to "-WindowStyle hidden" and
+      // misses the "-WindowStyle Hidden" HIGH entry — under-scoring the single
+      // most-used evasion flag. Match case-insensitively instead.
       var riskEntry = PS_RISK_FLAGS[resolved];
+      if (!riskEntry) {
+        var wanted = String(resolved).toLowerCase();
+        for (var rk in PS_RISK_FLAGS) {
+          if (rk.toLowerCase() === wanted) { riskEntry = PS_RISK_FLAGS[rk]; break; }
+        }
+      }
       if (riskEntry) {
         result.riskReasons.push({ flag: resolved, risk: riskEntry.risk, desc: riskEntry.desc });
         if (riskEntry.risk === 'HIGH' && result.risk !== 'HIGH') result.risk = 'HIGH';
@@ -393,7 +404,10 @@ export function psParseCommandLine(cmdline) {
   // MITRE mapping
   result.mitre.push('T1059.001'); // PowerShell execution
   if (result.encodedPayload) result.mitre.push('T1027'); // Obfuscated Files
-  if (result.flags.some(function(f) { return f.resolved.indexOf('Hidden') !== -1; })) result.mitre.push('T1564'); // Hide Artifacts
+  // case-insensitive for the same reason as the risk lookup above
+  if (result.flags.some(function(f) {
+    return String(f.resolved).toLowerCase().indexOf('hidden') !== -1;
+  })) result.mitre.push('T1564'); // Hide Artifacts
 
   return result;
 }

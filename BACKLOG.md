@@ -132,6 +132,23 @@ engineering* is the story). Daily-triage value: none (n=1 never intersects
 client incidents). **Caveat: original attack data arguably strengthens the
 R2 "relates to employer's business" reading — read the IP clause first.**
 
+## CARL toolbelt port notes (2026-08-07)
+
+- **Do NOT port the redirect unwrapper without redesign.** `_detectWrapper`
+  handles Microsoft SafeLinks, and **SafeLinks hostnames embed the tenant
+  name** — porting it to a public surface risks disclosing an employer/client
+  tenant identifier. If ever ported, the wrapper host must be stripped before
+  any value reaches the DOM or an export.
+- `psGenerateExplanation` (plain-English PowerShell output) was excluded but is
+  NOT client-aware — worth reconsidering for the toolbelt cards.
+- `LOLBIN_DB` holds **33** entries; CARL's comment claiming 34 is wrong.
+- VIGIL added a `cve` regex to `patterns` (CARL has none) — deliberate
+  divergence, marked inline.
+- **VIGIL fixed a ported bug:** `PS_RISK_FLAGS` lookup was case-sensitive on
+  the flag value, so `-w hidden` (the most common real-world evasion form)
+  missed the HIGH `-WindowStyle Hidden` entry and under-scored. Now
+  case-insensitive, same for the T1564 check. CARL still has this bug.
+
 ## Compliance gates (see COMPLIANCE.md — 2026-08-06 skeptical SME review)
 
 Launch is GATED. Must-fix before public deploy: cut Ransomware.live victim
