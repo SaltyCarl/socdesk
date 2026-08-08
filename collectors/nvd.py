@@ -18,6 +18,17 @@ def build_url(now, start_index=0):
     return url if start_index == 0 else f"{url}&startIndex={start_index}"
 
 
+def build_kev_url(start_index=0):
+    """Every CVE in the CISA KEV catalogue, with full NVD detail.
+
+    Without this the KEV/CVSS join is a fiction: KEV spans 2014-2026 but the
+    recent-modified window is 2 days, so only ~2.5% of KEV rows ever received a
+    CVSS score and the triage table rendered UNKNOWN for almost every row.
+    """
+    url = f"{BASE}?hasKev&resultsPerPage=2000"
+    return url if start_index == 0 else f"{url}&startIndex={start_index}"
+
+
 def _cpe_vendors_products(cve):
     vendors, products = [], []
     for cfg in cve.get("configurations", []):
@@ -41,18 +52,33 @@ def _cvss(cve):
     return None, None
 
 
-def collect(fetch, now):
-    data = fetch(build_url(now))
+def _paged(fetch, url_for):
+    """Fetch a paginated NVD result set, bounded by MAX_PAGES."""
+    data = fetch(url_for(0))
     vulns = list(data.get("vulnerabilities", []))
     total = data.get("totalResults", len(vulns))
     pages = 1
-    while len(vulns) < total and pages < MAX_PAGES:   # patch-week overflow guard
-        page = fetch(build_url(now, start_index=len(vulns)))
-        got = page.get("vulnerabilities", [])
+    while len(vulns) < total and pages < MAX_PAGES:
+        got = fetch(url_for(len(vulns))).get("vulnerabilities", [])
         if not got:
             break
         vulns.extend(got)
         pages += 1
+    return vulns
+
+
+def collect(fetch, now):
+    # Two result sets: everything modified recently (fresh CVEs), plus the
+    # whole KEV catalogue (so the KEV x CVSS x EPSS join is real).
+    vulns = _paged(fetch, lambda i: build_url(now, i))
+    seen = {e["cve"]["id"] for e in vulns if e.get("cve", {}).get("id")}
+    try:
+        for entry in _paged(fetch, build_kev_url):
+            if entry.get("cve", {}).get("id") not in seen:
+                vulns.append(entry)
+    except Exception:
+        pass          # KEV detail is an enrichment; never fail the collector
+
     rows = []
     for entry in vulns:
         cve = entry["cve"]

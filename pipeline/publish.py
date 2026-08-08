@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from collectors.base import iso
+from pipeline.relevance import apply_scores, group_repetitive
 
 FEED_DAYS = 30
 SCHEMA_VERSION = 1
@@ -29,6 +30,14 @@ def build_site_data(results, cve_rows, health, prior, now):
     new_feed = [i for r in ok.values() for i in r.items]
     prior_feed = prior.get("feed.json", {}).get("items", [])
     feed = merge_feed(prior_feed, new_feed, FEED_DAYS, now)
+
+    # Operational ordering: score every item, then collapse the repetitive
+    # ransomware victim-claim stubs into one digest row per group. The site
+    # ships ranked — it does not re-sort a newspaper in the browser.
+    apply_scores(feed, cve_rows, iso(now))
+    feed = group_repetitive(
+        feed, "ransomwarelive",
+        lambda i: (i.get("entities", {}).get("actors") or ["unknown"])[0])
 
     prior_success = {e["source"]: e["last_success_at"]
                      for e in prior.get("health.json", {}).get("sources", [])}
