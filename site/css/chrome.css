@@ -2,13 +2,16 @@
 .topbar{border-bottom:1px solid var(--line);position:sticky;top:0;
   background:rgba(15,22,28,.93);backdrop-filter:blur(6px);z-index:50}
 .topbar .wrap{display:flex;align-items:center;height:64px;gap:20px}
-.logo{display:flex;align-items:flex-end;font-weight:800;font-size:16px;
+.logo{display:flex;align-items:baseline;font-weight:800;font-size:16px;
   font-stretch:115%;letter-spacing:.04em;line-height:1}
 /* The mug symbol is 10 wide x 13 tall, of which the cup body is the lower 9.
    Sizing so those 9 units match cap height puts the mug exactly at cap height
    with the steam rising above and the base sitting on the baseline. */
-.cup{height:1.04em;width:.8em;display:block;flex:0 0 auto;
-  margin:0 .05em;transform:translateY(.06em)}
+/* Archivo's cap height is .703em, and the mug's body is 9 of the symbol's 13
+   units — so height must be .703 * 13/9 = 1.015em for the cup to sit exactly
+   at cap height on the baseline. Baseline alignment (not flex-end) does the
+   vertical work; a translate hack pushed it 0.14em low before. */
+.cup{height:1.015em;width:.781em;display:block;flex:0 0 auto;margin:0 .03em}
 
 /* The mug is inlined rather than referenced via <use>: <use> renders into
    shadow DOM, where outer CSS cannot reach non-inheritable properties like
@@ -49,14 +52,20 @@ nav a:hover,nav a:focus-visible{color:var(--paper)}
   font-size:9px;letter-spacing:.14em;padding:4px 8px;white-space:nowrap}
 
 /* ---------- masthead ---------- */
-.masthead{padding:72px 0 0;position:relative}
+.masthead{--desk:clamp(46px,6.4vw,96px);padding:56px 0 0;position:relative}
 .masthead::before{content:'';position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(52% 42% at 50% 0%,rgba(232,225,207,.05),transparent 70%)}
 .mast-row{display:flex;align-items:flex-end;justify-content:space-between;gap:40px;
   border-bottom:1px solid var(--line-bright);padding-bottom:26px}
-.mast-name{display:flex;align-items:flex-end;
-  font-size:clamp(58px,8.2vw,128px);font-weight:800;font-stretch:125%;
-  letter-spacing:-.02em;line-height:.82;text-transform:uppercase}
+/* Justified two-line block: SOC set larger so both lines share one measure,
+   making a solid rectangle of type. More presence than the single line at
+   ~half the width — and it stops the wordmark running off a 320px screen,
+   which the one-line version did. */
+.mast-name{display:flex;flex-direction:column;align-items:flex-start;
+  width:max-content;font-weight:800;font-stretch:125%;
+  letter-spacing:-.02em;line-height:.80;text-transform:uppercase}
+.mast-name .soc{font-size:calc(var(--desk)*1.2795)}
+.mast-name .desk{font-size:var(--desk)}
 .mast-ed{text-align:right;font-family:var(--mono);font-size:11px;color:var(--muted);
   line-height:2.1;padding-bottom:8px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .mast-ed b{color:var(--paper);font-weight:600}

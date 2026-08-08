@@ -1,0 +1,52 @@
+<meta charset="utf-8">
+<title>OG render source — 1200x630</title>
+<link rel="stylesheet" href="../site/css/fonts.css">
+<link rel="stylesheet" href="../site/css/tokens.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{margin:0;background:#222}
+  /* Rendered at exactly 1200x630 and screenshotted to site/og.png.
+     Built as HTML so the real self-hosted Archivo is used — an SVG OG card
+     referencing font-family="Archivo" renders in a fallback face on any
+     social-media rasteriser. */
+  .og{width:1200px;height:630px;position:relative;overflow:hidden;
+    background:
+      linear-gradient(rgba(111,168,220,.045) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(111,168,220,.045) 1px,transparent 1px),
+      var(--ink);
+    background-size:56px 56px,56px 56px,auto;
+    font-family:var(--sans);color:var(--paper);padding:74px 80px 0}
+  .top{display:flex;align-items:baseline;gap:14px}
+  .top .mark{display:flex;align-items:baseline;font-weight:800;font-size:30px;
+    font-stretch:115%;letter-spacing:3px}
+  .cup{height:1.015em;width:.781em;display:block;flex:0 0 auto;margin:0 .03em}
+  .cup .steam{fill:var(--muted)}.cup .shell{fill:currentColor}
+  .cup .crema{fill:var(--mark)}.cup .body{fill:var(--panel-soft)}
+  .tlp{font-family:var(--mono);font-size:15px;color:var(--muted);letter-spacing:3px;
+    border:1px solid var(--line-bright);padding:5px 9px}
+  .word{margin-top:44px;display:flex;flex-direction:column;width:max-content;
+    font-weight:800;font-stretch:125%;letter-spacing:-.02em;line-height:.80;
+    text-transform:uppercase}
+  .word .soc{font-size:141px}
+  .word .desk{font-size:110px}
+  .sub{margin-top:26px;font-size:23px;font-weight:600;letter-spacing:3px;
+    color:var(--muted);text-transform:uppercase}
+  hr{border:none;border-top:1px solid var(--line-bright);margin:24px 0 0}
+  .lede{margin-top:22px;font-size:26px}
+  .detail{margin-top:10px;font-family:var(--mono);font-size:17px;color:var(--muted);line-height:1.5}
+  .foot{position:absolute;left:80px;bottom:34px;font-family:var(--mono);
+    font-size:14px;color:var(--muted);letter-spacing:2px}
+</style>
+<div class="og">
+  <div class="top">
+    <span class="mark">S<svg class="cup" viewBox="0 0 10 13" shape-rendering="crispEdges"><g class="steam"><rect x="1" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="7" y="0" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/></g><g class="shell"><rect x="0" y="4" width="10" height="1"/><rect x="0" y="5" width="1" height="7"/><rect x="9" y="5" width="1" height="7"/><rect x="1" y="12" width="8" height="1"/></g><rect class="crema" x="1" y="5" width="8" height="2"/><rect class="body" x="1" y="7" width="8" height="5"/></svg>CDESK</span>
+    <span class="tlp">TLP:CLEAR</span>
+  </div>
+  <div class="word"><span class="soc">SOC</span><span class="desk">DESK</span></div>
+  <div class="sub">The analyst's first stop</div>
+  <hr>
+  <div class="lede">One paste instead of six tabs.</div>
+  <div class="detail">Verdict from CISA KEV + NVD + EPSS, pivots to every public reputation<br>
+    service, and an escalation summary ready to paste into the ticket.</div>
+  <div class="foot">SOCDESK.IO · NO ACCOUNTS · NO TRACKING · NOTHING LEAVES YOUR BROWSER</div>
+</div>

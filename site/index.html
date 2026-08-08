@@ -11,8 +11,12 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="SOCDesk — Open-Source Threat Intelligence">
 <meta property="og:description" content="One paste instead of six tabs: vulnerability verdict, pivots to every public reputation service, and an escalation-ready summary. No accounts, no tracking.">
-<meta property="og:image" content="https://socdesk.io/og.svg">
-<meta property="og:url" content="https://socdesk.io/">
+<!-- PNG, not SVG: X, LinkedIn, Facebook and Slack do not render SVG previews.
+     Absolute URL must match the live host — update both when socdesk.io lands. -->
+<meta property="og:image" content="https://saltycarl.github.io/socdesk/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://saltycarl.github.io/socdesk/">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/tokens.css">
@@ -23,7 +27,7 @@
 <header class="topbar">
   <div class="wrap">
     <a class="logo" href="#top" aria-label="SOCDesk home">
-      S<svg class="cup" viewBox="0 0 10 13" aria-hidden="true"><g class="steam"><g class="wisp w1"><rect x="1" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/></g><g class="wisp w2"><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/></g><g class="wisp w3"><rect x="7" y="0" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/></g></g><g class="shell"><rect x="0" y="4" width="10" height="1"/><rect x="0" y="5" width="1" height="7"/><rect x="9" y="5" width="1" height="7"/><rect x="1" y="12" width="8" height="1"/></g><rect class="crema" x="1" y="5" width="8" height="2"/><rect class="body" x="1" y="7" width="8" height="5"/></svg>CDESK
+      S<svg class="cup" viewBox="0 0 10 13" shape-rendering="crispEdges" aria-hidden="true"><g class="steam"><g class="wisp w1"><rect x="1" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/></g><g class="wisp w2"><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/></g><g class="wisp w3"><rect x="7" y="0" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/></g></g><g class="shell"><rect x="0" y="4" width="10" height="1"/><rect x="0" y="5" width="1" height="7"/><rect x="9" y="5" width="1" height="7"/><rect x="1" y="12" width="8" height="1"/></g><rect class="crema" x="1" y="5" width="8" height="2"/><rect class="body" x="1" y="7" width="8" height="5"/></svg>CDESK
     </a>
     <span class="tlp">TLP:CLEAR</span>
     <nav>
@@ -42,7 +46,9 @@
 <div class="wrap" id="top">
   <div class="masthead">
     <div class="mast-row">
-      <div class="mast-name">S<svg class="cup" viewBox="0 0 10 13" aria-hidden="true"><g class="steam"><g class="wisp w1"><rect x="1" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/></g><g class="wisp w2"><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/></g><g class="wisp w3"><rect x="7" y="0" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/></g></g><g class="shell"><rect x="0" y="4" width="10" height="1"/><rect x="0" y="5" width="1" height="7"/><rect x="9" y="5" width="1" height="7"/><rect x="1" y="12" width="8" height="1"/></g><rect class="crema" x="1" y="5" width="8" height="2"/><rect class="body" x="1" y="7" width="8" height="5"/></svg>CDESK</div>
+      <!-- Display size is plain type. The pixel mug is a small-size device —
+           it reads as an icon, not a letter, when blown up inside Archivo. -->
+      <div class="mast-name"><span class="soc">SOC</span><span class="desk">DESK</span></div>
       <div class="mast-ed">
         EDITION <b id="mastEdition">—</b><br>
         TRACKED OBJECTS <b id="mastCount">0</b><br>
