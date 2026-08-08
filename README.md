@@ -1,4 +1,4 @@
-# VIGIL
+# SOCDESK
 
 A personal, public triage cockpit for open-source threat intelligence: paste
 an indicator once and get an authoritative vulnerability verdict, one-click
@@ -6,7 +6,7 @@ pivots to every relevant public reputation service, and an escalation-ready
 summary — alongside a live cyber-news feed. Static site fed by scheduled
 collectors; zero infrastructure, zero cost.
 
-**Aggregator, not mirror.** VIGIL publishes only data it may clearly
+**Aggregator, not mirror.** SOCDESK publishes only data it may clearly
 redistribute (CISA KEV, NVD, FIRST EPSS, MITRE ATT&CK, headline+link RSS).
 Reputation services (VirusTotal, AbuseIPDB, GreyNoise, urlscan, abuse.ch,
 Shodan) are reached through user-clicked deep links, never mirrored.
@@ -40,15 +40,15 @@ employer, and not an official tool of any organization.*
 ## One-time setup
 
 1. Create the public GitHub repo and push.
-2. Cloudflare: create a Pages project named `vigil`
-   (`npx wrangler pages project create vigil`).
+2. Cloudflare: create a Pages project named `socdesk`
+   (`npx wrangler pages project create socdesk`).
 3. Repo secrets (Settings → Secrets → Actions):
    - `CLOUDFLARE_API_TOKEN` — API token with Cloudflare Pages > Edit
    - `CLOUDFLARE_ACCOUNT_ID` — from the Cloudflare dashboard
    (No data-source keys are needed — every collector uses keyless public
    endpoints.)
 4. Run the workflow once manually (Actions → collect-and-deploy → Run
-   workflow) and open the `vigil.pages.dev` URL.
+   workflow) and open the `socdesk.pages.dev` URL.
 
 ## Data files
 

@@ -2,9 +2,13 @@
 .topbar{border-bottom:1px solid var(--line);position:sticky;top:0;
   background:rgba(15,22,28,.93);backdrop-filter:blur(6px);z-index:50}
 .topbar .wrap{display:flex;align-items:center;height:64px;gap:20px}
-.logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:16px;
-  font-stretch:115%;letter-spacing:.04em}
-.logo svg{width:26px;height:26px;flex-shrink:0}
+.logo{display:flex;align-items:flex-end;font-weight:800;font-size:16px;
+  font-stretch:115%;letter-spacing:.04em;line-height:1}
+/* The mug symbol is 10 wide x 13 tall, of which the cup body is the lower 9.
+   Sizing so those 9 units match cap height puts the mug exactly at cap height
+   with the steam rising above and the base sitting on the baseline. */
+.cup{height:1.04em;width:.8em;display:block;flex:0 0 auto;
+  margin:0 .05em;transform:translateY(.06em)}
 .tlp{border:1px solid var(--line-bright);color:var(--muted);font-family:var(--mono);
   font-size:9px;letter-spacing:.14em;padding:4px 8px;white-space:nowrap}
 nav{display:flex;gap:22px;margin-left:auto}
@@ -26,9 +30,9 @@ nav a:hover,nav a:focus-visible{color:var(--paper)}
   background:radial-gradient(52% 42% at 50% 0%,rgba(232,225,207,.05),transparent 70%)}
 .mast-row{display:flex;align-items:flex-end;justify-content:space-between;gap:40px;
   border-bottom:1px solid var(--line-bright);padding-bottom:26px}
-.mast-name{font-size:clamp(88px,11vw,164px);font-weight:800;font-stretch:125%;
+.mast-name{display:flex;align-items:flex-end;
+  font-size:clamp(58px,8.2vw,128px);font-weight:800;font-stretch:125%;
   letter-spacing:-.02em;line-height:.82;text-transform:uppercase}
-.mast-name span{color:var(--mark)}
 .mast-ed{text-align:right;font-family:var(--mono);font-size:11px;color:var(--muted);
   line-height:2.1;padding-bottom:8px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .mast-ed b{color:var(--paper);font-weight:600}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VIGIL — Section 07 · Sensor</title>
+<title>SOCDESK — Section 07 · Sensor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -520,7 +520,7 @@ const TOP_ORIGIN=COUNTRY_DATA[0];
 const DEFAULT_POV={lat:24,lng:24,altitude:2.35};
 const EARTH_NIGHT_URL='https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg';
 const EARTH_TOPOLOGY_URL='https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png';
-const STYLE_KEY='vigil:globeStyle';
+const STYLE_KEY='socdesk:globeStyle';
 const STYLE_COPY={
   realistic:{title:'Source geography · photographic globe',sub:'NASA night-lights composite · drag to rotate',legend:'Sessions / 30d · hairline weight'},
   engraved:{title:'Source geography · engraved instrument',sub:'Fill opacity = log(sessions) · drag to rotate',legend:'Sessions / 30d · fill opacity'},
@@ -564,7 +564,7 @@ const ARCS=COUNTRY_DATA.map(d=>({
 let worldInst=null,currentStyle='engraved',autoRotateOn=motionOK,pinned=new Set(),hoverD=null,idleTimer=null,textureOK=null;
 let engaged=false,lastClickCoords=null,flatFallback=false;
 const ZOOM_MIN=0.35,ZOOM_MAX=3.2,ZOOM_STEP=0.72;
-window.__vigilGlobeDebug=()=>({worldInst,currentStyle,autoRotateOn,COUNTRY_DATA,ARCS});
+window.__socdeskGlobeDebug=()=>({worldInst,currentStyle,autoRotateOn,COUNTRY_DATA,ARCS});
 
 function capColorFor(feat){
   const rec=COUNTRY_BY_ATLAS[feat.properties&&feat.properties.name];

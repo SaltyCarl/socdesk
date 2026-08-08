@@ -1,10 +1,10 @@
-// tools.js — client-side analyst utilities for the VIGIL toolbelt.
+// tools.js — client-side analyst utilities for the SOCDESK toolbelt.
 //
 // SNAPSHOT PORT from CARL (`CARL/src/carl-tools.js`, taken 2026-08-07).
 // Public-data utilities ONLY: IOC extraction, defang/refang, Base64 decoding,
 // PowerShell command-line parsing, and the LOLBin reference table. Nothing
 // client-aware, tenant-aware, or employer-specific was carried over, and this
-// is a COPY — VIGIL does not depend on CARL and CARL does not depend on this.
+// is a COPY — SOCDESK does not depend on CARL and CARL does not depend on this.
 //
 // This module MUST stay dependency-free: no imports, no build step, no network
 // access. Everything below runs entirely in the browser on text the user pasted.
@@ -21,7 +21,7 @@ export const patterns = {
   sha256: /\b[a-fA-F0-9]{64}\b/g,
   email:  /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g,
   url:    /\bhttps?:\/\/[^\s<>"')\]]+/gi,
-  // VIGIL addition (not in the CARL original): CVE IDs are the spine of this
+  // SOCDESK addition (not in the CARL original): CVE IDs are the spine of this
   // product's corpus, so the extractor surfaces them alongside the other IOCs.
   cve:    /\bCVE-\d{4}-\d{4,7}\b/gi,
   // Domain: word chars + dots + TLD, excluding IPs and pure numbers
@@ -296,7 +296,7 @@ export function psDecodeBase64(encoded) {
 /**
  * Decode a Base64 blob of unknown encoding. Tries the PowerShell UTF-16LE
  * convention first; if the result is not clean printable ASCII, falls back to
- * a UTF-8 decode. VIGIL addition — the toolbelt takes arbitrary pasted Base64,
+ * a UTF-8 decode. SOCDESK addition — the toolbelt takes arbitrary pasted Base64,
  * not just -EncodedCommand payloads.
  * @param {string} s
  * @returns {{ text: string, encoding: string }|null}
@@ -376,7 +376,7 @@ export function psParseCommandLine(cmdline) {
       result.flags.push({ raw: token, resolved: resolved, value: value });
 
       // Check risk.
-      // VIGIL FIX (deliberate divergence from the CARL snapshot): the original
+      // SOCDESK FIX (deliberate divergence from the CARL snapshot): the original
       // lookup is case-sensitive on the flag VALUE, so the overwhelmingly
       // common real-world `-w hidden` resolves to "-WindowStyle hidden" and
       // misses the "-WindowStyle Hidden" HIGH entry — under-scoring the single

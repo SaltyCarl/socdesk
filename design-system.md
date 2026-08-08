@@ -1,4 +1,4 @@
-# VIGIL Design System — v4 "Chart Room" (APPROVED 2026-07-29)
+# SOCDESK Design System — v4 "Chart Room" (APPROVED 2026-07-29)
 
 The approved visual identity. Reference implementation (source of truth):
 `design/mockups/g-chartroom.html`. Lineage: editorial-brutalist structure
@@ -16,7 +16,7 @@ zero border-radius (status dots excepted), no box-shadows. Depth = surface
 steps + 1px tinted hairlines. Motion is scarce and data-honest.
 
 **The anti-slop law:** "dark mode + one neon accent" is the AI tell as a
-structure, regardless of hue. VIGIL's neutrals carry the identity; the paper
+structure, regardless of hue. SOCDESK's neutrals carry the identity; the paper
 tone does the branding; saturated color covers <2% of any viewport and only
 where it means something.
 
@@ -78,7 +78,7 @@ Archivo (variable, wdth axis) + IBM Plex Mono. Weights 400/600/800.
 
 ## 5. Composition signatures
 
-Masthead (giant VIGIL + mono edition block + tagline strip) → hero search
+Masthead (giant SOCDESK + mono edition block + tagline strip) → hero search
 (68px, bone focus border, type auto-detect chip, TRY chips) → LIVE WIRE
 ticker → stat band (active cell solid bone) → numbered editorial sections
 (01 Daily Brief [purple] · 02 Threat Operations [feed + sticky rail] ·

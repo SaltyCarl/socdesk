@@ -1,4 +1,4 @@
-# VIGIL Phase B — Chart Room Production Site Implementation Plan
+# SOCDESK Phase B — Chart Room Production Site Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -160,7 +160,7 @@ html.js .reveal.in{opacity:1;transform:none}
 - [ ] **Step 2: Write the new `site/index.html` shell (port markup lines 239–446, delete lines 447–709)**
 
 Port the mockup body markup with these exact deltas:
-1. Head: keep charset/viewport/title/preconnects/fonts link (lines 4–9) verbatim; add `<meta name="description" content="VIGIL — the night watch for open-source threat intelligence. Live CTI feed, vulnerability triage, IOC verdicts, analyst toolbelt.">`; replace the inline `<style>` with five `<link rel="stylesheet" href="css/…">` in tokens→base→chrome→ops→panels order.
+1. Head: keep charset/viewport/title/preconnects/fonts link (lines 4–9) verbatim; add `<meta name="description" content="SOCDESK — the night watch for open-source threat intelligence. Live CTI feed, vulnerability triage, IOC verdicts, analyst toolbelt.">`; replace the inline `<style>` with five `<link rel="stylesheet" href="css/…">` in tokens→base→chrome→ops→panels order.
 2. Before `</body>`: pinned CDN scripts (integrity attrs filled in Step 3), then the module entry:
 ```html
 <script defer crossorigin="anonymous" integrity="sha384-…" src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
@@ -181,8 +181,8 @@ Port the mockup body markup with these exact deltas:
 6. TRY chips (lines 283–285): replace hardcoded samples with `<div class="ex-row" id="exRow"><span class="ex-label">Try</span></div>` — chips built in T6 from real data (top KEV CVE, a live IOC if the repository is non-empty, an actor name).
 7. Toolbelt section (lines 422–433): keep the two ported `.tool` cards (defang, extract) and add three more cards with the same structure and ids `b64In/b64Out/b64Btn`, `psIn/psOut/psBtn`, `lolbinIn/lolbinOut/lolbinBtn`, headers "Base64 decode (UTF-16LE aware)", "PowerShell command parser", "LOLBin lookup". Add to the ops-tools bar (after `.export`, line 350): `<button class="export" id="handoffBtn">Handoff ↗</button>` and change the existing export button to `<button class="export" id="exportBtn">Export JSON ↓</button>`.
 8. Each `.sec-head` gets `<div class="rule"></div>` appended (delta 4 of Step 1). Add `<div id="staleChips"></div>` inside the topbar `.wrap` after the TLP chip (staleness indicators, T3).
-9. Add before `</body>`: `<noscript><p class="caps noscript-note">VIGIL requires JavaScript to render collected intelligence.</p></noscript>` and add `.noscript-note{padding:20px}` to `base.css` (no-inline law is absolute).
-10. `js/app.js` stub for this task only: `document.documentElement.classList.add("js"); console.log("vigil boot");`
+9. Add before `</body>`: `<noscript><p class="caps noscript-note">SOCDESK requires JavaScript to render collected intelligence.</p></noscript>` and add `.noscript-note{padding:20px}` to `base.css` (no-inline law is absolute).
+10. `js/app.js` stub for this task only: `document.documentElement.classList.add("js"); console.log("socdesk boot");`
 
 - [ ] **Step 3: Pin SRI hashes**
 
@@ -271,7 +271,7 @@ export function staleness(data) {
 ```js
 // state.js — per-analyst localStorage state. All reads guarded; quota/serialization
 // failures degrade to in-memory state, never a broken page.
-const NS = "vigil:v1:";
+const NS = "socdesk:v1:";
 const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(NS + k)) ?? fb; } catch { return fb; } };
 const write = (k, v) => { try { localStorage.setItem(NS + k, JSON.stringify(v)); } catch {} };
 
@@ -418,7 +418,7 @@ function applyFilter(next) {
     onLeave: els => g.to(els, { opacity: 0, duration: .2 }) });
 }
 ```
-  - `#exportBtn` downloads the currently filtered items as JSON (`Blob` + `URL.createObjectURL`, filename `vigil-feed-<date>.json`).
+  - `#exportBtn` downloads the currently filtered items as JSON (`Blob` + `URL.createObjectURL`, filename `socdesk-feed-<date>.json`).
   - Header counts (`#fhCount`, `#fhCat`, `#resChip`) from real lengths. Spotlight pointer-wash: shared delegated `pointermove` handler setting `--rx/--ry` (port of mockup lines 582–586, via `setProperty`).
 
 - [ ] **Step 2: Wire in `app.js`**; default select first row → rail (T5 renders it; until then log).
@@ -605,11 +605,11 @@ export function smartDecodeBase64(s) {   // toolbelt card: try UTF-16LE first, f
 export function handoffDigest(notable) {
   const items = Object.entries(notable).map(([id, n]) => n)
     .sort((a, b) => a.ts.localeCompare(b.ts));
-  const head = `# VIGIL shift handoff — ${new Date().toISOString().slice(0, 16)}Z`;
+  const head = `# SOCDESK shift handoff — ${new Date().toISOString().slice(0, 16)}Z`;
   if (!items.length) return `${head}\n\n_No items flagged notable this shift._`;
   return [head, "", ...items.map(n =>
     `- **${n.title}** _(${n.source})_\n  ${n.url}\n  flagged ${n.ts.slice(0, 16)}Z`),
-    "", `${items.length} item(s) flagged in VIGIL. Marks clear when unflagged.`].join("\n");
+    "", `${items.length} item(s) flagged in SOCDESK. Marks clear when unflagged.`].join("\n");
 }
 ```
 (markdown is for a paste target, not our DOM — clipboard text is inert.)
@@ -691,13 +691,13 @@ module.exports = {
 Run: `cd site-tests && npm install && npx playwright install chromium`. Add `site-tests/node_modules/` and `site-tests/test-results/` to `.gitignore` first.
 - [ ] **Step 2: Write the specs** (each asserts against the REAL data in `site/data/` — the suite is the QA gate from spec §7). Required assertions per file:
   - `chrome.spec.js`: masthead count > 0 and equals computed total; ticker has ≥6 items and duplicates once; staleness chip present iff `feed.generated_at` older than 90min (compute in test); live count matches `health.json` ok-count.
-  - `feed.spec.js`: row count == `feed.items.length` (within render cap); each category chip filters to exact count; search narrows; reviewed toggle persists across `page.reload()`; boundary renders when `vigil:v1:sessionStart` is seeded old; export JSON downloads parseable content.
+  - `feed.spec.js`: row count == `feed.items.length` (within render cap); each category chip filters to exact count; search narrows; reviewed toggle persists across `page.reload()`; boundary renders when `socdesk:v1:sessionStart` is seeded old; export JSON downloads parseable content.
   - `verdict.spec.js`: real KEV CVE → word `ACTIVELY EXPLOITED`|`CRITICAL`, gauge arc present, ≥2 evidence rows, pivot hrefs all `https:` + `rel=noopener`, ipv4 query shows AbuseIPDB/GreyNoise pivots; garbage domain → `UNKNOWN` muted, no red seal; email → pivot-only card with HIBP; bulk paste of 3 → 3 rows + CSV export has header + 3 lines; **injection fixture**: intercept `data/feed.json` route, inject item with `title: "<img src=x onerror=window.__pwned=1>"` → `page.evaluate(() => window.__pwned) === undefined` and title visible as literal text.
   - `brief.spec.js`: absent state by default (no brief.json); route-mock a brief → 3 stories render, purple class present, generated timestamp shown; stale mock → stale chip.
   - `vulns.spec.js`: first row is KEV with EPSS ≥ table median (compute from fetched json); sort by CVSS desc/asc flips; watchlist "fortinet" filters and persists.
   - `health-registry.spec.js`: cell count == `health.sources.length`; degraded sources (ok:false) show `.deg` + error text; registry row count == 24; every OPEN link is https.
   - `toolbelt.spec.js`: defang round-trips via refang; UTF-16LE `-enc` sample decodes; `certutil -urlcache` → HIGH + T1140; extract→Lookup-all lands in bulk table; **no network requests** fired by any toolbelt action (`page.on("request")` recorder scoped to the interaction).
-  - `state.spec.js`: notable flags → handoff clipboard markdown contains both titles (grant `clipboard-read`); clear works; localStorage keys all `vigil:v1:*`.
+  - `state.spec.js`: notable flags → handoff clipboard markdown contains both titles (grant `clipboard-read`); clear works; localStorage keys all `socdesk:v1:*`.
   - `csp.spec.js`: inject the T14 policy as meta via route rewrite of index.html, drive one pass through all views, assert zero console messages containing "Content Security Policy"; also assert with GSAP routes aborted the page still renders all data (CDN-failure fallback).
 - [ ] **Step 3: Run the gate** — Run: `cd site-tests && npx playwright test`  Expected: all specs pass.
 - [ ] **Step 4: Commit** — `git add site-tests .gitignore && git commit -m "test(site): Playwright QA gate across all views, state, escaping and CSP"`

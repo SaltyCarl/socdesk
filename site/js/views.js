@@ -97,7 +97,7 @@ export function initFeed(data, onSelect) {
     const blob = new Blob([JSON.stringify(visible(), null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `vigil-feed-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `socdesk-feed-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
   };
 

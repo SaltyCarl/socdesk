@@ -1,13 +1,13 @@
-# VIGIL — Autonomous Build Loop
+# SOCDESK — Autonomous Build Loop
 
-Operating doctrine for driving VIGIL to deployment-ready with minimal human
+Operating doctrine for driving SOCDESK to deployment-ready with minimal human
 input. Written 2026-08-07. Survives context resets: an agent picking this repo
 up cold should read this file, `COMPLIANCE.md`, `design-system.md`, and the
 active plan in `docs/superpowers/plans/`, then resume at step 1.
 
 ## The enhanced instruction
 
-> Drive VIGIL to deployment-ready autonomously. Each cycle: assess actual repo
+> Drive SOCDESK to deployment-ready autonomously. Each cycle: assess actual repo
 > state against the Definition of Done; pick the largest slice of remaining
 > work; fan out a swarm **only where work is genuinely independent**; integrate
 > and verify the results yourself; commit; repeat. Never mark work done on an
@@ -98,7 +98,7 @@ committed, declared safe, and shipped with two working bypasses. Therefore:
 
 - **Phase A — pipeline.** DONE (5 collectors, schema gate, workflow).
 - **Phase B — production site.** IN PROGRESS. Plan:
-  `docs/superpowers/plans/2026-08-02-vigil-phase-b-site.md` (+ 2026-08-06
+  `docs/superpowers/plans/2026-08-02-socdesk-phase-b-site.md` (+ 2026-08-06
   aggregator amendment).
 - **Phase C — Framework brief loop.** Queued; `data/brief.json` integration
   point already wired in the pipeline and site.

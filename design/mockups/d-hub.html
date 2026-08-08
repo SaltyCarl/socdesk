@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VIGIL — Public CTI Console</title>
+<title>SOCDESK — Public CTI Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -491,7 +491,7 @@ tr:hover .copy-btn,.ioc-cell:focus-within .copy-btn{opacity:1}
 <header class="topbar">
   <div class="topbar-wordmark">
     <svg class="icon" width="20" height="20"><use href="#ic-radar"/></svg>
-    VIGIL
+    SOCDESK
     <span class="dot-live"></span>
   </div>
   <nav class="topbar-nav" role="navigation">
@@ -1697,7 +1697,7 @@ function copyDrawerDefanged() {
 }
 function copyDrawerBlurb() {
   if(!currentDrawerItem) return;
-  const blurb = `[THREAT INTEL] ${currentDrawerItem.title}\n\n${currentDrawerItem.summary||''}\n\nSource: VIGIL CTI`;
+  const blurb = `[THREAT INTEL] ${currentDrawerItem.title}\n\n${currentDrawerItem.summary||''}\n\nSource: SOCDESK CTI`;
   copyText(blurb);
 }
 

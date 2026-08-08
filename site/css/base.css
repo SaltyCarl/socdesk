@@ -23,6 +23,9 @@ input,textarea{font:inherit;color:var(--paper);background:none;border:none;outli
 .plain{font-style:normal}
 .noscript-note{padding:20px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* hidden SVG symbol sprite — a style="" attribute here would violate our
+   own no-unsafe-inline CSP, which is how the CSP spec caught it */
+.sprite{position:absolute}
 
 /* scroll-reveal — gated behind html.js so a dead CDN never hides content */
 .reveal{transition:opacity var(--dur-enter) var(--ease),transform .7s var(--ease);

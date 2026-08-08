@@ -1,4 +1,4 @@
-# VIGIL — What More Capable Infrastructure Would Unlock
+# SOCDESK — What More Capable Infrastructure Would Unlock
 
 Written 2026-08-07. An honest map of what each step up the infrastructure
 ladder buys, what it costs, and what it takes away. Read §0 first — several
@@ -18,7 +18,7 @@ this page.
 - **A full CVE corpus.** Sharded JSON + client-side index (e.g. one file per
   year) handles hundreds of thousands of rows fine at 30-min freshness.
 - **Client-side fuzzy search** over everything published (MiniSearch/Fuse).
-- **A PWA / offline mode.** Service worker → VIGIL works on a plane or during
+- **A PWA / offline mode.** Service worker → SOCDESK works on a plane or during
   an outage, off the last cached pull.
 - **Scheduled digest generation.** The Framework already commits `brief.json`;
   the same pattern produces any recurring artifact.
@@ -88,7 +88,7 @@ requires auth and a retention policy.
 
 ### 3c. Sandbox orchestration
 Submit to ANY.RUN/Tria.ge APIs and poll for results — needs long-running jobs,
-which serverless makes awkward. Note this still routes to real sandboxes; VIGIL
+which serverless makes awkward. Note this still routes to real sandboxes; SOCDESK
 never detonates. See MalwareViz for actual detonation.
 
 ### 3d. Semantic search over the report corpus

@@ -1,8 +1,8 @@
-# VIGIL — Public CTI Platform Design
+# SOCDESK — Public CTI Platform Design
 
 **Date:** 2026-07-28
 **Status:** Draft for review
-**Repo:** `C:\Users\Carl\Desktop\Projects\VIGIL` (public GitHub repo under SaltyCarl)
+**Repo:** `C:\Users\Carl\Desktop\Projects\SOCDESK` (public GitHub repo under SaltyCarl)
 
 ## 1. Purpose
 
@@ -13,12 +13,12 @@ public URL with nothing to install.
 
 Origin: a ChatGPT-generated reference site ("Vantage CTI") had the right idea
 (daily intelligence, repository, collection health, source registry) but a
-broken data layer — all fetches ran client-side and died on CORS. VIGIL
+broken data layer — all fetches ran client-side and died on CORS. SOCDESK
 rebuilds the concept with a real collection pipeline and adds MSSP-practical
 workflows plus a locally-inferred daily brief.
 
-The name: a vigil is the act of staying awake through the night to keep
-watch — the SOC night watch, as a tool.
+The name: SOCDesk is the desk an analyst checks first — the front door for any
+indicator, before the six tabs. (Renamed 2026-08-08 from the working title VIGIL.)
 
 ## 2. Goals and non-goals
 

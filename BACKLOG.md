@@ -1,4 +1,4 @@
-# VIGIL Backlog
+# SOCDESK Backlog
 
 ## Wave-2 collectors (post-v0.1; from Awesome-OSINT-List review 2026-08-02)
 
@@ -40,7 +40,7 @@ CC0/CC-BY data licence; only then reconsider.
 
 **Design: adopt 4, reinvent 1, reject the rest** (see also design-system v4.1):
 - ADOPT **per-item context/trivia** — static JSON keyed to CVE/actor/TTP so
-  every feed row teaches something. Highest ROI; it is VIGIL's editorial
+  every feed row teaches something. Highest ROI; it is SOCDESK's editorial
   voice and what makes a *static* site worth reading.
 - ADOPT **seconds-since-ingest counter** (`LAST INGEST +00:14:32`, Plex Mono,
   ticking) + **next-pull countdown** — liveness that measures our own clock,
@@ -142,9 +142,9 @@ R2 "relates to employer's business" reading — read the IP clause first.**
 - `psGenerateExplanation` (plain-English PowerShell output) was excluded but is
   NOT client-aware — worth reconsidering for the toolbelt cards.
 - `LOLBIN_DB` holds **33** entries; CARL's comment claiming 34 is wrong.
-- VIGIL added a `cve` regex to `patterns` (CARL has none) — deliberate
+- SOCDESK added a `cve` regex to `patterns` (CARL has none) — deliberate
   divergence, marked inline.
-- **VIGIL fixed a ported bug:** `PS_RISK_FLAGS` lookup was case-sensitive on
+- **SOCDESK fixed a ported bug:** `PS_RISK_FLAGS` lookup was case-sensitive on
   the flag value, so `-w hidden` (the most common real-world evasion form)
   missed the HIGH `-WindowStyle Hidden` entry and under-scored. Now
   case-insensitive, same for the T1564 check. CARL still has this bug.
@@ -161,5 +161,5 @@ public — auth-gated separate deploy only.
 ## Positioning note
 
 The heavyweight OSS CTI platforms (OpenCTI, MISP, IntelOwl, YETI) all require
-servers + databases. VIGIL's niche is deliberately beneath them: zero-infra,
+servers + databases. SOCDESK's niche is deliberately beneath them: zero-infra,
 public URL, analyst-speed. Keep that line in the README when publicizing.

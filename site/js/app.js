@@ -83,9 +83,9 @@ document.documentElement.classList.add("js");
       </div>`;
     const stamp = new Date().toISOString().slice(0, 10);
     rail.querySelectorAll("[data-bulk]").forEach(b => b.onclick = () => ({
-      csv: () => download(`vigil-bulk-${stamp}.csv`, toCSV(rows), "text/csv"),
-      json: () => download(`vigil-bulk-${stamp}.json`, JSON.stringify(rows, null, 2), "application/json"),
-      txt: () => download(`vigil-bulk-${stamp}.txt`, toDefangedTxt(rows)),
+      csv: () => download(`socdesk-bulk-${stamp}.csv`, toCSV(rows), "text/csv"),
+      json: () => download(`socdesk-bulk-${stamp}.json`, JSON.stringify(rows, null, 2), "application/json"),
+      txt: () => download(`socdesk-bulk-${stamp}.txt`, toDefangedTxt(rows)),
     })[b.dataset.bulk]());
     $("#operations").scrollIntoView({ behavior: g ? "smooth" : "auto" });
   }
@@ -141,7 +141,7 @@ document.documentElement.classList.add("js");
   $("#handoffBtn").onclick = async () => {
     const b = $("#handoffBtn"), was = b.textContent;
     const items = Object.values(state.notable).sort((a, b) => a.ts.localeCompare(b.ts));
-    const head = `# VIGIL shift handoff — ${new Date().toISOString().slice(0, 16)}Z`;
+    const head = `# SOCDESK shift handoff — ${new Date().toISOString().slice(0, 16)}Z`;
     const text = !items.length
       ? `${head}\n\n_No items flagged notable this shift._`
       : [head, "", ...items.map(n =>

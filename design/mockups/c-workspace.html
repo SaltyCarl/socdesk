@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VIGIL — CTI Console</title>
+<title>SOCDESK — CTI Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
@@ -1349,7 +1349,7 @@ html, body {
 
   <!-- ── TOPBAR ──────────────────────────────── -->
   <div id="topbar">
-    <div class="wordmark">VIGIL</div>
+    <div class="wordmark">SOCDESK</div>
     <nav class="tab-nav">
       <button class="tab-btn active" data-tab="brief">Brief</button>
       <button class="tab-btn" data-tab="feed">Feed</button>
@@ -2189,7 +2189,7 @@ document.addEventListener('keydown', e => {
 // ══════════════════════════════════════════════════════════════════════
 
 function copyHandoff() {
-  const text = `VIGIL Shift Handoff — ${new Date().toISOString()}
+  const text = `SOCDESK Shift Handoff — ${new Date().toISOString()}
 Active alerts: ${FEED.filter(f=>f.unread).length} unread items
 KEV additions: CVE-2024-8963, CVE-2025-0282, CVE-2024-38094
 Degraded sources: Ransomware.live (API rate limited)

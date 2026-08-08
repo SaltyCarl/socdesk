@@ -1,4 +1,4 @@
-/* VIGIL service worker — offline capability for the static tier.
+/* SOCDESK service worker — offline capability for the static tier.
  *
  * Strategy is split deliberately:
  *   shell (html/css/js/fonts) → cache-first, because it changes only on deploy
@@ -8,7 +8,7 @@
  * The page reads the cached response's Date header to tell the analyst exactly
  * how old the data is (see app.js). Never silently serve stale data as live.
  */
-const VERSION = "vigil-v1";
+const VERSION = "socdesk-v1";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 

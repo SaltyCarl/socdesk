@@ -83,7 +83,7 @@ test.describe("threat operations feed", () => {
       page.waitForEvent("download"),
       page.click("#exportBtn"),
     ]);
-    expect(dl.suggestedFilename()).toMatch(/^vigil-feed-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(dl.suggestedFilename()).toMatch(/^socdesk-feed-\d{4}-\d{2}-\d{2}\.json$/);
     const parsed = JSON.parse(fs.readFileSync(await dl.path(), "utf8"));
     expect(Array.isArray(parsed)).toBe(true);
     expect(parsed).toHaveLength(expected);

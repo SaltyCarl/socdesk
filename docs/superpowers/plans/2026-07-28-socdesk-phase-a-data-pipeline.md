@@ -1,8 +1,8 @@
-# VIGIL Phase A — Data Pipeline Implementation Plan
+# SOCDESK Phase A — Data Pipeline Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build VIGIL's Tier 1 — Python collectors for 9 public CTI sources, normalized JSON with a schema gate, and a GitHub Actions pipeline that deploys data + a placeholder page to Cloudflare Pages on a 30-minute cron.
+**Goal:** Build SOCDESK's Tier 1 — Python collectors for 9 public CTI sources, normalized JSON with a schema gate, and a GitHub Actions pipeline that deploys data + a placeholder page to Cloudflare Pages on a 30-minute cron.
 
 **Architecture:** Each collector is an isolated module with a common `collect(fetch, now)` interface and injected HTTP fetch (tests use fixture-backed fakes, no HTTP mocking library). A publish stage merges collector output with prior state under rolling windows, a jsonschema gate falls back to last-known-good per file, and the workflow commits state with `GITHUB_TOKEN` (which cannot recursively retrigger workflows) while the Framework's future `data/brief.json` pushes via deploy key *do* retrigger the deploy — that asymmetry is deliberate.
 
@@ -15,7 +15,7 @@
 ## File structure
 
 ```
-VIGIL/
+SOCDESK/
   .gitignore
   requirements.txt
   README.md                      # setup + secrets (T15)
@@ -1966,7 +1966,7 @@ Expected: FAIL — no module `run_pipeline`
 ```python
 import httpx
 
-HEADERS = {"User-Agent": "VIGIL-collector/0.1 (+https://github.com/SaltyCarl)"}
+HEADERS = {"User-Agent": "SOCDESK-collector/0.1 (+https://github.com/SaltyCarl)"}
 
 
 def http_fetch(url, *, method="GET", json=None, headers=None, text=False):
@@ -2093,7 +2093,7 @@ This page is **throwaway** — Phase B's design phase replaces it entirely. Its 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VIGIL — pipeline status</title>
+<title>SOCDESK — pipeline status</title>
 <style>
   body { background:#0d1117; color:#c9d1d9; font-family:system-ui, sans-serif;
          max-width:900px; margin:2rem auto; padding:0 1rem; }
@@ -2107,7 +2107,7 @@ This page is **throwaway** — Phase B's design phase replaces it entirely. Its 
 </style>
 </head>
 <body>
-<h1>VIGIL</h1>
+<h1>SOCDESK</h1>
 <p class="note">Phase A pipeline status page — replaced by the real interface in Phase B.</p>
 <div id="app">loading…</div>
 <script>
@@ -2214,13 +2214,13 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy site --project-name=vigil
+          command: pages deploy site --project-name=socdesk
 ```
 
 - [ ] **Step 2: Write README.md**
 
 ```markdown
-# VIGIL
+# SOCDESK
 
 Public CTI console for SOC daily use: live threat feed, KEV+EPSS vulnerability
 triage, IOC repository, actor profiles, and analyst utilities. Static site fed
@@ -2246,15 +2246,15 @@ by scheduled collectors; zero infrastructure, zero cost.
 ## One-time setup
 
 1. Create the public GitHub repo and push.
-2. Cloudflare: create a Pages project named `vigil`
-   (`npx wrangler pages project create vigil`).
+2. Cloudflare: create a Pages project named `socdesk`
+   (`npx wrangler pages project create socdesk`).
 3. Repo secrets (Settings → Secrets → Actions):
    - `CLOUDFLARE_API_TOKEN` — API token with Cloudflare Pages > Edit
    - `CLOUDFLARE_ACCOUNT_ID` — from the Cloudflare dashboard
    - `ABUSECH_AUTH_KEY` — free key from https://auth.abuse.ch (used by
      ThreatFox / URLhaus / MalwareBazaar collectors)
 4. Run the workflow once manually (Actions → collect-and-deploy → Run
-   workflow) and open the `vigil.pages.dev` URL.
+   workflow) and open the `socdesk.pages.dev` URL.
 
 ## Data files
 
@@ -2292,7 +2292,7 @@ Expected: total well under 10 MB (spec §9). If `cves.json` or `iocs.json` blow 
 
 - [ ] **Step 5: Manual workflow dispatch on GitHub**
 
-Actions → collect-and-deploy → Run workflow. Expected: green run; `data/state` commit appears authored by SaltyCarl with no AI attribution; `https://vigil.pages.dev` serves the status page with live data.
+Actions → collect-and-deploy → Run workflow. Expected: green run; `data/state` commit appears authored by SaltyCarl with no AI attribution; `https://socdesk.pages.dev` serves the status page with live data.
 
 - [ ] **Step 6: Verify the cron loop** — after the next scheduled run (:11 or :41), confirm a fresh `generated_at` on the live URL and exactly one new state commit.
 

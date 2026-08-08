@@ -1,4 +1,4 @@
-# VIGIL Front-End Elevation Charter
+# SOCDESK Front-End Elevation Charter
 
 **Date:** 2026-08-02 · **Status:** Proposed (synthesis of 3-agent UX team review)
 **Inputs reviewed:** animejs.com · motion.dev · kokonutui.com · bklit.com, plus
@@ -11,7 +11,7 @@ this charter defines the stack and craft that elevate it.
 | Site | What it is | Verdict |
 |---|---|---|
 | **Anime.js v4** | MIT animation engine, vanilla-first, ~25KB; its own site is an Awwwards-winning brutalist-technical page | Strong candidate engine; adopted as fallback (see stack decision) |
-| **Motion (motion.dev)** | Ex-Framer Motion; excellent vanilla core, MIT | **Skip** — Motion+ (paid) gates exactly VIGIL's signature moves: ScrambleText, AnimateNumber, Ticker, SplitText |
+| **Motion (motion.dev)** | Ex-Framer Motion; excellent vanilla core, MIT | **Skip** — Motion+ (paid) gates exactly SOCDESK's signature moves: ScrambleText, AnimateNumber, Ticker, SplitText |
 | **KokonutUI** | Free MIT React/Tailwind/shadcn component collection (57 components), marketing/AI-SaaS flavored; zero tables/grids/charts | **Port patterns, don't adopt** — action-search-bar, AI-loading states, spotlight-card mechanic, glitch/typewriter text; all restyled to Chart Room, vanilla |
 | **Bklit** | Two products: discontinued analytics SaaS (archived 2026-06) + **bklit-ui**, active MIT React charts library on visx | Analytics: skip. bklit-ui: **earmarked** as the one library that would justify a future React migration if chart needs outgrow hand-rolled SVG |
 
@@ -20,7 +20,7 @@ this charter defines the stack and craft that elevate it.
 **No framework migration.** Every line of evidence points the same way: the
 animation engines are vanilla-first and no-build; the React component
 libraries (KokonutUI, Aceternity, Magic UI, ReactBits) supply decorative
-components that violate Chart Room's aesthetic and none of VIGIL's data
+components that violate Chart Room's aesthetic and none of SOCDESK's data
 problems; the platform now ships the rest natively. Phase B is a **full
 rebuild of the presentation layer** (mockup → production site) on the
 existing vanilla static stack — richer, not heavier. Revisit only if

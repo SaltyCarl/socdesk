@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VIGIL — Mission Control</title>
+<title>SOCDESK — Mission Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
@@ -588,7 +588,7 @@ kbd{
 <nav id="rail">
   <div class="rail-logo">
     <div class="rail-logo-mark">V</div>
-    <span class="rail-logo-text">VIGIL</span>
+    <span class="rail-logo-text">SOCDESK</span>
     <span class="rail-logo-sub">CTI</span>
   </div>
   <div class="rail-nav">
@@ -1036,8 +1036,8 @@ let currentView = 'dashboard';
 let currentFilter = 'all';
 let currentVulnFilter = 'all';
 let selectedItem = null;
-let notableIds = new Set(JSON.parse(localStorage.getItem('vigil-notable')||'[]'));
-let readIds = new Set(JSON.parse(localStorage.getItem('vigil-read')||'[]'));
+let notableIds = new Set(JSON.parse(localStorage.getItem('socdesk-notable')||'[]'));
+let readIds = new Set(JSON.parse(localStorage.getItem('socdesk-read')||'[]'));
 let paletteItems = [];
 let paletteHighlight = 0;
 
@@ -1054,8 +1054,8 @@ function fmtTs(iso){
   return d.toISOString().replace('T',' ').slice(0,16)+' UTC';
 }
 function saveState(){
-  localStorage.setItem('vigil-notable',JSON.stringify([...notableIds]));
-  localStorage.setItem('vigil-read',JSON.stringify([...readIds]));
+  localStorage.setItem('socdesk-notable',JSON.stringify([...notableIds]));
+  localStorage.setItem('socdesk-read',JSON.stringify([...readIds]));
 }
 function showToast(msg,duration=2500){
   const c=document.getElementById('toast-container');
@@ -1245,7 +1245,7 @@ function exportCSV(){
   CVES.forEach(c=>rows.push([c.id,c.vendor,c.product,c.cvss,c.epss,c.severity,c.kev?'Yes':'No',c.published]));
   const csv=rows.map(r=>r.join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='vigil-cves.csv';a.click();
+  a.download='socdesk-cves.csv';a.click();
   showToast('CSV downloaded');
 }
 
@@ -1293,7 +1293,7 @@ function doIOCLookup(raw){
         <div class="evidence-row"><span class="evidence-source">First seen</span><span class="evidence-value" style="font-family:var(--font-mono);font-size:var(--fs-mono)">${hit.first_seen}</span></div>
         <div class="evidence-row"><span class="evidence-source">Last seen</span><span class="evidence-value" style="font-family:var(--font-mono);font-size:var(--fs-mono)">${hit.last_seen}</span></div>
         <div class="evidence-row"><span class="evidence-source">Data source</span><span class="evidence-value">${hit.source}</span></div>
-        <div class="evidence-row"><span class="evidence-source">Corpus hit</span><span class="evidence-value" style="color:var(--sev-critical)">Yes — VIGIL collected corpus</span></div>
+        <div class="evidence-row"><span class="evidence-source">Corpus hit</span><span class="evidence-value" style="color:var(--sev-critical)">Yes — SOCDESK collected corpus</span></div>
       </div>
     </div>`;
   } else {
@@ -1306,7 +1306,7 @@ function doIOCLookup(raw){
         </div>
       </div>
       <div class="ioc-evidence-list">
-        <div class="evidence-row"><span class="evidence-source">VIGIL corpus</span><span class="evidence-value" style="color:var(--sev-low)">No match in collected IOC set</span></div>
+        <div class="evidence-row"><span class="evidence-source">SOCDESK corpus</span><span class="evidence-value" style="color:var(--sev-low)">No match in collected IOC set</span></div>
         <div class="evidence-row"><span class="evidence-source">Verdict</span><span class="evidence-value">Not seen in ThreatFox, URLhaus, or MalwareBazaar</span></div>
         <div class="evidence-row"><span class="evidence-source">Note</span><span class="evidence-value" style="color:var(--text-muted)">Absence of evidence is not evidence of absence. Cross-check VirusTotal, GreyNoise.</span></div>
       </div>
@@ -1460,7 +1460,7 @@ function openSource(){if(drawerItem)window.open(drawerItem.url,'_blank');}
 function copyText(t){navigator.clipboard.writeText(t).then(()=>showToast('Copied to clipboard'));}
 function copyBlurb(){
   if(!drawerItem)return;
-  const b=`[VIGIL CTI] ${drawerItem.category.toUpperCase()} — ${drawerItem.title}. Severity: ${drawerItem.severity}. Observed: ${fmtTs(drawerItem.published_at)}. Source: ${drawerItem.source}.`;
+  const b=`[SOCDESK CTI] ${drawerItem.category.toUpperCase()} — ${drawerItem.title}. Severity: ${drawerItem.severity}. Observed: ${fmtTs(drawerItem.published_at)}. Source: ${drawerItem.source}.`;
   navigator.clipboard.writeText(b).then(()=>showToast('Notification blurb copied'));
 }
 

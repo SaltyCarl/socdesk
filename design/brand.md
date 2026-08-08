@@ -1,4 +1,4 @@
-# VIGIL — Brand Book v1.0
+# SOCDESK — Brand Book v1.0
 
 **Status:** Proposed 2026-08-06. Extends (never overrides) `design-system.md` v4 "Chart Room"
 (approved 2026-07-29). Where this book and the design system disagree on a token or a ban,
@@ -15,10 +15,10 @@ The Chart Room identity already contains the brand strategy; it only needs to be
 A chart room does not generate its own signals. It takes bearings from every available
 reference — beacons, stars, radio fixes — plots them on one table, and produces two things:
 **a fix** (an authoritative position) and **a log entry** (a record fit to file). That is
-exactly what VIGIL does with an indicator. VirusTotal, GreyNoise, Shodan, urlscan are
-beacons. VIGIL is the chart table.
+exactly what SOCDESK does with an indicator. VirusTotal, GreyNoise, Shodan, urlscan are
+beacons. SOCDESK is the chart table.
 
-This resolves the positioning tension honestly: VIGIL never claims to out-sense the beacons.
+This resolves the positioning tension honestly: SOCDESK never claims to out-sense the beacons.
 Its claim is the **fix** — every bearing, plotted once, logged in a form you can hand to the
 next watch.
 
@@ -30,7 +30,7 @@ Everything below is that metaphor, operationalized.
 
 ### 1.1 Positioning statement (one sentence)
 
-> **VIGIL is the analyst's chart table: paste an indicator once and it plots every
+> **SOCDESK is the analyst's chart table: paste an indicator once and it plots every
 > authoritative public source into a single verdict, one-click pivots, and an
 > escalation-ready summary — free, no accounts, entirely in your browser.**
 
@@ -105,7 +105,7 @@ register is trusted precisely because it predates marketing: charts and banknote
 designed *against* deception, dense with verifiable detail, beautiful only as a byproduct
 of exactness.
 
-VIGIL takes that seat: **the calibrated instrument, kept by a named watchstander.**
+SOCDESK takes that seat: **the calibrated instrument, kept by a named watchstander.**
 
 - **Visual territory nobody holds:** print-era engraving discipline on an ink field —
   bone paper as the brand color (no one in CTI owns a paper tone), hairline rules instead
@@ -121,7 +121,7 @@ An individual cannot credibly claim scale ("billions of signals") or fear-author
 transparency — and the instrument register promises exactly those. Every promise the
 aesthetic makes is one person can keep: sources named, timestamps shown, nothing leaves
 the browser, $0 infrastructure stated in the footer like a maker's mark. abuse.ch proved
-that austerity + reliability earns institutional trust from a small operation; VIGIL takes
+that austerity + reliability earns institutional trust from a small operation; SOCDESK takes
 the same trust mechanics and adds deliberate craft — which is also precisely the portfolio
 argument: the site itself is evidence of the analyst's discipline.
 
@@ -139,7 +139,7 @@ argument: the site itself is evidence of the analyst's discipline.
 | **Economical** | Short declaratives. No filler, no throat-clearing, no exclamation points. If a sentence survives deletion, delete it. |
 | **Dry** | Humor is permitted only as understatement, at most once per surface, never in error or verdict copy. ("$0 INFRASTRUCTURE" in the footer is the ceiling.) |
 
-### 3.2 Anti-personality — what VIGIL must never sound like
+### 3.2 Anti-personality — what SOCDESK must never sound like
 
 - **The threat-theater vendor:** fear adjectives ("devastating," "skyrocketing"),
   countdown urgency, superlatives, "in today's evolving threat landscape."
@@ -147,7 +147,7 @@ argument: the site itself is evidence of the analyst's discipline.
 - **The mascot startup:** cute, emoji-laced, apologetic ("Oops!"), quirky empty states.
   That seat is GreyNoise's; contesting it as a solo project reads as imitation.
 - **The compliance beige:** passive-voice liability prose ("data may be processed in
-  accordance with…"). VIGIL's privacy story is a *feature stated plainly*, not a disclaimer.
+  accordance with…"). SOCDESK's privacy story is a *feature stated plainly*, not a disclaimer.
 - **The résumé:** the site never says "portfolio," "showcase," or "check out my project."
   Craft is demonstrated, not narrated.
 
@@ -195,12 +195,12 @@ argument: the site itself is evidence of the analyst's discipline.
   EVIDENCE  ThreatFox: Cobalt Strike C2, high conf, 2026-07-08→27
             URLhaus: active distribution, 2026-07-12→26
   ACTION    Block at egress. Hunt 14-day flow history for internal contact.
-  LOGGED    2026-08-06 14:32 ET · 4 sources cited · vigil.example
+  LOGGED    2026-08-06 14:32 ET · 4 sources cited · socdesk.io
   ```
 
 **f. Footer credit**
-- ✗ Before: "Made with ❤️ by SaltyCarl © 2026 VIGIL Inc. All rights reserved."
-- ✓ After: "VIGIL is built and kept by one SOC analyst on watch — SaltyCarl. Sources are
+- ✗ Before: "Made with ❤️ by SaltyCarl © 2026 SOCDESK Inc. All rights reserved."
+- ✓ After: "SOCDESK is built and kept by one SOC analyst on watch — SaltyCarl. Sources are
   credited where they are used. Free, because the watch should be."
 
 ---
@@ -209,7 +209,7 @@ argument: the site itself is evidence of the analyst's discipline.
 
 The current placeholder (diamond outline + checkmark) has two problems: the checkmark is
 the most saturated cliché in the category ("verified ✓"), and the diamond-check says
-*approval*, not *triangulation*. The mark should encode what VIGIL actually does: fix a
+*approval*, not *triangulation*. The mark should encode what SOCDESK actually does: fix a
 position from multiple bearings. All three candidates are flat 2-color SVG, zero radius,
 stroke-built, and print-honest.
 
@@ -267,14 +267,14 @@ as the **docket stamp** device (§7.5, §8) — a supporting role it is perfect 
 
 ### Lockups
 
-- **Horizontal (topbar, README):** mark at 26px, 11px gap, then VIGIL — Archivo 800,
+- **Horizontal (topbar, README):** mark at 26px, 11px gap, then SOCDESK — Archivo 800,
   `font-stretch:115%`, +0.04em, caps, `--paper`, optically centered on the circle.
 - **Stacked (OG card, slide, stamp):** mark above, wordmark below at 0.6× mark width,
   gap = 0.5× circle radius.
 - **One seal per impression:** when the mark is present, its center dot is the *only*
   vermilion in the lockup — the wordmark's I stays paper. When the wordmark stands alone
   (masthead), the I lights vermilion instead. Never both. (The g-chartroom mockup already
-  obeys this: vermilion mark + paper VIGIL in the topbar; lit I + no mark in the masthead.)
+  obeys this: vermilion mark + paper SOCDESK in the topbar; lit I + no mark in the masthead.)
 - **Clear space:** ≥ 1× circle radius on all sides. **Minimum sizes:** mark alone 14px;
   horizontal lockup 22px tall.
 - **Doctrine lockup:** horizontal lockup + `ALL BEARINGS. ONE VERDICT.` in mono 9-10px,
@@ -286,14 +286,14 @@ as the **docket stamp** device (§7.5, §8) — a supporting role it is perfect 
 
 ### 5.1 The wordmark
 
-"VIGIL" is always set live in Archivo (variable, wdth axis) — never outlined art, so it
+"SOCDESK" is always set live in Archivo (variable, wdth axis) — never outlined art, so it
 stays one system with the page.
 
 | Context | Spec |
 |---|---|
 | Masthead | `clamp(88px, 11vw, 164px)` / 800 / stretch 125% / −0.02em / lh 0.82 / caps / `--paper`, I in `--mark` |
 | Lockup / topbar | 16px / 800 / stretch 115% / +0.04em / caps / `--paper` |
-| Stamp & docket header | Mono context instead: `VIGIL` in IBM Plex Mono 600, +0.14em (the wordmark quoted *by a machine* is mono — see 5.3) |
+| Stamp & docket header | Mono context instead: `SOCDESK` in IBM Plex Mono 600, +0.14em (the wordmark quoted *by a machine* is mono — see 5.3) |
 
 The **lit I** is the wordmark's signature: the single vermilion stroke in a paper word —
 the light kept on through the night. Rules: masthead and standalone-wordmark uses only
@@ -301,15 +301,15 @@ the light kept on through the night. Rules: masthead and standalone-wordmark use
 
 ### 5.2 Sub-brands and module lockups
 
-No slash sub-brands ("VIGIL/CTI") and no second wordmark weights. The product is VIGIL;
+No slash sub-brands ("SOCDESK/CTI") and no second wordmark weights. The product is SOCDESK;
 modules get **mono conductor labels**, middle-dot separated, 9–11px / 600 / +0.14em / caps:
 
-- `VIGIL · TRIAGE` — the indicator cockpit
-- `VIGIL · BRIEF` — the AI daily brief (label renders in `--purple` per the AI rule)
-- `VIGIL · PICKET` — the honeypot sensor telemetry (a picket is the lookout vessel posted
+- `SOCDESK · TRIAGE` — the indicator cockpit
+- `SOCDESK · BRIEF` — the AI daily brief (label renders in `--purple` per the AI rule)
+- `SOCDESK · PICKET` — the honeypot sensor telemetry (a picket is the lookout vessel posted
   ahead of the fleet — chart-room native; always subtitle it in plain English on first
   use: "telemetry from my own sensor")
-- `VIGIL · ESCALATION SUMMARY` — the docket header on every exported artifact
+- `SOCDESK · ESCALATION SUMMARY` — the docket header on every exported artifact
 
 ### 5.3 The two typographic voices
 
@@ -392,7 +392,7 @@ human-authored or source-collected may use it.
 
 ## 7 · Signature motifs
 
-Six devices that make any crop identifiable as VIGIL. Every screen should carry at least
+Six devices that make any crop identifiable as SOCDESK. Every screen should carry at least
 two; the screenshot test (§9, item 10) enforces it.
 
 ### 7.1 The ghost numeral
@@ -428,14 +428,14 @@ two; the screenshot test (§9, item 10) enforces it.
 
 ### 7.5 The docket slip
 - **What:** the escalation summary as a printed receipt: 1px `--line-bright` border,
-  `--panel` plate; mono header `VIGIL · ESCALATION SUMMARY · <UTC timestamp>`; ruled
+  `--panel` plate; mono header `SOCDESK · ESCALATION SUMMARY · <UTC timestamp>`; ruled
   key-value rows (VERDICT / OBJECT / EVIDENCE / ACTION); a `LOGGED` footer line; bottom
   edge closed by a 1px **dashed** `--line-bright` perforation — the tear-off. Option B's
   cancellation ring may stamp the corner at 28px in `--mark` (on ink) or `--mark-press`
   (on bone/export).
 - **Where:** verdict export, copy-blurb previews, bulk-triage results, the colleague slide.
   **This is the artifact that travels into tickets — the most strategically branded
-  surface VIGIL has.** The plain-text copy it yields keeps the same layout in ASCII.
+  surface SOCDESK has.** The plain-text copy it yields keeps the same layout in ASCII.
 - **Rule:** the perforation dash is the only dashed line in the system; docket content is
   100% mono; every docket carries LOGGED + source count.
 
@@ -466,7 +466,7 @@ The red point at 16px is the brand's smallest complete sentence: *a position, fi
 Ink field `#0F161C` with graticule + grain at spec intensity. Layout:
 - Top rule, 1px `--line-bright`, full width at y 64; mono edition block right-aligned
   above it (`EDITION 2026-08-06 · TRACKED OBJECTS 32,783`), 20px, `--muted`.
-- `VIGIL` from x 80, baseline ~y 400: Archivo 800, stretch 125%, −0.02em, ~230px, paper,
+- `SOCDESK` from x 80, baseline ~y 400: Archivo 800, stretch 125%, −0.02em, ~230px, paper,
   **lit I** (wordmark stands alone here, so the I takes the seal).
 - Below: `THE NIGHT WATCH FOR OPEN-SOURCE THREAT INTELLIGENCE`, caps 800 26px +0.2em
   `--muted`; beneath it `ALL BEARINGS. ONE VERDICT.` in mono 22px `--paper`.
@@ -481,7 +481,7 @@ indicator in mono.
 - **Repo social preview (1280×640):** the OG card art re-cut to fit; nothing rescaled
   below legibility.
 - **README header:** inline SVG banner, 1280×220: ink field + graticule; horizontal
-  doctrine lockup (mark 48px, VIGIL 44px, `ALL BEARINGS. ONE VERDICT.` mono beneath);
+  doctrine lockup (mark 48px, SOCDESK 44px, `ALL BEARINGS. ONE VERDICT.` mono beneath);
   right-aligned mono block `STATIC · NO ACCOUNTS · NO TRACKING · TLP:CLEAR`; 1px
   `--line-bright` rules top and bottom.
 - **Badges:** default shields.io styling is off-brand. If used at all: `flat-square`
@@ -494,13 +494,13 @@ indicator in mono.
 ### 8.4 The colleague slide (one 16:9 board)
 
 Ink field, graticule, single board titled by the stacked lockup top-left (mark 72px).
-- **Left 55%:** `WHAT IS VIGIL` kicker (vermilion, +0.2em); three Archivo lines set large:
+- **Left 55%:** `WHAT IS SOCDESK` kicker (vermilion, +0.2em); three Archivo lines set large:
   `One paste — every source checked.` / `A verdict with its evidence cited.` /
   `An escalation summary, ready to file.` Each with a mono sub-line naming the mechanics
   (KEV × CVSS × EPSS; VT/GN/Shodan/urlscan pivots; bulk paste).
 - **Right 45%:** one full docket slip specimen, real data, defanged.
 - **Footer strip** (1px rule above): mono — `FREE · NO ACCOUNTS · NOTHING LEAVES YOUR
-  BROWSER · vigil.example`.
+  BROWSER · socdesk.io`.
 No agenda slide, no second slide. The board is a specimen of the product, not a pitch.
 
 ---
@@ -527,7 +527,7 @@ Run against any new screen, card, or export. A miss on any bolded item is a stop
 9. Motion is data-honest: enters once, ≤1.6s, `prefers-reduced-motion` respected; nothing
    loops except the ticker and status pings; nothing animates on repeat interaction.
 10. **The screenshot test:** crop any region — at least two signature motifs (§7) present,
-    and a colleague who has seen VIGIL once could name the site. If not, it isn't branded;
+    and a colleague who has seen SOCDESK once could name the site. If not, it isn't branded;
     it's just styled.
 
 ---
@@ -542,7 +542,7 @@ Run against any new screen, card, or export. A miss on any bolded item is a stop
 | Scramble tagline | TRACK · VERIFY · VERDICT · PIVOT — REFRESHED EVERY 30 MINUTES |
 | Empty verdict | No observations across the collected corpus in the current windows. Absence is not clearance — pivot to live sources below. |
 | Privacy | Runs entirely in your browser. Indicators you paste are never transmitted, logged, or stored — there is no server to send them to. |
-| Footer | VIGIL is built and kept by one SOC analyst on watch — SaltyCarl. Free, because the watch should be. |
+| Footer | SOCDESK is built and kept by one SOC analyst on watch — SaltyCarl. Free, because the watch should be. |
 | Elevator (colleagues) | One paste from alert to escalation. |
 
 ## Appendix B · Open items for Phase B
@@ -553,4 +553,4 @@ Run against any new screen, card, or export. A miss on any bolded item is a stop
 3. Build the docket slip component (§7.5) as the canonical escalation-summary renderer —
    HTML view + ASCII clipboard twin.
 4. Cut the OG card and GitHub social preview from §8.2/§8.3 specs.
-5. Retire "VIGIL/CTI"-style naming anywhere it exists; adopt mono conductor labels (§5.2).
+5. Retire "SOCDESK/CTI"-style naming anywhere it exists; adopt mono conductor labels (§5.2).

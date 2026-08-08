@@ -5,7 +5,7 @@
 const { test, expect } = require("@playwright/test");
 const R = require("../lib/real");
 
-const NS = "vigil:v1:";
+const NS = "socdesk:v1:";
 const keys = page => page.evaluate(ns =>
   Object.keys(localStorage).filter(k => k.startsWith(ns)).sort(), NS);
 
@@ -32,7 +32,7 @@ test.describe("analyst state", () => {
     await expect(page.locator("#handoffBtn")).toHaveText("COPIED ✓");
     const md = await page.evaluate(() => navigator.clipboard.readText());
 
-    expect(md).toContain("# VIGIL shift handoff");
+    expect(md).toContain("# SOCDESK shift handoff");
     for (const title of picked) expect(md).toContain(title);
     expect(md).toContain("2 item(s) flagged.");
     expect(md).toMatch(/flagged \d{4}-\d{2}-\d{2}T\d{2}:\d{2}Z/);
@@ -46,7 +46,7 @@ test.describe("analyst state", () => {
     expect(md).toContain("No items flagged notable this shift");
   });
 
-  test("'Clear analyst state' removes every vigil:v1:* key", async ({ page }) => {
+  test("'Clear analyst state' removes every socdesk:v1:* key", async ({ page }) => {
     // build state across all four stores
     await page.locator("#feedRows .row").nth(1).locator("[data-act=review]").click();
     await page.locator("#feedRows .row").nth(2).click();

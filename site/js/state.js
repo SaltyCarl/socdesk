@@ -1,7 +1,7 @@
 // state.js — per-analyst state. localStorage only: never transmitted, no
 // backend exists to transmit it to. Every read is guarded so a quota or
 // serialization failure degrades to in-memory state, never a broken page.
-const NS = "vigil:v1:";
+const NS = "socdesk:v1:";
 const read = (k, fb) => {
   try { return JSON.parse(localStorage.getItem(NS + k)) ?? fb; } catch { return fb; }
 };

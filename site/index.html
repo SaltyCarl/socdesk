@@ -1,8 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="VIGIL — the night watch for open-source threat intelligence. Paste an indicator once: vulnerability verdict, pivots to every public reputation service, and an escalation-ready summary.">
-<meta name="robots" content="noindex">
-<title>VIGIL — Open-Source Threat Intelligence</title>
+<meta name="description" content="SOCDesk — the analyst's first stop for any indicator. One paste: vulnerability verdict, pivots to every public reputation service, and an escalation-ready summary.">
+<title>SOCDesk — Open-Source Threat Intelligence</title>
 <!-- CSP as a meta tag for GitHub Pages, which cannot serve _headers. On
      Cloudflare Pages the header version in _headers is stronger (it can also
      express frame-ancestors) and takes over. Both are the same policy. -->
@@ -10,9 +9,10 @@
 <meta name="referrer" content="no-referrer">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="VIGIL — Open-Source Threat Intelligence">
-<meta property="og:description" content="Paste an indicator once: vulnerability verdict, pivots to every public reputation service, and an escalation-ready summary. No accounts, no tracking.">
-<meta property="og:image" content="og.svg">
+<meta property="og:title" content="SOCDesk — Open-Source Threat Intelligence">
+<meta property="og:description" content="One paste instead of six tabs: vulnerability verdict, pivots to every public reputation service, and an escalation-ready summary. No accounts, no tracking.">
+<meta property="og:image" content="https://socdesk.io/og.svg">
+<meta property="og:url" content="https://socdesk.io/">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/tokens.css">
@@ -20,15 +20,29 @@
 <link rel="stylesheet" href="css/chrome.css">
 <link rel="stylesheet" href="css/panels.css">
 
+<svg width="0" height="0" class="sprite" aria-hidden="true"><defs>
+  <!-- Sibling of the SanchezOnSecurity mug: same 10x9 pixel grid, same
+       two-row crema band, same three steam wisps. Vermilion crema here. -->
+  <symbol id="mug" viewBox="0 0 10 13">
+    <g fill="var(--muted)" opacity=".85">
+      <rect x="1" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/>
+      <rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/>
+      <rect x="7" y="0" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/>
+    </g>
+    <g fill="currentColor">
+      <rect x="0" y="4" width="10" height="1"/>
+      <rect x="0" y="5" width="1" height="7"/><rect x="9" y="5" width="1" height="7"/>
+      <rect x="1" y="12" width="8" height="1"/>
+    </g>
+    <rect x="1" y="5" width="8" height="2" fill="var(--mark)"/>
+    <rect x="1" y="7" width="8" height="5" fill="var(--panel-soft)"/>
+  </symbol>
+</defs></svg>
+
 <header class="topbar">
   <div class="wrap">
-    <a class="logo" href="#top">
-      <svg viewBox="0 0 26 26" fill="none" aria-hidden="true">
-        <circle cx="13" cy="13" r="11" stroke="#E8E1CF" stroke-width="1.5"/>
-        <path d="M13 4 L21.5 19 L4.5 19 Z" stroke="#E8E1CF" stroke-width="1.5"/>
-        <circle cx="13" cy="13" r="2.2" fill="#E2513A"/>
-      </svg>
-      VIGIL
+    <a class="logo" href="#top" aria-label="SOCDesk home">
+      S<svg class="cup"><use href="#mug"/></svg>CDESK
     </a>
     <span class="tlp">TLP:CLEAR</span>
     <nav>
@@ -47,7 +61,7 @@
 <div class="wrap" id="top">
   <div class="masthead">
     <div class="mast-row">
-      <div class="mast-name">VIG<span>I</span>L</div>
+      <div class="mast-name">S<svg class="cup"><use href="#mug"/></svg>CDESK</div>
       <div class="mast-ed">
         EDITION <b id="mastEdition">—</b><br>
         TRACKED OBJECTS <b id="mastCount">0</b><br>
@@ -55,7 +69,7 @@
       </div>
     </div>
     <div class="mast-sub">
-      <span class="caps">The night watch for open-source threat intelligence</span>
+      <span class="caps">The analyst's first stop — open-source threat intelligence</span>
       <span id="tagline"></span>
     </div>
   </div>
@@ -249,15 +263,17 @@
     <div>Analyst utilities</div>
   </div>
   <div class="foot">
-    <span>VIGIL — a personal project by SaltyCarl. Not affiliated with or
-      endorsed by any employer; not an official tool of any organization.</span>
+    <span>SOCDesk — a personal project by Carlos Sanchez
+      (<a href="https://sanchezonsecurity.com" rel="noopener">Sanchez on Security</a>).
+      Not affiliated with or endorsed by any employer; not an official tool of
+      any organization.</span>
     <span class="mono">KEV (CISA, CC0) · NVD (NIST, public domain) ·
       EPSS (FIRST) · ATT&amp;CK © THE MITRE CORPORATION · NO WARRANTY —
       VERIFY BEFORE ACTING</span>
   </div>
 </div>
 
-<noscript><p class="caps noscript-note">VIGIL requires JavaScript to render collected intelligence.</p></noscript>
+<noscript><p class="caps noscript-note">SOCDESK requires JavaScript to render collected intelligence.</p></noscript>
 
 <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>

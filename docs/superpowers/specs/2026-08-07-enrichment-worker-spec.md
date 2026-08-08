@@ -1,15 +1,15 @@
-# VIGIL Phase C½ — Enrichment Worker
+# SOCDESK Phase C½ — Enrichment Worker
 
 **Date:** 2026-08-07 · **Status:** Spec, not started · **Depends on:** Phase B shipped
 
-Upgrades VIGIL's core promise from *"we route you to the answer"* to *"we give
+Upgrades SOCDESK's core promise from *"we route you to the answer"* to *"we give
 you the answer"* — without giving up the properties that make it credible.
 
 ## 1. The architectural rule
 
 **The site stays static and stays incapable of transmitting.** All enrichment
 goes through ONE stateless Cloudflare Worker on a separate origin. The site's
-CSP gains exactly one entry: `connect-src 'self' https://api.vigil.<domain>`.
+CSP gains exactly one entry: `connect-src 'self' https://api.socdesk.io`.
 
 Consequences that must hold:
 - The Worker holds the API keys. The browser never sees a key.
@@ -55,7 +55,7 @@ which no amount of reputation scoring does.
   most recent public result → render `result.screenshot`.
 - Submitting a URL to urlscan **publishes it publicly** — that is a disclosure
   the analyst must make deliberately, on urlscan's own site, via the existing
-  ⚠-marked pivot link. VIGIL must never submit on their behalf.
+  ⚠-marked pivot link. SOCDESK must never submit on their behalf.
 - If no public scan exists, say so plainly: *"No public scan on record. Use the
   pivot to submit — note that a public submission is visible to anyone."*
 
@@ -87,7 +87,7 @@ Rules:
   a partial result with a named error, never a 500.
 - 4-second budget per upstream, 6 seconds total; late sources report as
   timed-out rather than blocking the response.
-- Normalise verdicts to VIGIL's own vocabulary (`malicious / suspicious /
+- Normalise verdicts to SOCDESK's own vocabulary (`malicious / suspicious /
   benign / unknown`) but **always show the source's own wording too** — never
   launder someone else's assessment into ours.
 - Every response carries per-source attribution. Provenance is the brand.

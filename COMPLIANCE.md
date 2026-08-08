@@ -1,4 +1,4 @@
-# VIGIL — Compliance Findings & Gates
+# SOCDESK — Compliance Findings & Gates
 
 Skeptical compliance/legal review, 2026-08-06. This file is a launch gate; do
 not deploy publicly until the must-fix items are closed.
@@ -29,7 +29,7 @@ news. This lowers several ratings:
 
 **IOC-model note (serves the #1 core function AND fixes R4):** favor the
 *aggregator/pivot* model over the *mirror* model. Analyst pastes an IOC →
-VIGIL detects type → shows a verdict from clearly-redistributable data it
+SOCDESK detects type → shows a verdict from clearly-redistributable data it
 holds (KEV/EPSS/NVD, all CC0/public-domain/FIRST) + a row of deep-links to
 external reputation services (VT, GreyNoise, AbuseIPDB, urlscan…). Linking is
 not redistributing — this sidesteps the abuse.ch corpus-mirror problem (R4)

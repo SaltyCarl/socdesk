@@ -1,6 +1,6 @@
 import httpx
 
-HEADERS = {"User-Agent": "VIGIL-collector/0.1 (+https://github.com/SaltyCarl)"}
+HEADERS = {"User-Agent": "SOCDESK-collector/0.1 (+https://github.com/SaltyCarl)"}
 
 
 def http_fetch(url, *, method="GET", json=None, headers=None, text=False):

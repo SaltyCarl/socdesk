@@ -75,7 +75,7 @@ export function pivotsFor(type, q) {
 const miss = (q, type, note) => ({
   kind: "router", q, type: (type || "indicator").toUpperCase(), score: null,
   word: "NOT IN CORPUS", tone: "muted", basis: note ||
-    "VIGIL holds no reputation corpus for this indicator type by design — " +
+    "SOCDESK holds no reputation corpus for this indicator type by design — " +
     "reputation lives with the services below. Absence here is not clearance.",
   evidence: [],
 });
