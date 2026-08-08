@@ -8,7 +8,10 @@
  * The page reads the cached response's Date header to tell the analyst exactly
  * how old the data is (see app.js). Never silently serve stale data as live.
  */
-const VERSION = "socdesk-v1";
+// BUMP THIS on every change to the shell (html/css/js). The shell is cached
+// cache-first, so without a bump returning visitors keep the old UI after a
+// deploy — this masked two changes during development before it was caught.
+const VERSION = "socdesk-v2";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 

@@ -9,6 +9,30 @@
    with the steam rising above and the base sitting on the baseline. */
 .cup{height:1.04em;width:.8em;display:block;flex:0 0 auto;
   margin:0 .05em;transform:translateY(.06em)}
+
+/* The mug is inlined rather than referenced via <use>: <use> renders into
+   shadow DOM, where outer CSS cannot reach non-inheritable properties like
+   opacity or animation, so the steam silently would not animate. */
+.cup .steam{fill:var(--muted)}
+.cup .shell{fill:currentColor}
+.cup .crema{fill:var(--mark)}
+.cup .body{fill:var(--panel-soft)}
+
+/* Steam. The only ambient motion in the product, confined to the mark — the
+   design system's "one signature moment" allowance. Opacity only: the wisps
+   are 1px pixel-art squares and sub-pixel translation reads as blur, not
+   steam. Staggered so the three wisps curl in sequence. */
+.cup .wisp{opacity:.85;animation:steam 4.2s ease-in-out infinite}
+.cup .w2{animation-delay:-1.4s}
+.cup .w3{animation-delay:-2.8s}
+@keyframes steam{
+  0%,100%{opacity:.85}
+  35%    {opacity:.22}
+  70%    {opacity:.55}
+}
+@media (prefers-reduced-motion:reduce){
+  .cup .wisp{animation:none;opacity:.85}
+}
 .tlp{border:1px solid var(--line-bright);color:var(--muted);font-family:var(--mono);
   font-size:9px;letter-spacing:.14em;padding:4px 8px;white-space:nowrap}
 nav{display:flex;gap:22px;margin-left:auto}
