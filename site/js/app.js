@@ -13,6 +13,7 @@ import { beginSession, pruneReviewed, clearAll, state } from "./state.js";
 import { g, decode, sealStroke, EASE, DUR } from "./motion.js";
 import { buildIndex, verdict, renderVerdict, splitIndicators, bulkRows,
          toCSV, toDefangedTxt, download } from "./verdict.js";
+import { initBookmarklet } from "./bookmarklet.js";
 import { renderChrome, initFeed, bindKeys, updateHandoff, renderItem,
          initVulns, renderBrief, renderHealth, renderRegistry,
          renderTrends, renderActors, initViews, showView } from "./views.js";
@@ -31,6 +32,14 @@ document.documentElement.classList.add("js");
   // the fold belongs to data. `lastVisit` is the previous session's marker,
   // so no extra storage key is needed.
   if (state.lastVisit) $("#masthead").classList.add("compact");
+
+  // Wired before the data fetch on purpose: the install card needs only the
+  // DOM, and an anchor whose href is still unset drags as nothing. Leaving it
+  // until after `await loadAll()` left a real window where pulling the button
+  // to the bookmarks bar produced a dead bookmark.
+  initBookmarklet({
+    link: $("#bmkLink"), hint: $("#bmkHint"), copy: $("#bmkCopy"), copyText,
+  });
 
   const data = await loadAll();
 
@@ -166,7 +175,16 @@ document.documentElement.classList.add("js");
   });
   qEl.addEventListener("keydown", e => { if (e.key === "Enter") runLookup(qEl.value); });
 
-  /* ---- hash deep-link: restore a shared lookup on load ---- */
+  /* ---- hash deep-link: restore a shared lookup on load ----
+     Arrivals here are lookup-first by intent — a shared link, or the
+     bookmarklet firing from someone else's page — so the verdict has to be
+     what they land on. Without `reveal` the console rendered correctly and
+     then sat off-screen above whichever view and scroll position the last
+     session left behind: a bookmarklet click landed on the toolbelt.
+
+     Only genuine external navigation reaches this. Typing in the box calls
+     setHash(), which uses replaceState and fires no hashchange, so a normal
+     search still never moves the page. */
   function applyHash() {
     const m = location.hash.match(/^#q=(.+)$/);
     if (!m) return;
@@ -174,7 +192,7 @@ document.documentElement.classList.add("js");
     try { q = decodeURIComponent(m[1]); } catch { return; }
     qEl.value = q;
     qEl.dispatchEvent(new Event("input"));
-    runLookup(q);
+    runLookup(q, { reveal: true });
   }
   applyHash();
   addEventListener("hashchange", applyHash);

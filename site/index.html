@@ -258,6 +258,26 @@
         <div class="out" id="lolbinOut">—</div>
       </div>
     </div>
+
+    <div class="bmk">
+      <div class="bmk-h">
+        <div class="sec-kicker">In-context lookup</div>
+        <h3>Bookmarklet</h3>
+      </div>
+      <p class="bmk-copy">On any page — a SIEM result, a ticket, an email
+        header — select an indicator and click the bookmark. The console opens
+        with the verdict already resolved. Select several at once and you get a
+        bulk lookup.</p>
+      <p class="bmk-copy">The indicator travels in the URL fragment, which
+        browsers never send to a server, so nothing you look up is transmitted
+        to this site's host. No extension, no install, no permissions.</p>
+      <div class="bmk-foot">
+        <a class="bmk-btn" id="bmkLink" rel="noopener">SOCDesk lookup</a>
+        <span class="bmk-drag">← drag to your bookmarks bar</span>
+        <button class="act" id="bmkCopy">Copy URL instead</button>
+        <span class="bmk-hint" id="bmkHint"></span>
+      </div>
+    </div>
   </section>
 
   <section id="brief" class="view" data-view="brief">

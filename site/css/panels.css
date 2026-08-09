@@ -237,6 +237,30 @@
 .act:hover,.act:focus-visible{color:var(--accent);border-color:var(--accent)}
 .act.on{color:var(--mark);border-color:var(--mark)}
 
+/* ---------- bookmarklet install card ---------- */
+.bmk{border:1px solid var(--line);background:var(--panel);margin-top:24px;padding:22px 24px}
+.bmk-h h3{font-size:17px;font-weight:800;font-stretch:112%;letter-spacing:.01em}
+/* reads as a draggable object rather than a link: the seal colour and the grab
+   cursor are the whole affordance for "pull me to your bookmarks bar" */
+.bmk-btn{border:1px solid var(--mark);color:var(--mark);background:var(--raised);
+  font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;padding:10px 18px;cursor:grab;user-select:none;
+  white-space:nowrap;transition:background var(--dur-tap) var(--ease),color var(--dur-tap) var(--ease)}
+.bmk-btn:hover,.bmk-btn:focus-visible{background:var(--mark);color:var(--ink-on-accent)}
+.bmk-btn:active{cursor:grabbing}
+.bmk-copy{color:var(--muted);font-size:13px;line-height:1.6;margin-top:14px;max-width:68ch}
+/* drag and its copy-the-URL fallback are alternatives to each other, so they
+   sit together — they were at opposite corners of the card and read as two
+   unrelated controls */
+.bmk-foot{display:flex;align-items:center;gap:14px;margin-top:20px;flex-wrap:wrap}
+.bmk-drag{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:-6px}
+.bmk-hint{font-family:var(--mono);font-size:11px;color:var(--gold)}
+@media(max-width:720px){
+  /* a bookmarks bar is a desktop affordance; keep the explanation and the
+     copyable URL, drop the pull */
+  .bmk-btn,.bmk-drag{display:none}
+}
+
 /* ---------- semantic ink classes (no inline styles — CSP) ---------- */
 .sev-critical{color:var(--red)}.sev-high{color:var(--orange)}.sev-medium{color:var(--gold)}
 .sev-low{color:var(--green)}.sev-info{color:var(--blue)}.sev-unknown{color:var(--muted)}
