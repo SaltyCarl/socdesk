@@ -15,7 +15,58 @@ const INDEX = fs.readFileSync(path.join(R.SITE, "index.html"), "utf8");
 // asserts nothing. Re-enable enforcement for the whole describe block.
 test.use({ bypassCSP: false });
 
+/** Parse a policy into directive -> normalised value. */
+function directives(csp) {
+  const out = new Map();
+  for (const part of csp.split(";").map(s => s.trim()).filter(Boolean)) {
+    const [name, ...values] = part.split(/\s+/);
+    out.set(name.toLowerCase(), values.sort().join(" "));
+  }
+  return out;
+}
+
+// A meta tag cannot express these; they are legitimately header-only.
+const HEADER_ONLY = new Set(["frame-ancestors", "upgrade-insecure-requests",
+                             "report-uri", "report-to", "sandbox"]);
+
+/** The host the site is served from in production. */
+const ORIGIN = "https://socdesk.io";
+
 test.describe("published Content-Security-Policy", () => {
+  test("the meta copy of the policy has not drifted from _headers", () => {
+    // The page ships both: _headers is authoritative, the meta tag is the
+    // fallback for when the header does not apply. A browser handed both
+    // enforces the INTERSECTION, so a directive tightened in one and not the
+    // other silently blocks something in production while every local check
+    // still passes. They must stay identical wherever both can speak.
+    const meta = INDEX.match(
+      /<meta http-equiv="Content-Security-Policy" content="([^"]+)"/i);
+    expect(meta, "index.html must carry the fallback meta policy").not.toBeNull();
+
+    const head = directives(CSP), tag = directives(meta[1]);
+    for (const [name, value] of head) {
+      if (HEADER_ONLY.has(name)) continue;
+      expect(tag.get(name), `_headers has "${name} ${value}"; meta must match`)
+        .toBe(value);
+    }
+    for (const [name, value] of tag) {
+      expect(head.get(name), `meta has "${name} ${value}"; _headers must match`)
+        .toBe(value);
+    }
+  });
+
+  test("absolute social URLs point at the production host", () => {
+    // og:image and og:url must be absolute and must match the live host, or
+    // every shared link renders a blank preview. They were left pointing at
+    // the old GitHub Pages URL through one host migration already.
+    for (const prop of ["og:image", "og:url"]) {
+      const m = INDEX.match(new RegExp(`<meta property="${prop}" content="([^"]+)"`, "i"));
+      expect(m, `index.html must set ${prop}`).not.toBeNull();
+      expect(m[1], `${prop} must be absolute and on ${ORIGIN}`).toMatch(
+        new RegExp("^" + ORIGIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "/"));
+    }
+  });
+
   test("the policy allows neither unsafe-inline nor unsafe-eval", () => {
     expect(CSP).not.toMatch(/unsafe-inline/i);
     expect(CSP).not.toMatch(/unsafe-eval/i);

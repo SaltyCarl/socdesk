@@ -191,8 +191,8 @@ loosen the schema just to make a warning go away.
 
 ## Deploying
 
-Push to `main`. The workflow deploys `site/` to GitHub Pages on every run,
-scheduled or manual. There is nothing to configure and no secret to rotate.
+Push to `main`. The workflow uploads `site/` to Cloudflare Pages on every run,
+scheduled or manual.
 
 To deploy without waiting for cron: Actions → **collect-and-deploy** → Run
 workflow.
@@ -201,21 +201,46 @@ Because `site/data/` is gitignored, a deploy always ships payloads generated
 *in that run*. You cannot deploy a stale local `site/data/` by accident, and
 you cannot deploy shell changes without also refreshing data.
 
+### Why direct upload rather than the Git integration
+
+Cloudflare can build from the repository itself, but the free plan caps that at
+500 builds a month and this workflow deploys roughly 1,440 times a month.
+Direct uploads via `wrangler pages deploy` are not counted against that cap.
+The arrangement also means Cloudflare never needs read access to the
+repository, so the source can stay private.
+
+The one sharp edge: `--branch` must match the project's production branch. Get
+it wrong and the upload succeeds, lands as a *preview* deployment on a
+`*.pages.dev` URL, and the live site keeps serving the previous build with no
+error anywhere.
+
+### Secrets
+
+Two, both set under Settings → Secrets and variables → Actions:
+
+| Secret | Where it comes from |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens → Create Token, template **Edit Cloudflare Workers**, or a custom token with `Account → Cloudflare Pages → Edit` |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → Workers & Pages → the account ID in the right-hand sidebar |
+
+Scope the token to Pages only. It can deploy the site; it should not be able to
+do anything else.
+
 ### Custom domain
 
-`socdesk.io` is registered at Cloudflare; DNS is not pointed yet, which is why
-the CNAME file is parked as `site/CNAME.pending`. To finish:
+`socdesk.io` is registered at Cloudflare, which is also where the site is
+hosted, so this is simpler than the split-provider setup it replaced — there is
+no CNAME file, no grey-cloud caveat, and no certificate dance.
 
-1. Cloudflare DNS → CNAME, name `@`, target `saltycarl.github.io`, proxy status
-   **DNS only (grey cloud)**. GitHub cannot issue the certificate through the
-   Cloudflare proxy.
-2. Rename `site/CNAME.pending` to `site/CNAME`.
-3. Update the absolute URLs in `site/index.html` — `og:image` and `og:url`
-   currently hardcode `https://saltycarl.github.io/socdesk/` and will point at
-   the old host otherwise.
-4. Enable "Enforce HTTPS" in the repository's Pages settings once the
-   certificate is issued.
-5. Bump `VERSION` in `site/sw.js` — see below.
+1. Cloudflare → Workers & Pages → **socdesk** → Custom domains → **Set up a
+   domain** → `socdesk.io`. The DNS record and certificate are created for you.
+2. Add `www.socdesk.io` the same way if you want it, and redirect one to the
+   other with a Bulk Redirect or a Page Rule.
+3. Bump `VERSION` in `site/sw.js` — see below.
+
+The absolute `og:image` and `og:url` in `site/index.html` already point at
+`https://socdesk.io/`, and `csp.spec.js` asserts it, so a future host change
+cannot leave them stale the way the last one did.
 
 When checking domain availability, use `https://rdap.org/domain/<name>`
 (404 means available). Consumer ISP resolvers hijack NXDOMAIN, so a plain
@@ -225,11 +250,13 @@ When checking domain availability, use `https://rdap.org/domain/<name>`
 
 Three different things can be wrong, and they roll back differently.
 
-**Bad shell (HTML/CSS/JS).** Revert the commit and push; the next workflow run
-redeploys. If you need it back immediately, run the workflow manually. Then
-bump `VERSION` in `site/sw.js` — *without that bump, returning visitors keep
-the broken shell from their cache and your rollback appears not to have
-worked.*
+**Bad shell (HTML/CSS/JS).** Fastest path is Cloudflare → Workers & Pages →
+**socdesk** → Deployments → the last good one → **Rollback to this deployment**.
+That is live in seconds and needs no build. Then revert the commit and push, or
+the next scheduled run redeploys the broken shell straight over your rollback.
+Either way, bump `VERSION` in `site/sw.js` — *without that bump, returning
+visitors keep the broken shell from their cache and your rollback appears not
+to have worked.*
 
 **Bad data.** You cannot roll back `site/data/` directly — it is generated. Fix
 the collector or the schema and re-run. If the bad payload came from upstream

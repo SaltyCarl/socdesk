@@ -14,15 +14,10 @@ concurrency:
 
 permissions:
   contents: write        # commit rolling state + history snapshots
-  pages: write           # deploy to GitHub Pages
-  id-token: write        # OIDC for the Pages deployment
 
 jobs:
   collect-and-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -50,11 +45,17 @@ jobs:
         # The Framework's brief.json pushes use a deploy key, so they DO
         # trigger this workflow. That asymmetry is intentional.
 
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
+      # Direct upload, deliberately not the Cloudflare Git integration.
+      # Git-integration builds are capped at 500/month on the free plan and
+      # this workflow deploys ~1,440 times a month; direct uploads are not
+      # counted against that cap. It also keeps the source repository private
+      # — Cloudflare never needs read access to it.
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
         with:
-          path: site
-
-      - id: deploy
-        uses: actions/deploy-pages@v4
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # --branch must match the project's production branch, or the upload
+          # lands as a preview deployment on a *.pages.dev URL and the live
+          # site silently keeps serving the previous build.
+          command: pages deploy site --project-name=socdesk --branch=main

@@ -22,7 +22,8 @@ pastes any indicator (IP, domain, hash, URL, CVE, email) and gets:
 Personal project by Carlos Sanchez (SaltyCarl), sibling to his portfolio
 **SanchezOnSecurity.com**. Used by his MSSP SOC team; also a portfolio piece.
 
-**Live:** https://saltycarl.github.io/socdesk/
+**Live:** https://socdesk.io (Cloudflare Pages; project must be created before
+the next deploy succeeds — see §8)
 **Repo:** https://github.com/SaltyCarl/socdesk
 **Local path:** `C:\Users\Carl\Desktop\Projects\VIGIL\` ⚠️ *folder is still named
 VIGIL; the product was renamed to SOCDesk on 2026-08-08. Do not be confused.*
@@ -68,7 +69,8 @@ data. Reputation corpora (abuse.ch, VirusTotal, AbuseIPDB) are reached by
   `playwright.config.js` sets `retries: 0` — treat the flakiness as a bug.
 - Pipeline clean: `problems=[]`.
 - CSP is strict — `default-src 'none'`, **no `unsafe-inline`, no `unsafe-eval`**.
-  Served via `_headers` (Cloudflare) and a `<meta>` tag (GitHub Pages).
+  Served via `_headers`, with a `<meta>` copy as fallback. `csp.spec.js` fails
+  if the two drift apart.
 - Self-hosted fonts (no Google requests), PNG OG card, mug favicon.
 - Service worker gives offline capability.
 
@@ -179,10 +181,11 @@ Both now have regression tests.
 
 ## 8. Pending — owner actions
 
-- **DNS for socdesk.io** (only blocker): Cloudflare → CNAME, name `@`, target
-  `saltycarl.github.io`, **proxy DNS-only (grey cloud)** — GitHub can't issue
-  the cert through the proxy. Then: ship `site/CNAME.pending` → `site/CNAME`,
-  set `og:image`/`og:url` to the socdesk.io host, enable HTTPS enforcement.
+- **Stand up the Cloudflare Pages project** (only blocker). Create a Pages
+  project named `socdesk`, mint a Pages-scoped API token, add
+  `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as Actions secrets, then
+  attach `socdesk.io` under Custom domains. Full steps in
+  `docs/OPERATIONS.md` → Deploying. The repo can go private once this is live.
 - Optional: read the employment IP-assignment clause before promoting widely
   (parked by owner; still gates the honeypot phase).
 
@@ -197,8 +200,6 @@ Both now have regression tests.
    plus **urlscan screenshot previews (search only — never submit)**. Biggest
    remaining capability gain; still $0.
 4. Static-tier wins left: client-side fuzzy search, CVE corpus sharding.
-5. **Cloudflare Pages** instead of GitHub Pages — regains `_headers` (real
-   header CSP with `frame-ancestors`) and easier custom domain. Lateral, cheap.
 6. Phase C — Framework brief loop (`data/brief.json`).
 7. Phase D — own Cowrie honeypot sensor. Architecture and security review in
    `BACKLOG.md`; **gated on the IP question**. Non-negotiables: no Tailscale on

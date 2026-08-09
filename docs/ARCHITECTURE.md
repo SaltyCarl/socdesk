@@ -62,7 +62,7 @@ flowchart TB
     SITE[(site/data/*.json<br/>gitignored, regenerated every run)]
   end
 
-  subgraph t3[Tier 3 — static site, GitHub Pages]
+  subgraph t3[Tier 3 — static site, Cloudflare Pages]
     APP[vanilla ES modules, no build step]
     SW[service worker: shell cache-first, data network-first]
     LS[(localStorage — analyst state, never transmitted)]
@@ -261,10 +261,14 @@ removed rather than loosening the CSP for it — the note at
 `site/js/motion.js:102` is the reasoning.
 
 **Content-Security-Policy.** `default-src 'none'`, no `unsafe-inline`, no
-`unsafe-eval`, `connect-src 'self'`. Shipped two ways: a `<meta>` tag in
-`site/index.html:8` (GitHub Pages cannot serve custom headers) and
-`site/_headers` for Cloudflare Pages, where the header form can additionally
-express `frame-ancestors`. The policy is asserted by `site-tests/specs/csp.spec.js`.
+`unsafe-eval`, `connect-src 'self'`. `site/_headers` is authoritative — it is
+served as a real header and can express `frame-ancestors` and
+`upgrade-insecure-requests`, which a meta tag cannot. A `<meta>` copy in
+`site/index.html` is the fallback for when the header does not apply: a
+misconfigured project, a preview deployment, or a plain file server in
+development. A browser given both enforces the *intersection*, so drift between
+them would silently block something in production; `csp.spec.js` compares the
+two and fails if they diverge on any directive both can express.
 
 **Service worker.** `site/sw.js` splits its strategy deliberately: the shell is
 cache-first because it only changes on deploy; `data/*.json` is network-first

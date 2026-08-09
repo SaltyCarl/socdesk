@@ -10,9 +10,7 @@ than by what happened most recently.
 Static site. No backend, no database, no accounts, no bill. Scheduled
 collectors publish JSON; the browser does the rest.
 
-**Live:** https://saltycarl.github.io/socdesk/
-(`socdesk.io` is registered; DNS is not pointed yet — see
-[docs/OPERATIONS.md](docs/OPERATIONS.md#custom-domain).)
+**Live:** https://socdesk.io
 
 <!-- SCREENSHOT: 1440px-wide capture of the console with a KEV CVE looked up —
      verdict gauge, escalation docket, and pivot row visible. Save to
@@ -136,12 +134,23 @@ endpoint.
 ## Deployment
 
 Push to `main`. The `collect-and-deploy` workflow runs the tests, runs the
-collectors, commits refreshed state snapshots, and deploys `site/` to GitHub
-Pages. It also runs on cron at `:11` and `:41` past every hour. There are no
-repository secrets to configure. The runbook — including how to read
-`health.json`, what to do when a collector goes red, how to roll back, and the
-service-worker version bump that has masked shipped changes more than once — is
-[docs/OPERATIONS.md](docs/OPERATIONS.md).
+collectors, commits refreshed state snapshots, and uploads `site/` to
+Cloudflare Pages. It also runs on cron at `:11` and `:41` past every hour.
+
+Deployment is a `wrangler pages deploy` direct upload rather than Cloudflare's
+Git integration, for two reasons: free-plan Git builds are capped at 500 a
+month and this workflow deploys about 1,440, and direct upload means Cloudflare
+never needs read access to the repository. Two secrets are required —
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+
+Serving from Cloudflare also means `site/_headers` is applied for real. On a
+host that cannot send custom headers the policy has to degrade to a `<meta>`
+tag, where `frame-ancestors` and the other header-only directives are ignored.
+The site ships both copies and `csp.spec.js` fails if they drift apart.
+
+The runbook — how to read `health.json`, what to do when a collector goes red,
+how to roll back, and the service-worker version bump that has masked shipped
+changes more than once — is [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ## Repository map
 

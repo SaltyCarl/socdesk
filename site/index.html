@@ -2,9 +2,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="SOCDesk — the analyst's first stop for any indicator. One paste: vulnerability verdict, pivots to every public reputation service, and an escalation-ready summary.">
 <title>SOCDesk — Open-Source Threat Intelligence</title>
-<!-- CSP as a meta tag for GitHub Pages, which cannot serve _headers. On
-     Cloudflare Pages the header version in _headers is stronger (it can also
-     express frame-ancestors) and takes over. Both are the same policy. -->
+<!-- Belt and braces. site/_headers is the policy that ships and is the one
+     the tests assert; this meta copy is what protects the page if the header
+     ever fails to apply (misconfigured project, a preview deploy, or a plain
+     file server in development). A browser given both enforces the
+     intersection, so the two must not drift — csp.spec.js fails if they do.
+     Header-only directives (frame-ancestors, upgrade-insecure-requests) live
+     in _headers alone; a meta tag cannot express them. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -12,11 +16,13 @@
 <meta property="og:title" content="SOCDesk — Open-Source Threat Intelligence">
 <meta property="og:description" content="One paste instead of six tabs: vulnerability verdict, pivots to every public reputation service, and an escalation-ready summary. No accounts, no tracking.">
 <!-- PNG, not SVG: X, LinkedIn, Facebook and Slack do not render SVG previews.
-     Absolute URL must match the live host — update both when socdesk.io lands. -->
-<meta property="og:image" content="https://saltycarl.github.io/socdesk/og.png">
+     These must be absolute and must match the live host, or every social
+     preview renders blank. Asserted by csp.spec.js so a host change cannot
+     leave them behind again. -->
+<meta property="og:image" content="https://socdesk.io/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:url" content="https://saltycarl.github.io/socdesk/">
+<meta property="og:url" content="https://socdesk.io/">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/tokens.css">
