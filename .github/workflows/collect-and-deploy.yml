@@ -59,9 +59,15 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # --branch decides whether the upload is routed as production or as a
-          # preview. It must match the project's production branch, set once at
-          # creation with `wrangler pages project create --production-branch`;
-          # on a Direct Upload project it cannot be changed in the dashboard
-          # afterwards, only through the Update Project API.
-          command: pages deploy site --project-name=socdesk --branch=main
+          # --branch decides whether this upload is routed as production or as
+          # a preview: it has to equal the project's production branch. A
+          # Direct Upload project created through the dashboard takes a default
+          # (main) that cannot be edited there afterwards, only via the Update
+          # Project API — so rather than hardcode the assumption, read it from
+          # a repository variable. If the first run lands in Preview, set
+          # CF_PRODUCTION_BRANCH under Settings -> Secrets and variables ->
+          # Actions -> Variables to whatever the dashboard reports and re-run.
+          # No CLI, no API call.
+          command: >-
+            pages deploy site --project-name=socdesk
+            --branch=${{ vars.CF_PRODUCTION_BRANCH || 'main' }}

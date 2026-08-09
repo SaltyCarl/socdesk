@@ -217,22 +217,35 @@ error anywhere.
 ### Creating the project
 
 The project must exist before the workflow's first run — `wrangler pages
-deploy` does not create one non-interactively. Create it from the CLI rather
-than the dashboard, because the CLI is the only way to set the production
-branch without a follow-up API call:
+deploy` will not create one non-interactively.
+
+From the dashboard: Workers & Pages → **Create application** → **Get started**
+→ **Drag and drop your files**, name it `socdesk`, and drop in your local
+`site/` directory. That single upload both creates the project and publishes a
+first production deployment. What you upload does not matter much — the next
+scheduled run replaces it wholesale — so there is no need to run the pipeline
+first just to have fresh `site/data/`.
+
+**The production-branch trap.** `--branch` in the workflow has to equal the
+project's production branch, or the upload succeeds, lands as a *preview* on a
+`*.pages.dev` URL, and the live site quietly keeps serving the previous build.
+A dashboard-created Direct Upload project takes a default — `main` in practice,
+though Cloudflare does not document the value — and **that setting cannot be
+edited in the dashboard afterwards**; changing it means a PATCH to the Update
+Project API.
+
+Rather than depend on an undocumented default, the workflow reads the branch
+from a repository variable and falls back to `main`. So if the first run lands
+in Preview, the fix stays in the browser: Settings → Secrets and variables →
+Actions → **Variables** → add `CF_PRODUCTION_BRANCH` set to whatever the
+Cloudflare deployment list shows, then re-run. No CLI, no API call.
+
+If you would rather set it explicitly at creation time instead, that is the one
+thing only the CLI can do:
 
 ```
 npx wrangler pages project create socdesk --production-branch=main
 ```
-
-That matters more than it looks. **On a Direct Upload project the production
-branch cannot be changed in the dashboard afterwards** — correcting it means
-calling the Update Project API by hand. Set it right here and `--branch=main`
-in the workflow lines up.
-
-The dashboard equivalent is Workers & Pages → **Create application** → **Get
-started** → **Drag and drop your files**, which is a file-upload flow and does
-not let you set the production branch. Use the CLI.
 
 One-way door worth knowing: a project created for Direct Upload **cannot later
 be switched to the Git integration**. That is the intended direction here — Git
