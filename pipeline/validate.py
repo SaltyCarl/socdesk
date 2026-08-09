@@ -13,6 +13,7 @@ SCHEMA_FOR = {
     "trends.json": "trends.schema.json",
     "actors.json": "actors.schema.json",
     "malware.json": "actors.schema.json",
+    "relations.json": "relations.schema.json",
 }
 
 

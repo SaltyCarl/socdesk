@@ -13,7 +13,7 @@ const PS_B64 = btoa(String.fromCharCode(
 async function ready(page) {
   await page.goto("/index.html");
   await page.waitForFunction(() => document.querySelectorAll("#feedRows .row").length > 0);
-  await page.locator("#toolbelt").scrollIntoViewIfNeeded();
+  await page.click("nav [data-view=toolbelt]");     // views switch in place now
 }
 
 test.describe("analyst toolbelt", () => {
@@ -93,15 +93,15 @@ test.describe("analyst toolbelt", () => {
     await expect(page.locator("#extractLookup")).toBeEnabled();
     await page.click("#extractLookup");
 
-    await expect(page.locator("#rail .rail-h")).toContainText("Bulk lookup", { timeout: 8000 });
-    const rows = page.locator("#rail .ev .ev-row");
+    await expect(page.locator("#console .vc-head")).toContainText("Bulk lookup", { timeout: 8000 });
+    const rows = page.locator("#console .ev .ev-row");
     expect(await rows.count()).toBeGreaterThanOrEqual(4);
-    // rail labels are text-transform:uppercase — read the underlying text
-    const text = await page.locator("#rail").evaluate(el => el.textContent);
+    // console labels are text-transform:uppercase — read the underlying text
+    const text = await page.locator("#console").evaluate(el => el.textContent);
     expect(text).toContain("8.8.8.8");
     expect(text).toContain("ops@example.com");
     expect(text).toContain("d41d8cd98f00b204e9800998ecf8427e");
-    await expect(page.locator("#rail [data-bulk=csv]")).toBeVisible();
+    await expect(page.locator("#console [data-bulk=csv]")).toBeVisible();
   });
 
   test("the toolbelt makes ZERO network requests — it never phones home", async ({ page }) => {

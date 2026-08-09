@@ -10,12 +10,66 @@ test.describe("threat operations feed", () => {
     await page.waitForFunction(() => document.querySelectorAll("#feedRows .row").length > 0);
   });
 
-  test("renders every item in feed.json — nothing silently truncated", async ({ page }) => {
+  test("work queue: priority-first, capped render, load-more reaches every item", async ({ page }) => {
     const n = R.feed().items.length;
     expect(n).toBeGreaterThan(0);
-    await expect(page.locator("#feedRows .row")).toHaveCount(n);
+    const first = Math.min(25, n);
+
+    // capped initial render, honestly labelled
+    await expect(page.locator("#feedRows .row")).toHaveCount(first);
     await expect(page.locator("#fhCount"))
-      .toHaveText(`Showing ${n.toLocaleString("en-US")} of ${n.toLocaleString("en-US")}`);
+      .toHaveText(`Showing ${first.toLocaleString("en-US")} of ${n.toLocaleString("en-US")}`);
+
+    // default order is the pipeline's relevance score, descending
+    const scores = await page.locator("#feedRows .pscore")
+      .evaluateAll(els => els.map(e => e.textContent === "—" ? -1 : Number(e.textContent)));
+    const sorted = [...scores].sort((a, b) => b - a);
+    expect(scores, "priority order = score descending").toEqual(sorted);
+
+    // the Newest toggle flips to chronology
+    const byTime = [...R.feed().items]
+      .sort((a, b) => String(b.published_at).localeCompare(String(a.published_at)))
+      .slice(0, first).map(i => i.id);
+    await page.click("#sortNewest");
+    // the re-render rides a View Transition — poll for the new head of queue
+    await expect(page.locator("#feedRows .row").first())
+      .toHaveAttribute("data-id", byTime[0], { timeout: 8000 });
+    const times = await page.locator("#feedRows .row")
+      .evaluateAll(els => els.map(e => e.dataset.id));
+    expect(times).toEqual(byTime);
+    await page.click("#sortPriority");
+    await expect(page.locator("#feedRows .pscore").first()).toHaveText(String(
+      Math.max(...R.feed().items.map(i => i.score ?? -1))), { timeout: 8000 });
+
+    // load more walks the full payload — nothing silently truncated
+    let guard = 0;
+    while (await page.locator("#feedMore").isVisible() && guard++ < 30)
+      await page.click("#feedMore");
+    await expect(page.locator("#feedRows .row")).toHaveCount(n);
+    await expect(page.locator("#feedMore")).toBeHidden();
+  });
+
+  test("scored rows print their score and why, grouped rows read as digests", async ({ page }) => {
+    const items = R.feed().items;
+    const scored = items.filter(i => i.score != null && (i.why ?? []).length);
+    test.skip(!scored.length, "no scored items in the published feed");
+
+    // the top-priority row is on screen by construction
+    const top = [...items].sort((a, b) => (b.score ?? -1) - (a.score ?? -1))[0];
+    const row = page.locator(`#feedRows .row[data-id="${top.id}"]`);
+    await expect(row.locator(".pscore")).toHaveText(String(top.score));
+    if ((top.why ?? []).length)
+      await expect(row.locator(".wq span:not(.grp)").first()).toHaveText(top.why[0]);
+
+    const grouped = items.filter(i => i.grouped)
+      .sort((a, b) => (b.score ?? -1) - (a.score ?? -1))[0];
+    if (grouped) {
+      await page.fill("#q2", grouped.title.slice(0, 30));
+      const grow = page.locator(`#feedRows .row[data-id="${grouped.id}"]`);
+      await expect(grow).toHaveClass(/digest/, { timeout: 8000 });
+      await expect(grow.locator(".wq .grp"))
+        .toContainText(`${grouped.grouped.toLocaleString("en-US")} reports`);
+    }
   });
 
   test("every category chip filters to exactly the count printed on that chip", async ({ page }) => {
@@ -31,7 +85,11 @@ test.describe("threat operations feed", () => {
       expect(printed, `chip ${cat} claims a count matching the payload`)
         .toBe(R.categoryCounts().get(cat));
       await chip.click();
-      await expect(page.locator("#feedRows .row")).toHaveCount(printed, { timeout: 8000 });
+      // the DOM renders the capped queue; the res chip carries the full claim
+      await expect(page.locator("#feedRows .row"))
+        .toHaveCount(Math.min(25, printed), { timeout: 8000 });
+      await expect(page.locator("#resChip"))
+        .toHaveText(`${printed.toLocaleString("en-US")} results`);
       await expect(page.locator("#fhCat")).toHaveText(cat);
     }
   });
@@ -46,13 +104,15 @@ test.describe("threat operations feed", () => {
     await page.fill("#q2", term);
     await expect(page.locator("#resChip"))
       .toHaveText(`${expected.toLocaleString("en-US")} results`, { timeout: 8000 });
-    await expect(page.locator("#feedRows .row")).toHaveCount(expected, { timeout: 8000 });
+    await expect(page.locator("#feedRows .row"))
+      .toHaveCount(Math.min(25, expected), { timeout: 8000 });
 
     await page.fill("#q2", "zzz-no-such-token-zzz");
     await expect(page.locator("#feedRows .row")).toHaveCount(0, { timeout: 8000 });
 
     await page.fill("#q2", "");
-    await expect(page.locator("#feedRows .row")).toHaveCount(total, { timeout: 8000 });
+    await expect(page.locator("#feedRows .row"))
+      .toHaveCount(Math.min(25, total), { timeout: 8000 });
   });
 
   test("the reviewed toggle survives a reload", async ({ page }) => {
@@ -77,7 +137,9 @@ test.describe("threat operations feed", () => {
     const cat = "vulnerability";
     await page.locator(`#filters .fchip[data-f="${cat}"]`).click();
     const expected = R.categoryCounts().get(cat);
-    await expect(page.locator("#feedRows .row")).toHaveCount(expected, { timeout: 8000 });
+    // the export must carry EVERY filtered item, not just the rendered cap
+    await expect(page.locator("#feedRows .row"))
+      .toHaveCount(Math.min(25, expected), { timeout: 8000 });
 
     const [dl] = await Promise.all([
       page.waitForEvent("download"),

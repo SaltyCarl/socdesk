@@ -50,13 +50,14 @@ test.describe("published Content-Security-Policy", () => {
     // blocks (no 'unsafe-eval'). Locator polling needs no eval.
     await expect(page.locator("#feedRows .row").first()).toBeVisible({ timeout: 15000 });
 
-    // --- omnibox lookup (verdict card, gauge, escalation, pivots) -------------
+    // --- omnibox lookup (verdict console, gauge, docket, pivots) --------------
     await page.fill("#q", R.topKevCve().cve);
     await page.press("#q", "Enter");
     await expect(page.locator("#vword")).toHaveText("ACTIVELY EXPLOITED", { timeout: 8000 });
-    await page.click("#rail [data-esc=md]").catch(() => {});
+    await page.click("#console [data-esc=md]").catch(() => {});
+    await page.keyboard.press("Escape");                 // back to browse mode
 
-    // --- feed: filter chip, search, review toggle, rail detail ---------------
+    // --- feed view: sort toggle, filter chip, search, load-more, rail --------
     const chip = page.locator("#filters .fchip").nth(1);
     await chip.click();
     await page.fill("#q2", "a");
@@ -64,10 +65,14 @@ test.describe("published Content-Security-Policy", () => {
     await page.fill("#q2", "");
     await page.waitForTimeout(300);
     await page.locator("#filters .fchip[data-f=all]").click();
+    await page.click("#sortNewest");
+    await page.click("#sortPriority");
+    if (await page.locator("#feedMore").isVisible()) await page.click("#feedMore");
     await page.locator("#feedRows .row").first().click();
     await page.locator("#feedRows .row").first().locator("[data-act=review]").click();
 
-    // --- vulnerabilities: sort every sortable column, KEV filter, show more --
+    // --- vulnerabilities view: sorts, KEV filter, watchlist, show more -------
+    await page.click("nav [data-view=vulns]");
     for (const th of await page.locator("#cveHead th[data-sort]").all()) {
       await th.click();
       await page.waitForTimeout(60);
@@ -82,14 +87,23 @@ test.describe("published Content-Security-Policy", () => {
     await page.click("#wlOnly");
     if (await page.locator("#showMore").isVisible()) await page.click("#showMore");
     await page.locator("#cveRows tr").first().click();
+    await page.keyboard.press("Escape");
 
-    // --- health, registry, brief absent-state --------------------------------
-    await page.locator("#health").scrollIntoViewIfNeeded();
-    await page.locator("#registry").scrollIntoViewIfNeeded();
-    await page.locator("#brief").scrollIntoViewIfNeeded();
+    // --- actors, health, sources views ---------------------------------------
+    await page.click("nav [data-view=actors]");
+    if (await page.locator("#actorFilter").isVisible()) {
+      await page.fill("#actorFilter", "a");
+      await page.waitForTimeout(300);
+      await page.fill("#actorFilter", "");
+      await page.waitForTimeout(300);
+      const card = page.locator("#actorGrid .acard").first();
+      if (await card.count()) { await card.click(); await page.keyboard.press("Escape"); }
+    }
+    await page.click("nav [data-view=health]");
+    await page.click("nav [data-view=sources]");
 
     // --- all five toolbelt cards ---------------------------------------------
-    await page.locator("#toolbelt").scrollIntoViewIfNeeded();
+    await page.click("nav [data-view=toolbelt]");
     await page.fill("#defangIn", "http://evil-updates.example.com/p.exe 10.14.88.2");
     await page.click("#defangBtn");
     await page.fill("#extractIn", "hits 8.8.8.8 and http://bad.example.com/a CVE-2024-3400");
@@ -103,7 +117,7 @@ test.describe("published Content-Security-Policy", () => {
     await page.click("#lolbinBtn");
 
     // --- keyboard triage path -------------------------------------------------
-    await page.locator("#operations").scrollIntoViewIfNeeded();
+    await page.click("nav [data-view=feed]");
     await page.evaluate(() => document.activeElement?.blur());   // leave any input
     for (const k of ["j", "j", "k", "r", "n"]) await page.keyboard.press(k);
 

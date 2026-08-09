@@ -220,9 +220,37 @@ export function download(name, text, mime = "text/plain") {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/* ---------------- rendering ---------------- */
-export function renderVerdict(rail, v, onDone) {
-  if (!rail || !v) return;
+/* ---------------- rendering: the verdict console ---------------- */
+export const defangText = s =>
+  String(s).replace(/\./g, "[.]").replace(/^http/i, "hxxp");
+
+/** Escalation docket slip — the SAME content escalation() copies, rendered as
+ *  a formatted document instead of raw markdown. What renders is what ships. */
+function docketHTML(v) {
+  const stamp = new Date().toISOString().replace("T", " ").slice(0, 16) + "Z";
+  const pub = v.evidence?.length ? `
+    <div class="dk-sec">Public data</div>
+    ${v.evidence.map(([k, val]) => `<div class="dk-row">
+      <span class="l">${esc(k)}</span><span class="v">${esc(val)}</span></div>`).join("")}` : "";
+  const steps = nextSteps(v).map(s => `<li>${esc(s)}</li>`).join("");
+  const refs = pivotsFor(v.type.toLowerCase(), v.q).map(([n]) => esc(n)).join(" · ");
+  return `
+    <div class="dk-title">INDICATOR REVIEW — ${esc(defangText(v.q))}</div>
+    <div class="dk-row"><span class="l">Type</span><span class="v">${esc(v.type)}</span></div>
+    <div class="dk-row"><span class="l">Assessment</span>
+      <span class="v tone-${esc(v.tone)}">${esc(v.word)}${v.score != null ? ` (EPSS ${esc(v.score)}%)` : ""}</span></div>
+    <div class="dk-row"><span class="l">Basis</span><span class="v">${esc(v.basis)}</span></div>
+    ${pub}
+    <div class="dk-sec">Suggested next steps</div>
+    <ul class="dk-list">${steps}</ul>
+    <div class="dk-sec">External references</div>
+    <div class="dk-foot">${refs}</div>
+    <div class="dk-foot">Reviewed ${esc(stamp)} · sources: CISA KEV, NVD, FIRST EPSS
+      (public data). Open-source assessment only — verify independently before acting.</div>`;
+}
+
+export function renderVerdict(el, v, onDone) {
+  if (!el || !v) return;
   if (v.kind === "profile") return;                 // profiles render elsewhere
   pushHistory(v.q, v.type, v.word);
 
@@ -235,42 +263,43 @@ export function renderVerdict(rail, v, onDone) {
     ).join("")}</div>` : "";
   const gauge = v.score != null ? gaugeSVG(v.score, v.tone) : "";
 
-  rail.innerHTML = `
-    <div class="rail-h">
-      <span class="caps tone-${esc(v.tone)}">Indicator · ${esc(v.type)}</span>
-      <span class="caps tone-accent">Now</span>
+  el.innerHTML = `
+    <div class="vc-head">
+      <span class="caps tone-${esc(v.tone)}">Verdict · ${esc(v.type)}</span>
+      <button class="act" data-vc="clear">Clear · Esc</button>
     </div>
-    <div class="rail-body">
-      <div class="gauge-wrap">${gauge}
-        <div>
-          ${v.score != null ? `<div class="gauge-num tone-${esc(v.tone)}">${esc(v.score)}<span class="sev-unknown">/100</span></div>` : ""}
-          <div class="verdict-word tone-${esc(v.tone)}" id="vword"></div>
+    <div class="vc-grid">
+      <div class="vc-main">
+        <div class="gauge-wrap">${gauge}
+          <div>
+            ${v.score != null ? `<div class="gauge-num tone-${esc(v.tone)}">${esc(v.score)}<span class="sev-unknown">/100</span></div>` : ""}
+            <div class="verdict-word tone-${esc(v.tone)}" id="vword"></div>
+          </div>
         </div>
+        <div class="mono vc-ind" id="vq">${esc(defangText(v.q))}</div>
+        <p class="vc-basis">${esc(v.basis)}</p>
       </div>
-      <div class="mono" id="vq">${esc(v.q)}</div>
-      <p class="rail-text">${esc(v.basis)}</p>
+      <div class="vc-side esc">
+        <div class="esc-h"><span class="cap">Escalation summary</span>
+          <span class="esc-acts">
+            <button class="act" data-esc="md">Copy markdown</button>
+            <button class="act" data-esc="txt">Copy text</button>
+            <button class="act" data-esc="dl">Download .md</button>
+          </span></div>
+        <div class="docket" id="escBody">${docketHTML(v)}</div>
+      </div>
     </div>
     ${ev}
     <div class="ev"><div class="l">Pivot to — discloses this indicator to that service</div></div>
-    <div class="pivots">${pivots}</div>
-    <div class="esc">
-      <div class="esc-h"><span>Escalation summary</span>
-        <button class="act" data-esc="md">Copy markdown</button></div>
-      <pre id="escBody"></pre>
-      <div class="esc-foot">
-        <button class="act" data-esc="txt">Copy plain text</button>
-        <button class="act" data-esc="dl">Download .md</button>
-      </div>
-    </div>`;
+    <div class="pivots">${pivots}</div>`;
 
-  rail.querySelector("#escBody").textContent = escalation(v);
-  rail.querySelectorAll("[data-esc]").forEach(b => b.onclick = () => {
+  el.querySelectorAll("[data-esc]").forEach(b => b.onclick = () => {
     const mode = b.dataset.esc, was = b.textContent;
     const text = escalation(v, { markdown: mode !== "txt" });
     if (mode === "dl") return download(`escalation-${v.q}.md`, text, "text/markdown");
     copyToButton(b, text, was);
   });
-  onDone?.(rail, v);
+  onDone?.(el, v);
 }
 
 function gaugeSVG(score, tone) {

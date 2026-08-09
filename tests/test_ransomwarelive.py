@@ -28,6 +28,17 @@ def test_victim_names_are_never_republished(fake_fetch):
     assert "akira posted a new victim claim" == r.items[0]["title"]
 
 
+def test_offset_aware_timestamps_do_not_become_invalid(fake_fetch):
+    """Regression: an offset-aware upstream value plus our 'Z' produced
+    '...+00:00Z', which Date.parse rejects — the UI showed '—' for age."""
+    fetch = lambda url, **kw: [
+        {"victim": "X", "group": "akira", "discovered": "2026-08-08 02:15:00+00:00",
+         "country": "US", "activity": "Manufacturing", "claim_url": "https://x.test/1"}]
+    item = ransomwarelive.collect(fetch, FIXED_NOW).items[0]
+    assert item["published_at"] == "2026-08-08T02:15:00Z"
+    assert item["published_at"].count("Z") == 1 and "+" not in item["published_at"]
+
+
 def test_ids_stay_stable_per_victim(fake_fetch):
     """The hashed id still keys on the victim so dedup works across runs."""
     a, b = _items(fake_fetch).items

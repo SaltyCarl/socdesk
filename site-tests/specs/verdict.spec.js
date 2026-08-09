@@ -25,32 +25,55 @@ test.describe("indicator verdicts", () => {
     // decode() scrambles the word into place when GSAP is live — poll for it.
     await expect(page.locator("#vword")).toHaveText("ACTIVELY EXPLOITED", { timeout: 8000 });
     await expect(page.locator("#vword")).toHaveClass(/tone-red/);
-    await expect(page.locator("#rail #vq")).toHaveText(c.cve);
+    await expect(page.locator("#console #vq")).toHaveText(c.cve);
+
+    // THE LAYOUT CONTRACT: paste + Enter renders the verdict console in place,
+    // with no scroll jump, and the lookup is shareable via the #q= hash.
+    expect(await page.evaluate(() => window.scrollY), "no scroll jump on paste").toBe(0);
+    expect(await page.evaluate(() => location.hash)).toBe(`#q=${c.cve}`);
+    // the verdict never rents the feed-detail rail
+    await expect(page.locator("#rail #vword")).toHaveCount(0);
 
     // gauge arc, drawn from the real EPSS percentage
-    const arc = page.locator("#rail svg.gauge circle.arc");
+    const arc = page.locator("#console svg.gauge circle.arc");
     await expect(arc).toHaveCount(1);
     expect(Number(await arc.getAttribute("data-off"))).toBeGreaterThanOrEqual(0);
-    await expect(page.locator("#rail .gauge-num"))
+    await expect(page.locator("#console .gauge-num"))
       .toContainText(String(Math.round(c.epss * 100)));
 
-    await expect(page.locator("#rail .ev .ev-row").first()).toBeVisible();
-    expect(await page.locator("#rail .ev .ev-row").count()).toBeGreaterThanOrEqual(3);
+    await expect(page.locator("#console .ev .ev-row").first()).toBeVisible();
+    expect(await page.locator("#console .ev .ev-row").count()).toBeGreaterThanOrEqual(3);
 
+    // the escalation summary is a FORMATTED docket, not raw markdown in a <pre>
+    expect(await page.locator("#escBody pre").count()).toBe(0);
     const esc = await page.locator("#escBody").innerText();
     expect(esc.length, "the escalation summary must be substantive").toBeGreaterThan(400);
+    expect(esc).not.toMatch(/\*\*|^## /m);          // no literal markdown syntax
     expect(esc).toContain("INDICATOR REVIEW");
     expect(esc).toContain("ACTIVELY EXPLOITED");
     expect(esc).toContain("Suggested next steps");
     expect(esc).toContain("CISA KEV");
+
+    // Escape returns to browse mode and drops the hash
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#console")).toBeHidden();
+    expect(await page.evaluate(() => location.hash)).toBe("");
+  });
+
+  test("a #q= deep link restores the lookup on load", async ({ page }) => {
+    const c = R.topKevCve();
+    await page.goto(`/index.html#q=${c.cve}`);
+    await expect(page.locator("#vword")).toHaveText("ACTIVELY EXPLOITED", { timeout: 8000 });
+    await expect(page.locator("#console #vq")).toHaveText(c.cve);
+    await expect(page.locator("#q")).toHaveValue(c.cve);
   });
 
   test("every pivot link is https and carries rel=noopener", async ({ page }) => {
     for (const q of [R.topKevCve().cve, "185.220.101.42", "example-not-real-domain.com",
                      "d41d8cd98f00b204e9800998ecf8427e"]) {
       await lookup(page, q);
-      await expect(page.locator("#rail .pivots a.pivot").first()).toBeVisible({ timeout: 8000 });
-      const links = page.locator("#rail .pivots a.pivot");
+      await expect(page.locator("#console .pivots a.pivot").first()).toBeVisible({ timeout: 8000 });
+      const links = page.locator("#console .pivots a.pivot");
       const n = await links.count();
       expect(n, `pivots offered for ${q}`).toBeGreaterThan(0);
       for (let i = 0; i < n; i++) {
@@ -71,19 +94,19 @@ test.describe("indicator verdicts", () => {
     // absence of a corpus hit must not read as clearance
     await expect(page.locator("#vword")).toHaveClass(/tone-muted/);
     await expect(page.locator("#vword")).not.toHaveClass(/tone-green/);
-    await expect(page.locator("#rail")).not.toHaveText(/\b(CLEAN|SAFE|BENIGN|NO THREAT)\b/);
-    await expect(page.locator("#rail .rail-text")).toContainText("Absence here is not clearance");
+    await expect(page.locator("#console")).not.toHaveText(/\b(CLEAN|SAFE|BENIGN|NO THREAT)\b/);
+    await expect(page.locator("#console .vc-basis")).toContainText("Absence here is not clearance");
     // no score means no gauge — a gauge would imply a measurement we do not have
-    await expect(page.locator("#rail svg.gauge")).toHaveCount(0);
+    await expect(page.locator("#console svg.gauge")).toHaveCount(0);
   });
 
   test("an email routes to credential-exposure pivots including HIBP", async ({ page }) => {
     await lookup(page, "analyst.test@example.com");
     await expect(page.locator("#vword")).toHaveText("NOT IN CORPUS", { timeout: 8000 });
     // pivot labels are text-transform:uppercase in CSS — compare case-insensitively
-    const names = (await page.locator("#rail .pivots a.pivot").allInnerTexts()).join(" ");
+    const names = (await page.locator("#console .pivots a.pivot").allInnerTexts()).join(" ");
     expect(names.toLowerCase()).toContain("have i been pwned");
-    const hrefs = await page.locator("#rail .pivots a.pivot").evaluateAll(
+    const hrefs = await page.locator("#console .pivots a.pivot").evaluateAll(
       as => as.map(a => a.href));
     expect(hrefs.some(h => h.startsWith("https://haveibeenpwned.com/account/"))).toBe(true);
     // an email must not be shipped to file/URL reputation services
@@ -94,12 +117,12 @@ test.describe("indicator verdicts", () => {
     const trio = `8.8.8.8, ${R.topKevCve().cve}, d41d8cd98f00b204e9800998ecf8427e`;
     await lookup(page, trio);
 
-    await expect(page.locator("#rail .rail-h")).toContainText("Bulk lookup", { timeout: 8000 });
-    await expect(page.locator("#rail .rail-h")).toContainText("3 indicators");
-    await expect(page.locator("#rail .ev .ev-row")).toHaveCount(3);
+    await expect(page.locator("#console .vc-head")).toContainText("Bulk lookup", { timeout: 8000 });
+    await expect(page.locator("#console .vc-head")).toContainText("3 indicators");
+    await expect(page.locator("#console .ev .ev-row")).toHaveCount(3);
 
     // .ev-row .k is text-transform:uppercase — the DOM text is the real value
-    const cells = await page.locator("#rail .ev .ev-row .k")
+    const cells = await page.locator("#console .ev .ev-row .k")
       .evaluateAll(els => els.map(e => e.textContent.trim()));
     expect(cells.sort())
       .toEqual(["8.8.8.8", R.topKevCve().cve, "d41d8cd98f00b204e9800998ecf8427e"].sort());
@@ -124,7 +147,7 @@ test.describe("indicator verdicts", () => {
     for (const [mode, name, check] of cases) {
       const [dl] = await Promise.all([
         page.waitForEvent("download"),
-        page.click(`#rail [data-bulk="${mode}"]`),
+        page.click(`#console [data-bulk="${mode}"]`),
       ]);
       expect(dl.suggestedFilename()).toMatch(name);
       check(fs.readFileSync(await dl.path(), "utf8"));
@@ -134,15 +157,15 @@ test.describe("indicator verdicts", () => {
   test("a CVE outside the window is an honest miss, not a fabricated verdict", async ({ page }) => {
     await lookup(page, "CVE-1999-0001");
     await expect(page.locator("#vword")).toHaveText("NOT IN CORPUS", { timeout: 8000 });
-    await expect(page.locator("#rail .rail-text")).toContainText("Check NVD directly");
+    await expect(page.locator("#console .vc-basis")).toContainText("Check NVD directly");
   });
 
   test("an actor/malware name resolves to its ATT&CK profile", async ({ page }) => {
     const p = (R.actors()?.profiles ?? []).find(x => x.attack_id && x.name);
     test.skip(!p, "no actor profiles published");
     await lookup(page, p.name);
-    await expect(page.locator("#rail .rail-h")).toContainText(p.attack_id, { timeout: 8000 });
-    const href = await page.locator("#rail .pivots a.pivot").last().getAttribute("href");
+    await expect(page.locator("#console .vc-head")).toContainText(p.attack_id, { timeout: 8000 });
+    const href = await page.locator("#console .pivots a.pivot").last().getAttribute("href");
     expect(href).toBe(`https://attack.mitre.org/groups/${encodeURIComponent(p.attack_id)}/`);
   });
 });

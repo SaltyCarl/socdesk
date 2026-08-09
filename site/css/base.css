@@ -27,13 +27,13 @@ input,textarea{font:inherit;color:var(--paper);background:none;border:none;outli
    own no-unsafe-inline CSP, which is how the CSP spec caught it */
 .sprite{position:absolute}
 
-/* scroll-reveal — gated behind html.js so a dead CDN never hides content */
-.reveal{transition:opacity var(--dur-enter) var(--ease),transform .7s var(--ease);
-  transition-delay:calc(var(--i,0)*70ms)}
-html.js .reveal{opacity:0;transform:translateY(24px)}
-html.js .reveal.in{opacity:1;transform:none}
+/* view entrance — the console switches surfaces in place; a single composed
+   fade replaces the old scroll-reveal choreography (nothing is ever left at
+   opacity 0 — the animation's end state is the resting state) */
+@keyframes viewIn{from{opacity:0;transform:translateY(10px)}}
+#views > .view{display:none}
+#views > .view.active{display:block;animation:viewIn .35s var(--ease)}
 
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
-  html.js .reveal{opacity:1;transform:none}
 }

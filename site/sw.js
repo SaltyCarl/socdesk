@@ -11,7 +11,8 @@
 // BUMP THIS on every change to the shell (html/css/js). The shell is cached
 // cache-first, so without a bump returning visitors keep the old UI after a
 // deploy — this masked two changes during development before it was caught.
-const VERSION = "socdesk-v3";
+const VERSION = "socdesk-v4";   // v4: operational console layout (view
+                                // switching, verdict console, work-queue feed)
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 

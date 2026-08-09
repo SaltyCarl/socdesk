@@ -31,7 +31,7 @@ def test_build_site_data_shapes():
     payloads = build_site_data(results, cve_rows=[], health=health,
                                prior={}, now=FIXED_NOW)
     assert set(payloads) == {"feed.json", "cves.json", "health.json",
-                             "actors.json", "malware.json"}
+                             "actors.json", "malware.json", "relations.json"}
     for p in payloads.values():
         assert p["generated_at"] == iso(FIXED_NOW) and p["schema_version"] == 1
 

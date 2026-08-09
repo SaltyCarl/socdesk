@@ -170,8 +170,10 @@ test.describe("hostile feed content cannot execute or break out", () => {
     await page.waitForFunction(() => document.querySelectorAll("#cveRows tr").length > 0);
 
     await expect(page.locator("#cveRows img, #healthGrid img")).toHaveCount(0);
+    await page.click("nav [data-view=vulns]");        // hover needs a visible view
     const cell = page.locator("#cveRows tr").first();
     await cell.hover();
+    await page.click("nav [data-view=health]");
     await page.locator("#healthGrid .hcell").first().hover();
     await page.waitForTimeout(500);         // give any onerror a chance to fire
     expect(await page.evaluate(() =>

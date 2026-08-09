@@ -28,6 +28,10 @@ export function renderChrome(data) {
   const ok = health?.sources?.filter(s => s.ok).length ?? 0;
   const all = health?.sources?.length ?? 0;
   $("#liveCount").textContent = `${ok}/${all} collectors online`;
+  // green = healthy, gold = partial, red = everything down. Never red-when-ok.
+  const live = $(".live");
+  live?.classList.toggle("ok", all > 0 && ok === all);
+  live?.classList.toggle("down", all > 0 && ok === 0);
 
   $("#staleChips").innerHTML = staleness(data)
     .map(l => `<span class="stale-chip">${esc(l)}</span>`).join("");
@@ -56,9 +60,26 @@ export function renderChrome(data) {
   });
 }
 
-/* ---------------- feed ---------------- */
+/* ---------------- view switching ---------------- */
+/**
+ * The operational layout: one working surface at a time, switched in place by
+ * the topbar. Replaces the six-section scroll dossier.
+ */
+export function initViews() {
+  $$("nav [data-view]").forEach(b => b.onclick = () => showView(b.dataset.view));
+}
+
+export function showView(name) {
+  $$("#views > .view").forEach(s =>
+    s.classList.toggle("active", s.dataset.view === name));
+  $$("nav [data-view]").forEach(b =>
+    b.classList.toggle("on", b.dataset.view === name));
+}
+
+/* ---------------- feed: the work queue ---------------- */
+const FEED_INIT = 25, FEED_STEP = 100;
 let feedState = { items: [], filter: "all", q: "", sel: 0, cursor: 0,
-                  onSelect: null, loaded: true };
+                  onSelect: null, loaded: true, sort: "priority", limit: FEED_INIT };
 
 /**
  * Degraded state for a feed payload that did not load. It lives HERE, in the
@@ -67,7 +88,7 @@ let feedState = { items: [], filter: "all", q: "", sel: 0, cursor: 0,
  * explaining itself.
  */
 const OFFLINE_ROW =
-  `<div class="row"><span class="tag tone-muted">offline</span>
+  `<div class="row"><div class="pri"><span class="tag tone-muted">offline</span></div>
    <div><div class="t">No collected data available</div>
    <div class="s">The pipeline has not published yet, or the data files
    could not be loaded. Everything else on this page still works.</div></div>
@@ -85,13 +106,34 @@ export function initFeed(data, onSelect) {
     return `<button class="fchip${c === "all" ? " on" : ""}" data-f="${esc(c)}">${esc(c)}<b>${num(n)}</b></button>`;
   }).join("");
   $$("#filters .fchip").forEach(b => b.onclick = () => setFilter(b.dataset.f));
-  $$("#band button").forEach(b => b.onclick = () => setFilter(b.dataset.cat));
+  // the stat band is a category shortcut: it lands you in the feed view
+  $$("#band button").forEach(b => b.onclick = () => {
+    showView("feed"); setFilter(b.dataset.cat);
+  });
 
   let t;
   $("#q2").addEventListener("input", e => {
     clearTimeout(t);
-    t = setTimeout(() => { feedState.q = e.target.value.toLowerCase(); render(); }, 150);
+    t = setTimeout(() => {
+      feedState.q = e.target.value.toLowerCase();
+      feedState.limit = FEED_INIT;
+      render();
+    }, 150);
   });
+
+  /* sort toggle: Priority (pipeline score) is the default — the queue leads
+     with what matters; chronology is the explicit alternative */
+  const sortBtns = { priority: $("#sortPriority"), newest: $("#sortNewest") };
+  const setSort = mode => {
+    feedState.sort = mode;
+    feedState.sel = 0; feedState.limit = FEED_INIT;
+    Object.entries(sortBtns).forEach(([k, b]) => b?.classList.toggle("on", k === mode));
+    reflow(render);
+  };
+  sortBtns.priority?.addEventListener("click", () => setSort("priority"));
+  sortBtns.newest?.addEventListener("click", () => setSort("newest"));
+
+  $("#feedMore").onclick = () => { feedState.limit += FEED_STEP; render(); };
 
   $("#exportBtn").onclick = () => {
     const blob = new Blob([JSON.stringify(visible(), null, 2)], { type: "application/json" });
@@ -119,19 +161,30 @@ export function initFeed(data, onSelect) {
 
 function setFilter(f) {
   feedState.filter = f;
-  feedState.sel = 0; feedState.cursor = 0;
+  feedState.sel = 0; feedState.cursor = 0; feedState.limit = FEED_INIT;
   $$("#filters .fchip").forEach(x => x.classList.toggle("on", x.dataset.f === f));
   $$("#band button").forEach(x => x.classList.toggle("on", x.dataset.cat === f));
   reflow(render);
 }
 
+/** Filtered AND ordered — the work queue's truth. Priority = the pipeline's
+ *  0-100 relevance score (already ranked upstream); Newest = chronology. */
 function visible() {
-  return feedState.items.filter(i =>
+  const hit = feedState.items.filter(i =>
     (feedState.filter === "all" || i.category === feedState.filter) &&
     (!feedState.q ||
       (i.title + " " + i.summary + " " + Object.values(i.entities || {}).flat().join(" "))
         .toLowerCase().includes(feedState.q)));
+  const time = (a, b) =>
+    String(b.published_at || "").localeCompare(String(a.published_at || ""));
+  return [...hit].sort(feedState.sort === "newest"
+    ? time
+    : (a, b) => ((b.score ?? -1) - (a.score ?? -1)) || time(a, b));
 }
+
+const scoreTone = s => s == null ? "sev-unknown"
+  : s >= 80 ? "sev-critical" : s >= 60 ? "sev-high"
+  : s >= 40 ? "sev-medium" : "sev-unknown";
 
 function render() {
   if (!feedState.loaded) {
@@ -139,23 +192,36 @@ function render() {
     $("#fhCount").textContent = "Unavailable";
     $("#fhCat").textContent = feedState.filter;
     $("#resChip").textContent = "0 results";
+    $("#feedMore").hidden = true;
     return;
   }
   const items = visible();
-  const boundaryAt = state.lastVisit
-    ? items.findIndex(i => i.published_at <= state.lastVisit) : -1;
+  const shown = items.slice(0, feedState.limit);
+  // "new since last visit" is a chronological claim — only honest in Newest
+  const boundaryAt = feedState.sort === "newest" && state.lastVisit
+    ? shown.findIndex(i => i.published_at <= state.lastVisit) : -1;
 
-  $("#feedRows").innerHTML = items.map((i, n) => {
+  $("#feedRows").innerHTML = shown.map((i, n) => {
     const hit = watchHit([...(i.entities?.vendors ?? []), i.title]);
     const boundary = n === boundaryAt && n > 0
       ? `<div class="new-boundary">${num(n)} new since last visit</div>` : "";
+    const why = (i.why ?? []).slice(0, 3);
+    const wq = (why.length || i.grouped) ? `<div class="wq">
+        ${i.grouped ? `<span class="grp">digest · ${num(i.grouped)} reports</span>` : ""}
+        ${why.map(w => `<span>${esc(w)}</span>`).join("")}
+        ${(i.why?.length ?? 0) > 3 ? `<span>+${num(i.why.length - 3)}</span>` : ""}
+      </div>` : "";
     return boundary + `
-      <div class="row${n === feedState.sel ? " sel" : ""}${state.reviewed[i.id] ? " reviewed" : ""}"
+      <div class="row${n === feedState.sel ? " sel" : ""}${state.reviewed[i.id] ? " reviewed" : ""}${i.grouped ? " digest" : ""}"
            data-id="${esc(i.id)}" data-i="${n}">
-        <span class="tag cat-${esc(i.category)}">${esc(i.category)}</span>
+        <div class="pri">
+          <b class="pscore ${scoreTone(i.score)}">${i.score != null ? esc(i.score) : "—"}</b>
+          <span class="tag cat-${esc(i.category)}">${esc(i.category)}</span>
+        </div>
         <div><div class="src">${esc(i.source)}</div>
           <div class="t">${esc(i.title)}</div>
-          <div class="s">${esc(i.summary)}</div></div>
+          <div class="s">${esc(i.summary)}</div>
+          ${wq}</div>
         <div class="right">
           <span class="tm">${esc(rel(i.published_at))}</span>
           ${hit ? `<span class="wl">${esc(hit)}</span>` : ""}
@@ -164,17 +230,22 @@ function render() {
       </div>`;
   }).join("");
 
-  $("#fhCount").textContent = `Showing ${num(items.length)} of ${num(feedState.items.length)}`;
+  $("#fhCount").textContent = `Showing ${num(shown.length)} of ${num(items.length)}`;
   $("#fhCat").textContent = feedState.filter;
   $("#resChip").textContent = `${num(items.length)} results`;
-  const cur = items[Math.min(feedState.sel, items.length - 1)];
+  const more = $("#feedMore");
+  more.hidden = items.length <= feedState.limit;
+  if (!more.hidden)
+    more.textContent = `Load more — ${num(items.length - shown.length)} remaining`;
+  const cur = shown[Math.min(feedState.sel, shown.length - 1)];
   if (cur) feedState.onSelect?.(cur);
 }
 
 function select(n) {
   const items = visible();
-  if (!items.length) return;
-  feedState.sel = feedState.cursor = Math.max(0, Math.min(n, items.length - 1));
+  const shown = Math.min(items.length, feedState.limit);
+  if (!shown) return;
+  feedState.sel = feedState.cursor = Math.max(0, Math.min(n, shown - 1));
   $$("#feedRows .row").forEach((r, i) => r.classList.toggle("sel", i === feedState.sel));
   feedState.onSelect?.(items[feedState.sel]);
 }
@@ -382,7 +453,7 @@ export function renderBrief(brief) {
   }
   $("#briefGenerated").textContent = `${brief.generated_at} · ${rel(brief.generated_at)}`;
   list.innerHTML = (brief.stories ?? []).map((s, n) => `
-    <div class="bitem reveal" data-i="${n}">
+    <div class="bitem">
       <span class="bnum">B${n + 1}</span>
       <div><h3>${esc(s.title)}</h3><p>${esc(s.summary)}</p></div>
       <div class="why"><div class="l">Why it matters</div><p>${esc(s.why_it_matters || "")}</p></div>
@@ -391,8 +462,8 @@ export function renderBrief(brief) {
 
 export function renderHealth(health) {
   const sources = health?.sources ?? [];
-  $("#healthGrid").innerHTML = sources.map((s, n) => `
-    <div class="hcell reveal" data-i="${n % 3}">
+  $("#healthGrid").innerHTML = sources.map(s => `
+    <div class="hcell">
       <div class="hh"><span>${esc(s.source)}</span>
         <span class="dot${s.ok ? "" : " deg"}"></span></div>
       <div class="n${s.ok ? "" : " sev-medium"}" data-count="${esc(s.items)}">0</div>
@@ -404,6 +475,58 @@ export function renderHealth(health) {
   const warn = health?.pipeline_warnings;
   $("#healthWarn").innerHTML = warn?.length
     ? `<div class="warnstrip">${esc(warn.join(" · "))}</div>` : "";
+}
+
+/* ---------------- actors & malware profiles ---------------- */
+const ACTORS_INIT = 30, ACTORS_STEP = 60;
+
+export function renderActors(data, onPick) {
+  const grid = $("#actorGrid");
+  if (!grid) return;
+  const profiles = [
+    ...(data.actors?.profiles ?? []).map(p => ({ ...p, kind: "actor" })),
+    ...(data.malware?.profiles ?? []).map(p => ({ ...p, kind: "malware" })),
+  ].filter(p => p.name);
+  $("#actorCount").textContent = `${num(profiles.length)} profiles`;
+  if (!profiles.length) {
+    grid.innerHTML = `<div class="aempty">No ATT&amp;CK profiles published yet —
+      the actors collector ships them independently of the feed.</div>`;
+    return;
+  }
+
+  let q = "", limit = ACTORS_INIT;
+  const draw = () => {
+    const hit = !q ? profiles : profiles.filter(p =>
+      (p.name + " " + (p.aliases ?? []).join(" ") + " " + (p.attack_id || ""))
+        .toLowerCase().includes(q));
+    const shown = hit.slice(0, limit);
+    grid.innerHTML = shown.map(p => `
+      <button class="acard" data-name="${esc(p.name)}">
+        <span class="ah"><span class="caps ${p.kind === "actor" ? "tone-accent" : "sev-medium"}">${esc(p.kind)}</span>
+          <span class="mono sev-unknown">${esc(p.attack_id || "")}</span></span>
+        <span class="an">${esc(p.name)}</span>
+        <span class="aa">${esc((p.aliases ?? []).slice(0, 3).join(" · ") || "—")}</span>
+        <span class="am"><span>${num(p.techniques?.length ?? 0)} techniques</span>
+          <span>${num(p.software?.length ?? 0)} software</span></span>
+      </button>`).join("") ||
+      `<div class="aempty">No profile matches "${esc(q)}".</div>`;
+    grid.querySelectorAll("[data-name]").forEach(b =>
+      b.onclick = () => onPick?.(b.dataset.name));
+    $("#actorCount").textContent = `${num(hit.length)} of ${num(profiles.length)} profiles`;
+    const more = $("#actorMore");
+    more.hidden = hit.length <= limit;
+    if (!more.hidden)
+      more.textContent = `Load more — ${num(hit.length - shown.length)} remaining`;
+  };
+
+  let t;
+  $("#actorFilter")?.addEventListener("input", e => {
+    clearTimeout(t);
+    t = setTimeout(() => { q = e.target.value.trim().toLowerCase();
+                           limit = ACTORS_INIT; draw(); }, 150);
+  });
+  $("#actorMore").onclick = () => { limit += ACTORS_STEP; draw(); };
+  draw();
 }
 
 export function renderRegistry(sources) {

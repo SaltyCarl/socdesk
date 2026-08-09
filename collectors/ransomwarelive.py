@@ -19,7 +19,14 @@ def collect(fetch, now):
         group = (v.get("group") or "unknown").strip()
         sector = (v.get("activity") or "unknown sector").strip()
         country = (v.get("country") or "?").strip()
+        # Upstream sends either "2026-08-08 02:15:00" or an offset-aware
+        # "2026-08-08 02:15:00+00:00". Appending Z to the latter produced
+        # "…+00:00Z", which Date.parse rejects — rows then rendered "—" for age.
         published = (v.get("discovered") or "").replace(" ", "T")
+        for cut in ("+", "Z"):
+            if cut in published[10:]:
+                published = published[:10] + published[10:].split(cut)[0]
+                break
         items.append(make_item(
             SOURCE, f"{group}:{v.get('victim', '')}:{v.get('discovered', '')}",
             "ransomware",

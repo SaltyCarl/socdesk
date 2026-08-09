@@ -19,8 +19,11 @@ test.describe("degraded operation", () => {
     // GSAP really is absent — otherwise this test proves nothing
     expect(await page.evaluate(() => typeof window.gsap)).toBe("undefined");
 
-    await expect(page.locator("#feedRows .row")).toHaveCount(R.feed().items.length);
+    await expect(page.locator("#feedRows .row"))
+      .toHaveCount(Math.min(25, R.feed().items.length));
 
+    // vulnerabilities live in their own view now — switch to it in place
+    await page.click("nav [data-view=vulns]");
     const cveTotal = R.cves().cves.length;
     const shown = Math.min(100, cveTotal);   // views.js renders in pages of 100
     await expect(page.locator("#cveRows tr")).toHaveCount(shown);
@@ -35,15 +38,21 @@ test.describe("degraded operation", () => {
     await expect(page.locator("#mastCount")).toHaveText(R.trackedTotal().toLocaleString("en-US"));
     await expect(page.locator("#tagline")).not.toHaveText("");
 
-    // THE REGRESSION: no .reveal may remain at opacity 0 anywhere on the page
+    // THE REGRESSION: no content block may sit at opacity 0 in the active view
+    // (.rv hover affordances are opacity-0 by design and are excluded)
     const hidden = await page.evaluate(() =>
-      [...document.querySelectorAll(".reveal")]
+      [...document.querySelectorAll(
+        ".reveal, .view.active .sec-head, .view.active .row, .view.active .rail, " +
+        ".view.active .feed, .view.active .ops-tools")]
         .filter(el => Number(getComputedStyle(el).opacity) === 0)
         .map(el => el.className + " :: " + (el.id || el.tagName)));
-    expect(hidden, "every .reveal must be visible when motion is unavailable").toEqual([]);
+    expect(hidden, "nothing may be hidden when motion is unavailable").toEqual([]);
 
-    // and the sections themselves have real height, not a collapsed shell
-    for (const id of ["#operations", "#vulns", "#health", "#registry", "#toolbelt"]) {
+    // every view has real height when switched to, not a collapsed shell
+    const views = { feed: "#operations", vulns: "#vulns", health: "#health",
+                    sources: "#registry", toolbelt: "#toolbelt" };
+    for (const [view, id] of Object.entries(views)) {
+      await page.click(`nav [data-view=${view}]`);
       const h = await page.locator(id).evaluate(el => el.getBoundingClientRect().height);
       expect(h, `${id} must have rendered content`).toBeGreaterThan(200);
     }
@@ -78,6 +87,8 @@ test.describe("degraded operation", () => {
     await page.goto("/index.html");
     await page.waitForFunction(() => document.querySelectorAll("#feedRows .row").length > 0);
 
+    // an unpublished brief never earns prime navigation
+    await expect(page.locator("#navBrief")).toBeHidden();
     await expect(page.locator("#briefGenerated")).toHaveText("not yet published");
     await expect(page.locator("#briefList")).toContainText("No brief published yet");
     await expect(page.locator("#briefList")).toContainText("written on local hardware", { ignoreCase: true });
@@ -92,7 +103,8 @@ test.describe("degraded operation", () => {
     await page.route("**/data/feed.json", route => route.fulfill({ status: 503, body: "down" }));
     await page.goto("/index.html");
     await expect(page.locator("#feedRows")).toContainText("No collected data available");
-    // the rest of the page must still work
+    // the rest of the console must still work — switch views in place
+    await page.click("nav [data-view=vulns]");
     await expect(page.locator("#cveRows tr").first()).toBeVisible();
     await expect(page.locator("#regRows tr")).toHaveCount(R.sources().sources.length);
     await expect(page.locator("#healthGrid .hcell")).toHaveCount(R.health().sources.length);

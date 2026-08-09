@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from collectors.base import iso
+from pipeline.relations import build_relations
 from pipeline.relevance import apply_scores, group_repetitive
 
 FEED_DAYS = 30
@@ -11,10 +12,23 @@ def _envelope(now, **body):
     return {"generated_at": iso(now), "schema_version": SCHEMA_VERSION, **body}
 
 
+def _fix_ts(value):
+    """Repair '2026-08-08T02:15:00+00:00Z' — an offset AND a Z, which
+    Date.parse rejects. Items already carried in state keep their original
+    malformed value, so normalise on every merge, not just at collection."""
+    v = value or ""
+    if len(v) > 10 and ("+" in v[10:] or v[10:].count("Z") > 1):
+        base = v[:10] + v[10:].split("+")[0].replace("Z", "")
+        return base + "Z"
+    return v
+
+
 def merge_feed(prior_items, new_items, days, now):
     cutoff = iso(now - timedelta(days=days))
     merged = {i["id"]: i for i in prior_items}
     merged.update({i["id"]: i for i in new_items})     # fresh wins
+    for i in merged.values():
+        i["published_at"] = _fix_ts(i.get("published_at"))
     kept = [i for i in merged.values() if i["published_at"] >= cutoff]
     return sorted(kept, key=lambda i: i["published_at"], reverse=True)
 
@@ -58,4 +72,11 @@ def build_site_data(results, cve_rows, health, prior, now):
         for name in ("actors.json", "malware.json"):
             if name in prior:
                 payloads[name] = dict(prior[name], generated_at=iso(now))
+
+    # Relationship index: derived from the published feed + ATT&CK + CVE table,
+    # so every evidence id resolves against payloads shipped alongside it.
+    payloads["relations.json"] = _envelope(now, **build_relations(
+        feed, cve_rows,
+        payloads.get("actors.json", {}).get("profiles", []),
+        payloads.get("malware.json", {}).get("profiles", [])))
     return payloads

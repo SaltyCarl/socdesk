@@ -1,12 +1,21 @@
 // app.js — boot order and wiring. Holds the DOM/module contract.
+//
+// LAYOUT CONTRACT (operational console, not editorial scroll):
+//   * The topbar switches working surfaces in place — one view at a time.
+//   * A lookup renders in the full-width verdict console (#console) directly
+//     beneath the search, with NO scroll jump. Escape / Clear exits result
+//     mode. The feed-detail rail (#rail) is a separate slot the verdict
+//     never shares.
+//   * `#q=<indicator>` in the hash makes any lookup shareable and restores it
+//     on load.
 import { loadAll, detectType, refang, esc, num, copyText } from "./data.js";
 import { beginSession, pruneReviewed, clearAll, state } from "./state.js";
-import { g, decode, onEnter, sealStroke, sectionTimeline, EASE, DUR } from "./motion.js";
+import { g, decode, sealStroke, EASE, DUR } from "./motion.js";
 import { buildIndex, verdict, renderVerdict, splitIndicators, bulkRows,
          toCSV, toDefangedTxt, download } from "./verdict.js";
 import { renderChrome, initFeed, bindKeys, updateHandoff, renderItem,
          initVulns, renderBrief, renderHealth, renderRegistry,
-         renderTrends } from "./views.js";
+         renderTrends, renderActors, initViews, showView } from "./views.js";
 // toolbelt is imported dynamically below: a static import would take the whole
 // module graph down if that file is missing or fails to parse.
 
@@ -17,44 +26,77 @@ document.documentElement.classList.add("js");
 
 (async function boot() {
   beginSession();
-  const data = await loadAll();
 
-  // A missing feed payload is rendered by initFeed/render() in views.js — the
-  // only owner of #feedRows. Writing the degraded notice here instead was a bug:
-  // initFeed's first render() ran straight afterwards and wiped it.
+  // Masthead: full plate on the first visit only; a compact strip after —
+  // the fold belongs to data. `lastVisit` is the previous session's marker,
+  // so no extra storage key is needed.
+  if (state.lastVisit) $("#masthead").classList.add("compact");
+
+  const data = await loadAll();
 
   pruneReviewed(new Set((data.feed?.items ?? []).map(i => i.id)));
   const idx = buildIndex(data);
 
+  initViews();
   renderChrome(data);
   renderBrief(data.brief);
   renderHealth(data.health);
   renderRegistry(data.sources);
+  renderActors(data, name => runLookup(name, { reveal: true }));
   updateHandoff();
 
+  // The Brief tab exists only when a brief has actually been published — an
+  // empty state does not get prime navigation.
+  if (data.brief) $("#navBrief").hidden = false;
+
   const rail = $("#rail");
-  initFeed(data, item => renderItem(rail, item, ent => runLookup(ent)));
-  initVulns(data, cve => runLookup(cve));
-  renderTrends(data.trends, cve => runLookup(cve));
+  const consoleEl = $("#console");
+  initFeed(data, item => renderItem(rail, item, ent => runLookup(ent, { reveal: true })));
+  initVulns(data, cve => runLookup(cve, { reveal: true }));
+  renderTrends(data.trends, cve => runLookup(cve, { reveal: true }));
   bindKeys();
 
-  /* ---- omnibox ---- */
+  /* ---- verdict console ---- */
   const qEl = $("#q");
-  qEl.addEventListener("input", () => {
-    const t = detectType(refang(qEl.value));
-    const d = $("#detect");
-    d.textContent = t.toUpperCase();
-    d.style.display = t ? "block" : "none";
-  });
-  qEl.addEventListener("keydown", e => { if (e.key === "Enter") runLookup(qEl.value); });
 
-  function runLookup(raw) {
+  function setHash(raw) {
+    try { history.replaceState(null, "", "#q=" + encodeURIComponent(raw)); } catch {}
+  }
+  function clearConsole() {
+    consoleEl.hidden = true;
+    consoleEl.innerHTML = "";
+    document.body.classList.remove("result");
+    try { history.replaceState(null, "", location.pathname + location.search); } catch {}
+  }
+  // Clear control inside the console (delegated: content re-renders per lookup)
+  consoleEl.addEventListener("click", e => {
+    if (e.target.closest("[data-vc=clear]")) clearConsole();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && !consoleEl.hidden) clearConsole();
+  });
+
+  function openConsole(reveal) {
+    consoleEl.hidden = false;
+    document.body.classList.add("result");
+    // Reveal is for lookups launched from deep inside a view (a CVE row, an
+    // entity chip, the toolbelt) — pasting into the search never scrolls.
+    if (reveal) consoleEl.scrollIntoView({ behavior: g ? "smooth" : "auto", block: "nearest" });
+  }
+
+  /**
+   * One entry point for every lookup. `reveal` scrolls the console into view
+   * for click-driven lookups only — paste + Enter never moves the page.
+   */
+  function runLookup(raw, { reveal = false } = {}) {
     const bulk = splitIndicators(raw);
-    if (bulk.length > 1) return runBulk(bulk);
+    if (bulk.length > 1) return runBulk(bulk, { reveal });
     const v = verdict(raw, idx);
     if (!v) return;
+    openConsole(reveal);
+    setHash(refang(raw));
     if (v.kind === "profile") return renderProfile(v.row);
-    renderVerdict(rail, v, (el, vv) => {
+    renderVerdict(consoleEl, v, (el, vv) => {
       decode(el.querySelector("#vword"), vv.word, .7);
       const arc = el.querySelector(".arc");
       if (arc && g) requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -64,14 +106,15 @@ document.documentElement.classList.add("js");
       if (vv.tone === "red") sealStroke(el, "var(--mark)");
     });
     drawHistory();
-    $("#operations").scrollIntoView({ behavior: g ? "smooth" : "auto" });
   }
 
-  function runBulk(list) {
+  function runBulk(list, { reveal = false } = {}) {
     const rows = bulkRows(list, idx);
-    rail.innerHTML = `
-      <div class="rail-h"><span class="caps tone-accent">Bulk lookup</span>
-        <span class="caps sev-unknown">${num(rows.length)} indicators</span></div>
+    openConsole(reveal);
+    setHash(list.join(" "));
+    consoleEl.innerHTML = `
+      <div class="vc-head"><span class="caps tone-accent">Bulk lookup · ${num(rows.length)} indicators</span>
+        <button class="act" data-vc="clear">Clear · Esc</button></div>
       <div class="ev"><div class="l">Results</div>
         ${rows.map(r => `<div class="ev-row">
           <span class="k tone-${esc(r.tone)}">${esc(r.q)}</span>
@@ -82,20 +125,20 @@ document.documentElement.classList.add("js");
         <button class="pivot" data-bulk="txt">Defanged TXT ↓</button>
       </div>`;
     const stamp = new Date().toISOString().slice(0, 10);
-    rail.querySelectorAll("[data-bulk]").forEach(b => b.onclick = () => ({
+    consoleEl.querySelectorAll("[data-bulk]").forEach(b => b.onclick = () => ({
       csv: () => download(`socdesk-bulk-${stamp}.csv`, toCSV(rows), "text/csv"),
       json: () => download(`socdesk-bulk-${stamp}.json`, JSON.stringify(rows, null, 2), "application/json"),
       txt: () => download(`socdesk-bulk-${stamp}.txt`, toDefangedTxt(rows)),
     })[b.dataset.bulk]());
-    $("#operations").scrollIntoView({ behavior: g ? "smooth" : "auto" });
   }
 
   function renderProfile(p) {
-    const base = p.kind === "actors" ? "groups" : "software";
+    const base = p.kind === "actors" || p.kind === "actor" ? "groups" : "software";
     const url = `https://attack.mitre.org/${base}/${encodeURIComponent(p.attack_id)}/`;
-    rail.innerHTML = `
-      <div class="rail-h"><span class="caps tone-accent">Profile · ${esc(p.attack_id)}</span>
-        <span class="caps sev-unknown">MITRE ATT&amp;CK</span></div>
+    consoleEl.innerHTML = `
+      <div class="vc-head"><span class="caps tone-accent">Profile · ${esc(p.attack_id)}
+        · MITRE ATT&amp;CK</span>
+        <button class="act" data-vc="clear">Clear · Esc</button></div>
       <div class="rail-body">
         <div class="rail-title">${esc(p.name)}</div>
         ${p.aliases?.length ? `<div class="mono sev-unknown">${esc(p.aliases.join(" · "))}</div>` : ""}
@@ -109,9 +152,32 @@ document.documentElement.classList.add("js");
       <div class="pivots">
         <a class="pivot" href="${url}" target="_blank" rel="noopener noreferrer">ATT&amp;CK ↗</a>
       </div>`;
-    rail.querySelectorAll("[data-sw]").forEach(b => b.onclick = () => runLookup(b.dataset.sw));
-    sealStroke(rail, "var(--line-bright)");
+    consoleEl.querySelectorAll("[data-sw]").forEach(b =>
+      b.onclick = () => runLookup(b.dataset.sw));
+    sealStroke(consoleEl, "var(--line-bright)");
   }
+
+  /* ---- omnibox ---- */
+  qEl.addEventListener("input", () => {
+    const t = detectType(refang(qEl.value));
+    const d = $("#detect");
+    d.textContent = t.toUpperCase();
+    d.style.display = t ? "block" : "none";
+  });
+  qEl.addEventListener("keydown", e => { if (e.key === "Enter") runLookup(qEl.value); });
+
+  /* ---- hash deep-link: restore a shared lookup on load ---- */
+  function applyHash() {
+    const m = location.hash.match(/^#q=(.+)$/);
+    if (!m) return;
+    let q = "";
+    try { q = decodeURIComponent(m[1]); } catch { return; }
+    qEl.value = q;
+    qEl.dispatchEvent(new Event("input"));
+    runLookup(q);
+  }
+  applyHash();
+  addEventListener("hashchange", applyHash);
 
   /* ---- try chips from real data ---- */
   const topKev = (data.cves?.cves ?? []).filter(c => c.kev)
@@ -155,13 +221,19 @@ document.documentElement.classList.add("js");
   $("#clearState").onclick = e => {
     clearAll();
     e.target.textContent = "CLEARED ✓";
-    setTimeout(() => { e.target.textContent = "Clear analyst state"; location.reload(); }, 800);
+    setTimeout(() => {
+      e.target.textContent = "Clear analyst state";
+      // drop any #q= deep link BEFORE reloading — otherwise the restored
+      // lookup immediately rewrites the history key we just wiped
+      try { history.replaceState(null, "", location.pathname + location.search); } catch {}
+      location.reload();
+    }, 800);
   };
 
   /* ---- toolbelt (optional module) ---- */
   try {
     const { initToolbelt } = await import("./toolbelt/belt.js");
-    initToolbelt({ onBulkLookup: list => runBulk(list) });
+    initToolbelt({ onBulkLookup: list => runBulk(list, { reveal: true }) });
   } catch (err) {
     console.warn("toolbelt unavailable:", err.message);
   }
@@ -182,20 +254,4 @@ document.documentElement.classList.add("js");
 
   /* ---- choreography ---- */
   decode($("#tagline"), "TRACK · VERIFY · VERDICT · PIVOT — REFRESHED EVERY 30 MINUTES");
-  $$("section").forEach(sec => sectionTimeline(sec));
-  if (!g) $$(".reveal").forEach(el => el.classList.add("in"));
-  else {
-    // threshold MUST be 0: a percentage threshold can never be satisfied by an
-    // element taller than the viewport (the feed is hundreds of rows), which
-    // would leave it permanently invisible.
-    const io = new IntersectionObserver(es => es.forEach(e => {
-      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
-    }), { threshold: 0, rootMargin: "0px 0px -6% 0px" });
-    $$(".reveal").forEach(el => io.observe(el));
-    // Safety net: nothing may stay hidden because motion failed to fire.
-    setTimeout(() => $$(".reveal:not(.in)").forEach(el => {
-      const r = el.getBoundingClientRect();
-      if (r.top < innerHeight) el.classList.add("in");
-    }), 1200);
-  }
 })();

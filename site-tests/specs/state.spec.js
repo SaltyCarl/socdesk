@@ -51,6 +51,7 @@ test.describe("analyst state", () => {
     await page.locator("#feedRows .row").nth(1).locator("[data-act=review]").click();
     await page.locator("#feedRows .row").nth(2).click();
     await page.click("#rail [data-copy=notable]");
+    await page.click("nav [data-view=vulns]");        // the watchlist lives there
     await page.fill("#wlInput", R.busiestVendor()[0]);
     await page.press("#wlInput", "Enter");
     await page.fill("#q", "8.8.8.8");
@@ -85,6 +86,7 @@ test.describe("analyst state", () => {
       [...(c.vendors ?? []), ...(c.products ?? [])].filter(Boolean)
         .join(" ").toLowerCase().includes(vendor)).length;
 
+    await page.click("nav [data-view=vulns]");
     await page.fill("#wlInput", vendor);
     await page.press("#wlInput", "Enter");
     await expect(page.locator("#wlChips .wlchip")).toHaveCount(1);
@@ -93,6 +95,7 @@ test.describe("analyst state", () => {
 
     await page.reload();
     await page.waitForFunction(() => document.querySelectorAll("#cveRows tr").length > 0);
+    await page.click("nav [data-view=vulns]");        // a reload lands on the feed
     await expect(page.locator("#wlChips .wlchip")).toContainText(vendor);
 
     await page.click("#wlOnly");
@@ -114,6 +117,7 @@ test.describe("analyst state", () => {
     await expect(page.locator("#wlChips .wlchip")).toHaveCount(0);
     await page.reload();
     await page.waitForFunction(() => document.querySelectorAll("#cveRows tr").length > 0);
+    await page.click("nav [data-view=vulns]");
     await expect(page.locator("#wlChips .wlchip")).toHaveCount(0);
   });
 
@@ -135,7 +139,8 @@ test.describe("analyst state", () => {
     const chip = page.locator("#histRow [data-h='8.8.8.8']");
     await expect(chip).toBeVisible();
     await chip.click();
-    await expect(page.locator("#rail #vq")).toHaveText("8.8.8.8");
+    // the console prints the indicator DEFANGED — safe to screen-share and paste
+    await expect(page.locator("#console #vq")).toHaveText("8[.]8[.]8[.]8");
   });
 });
 
