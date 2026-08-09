@@ -43,7 +43,10 @@ Three tiers, each independently degradable:
   renders an absent-state. Deploy-key pushes retrigger the workflow;
   `GITHUB_TOKEN` state commits do not — that asymmetry is intentional.
 - **Tier 3 — site.** Static, vanilla ES modules, no framework, no build step.
-  GSAP + d3 from CDN with SRI. Analyst state in localStorage only.
+  GSAP (core + ScrambleText + DrawSVG) from `cdn.jsdelivr.net`; there is no d3,
+  and the three tags currently carry **no `integrity`/`crossorigin` attributes**
+  — adding SRI is open work, not a shipped property. Analyst state in
+  localStorage only.
 
 **Collectors (all keyless/public):** CISA KEV · NVD (recent-modified **plus the
 full KEV catalogue via `hasKev`**) · FIRST EPSS · Ransomware.live (group-level
@@ -58,7 +61,11 @@ data. Reputation corpora (abuse.ch, VirusTotal, AbuseIPDB) are reached by
 
 ## 3. Current state
 
-- **47 Playwright + 47 pytest green** (counts drift as work lands; run both).
+- **58 pytest + 49 Playwright** as of 2026-08-09 (counts drift as work lands;
+  run both). The browser suite is **flaky under parallel workers**: a full run
+  reported 47/2 with `csp.spec.js:29` and `degrade.spec.js:13` failing, both of
+  which pass in isolation, and the next full run passed 49/49.
+  `playwright.config.js` sets `retries: 0` — treat the flakiness as a bug.
 - Pipeline clean: `problems=[]`.
 - CSP is strict — `default-src 'none'`, **no `unsafe-inline`, no `unsafe-eval`**.
   Served via `_headers` (Cloudflare) and a `<meta>` tag (GitHub Pages).
@@ -75,26 +82,25 @@ data. Reputation corpora (abuse.ch, VirusTotal, AbuseIPDB) are reached by
 
 ---
 
-## 4. In flight RIGHT NOW (check before doing anything)
+## 4. Recently landed (both workstreams are IN, commit `a59a4d9`)
 
-Two agents were dispatched and may still be mid-edit:
+1. **Front-end console rebuild** — `site/index.html`, `site/css/*`,
+   `site/js/*`. The editorial scroll-page is now an operational console:
+   verdict has its own full-width region under the search (no scroll jump),
+   escalation summary renders as a docket instead of raw markdown, hash
+   deep-linking (`#q=<indicator>`), topbar nav switches views in place, feed is
+   a score-sorted work queue, masthead collapses after the first visit, mobile
+   breakpoint added, status dot green.
+2. **Relationship index** — `pipeline/relations.py`, `schemas/relations.schema.json`,
+   `tests/test_relations.py`, `docs/RELATIONSHIPS.md`. Evidence-backed entity
+   edges (ATT&CK actor→technique→software + feed co-occurrence + CVE→vendor/
+   product), with the verdict: **no node-link graph**, build the ranked
+   "related entities" panel.
 
-1. **Front-end console rebuild** — owns `site/index.html`, `site/css/*`,
-   `site/js/*`. Converting the editorial scroll-page into an operational
-   console: verdict gets its own full-width region under the search (no scroll
-   jump), escalation summary rendered as a docket instead of raw markdown,
-   hash deep-linking (`#q=<indicator>`), topbar nav switches views in place,
-   feed becomes a score-sorted work queue, masthead collapses, mobile
-   breakpoint added, status dot turned green.
-2. **Relationship index** — owns `pipeline/relations.py`, `schemas/`, `tests/`,
-   `docs/RELATIONSHIPS.md`. Building an evidence-backed entity graph
-   (ATT&CK actor→technique→software + feed co-occurrence) and delivering a
-   verdict on whether to visualise it as a node-link graph or a ranked
-   "related entities" list.
-
-**First action in a new session:** `git status` and `git log --oneline -10` to
-see whether their work landed. If `site/css/panels.css` contains `.vconsole`
-rules, the front-end agent got at least partway.
+**Open item from #2:** `relations.json` is built, schema-gated and deployed
+(1.47 MB raw / 101 KB gzipped), but `site/js/data.js` does not fetch it — the
+`FILES` array omits `relations`. The RELATED panel does not exist yet, so the
+payload currently ships unread. Wiring it is the cheapest remaining win.
 
 ---
 
@@ -207,7 +213,14 @@ Both now have regression tests.
 
 | File | What it holds |
 |---|---|
-| `docs/AUTOMATION.md` | The autonomous build loop, Definition of Done, when to swarm, hard gates |
+| `README.md` | The front door: what SOCDesk is, capabilities, quickstart, link map |
+| `CLAUDE.md` | Repository conventions, commands, load-bearing rules, commit policy |
+| `docs/ARCHITECTURE.md` | The system end to end: tiers, contracts, schema gate, failure isolation, known gaps |
+| `docs/OPERATIONS.md` | Runbook: local runs, cron, reading health, collector triage, deploy, rollback, SW version bump |
+| `docs/DATA-SOURCES.md` | Per-source terms, cadence, republished vs link-only, governing R-numbers |
+| `docs/ANALYST-GUIDE.md` | User-facing: lookups, verdict meaning, scoring, escalation, handoff, limits |
+| `docs/RELATIONSHIPS.md` | The relationship index and why there is no node-link graph |
+| `docs/AUTOMATION.md` | The autonomous build loop, Definition of Done, hard gates |
 | `COMPLIANCE.md` | Licensing/legal findings + launch gates. **Read before adding any data source.** |
 | `design-system.md` | Chart Room v4 — binding visual law |
 | `design/brand.md` | Brand book (partly stale: "lit I" rule and triangulation mark are dead — mug seal replaced them) |

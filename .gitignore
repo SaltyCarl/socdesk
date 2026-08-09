@@ -6,3 +6,9 @@ site/data/
 site-tests/node_modules/
 site-tests/test-results/
 site-tests/playwright-report/
+test-results/
+
+# Local working conventions, deliberately not published: this repo is public
+# and the file is an assistant-tooling convention, not project documentation.
+# Everything a contributor needs is in README.md and docs/.
+CLAUDE.md

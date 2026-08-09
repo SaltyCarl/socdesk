@@ -1,76 +1,198 @@
-# SOCDESK
+# SOCDesk
 
-A personal, public triage cockpit for open-source threat intelligence: paste
-an indicator once and get an authoritative vulnerability verdict, one-click
-pivots to every relevant public reputation service, and an escalation-ready
-summary — alongside a live cyber-news feed. Static site fed by scheduled
-collectors; zero infrastructure, zero cost.
+The analyst's first stop for any indicator. Paste an IP, domain, hash, URL,
+CVE or email and get one screen back: a verdict grounded in public
+vulnerability data, an escalation write-up you can drop into a ticket, and a
+row of one-click pivots to every public reputation service worth checking.
+Alongside it, a threat feed ranked by what deserves attention first rather
+than by what happened most recently.
 
-**Aggregator, not mirror.** SOCDESK publishes only data it may clearly
-redistribute (CISA KEV, NVD, FIRST EPSS, MITRE ATT&CK, headline+link RSS).
-Reputation services (VirusTotal, AbuseIPDB, GreyNoise, urlscan, abuse.ch,
-Shodan) are reached through user-clicked deep links, never mirrored.
+Static site. No backend, no database, no accounts, no bill. Scheduled
+collectors publish JSON; the browser does the rest.
 
-> **Privacy:** there is no backend, no accounts, and no analytics. Anything
-> you paste, mark, or save stays in your browser (localStorage) and is never
-> transmitted — the site's Content-Security-Policy blocks outbound requests.
-> **Clicking a pivot link discloses that indicator to the third-party
-> service** (and urlscan publishes public scans). Use public indicators only.
+**Live:** https://saltycarl.github.io/socdesk/
+(`socdesk.io` is registered; DNS is not pointed yet — see
+[docs/OPERATIONS.md](docs/OPERATIONS.md#custom-domain).)
 
-*Personal project by SaltyCarl — not affiliated with or endorsed by any
-employer, and not an official tool of any organization.*
+<!-- SCREENSHOT: 1440px-wide capture of the console with a KEV CVE looked up —
+     verdict gauge, escalation docket, and pivot row visible. Save to
+     docs/img/console-1440.png and replace this comment with the <img>. -->
 
-## Architecture
+*Personal project by Carlos Sanchez ([SaltyCarl](https://github.com/SaltyCarl),
+[Sanchez on Security](https://sanchezonsecurity.com)) — not affiliated with or
+endorsed by any employer, and not an official tool of any organization.*
 
-- **Collect** — GitHub Actions cron runs Python collectors for 9 public
-  sources every 30 min, validates against JSON Schemas, keeps last-known-good
-  per file, and commits rolling state snapshots.
-- **Enrich** — a local job (separate machine) writes `data/brief.json`
-  (AI-written daily brief); its push auto-redeploys the site.
-- **Serve** — `site/` deploys to Cloudflare Pages via wrangler direct upload.
+---
 
-## Local development
+## Who it is for
 
-    python -m venv .venv
-    .venv\Scripts\pip install -r requirements.txt
-    .venv\Scripts\python -m pytest tests/ -v      # fixture-backed, no network
-    .venv\Scripts\python run_pipeline.py          # live run -> site/data/
-    .venv\Scripts\python -m http.server 8080 -d site
+Working SOC and IR analysts doing open-source triage. The tool assumes you
+already know what a CVE and an EPSS score are, and that your problem is not
+*understanding* the data — it is that the data lives in six browser tabs and
+the write-up at the end is manual.
 
-## One-time setup
+It is also a portfolio piece: a real pipeline, a real schema gate, and a real
+failure-isolation story, all of it readable in this repo.
 
-1. Create the public GitHub repo and push.
-2. Cloudflare: create a Pages project named `socdesk`
-   (`npx wrangler pages project create socdesk`).
-3. Repo secrets (Settings → Secrets → Actions):
-   - `CLOUDFLARE_API_TOKEN` — API token with Cloudflare Pages > Edit
-   - `CLOUDFLARE_ACCOUNT_ID` — from the Cloudflare dashboard
-   (No data-source keys are needed — every collector uses keyless public
-   endpoints.)
-4. Run the workflow once manually (Actions → collect-and-deploy → Run
-   workflow) and open the `socdesk.pages.dev` URL.
+## What it actually does today
 
-## Data files
+| Capability | Where it lives |
+|---|---|
+| Indicator lookup with type auto-detection (IPv4, domain, URL, MD5/SHA-1/SHA-256, CVE, email) | `site/js/data.js`, `site/js/verdict.js` |
+| Authoritative CVE verdict — CISA KEV × NVD CVSS × FIRST EPSS | `site/js/verdict.js` |
+| Honest "not in corpus" for every other indicator type, plus type-aware pivots | `site/js/verdict.js` |
+| Escalation write-up (markdown / plain text / `.md` download) | `site/js/verdict.js` |
+| Bulk lookup — paste up to 200 indicators, export CSV / JSON / defanged TXT | `site/js/verdict.js`, `site/js/app.js` |
+| In-context lookup bookmarklet — select an indicator on any page, get the verdict, no install | `site/js/bookmarklet.js` |
+| Threat feed scored 0–100 with an explainable `why` per item | `pipeline/relevance.py`, `site/js/views.js` |
+| Vulnerability triage table with watchlist, KEV filter, sortable columns | `site/js/views.js` |
+| Trends — biggest EPSS rises and new KEV entries, from committed daily snapshots | `pipeline/history.py`, `site/js/views.js` |
+| ATT&CK actor and malware profiles, resolvable by name or alias | `collectors/attack.py`, `site/js/views.js` |
+| Collection health per source, with last-known-good retention | `pipeline/validate.py`, `site/js/views.js` |
+| Analyst toolbelt — defang/refang, IOC extract, UTF-16LE Base64 decode, PowerShell parser, LOLBin lookup | `site/js/toolbelt/` |
+| Shift handoff digest from items you flagged notable | `site/js/app.js` |
+| Offline capability via service worker (data network-first, never stale-as-fresh) | `site/sw.js` |
 
-`feed.json` (30-day window) · `cves.json` (180-day, KEV+CVSS+EPSS join) ·
-`actors.json` / `malware.json` (ATT&CK) · `health.json` · `sources.json` ·
-`brief.json` (optional, external writer)
+For how to *use* these as an analyst, read
+[docs/ANALYST-GUIDE.md](docs/ANALYST-GUIDE.md).
 
-## Data sources, attribution, and terms
+## Aggregator, not mirror
+
+SOCDesk publishes only data it may clearly redistribute — CISA KEV, NVD, FIRST
+EPSS, MITRE ATT&CK, and headline-plus-link RSS. Reputation corpora
+(VirusTotal, AbuseIPDB, GreyNoise, urlscan, abuse.ch, Shodan) are reached
+through links you click, never fetched in the background and never mirrored
+locally. That is a licensing decision before it is an architectural one; the
+reasoning is in [COMPLIANCE.md](COMPLIANCE.md) and the per-source consequences
+are in [docs/DATA-SOURCES.md](docs/DATA-SOURCES.md).
+
+> **Privacy.** There is no backend, no accounts, and no analytics. Anything you
+> paste, mark or save stays in your browser's localStorage and is never
+> transmitted — the Content-Security-Policy sets `connect-src 'self'`, so the
+> page cannot call a third party even if it wanted to.
+>
+> **Disclosure.** Clicking a pivot link discloses that indicator to the
+> third-party service you clicked, and urlscan publishes public scans. Use
+> public indicators only.
+
+## Three tiers, each independently degradable
+
+Nothing upstream can take the page down; it can only make the page emptier and
+say so.
+
+1. **Collection** — GitHub Actions cron runs the Python collectors. Each one is
+   fault-isolated: an exception is caught, recorded as a health entry, and the
+   others carry on (`collectors/base.py`).
+2. **Pipeline** — normalises, joins, scores, and validates every payload
+   against a JSON Schema. A payload that fails the gate is replaced by the last
+   known good copy and the failure is published as a warning, not a blank page
+   (`pipeline/validate.py`).
+3. **Site** — vanilla ES modules, no framework, no build step. Every payload is
+   fetched independently, so a missing file degrades that one panel. The
+   animation layer is a CDN script that the page works perfectly without.
+
+The full mechanism, including the state/publish split and the schema gate, is
+in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Quickstart
+
+Requires Python 3.12 and (for the browser tests) Node 20+.
+
+```
+git clone https://github.com/SaltyCarl/socdesk.git
+cd socdesk
+
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+
+.venv\Scripts\python -m pytest tests/ -q      # fixture-backed, no network
+.venv\Scripts\python run_pipeline.py          # live fetch -> site/data/
+```
+
+`run_pipeline.py` is the only thing that touches the network. It writes the
+published payloads to `site/data/` (gitignored) and the rolling last-known-good
+copies to `data/state/` (committed). It prints
+`published [...]; problems=[]` and always exits 0 — upstream trouble is health
+data, never a build failure.
+
+Then serve the site and run the browser suite:
+
+```
+cd site-tests
+npm install
+npx playwright test                            # boots its own server on :8123
+```
+
+To just look at it, serve `site/` over HTTP — `file://` will not work, because
+ES modules and the service worker both require an origin:
+
+```
+.venv\Scripts\python -m http.server 8080 -d site
+```
+
+No API keys are needed anywhere. Every collector uses a keyless public
+endpoint.
+
+## Deployment
+
+Push to `main`. The `collect-and-deploy` workflow runs the tests, runs the
+collectors, commits refreshed state snapshots, and deploys `site/` to GitHub
+Pages. It also runs on cron at `:11` and `:41` past every hour. There are no
+repository secrets to configure. The runbook — including how to read
+`health.json`, what to do when a collector goes red, how to roll back, and the
+service-worker version bump that has masked shipped changes more than once — is
+[docs/OPERATIONS.md](docs/OPERATIONS.md).
+
+## Repository map
+
+```
+collectors/     one module per upstream source; each exposes SOURCE + collect()
+pipeline/       join, score, relate, snapshot, validate, publish
+schemas/        JSON Schema per published payload — the data contract
+run_pipeline.py the entry point that wires collectors to pipeline to output
+data/state/     committed last-known-good payloads + daily history snapshots
+data/entities/  actor / malware / vendor dictionaries for entity extraction
+data/sources.json  the source registry rendered on the site
+site/           the deployed static site (site/data/ is generated, gitignored)
+site-tests/     Playwright suite driven off the real published payloads
+tests/          pytest suite, fixture-backed, offline
+design/         brand book, approved mockups, visual reference
+.github/workflows/collect-and-deploy.yml
+```
+
+## Documentation
+
+| Document | What it holds |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The system end to end: tiers, data contracts, schema gate, failure isolation, what static costs |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Runbook — local runs, cron, reading health, collector failures, deploy, rollback, service-worker versioning |
+| [docs/DATA-SOURCES.md](docs/DATA-SOURCES.md) | Every source: what it gives, its terms, why it is redistributed or link-only, cadence, governing finding |
+| [docs/ANALYST-GUIDE.md](docs/ANALYST-GUIDE.md) | How to use the tool, what a verdict does and does not mean, and the tool's limits |
+| [COMPLIANCE.md](COMPLIANCE.md) | Licensing and legal findings, risk register, launch gates. Read before adding any data source |
+| [docs/RELATIONSHIPS.md](docs/RELATIONSHIPS.md) | The entity relationship index and the reasoning behind not drawing a node-link graph |
+| [docs/INFRASTRUCTURE-OPTIONS.md](docs/INFRASTRUCTURE-OPTIONS.md) | What each step up the infrastructure ladder would unlock, cost, and take away |
+| [design-system.md](design-system.md) | Chart Room v4 — the binding visual system |
+| [design/brand.md](design/brand.md) | Brand book: positioning, voice, marks, applications |
+| [BACKLOG.md](BACKLOG.md) | Queued collectors, reviewed-and-rejected sources, future phases |
+| [docs/HANDOFF.md](docs/HANDOFF.md) | Working session state: what just landed, what is next, environment gotchas |
+
+## Attribution and terms
 
 All intelligence is aggregated from public sources; every item links back to
-its origin, and the Source Registry documents the full set. In particular:
+its origin, and the Source Registry on the site documents the full set.
 
 - ATT&CK® content: © 2026 The MITRE Corporation. This work is reproduced and
   distributed with the permission of The MITRE Corporation. ATT&CK is a
   registered trademark of The MITRE Corporation.
 - Exploit Prediction Scoring System (EPSS) scores provided by FIRST
-  (https://www.first.org/epss/). CISA KEV data is U.S. Government work in the
-  public domain. IOC data courtesy of the abuse.ch projects (ThreatFox,
-  URLhaus, MalwareBazaar) under their community terms. Ransomware activity
-  data via Ransomware.live. Headlines and summaries are excerpted with
-  attribution and link to the original publishers.
+  (https://www.first.org/epss/). No endorsement by FIRST is implied.
+- CISA KEV data is U.S. Government work in the public domain. NVD data is a
+  work of the U.S. Government; embedded CVE® records are provided by MITRE.
+- Ransomware group activity via Ransomware.live, published at group level only.
+- Headlines and summaries are excerpted with attribution and link to the
+  original publishers; full text is never reproduced.
 
 This is an informational aggregation tool. No warranty is made about the
-accuracy or completeness of third-party data; verify independently before
-acting on any indicator.
+accuracy or completeness of third-party data — verify independently before
+acting on any indicator. Code is MIT licensed ([LICENSE](LICENSE)); that
+licence covers the code, not the aggregated data.
