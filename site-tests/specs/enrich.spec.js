@@ -45,6 +45,11 @@ const VT_IP_OK = { body: { data: { attributes: {
   reputation: -41, last_analysis_date: 1770000000,
   last_analysis_results: { Fortinet: { category: "malicious", result: "Malware" } } } } } };
 
+const IPINFO_OK = { body: {
+  ip: "185.220.101.42", hostname: "tor-exit-42.for-privacy.net", city: "Berlin",
+  region: "State of Berlin", country: "DE", loc: "52.5244,13.4105",
+  org: "AS60729 Stiftung Erneuerbare Freiheit", timezone: "Europe/Berlin" } };
+
 const GN_OK = { body: {
   ip: "185.220.101.42", noise: true, riot: false, classification: "malicious",
   name: "Tor Exit Node", last_seen: "2026-08-08", link: "https://viz.greynoise.io/ip/x" } };
@@ -83,15 +88,36 @@ test.describe("enrichment", () => {
 
   test("a source with no key is reported as unconsulted, not omitted", async () => {
     // Silence about a source we never asked is how an evidence card misleads.
-    const r = await E.enrich(fakeFetch({ "greynoise.io": GN_OK }),
+    const r = await E.enrich(fakeFetch({ "greynoise.io": GN_OK, "ipinfo.io": IPINFO_OK }),
       "ipv4", "185.220.101.42", {});      // no keys at all
 
-    expect(r.sources.map(s => s.name)).toEqual(["GreyNoise"]);   // usable keyless
+    // GreyNoise and ipinfo both work unauthenticated, so they still answer.
+    expect(r.sources.map(s => s.name).sort()).toEqual(["GreyNoise", "ipinfo"]);
     expect(r.errors).toEqual(expect.arrayContaining([
       { source: "AbuseIPDB", reason: "not configured" },
       { source: "VirusTotal", reason: "not configured" },
     ]));
     expect(r.partial).toBe(true);
+  });
+
+  test("geolocation is context and never moves the verdict", async () => {
+    // ipinfo answers every IP. If it counted as an assessment, a benign-looking
+    // "unknown" would sit alongside real verdicts and imply we checked
+    // something we did not.
+    const r = await E.enrich(fakeFetch({ "ipinfo.io": IPINFO_OK }),
+      "ipv4", "185.220.101.42", {});
+    const geo = r.sources.find(s => s.name === "ipinfo");
+    expect(geo.kind).toBe("context");
+    expect(geo.facts).toEqual(expect.arrayContaining([
+      ["ASN", "AS60729"],
+      ["Reverse hostname", "tor-exit-42.for-privacy.net"],
+    ]));
+    expect(geo.headline).toContain("Berlin");
+
+    // Context alone must not manufacture a verdict.
+    expect(E.overall([{ kind: "context", verdict: "unknown" }])).toBe("unknown");
+    expect(E.overall([{ kind: "context", verdict: "benign" },
+                      { verdict: "malicious" }])).toBe("malicious");
   });
 
   test("one dead upstream never takes the verdict down", async () => {

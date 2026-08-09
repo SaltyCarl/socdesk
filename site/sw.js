@@ -11,7 +11,8 @@
 // BUMP THIS on every change to the shell (html/css/js). The shell is cached
 // cache-first, so without a bump returning visitors keep the old UI after a
 // deploy — this masked two changes during development before it was caught.
-const VERSION = "socdesk-v6";   // v6: Cloudflare Pages host, socdesk.io URLs
+const VERSION = "socdesk-v7";   // v7: escalation evidence card
+                                // v6: Cloudflare Pages host, socdesk.io URLs
                                 // v5: bookmarklet install card
                                 // v4: operational console layout (view
                                 // switching, verdict console, work-queue feed)
@@ -22,7 +23,7 @@ const SHELL_ASSETS = [
   "./", "./index.html",
   "./css/tokens.css", "./css/base.css", "./css/chrome.css", "./css/panels.css",
   "./js/app.js", "./js/data.js", "./js/state.js", "./js/motion.js",
-  "./js/verdict.js", "./js/views.js", "./js/bookmarklet.js",
+  "./js/verdict.js", "./js/views.js", "./js/bookmarklet.js", "./js/evidence.js",
   "./js/toolbelt/tools.js", "./js/toolbelt/belt.js",
 ];
 
