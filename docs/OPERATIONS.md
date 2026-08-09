@@ -214,14 +214,39 @@ it wrong and the upload succeeds, lands as a *preview* deployment on a
 `*.pages.dev` URL, and the live site keeps serving the previous build with no
 error anywhere.
 
+### Creating the project
+
+The project must exist before the workflow's first run — `wrangler pages
+deploy` does not create one non-interactively. Create it from the CLI rather
+than the dashboard, because the CLI is the only way to set the production
+branch without a follow-up API call:
+
+```
+npx wrangler pages project create socdesk --production-branch=main
+```
+
+That matters more than it looks. **On a Direct Upload project the production
+branch cannot be changed in the dashboard afterwards** — correcting it means
+calling the Update Project API by hand. Set it right here and `--branch=main`
+in the workflow lines up.
+
+The dashboard equivalent is Workers & Pages → **Create application** → **Get
+started** → **Drag and drop your files**, which is a file-upload flow and does
+not let you set the production branch. Use the CLI.
+
+One-way door worth knowing: a project created for Direct Upload **cannot later
+be switched to the Git integration**. That is the intended direction here — Git
+integration would need Cloudflare to have read access to a private repository,
+and it would hit the 500-build cap — but it is not reversible.
+
 ### Secrets
 
 Two, both set under Settings → Secrets and variables → Actions:
 
 | Secret | Where it comes from |
 |---|---|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens → Create Token, template **Edit Cloudflare Workers**, or a custom token with `Account → Cloudflare Pages → Edit` |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → Workers & Pages → the account ID in the right-hand sidebar |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens → **Create Token** → Custom token with permission `Account` → `Cloudflare Pages` → `Edit` |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → any zone's **Overview** page → the **API** section in the right-hand sidebar |
 
 Scope the token to Pages only. It can deploy the site; it should not be able to
 do anything else.
@@ -232,11 +257,16 @@ do anything else.
 hosted, so this is simpler than the split-provider setup it replaced — there is
 no CNAME file, no grey-cloud caveat, and no certificate dance.
 
-1. Cloudflare → Workers & Pages → **socdesk** → Custom domains → **Set up a
-   domain** → `socdesk.io`. The DNS record and certificate are created for you.
+1. Cloudflare → **Workers & Pages** → **socdesk** → **Custom domains** → **Set
+   up a domain** → `socdesk.io`. The DNS record and certificate are created for
+   you.
 2. Add `www.socdesk.io` the same way if you want it, and redirect one to the
    other with a Bulk Redirect or a Page Rule.
 3. Bump `VERSION` in `site/sw.js` — see below.
+
+Two conditions have to hold, and both already do here: the domain must be a
+zone on the **same Cloudflare account** as the Pages project, and for an apex
+domain the zone must be on Cloudflare's nameservers.
 
 The absolute `og:image` and `og:url` in `site/index.html` already point at
 `https://socdesk.io/`, and `csp.spec.js` asserts it, so a future host change
@@ -251,9 +281,12 @@ When checking domain availability, use `https://rdap.org/domain/<name>`
 Three different things can be wrong, and they roll back differently.
 
 **Bad shell (HTML/CSS/JS).** Fastest path is Cloudflare → Workers & Pages →
-**socdesk** → Deployments → the last good one → **Rollback to this deployment**.
-That is live in seconds and needs no build. Then revert the commit and push, or
-the next scheduled run redeploys the broken shell straight over your rollback.
+**socdesk** → **Deployments** → the three-dot menu on the last good deployment
+→ **Rollback to this deployment**. Live in seconds, no build. Only successful
+*production* deployments are valid targets — a preview cannot be promoted this
+way — and there is no expiry, so an old deployment stays available. Then revert
+the commit and push, or the next scheduled run redeploys the broken shell
+straight over your rollback.
 Either way, bump `VERSION` in `site/sw.js` — *without that bump, returning
 visitors keep the broken shell from their cache and your rollback appears not
 to have worked.*

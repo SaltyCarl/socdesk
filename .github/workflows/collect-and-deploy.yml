@@ -50,12 +50,18 @@ jobs:
       # this workflow deploys ~1,440 times a month; direct uploads are not
       # counted against that cap. It also keeps the source repository private
       # — Cloudflare never needs read access to it.
+      # Cloudflare's documented example also passes `gitHubToken` (with
+      # `deployments: write`) to record a GitHub Deployment per run. That
+      # example assumes deploy-on-push; this workflow runs twice an hour, so it
+      # would file ~1,440 deployment records a month. Deliberately omitted.
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # --branch must match the project's production branch, or the upload
-          # lands as a preview deployment on a *.pages.dev URL and the live
-          # site silently keeps serving the previous build.
+          # --branch decides whether the upload is routed as production or as a
+          # preview. It must match the project's production branch, set once at
+          # creation with `wrangler pages project create --production-branch`;
+          # on a Direct Upload project it cannot be changed in the dashboard
+          # afterwards, only through the Update Project API.
           command: pages deploy site --project-name=socdesk --branch=main
