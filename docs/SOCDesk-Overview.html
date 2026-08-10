@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SOCDesk — Product Overview & Roadmap</title>
+<style>
+@font-face{font-family:"Archivo";src:url("../site/fonts/archivo-100_900.woff2") format("woff2");font-weight:100 900;font-stretch:75% 125%;font-display:swap}
+@font-face{font-family:"IBM Plex Mono";src:url("../site/fonts/ibmplexmono-400.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"IBM Plex Mono";src:url("../site/fonts/ibmplexmono-600.woff2") format("woff2");font-weight:600;font-display:swap}
+
+:root{
+  --ink:#0F161C; --panel:#141D26; --panel-soft:#1A2530; --line:#263644; --line-bright:#3C566C;
+  --paper:#E8E1CF; --muted:#8799A6; --mark:#E2513A;
+  --red:#FF5E49; --blue:#6FA8DC; --green:#7CC492; --purple:#B9A0E8;
+  --sans:"Archivo",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+@page{size:A4;margin:15mm}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{background:var(--ink);color:var(--paper);font-family:var(--sans);font-size:10.5pt;line-height:1.5;
+  background-image:linear-gradient(rgba(111,168,220,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(111,168,220,.05) 1px,transparent 1px);
+  background-size:40px 40px}
+.mono{font-family:var(--mono)}
+.caps{font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+
+/* masthead */
+.mast{border-bottom:2px solid var(--line-bright);padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px}
+.mast h1{font-size:27pt;font-weight:800;font-stretch:115%;letter-spacing:-.02em;line-height:.9;text-transform:uppercase;white-space:nowrap}
+.mast h1 span{color:var(--mark)}
+.mast .sub{font-family:var(--mono);font-size:7.5pt;color:var(--muted);text-align:right;line-height:1.9;flex-shrink:0;white-space:nowrap}
+.mast .sub b{color:var(--mark);font-weight:600}
+.tagline{font-size:11pt;color:var(--paper);margin-bottom:6px}
+.lede{color:var(--muted);font-size:9.5pt;margin-bottom:22px;max-width:46em}
+.niche{border-left:2px solid var(--mark);padding:8px 0 8px 14px;margin-bottom:24px;color:var(--paper);font-size:9.5pt}
+
+/* section headings */
+h2{font-size:15pt;font-weight:800;font-stretch:115%;text-transform:uppercase;letter-spacing:-.01em;
+  display:flex;align-items:baseline;gap:12px;margin-bottom:4px}
+h2 .n{font-family:var(--mono);font-size:11pt;font-weight:600;color:var(--mark)}
+.kicker{font-size:7.5pt;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--mark);margin-bottom:10px}
+.kicker.now{color:var(--green)} .kicker.next{color:var(--blue)} .kicker.future{color:var(--purple)}
+
+.leg{border:1px solid var(--line);background:var(--panel);padding:18px 20px;margin-bottom:16px;break-inside:avoid}
+.leg + .leg{margin-top:0}
+.leghead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px}
+.status{font-family:var(--mono);font-size:7.5pt;padding:3px 8px;border:1px solid;white-space:nowrap}
+.st-now{color:var(--green);border-color:var(--green)}
+.st-next{color:var(--blue);border-color:var(--blue)}
+.st-future{color:var(--purple);border-color:var(--purple)}
+
+.sub-h{font-size:8pt;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}
+ul{list-style:none}
+li{padding:3px 0 3px 16px;position:relative;font-size:9.5pt}
+li::before{content:"—";position:absolute;left:0;color:var(--mark)}
+li b{color:var(--paper);font-weight:600}
+li .t{font-family:var(--mono);font-size:8pt;color:var(--muted)}
+.done::before{content:"\2713";color:var(--green)}
+.build::before{content:"\25B8";color:var(--blue)}
+.plan::before{content:"\25CB";color:var(--purple)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
+
+/* principles */
+.principles{border:1px solid var(--line-bright);background:var(--panel-soft);padding:16px 20px;margin-bottom:24px;break-inside:avoid}
+.principles li{font-size:9pt}
+.principles li b{color:var(--mark)}
+
+.pagebreak{break-before:page}
+footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
+  font-family:var(--mono);font-size:7.5pt;color:var(--muted);display:flex;justify-content:space-between}
+.note{font-size:8.5pt;color:var(--muted);font-style:italic;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div class="mast">
+  <h1>SOC<span>·</span>DESK</h1>
+  <div class="sub">PRODUCT OVERVIEW &amp; ROADMAP<br>EDITION <b>2026-08-10</b><br>github.com/SaltyCarl/<b>socdesk</b></div>
+</div>
+
+<div class="tagline">The analyst's first stop for any indicator.</div>
+<p class="lede">A free, public, static threat-intelligence console for a T1/T2 SOC analyst. Paste an IP, hash, URL, domain, CVE or email and get one screen back: a verdict grounded in public reputation and vulnerability data, a ticket-ready escalation write-up, and one-click pivots to the services worth checking. Zero infrastructure, zero cost, zero accounts.</p>
+
+<div class="niche"><b>Positioning.</b> The heavyweight open-source CTI platforms (OpenCTI, MISP, IntelOwl) need servers and databases. SOCDesk sits deliberately beneath them: the zero-infra, public-URL, analyst-speed layer an analyst actually opens mid-shift.</div>
+
+<div class="principles">
+<div class="kicker">Operating principles — constant across every Leg</div>
+<ul>
+<li><b>$0, free-tier only.</b> No paid infra, no paid APIs beyond free community tiers.</li>
+<li><b>No-infrastructure.</b> Static site + Cloudflare Pages Functions. No database, no server to run.</li>
+<li><b>Aggregator, not mirror.</b> Publish only clearly-redistributable data; reputation corpora are reached by user-clicked links, never held.</li>
+<li><b>No secrets in the repo.</b> Collectors are keyless; enrichment keys live server-side in Cloudflare, never in git or the browser.</li>
+<li><b>Privacy by default.</b> Analyst state (reviewed, watchlist, notable) is localStorage only. No accounts, no analytics, no tracking.</li>
+<li><b>Strict CSP + defence in depth.</b> <span class="mono">default-src 'none'</span>, no inline script; every upstream string sanitised at collection and escaped again at render.</li>
+<li><b>Chart Room design law.</b> Brutalist-editorial print: Prussian-slate ink, bone paper, vermilion seal; zero radius, no glows. Data-honest motion only.</li>
+</ul>
+</div>
+
+<!-- LEG 1 -->
+<div class="kicker now">Leg 1 · Current sprint</div>
+<div class="leg">
+  <div class="leghead">
+    <h2><span class="n">01</span> Indicator Lookup &amp; Escalation</h2>
+    <span class="status st-now">CORE · SHIPPING</span>
+  </div>
+  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:6px">The 99% workflow: paste an indicator → live reputation verdict → screenshot-grade evidence card → paste into the escalation email. This Leg is the product.</p>
+  <div class="grid2">
+    <div>
+      <div class="sub-h">Input &amp; detection</div>
+      <ul>
+        <li class="done"><b>Omnibox</b> with type auto-detect + refang <span class="t">(evil[.]com, hxxp)</span></li>
+        <li class="done"><b>Bulk lookup</b> — many indicators, one table, CSV/JSON/defanged export</li>
+        <li class="done"><b>Bookmarklet</b> — fire a lookup from any page</li>
+        <li class="done"><b>Shareable <span class="mono">#q=</span> deep links</b> — "look at this" is a URL</li>
+      </ul>
+      <div class="sub-h">Live enrichment · <span class="mono">/api/enrich</span></div>
+      <ul>
+        <li class="done"><b>IP</b> → AbuseIPDB · VirusTotal · GreyNoise · <b>ipinfo</b> geo/ASN</li>
+        <li class="done"><b>Hash</b> → VirusTotal · MalwareBazaar</li>
+        <li class="done"><b>URL / domain</b> → VirusTotal · <b>urlscan</b> verdict + screenshot</li>
+        <li class="done">Worst-credible-answer roll-up; every figure links to source</li>
+      </ul>
+    </div>
+    <div>
+      <div class="sub-h">Output — the differentiator</div>
+      <ul>
+        <li class="done"><b>Escalation evidence card</b> — copy as PNG, Markdown, text, or .md</li>
+        <li class="done"><b>Type-aware pivots</b>, trimmed to the T1 workflow set (no fluff vendors)</li>
+        <li class="done"><b>CVE verdict</b> — authoritative: KEV + CVSS + EPSS</li>
+        <li class="done">Honest states — "not in corpus" is never dressed as safe</li>
+      </ul>
+      <div class="sub-h">Reach roadmap — the Recorded-Future move</div>
+      <ul>
+        <li class="build"><b>R1 · Bookmarklet selection-capture</b> — select an indicator, click, verdict <span class="t">(next)</span></li>
+        <li class="plan"><b>R2 · Right-click "Check in SOCDesk"</b> <span class="t">(ships with R3)</span></li>
+        <li class="plan"><b>R3 · MV3 extension</b> — inline annotation <span class="t">(on team demand + IT sign-off)</span></li>
+      </ul>
+    </div>
+  </div>
+  <p class="note">Blocker: stand up the Cloudflare Pages project + enrichment keys. That single step makes the site public, greens the deploys, and wakes the dormant live-verdict engine.</p>
+</div>
+
+<!-- LEG 2 -->
+<div class="kicker next pagebreak">Leg 2 · Next core function</div>
+<div class="leg">
+  <div class="leghead">
+    <h2><span class="n">02</span> Threat Intelligence Feed</h2>
+    <span class="status st-next">CORE · EVOLVE, DON'T REBUILD</span>
+  </div>
+  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:6px">Situational awareness for the shift: what's happening, what's exploited, what's relevant to us. The pipeline is already strong and tested — Leg 2 is additive, not a rewrite.</p>
+  <div class="grid2">
+    <div>
+      <div class="sub-h">Already built (the foundation)</div>
+      <ul>
+        <li class="done"><b>Collector pipeline</b> — KEV, NVD, EPSS, Ransomware.live, RSS pool; fault-isolated, schema-gated with last-known-good</li>
+        <li class="done"><b>CVE triage</b> — full KEV catalogue joined with CVSS + EPSS, risk-sorted</li>
+        <li class="done"><b>Feed work-queue</b> — explainable relevance scoring, claim grouping</li>
+        <li class="done"><b>ATT&amp;CK actor/malware profiles</b> + <b>RELATED</b> entity index</li>
+        <li class="done">Collection health, source registry, trends</li>
+      </ul>
+    </div>
+    <div>
+      <div class="sub-h">Planned evolution (additive)</div>
+      <ul>
+        <li class="plan"><b>AI Daily Brief</b> — Framework local LLM writes the shift brief <span class="t">(passthrough already wired)</span></li>
+        <li class="plan"><b>Client / sector relevance</b> — "affects our clients" filter, the MSSP differentiator</li>
+        <li class="plan"><b>Wave-2 collectors</b> — FeodoTracker, C2IntelFeeds, PhishTank, APTnotes</li>
+        <li class="plan"><b>Push / alerting</b> — shift digest to Slack/email</li>
+        <li class="plan"><b>Decouple data-refresh from site-deploy</b> for higher cadence</li>
+      </ul>
+      <div class="sub-h">Design decisions to lock first</div>
+      <ul>
+        <li class="build">What the feed is <i>for</i> (brief vs. relevance-filter vs. hunt-feed)</li>
+        <li class="build">Data backbone (static vs. KV/R2) · watchlist location · alerting scope</li>
+      </ul>
+    </div>
+  </div>
+  <p class="note">Approach: a proper design pass before building, on top of the existing pipeline. The early "garbage" was the UI/identity — long since fixed — not the data layer.</p>
+</div>
+
+<!-- LEG 3 -->
+<div class="kicker future">Leg 3 · Future</div>
+<div class="leg">
+  <div class="leghead">
+    <h2><span class="n">03</span> Live Attack Sensor <span style="font-size:9pt;color:var(--muted);font-weight:400">— KnockKnock.net-style</span></h2>
+    <span class="status st-future">FUTURE · GATED</span>
+  </div>
+  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:6px">SOCDesk stops being only an aggregator and starts producing first-party intelligence: our own honeypot sensors observing real attacks, published as a live feed that loops back into Legs 1 &amp; 2.</p>
+  <div class="grid2">
+    <div>
+      <div class="sub-h">Core functions</div>
+      <ul>
+        <li class="plan"><b>Own honeypot sensor(s)</b> — Cowrie-class, capturing live SSH/Telnet/scan activity</li>
+        <li class="plan"><b>Live attack telemetry &amp; globe visualisation</b> <span class="t">(mockup: design/mockups/h-sensor.html)</span></li>
+        <li class="plan"><b>First-party IOC feed</b> — observed attacker infrastructure, feeding Leg-1 verdicts and Leg-2 feed</li>
+        <li class="plan">Trend surfacing — emerging scan campaigns, credential-spray patterns</li>
+      </ul>
+    </div>
+    <div>
+      <div class="sub-h">Security non-negotiables</div>
+      <ul>
+        <li><b>No Tailscale on the sensor</b> — no path from the honeypot into the tailnet</li>
+        <li><b>Cloud-plane egress deny</b> by default</li>
+        <li><b>Publish /24s, not full IPs</b> — no doxxing of compromised hosts</li>
+        <li><b>Allowlist published tokens</b>; rebuild from cloud-init, never snapshots</li>
+      </ul>
+      <div class="sub-h">Gate</div>
+      <ul>
+        <li class="build">Resolve the <b>employer-IP-assignment question</b> first — it gates this Leg (and the repo-private decision)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- SEQUENCING -->
+<div class="leg" style="border-color:var(--line-bright)">
+  <div class="kicker">Sequencing &amp; current status</div>
+  <ul>
+    <li class="build"><b>Now:</b> close Leg 1 — one Cloudflare stand-up (Pages project + enrichment keys) turns the live lookup loop on for the team.</li>
+    <li class="plan"><b>Then:</b> settle the employer-IP question deliberately → decide repo public vs. private (public through the build unless IP forces private).</li>
+    <li class="plan"><b>Then:</b> Leg 2 design pass → build the threat-intel feed on the existing pipeline.</li>
+    <li class="plan"><b>Later:</b> Leg 3 sensor, once the IP gate clears.</li>
+  </ul>
+</div>
+
+<footer>
+  <span>SOCDesk · SaltyCarl · reference document</span>
+  <span>Chart Room v4 · $0 · aggregator-not-mirror</span>
+</footer>
+
+</body>
+</html>
