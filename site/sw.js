@@ -11,7 +11,10 @@
 // BUMP THIS on every change to the shell (html/css/js). The shell is cached
 // cache-first, so without a bump returning visitors keep the old UI after a
 // deploy — this masked two changes during development before it was caught.
-const VERSION = "socdesk-v9";   // v9: pivot diet — T1 workflow vendors only
+const VERSION = "socdesk-v10";  // v10: live /api/enrich wired into the verdict
+                                // console (enrich-client.js) + tagline decode
+                                // never strands gibberish
+                                // v9: pivot diet — T1 workflow vendors only
                                 // v8: RELATED entity block (relations.json wired)
                                 // v7: escalation evidence card
                                 // v6: Cloudflare Pages host, socdesk.io URLs
@@ -26,7 +29,7 @@ const SHELL_ASSETS = [
   "./css/tokens.css", "./css/base.css", "./css/chrome.css", "./css/panels.css",
   "./js/app.js", "./js/data.js", "./js/state.js", "./js/motion.js",
   "./js/verdict.js", "./js/views.js", "./js/bookmarklet.js", "./js/evidence.js",
-  "./js/related.js",
+  "./js/related.js", "./js/enrich-client.js",
   "./js/toolbelt/tools.js", "./js/toolbelt/belt.js",
 ];
 
@@ -53,6 +56,11 @@ self.addEventListener("fetch", e => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;      // never touch CDNs
+
+  // Dynamic endpoints (the /api/enrich reputation fan-out) are per-indicator and
+  // set their own cache policy — never shell-cache them, and never let the
+  // offline index.html fallback below answer an API call with a page of HTML.
+  if (url.pathname.startsWith("/api/")) return;
 
   if (url.pathname.includes("/data/")) {
     e.respondWith((async () => {

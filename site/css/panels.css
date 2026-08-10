@@ -356,3 +356,41 @@ button.rel-name:hover{color:var(--accent)}
 a.rel-name{color:var(--paper)}
 a.rel-name:hover{color:var(--accent)}
 .rel-prov{font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap;flex-shrink:0}
+
+/* ---------------- live enrichment — the /api/enrich fan-out ----------------
+   Renders inside the verdict console, beneath the static router verdict. Same
+   hairline print language: no radius, no shadow, no gradient. The verdict tags
+   reuse .tag + tone-*; facts reuse .ev / .ev-row. */
+.live{border-top:1px solid var(--line-bright)}
+.live-status{display:inline-flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.ping{width:7px;height:7px;background:var(--accent);flex-shrink:0;animation:ping 1.1s var(--ease,ease) infinite}
+@keyframes ping{0%,100%{opacity:.25}50%{opacity:1}}
+.live-verdict{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;padding:18px 24px 6px}
+.live-partial{font-size:10.5px;color:var(--gold)}
+.live-note{color:var(--muted);font-size:13px;line-height:1.6;padding:16px 24px 20px;max-width:70ch}
+
+.src-block{border-top:1px solid var(--line);padding:16px 24px}
+.src-h{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.src-name{font-size:11px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--paper)}
+.src-headline{color:var(--paper);font-size:13px;line-height:1.5;margin:8px 0 4px}
+.src-block .ev{border-top:none;padding:6px 0 0}
+.src-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.src-verify{padding:6px 10px}
+.live-gaps{font-size:11px;color:var(--muted);line-height:1.6}
+
+.evcard{border-top:1px solid var(--line-bright);background:var(--panel-soft)}
+.evcard-h{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:13px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.evcard-h .caps{font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.live-acts{display:flex;gap:8px;flex-wrap:wrap}
+.evcard-body{padding:20px 24px;overflow-x:auto}
+/* the card is a light PNG for an email body; frame it so it reads as an artifact
+   on the dark console rather than a broken white block */
+.evcard-canvas{display:block;max-width:100%;height:auto;border:1px solid var(--line-bright)}
+
+@media (prefers-reduced-motion: reduce){.ping{animation:none;opacity:.7}}
+@media (max-width:640px){
+  .live-verdict,.src-block{padding-left:16px;padding-right:16px}
+  .live-note,.evcard-h,.evcard-body{padding-left:16px;padding-right:16px}
+}

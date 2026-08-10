@@ -15,6 +15,7 @@ import { buildIndex, verdict, renderVerdict, splitIndicators, bulkRows,
          toCSV, toDefangedTxt, download } from "./verdict.js";
 import { initBookmarklet } from "./bookmarklet.js";
 import { setRelations, attachRelated } from "./related.js";
+import { enrichInto, isEnrichable } from "./enrich-client.js";
 import { renderChrome, initFeed, bindKeys, updateHandoff, renderItem,
          initVulns, renderBrief, renderHealth, renderRegistry,
          renderTrends, renderActors, initViews, showView } from "./views.js";
@@ -116,8 +117,16 @@ document.documentElement.classList.add("js");
       else if (arc) arc.style.strokeDashoffset = arc.dataset.off;
       if (vv.tone === "red") sealStroke(el, "var(--mark)");
     });
-    if (detectType(refang(raw)) === "cve")
+    const t = detectType(refang(raw));
+    if (t === "cve")
       attachRelated(consoleEl, [refang(raw).toUpperCase()], n => runLookup(n));
+    // The core loop: for an indicator SOCDesk holds no corpus for, ask the live
+    // /api/enrich fan-out and replace "NOT IN CORPUS" with the real multi-source
+    // verdict + a ready-to-paste evidence card. Fire-and-forget: it renders its
+    // own loading state and degrades to the static verdict on any failure, so it
+    // must never block or throw into the lookup path.
+    if (v.kind === "router" && isEnrichable(t))
+      enrichInto(consoleEl, { type: t, indicator: v.q, verdict: v }).catch(() => {});
     drawHistory();
   }
 

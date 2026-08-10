@@ -216,8 +216,10 @@ export const defangText = s =>
   String(s).replace(/\./g, "[.]").replace(/^http/i, "hxxp");
 
 /** Escalation docket slip — the SAME content escalation() copies, rendered as
- *  a formatted document instead of raw markdown. What renders is what ships. */
-function docketHTML(v) {
+ *  a formatted document instead of raw markdown. What renders is what ships.
+ *  Exported so the live-enrichment layer can re-render the slip with the
+ *  multi-source verdict once /api/enrich answers. */
+export function docketHTML(v) {
   const stamp = new Date().toISOString().replace("T", " ").slice(0, 16) + "Z";
   const pub = v.evidence?.length ? `
     <div class="dk-sec">Public data</div>
