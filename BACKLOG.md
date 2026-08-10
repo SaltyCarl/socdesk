@@ -41,6 +41,11 @@ env vars. Until then: no public URL, red cron deploys, dormant enrichment.
    plain `<img>` beside the card, not composited into it).
 3. Verify the Browserling deep-link format against their current URL scheme
    at first live use.
+4. **Analyst reach** (the Recorded Future extension question) — scoped in
+   `docs/superpowers/specs/2026-08-10-analyst-reach-scope.md`: R1 bookmarklet
+   selection-capture (small, do first), R2 right-click menu (ships with R3),
+   R3 MV3 extension (only on real team demand + IT approval). All gated on
+   enrichment being live.
 
 ## P2 — next core component (only once the loop is excellent)
 CVE / Threat-Intel feed as the second pillar (feed, KEV/EPSS triage — already
