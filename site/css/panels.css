@@ -343,3 +343,16 @@
   .vtable th,.vtable td{padding:10px 10px}
   .bitem{padding:20px 16px}
 }
+
+/* ---------------- RELATED — the ranked entity block ----------------
+   docs/RELATIONSHIPS.md: a list keyed to the entity in focus, never a graph.
+   Rows land in the existing rail language: hairlines, mono provenance. */
+.related .rel-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)}
+.related .rel-row:last-child{border-bottom:none}
+.rel-main{display:flex;align-items:center;gap:9px;min-width:0}
+.rel-name{font-size:13px;font-weight:600;color:var(--paper);background:none;border:none;padding:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+button.rel-name{cursor:pointer;transition:color .15s}
+button.rel-name:hover{color:var(--accent)}
+a.rel-name{color:var(--paper)}
+a.rel-name:hover{color:var(--accent)}
+.rel-prov{font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap;flex-shrink:0}

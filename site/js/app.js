@@ -14,6 +14,7 @@ import { g, decode, sealStroke, EASE, DUR } from "./motion.js";
 import { buildIndex, verdict, renderVerdict, splitIndicators, bulkRows,
          toCSV, toDefangedTxt, download } from "./verdict.js";
 import { initBookmarklet } from "./bookmarklet.js";
+import { setRelations, attachRelated } from "./related.js";
 import { renderChrome, initFeed, bindKeys, updateHandoff, renderItem,
          initVulns, renderBrief, renderHealth, renderRegistry,
          renderTrends, renderActors, initViews, showView } from "./views.js";
@@ -45,6 +46,7 @@ document.documentElement.classList.add("js");
 
   pruneReviewed(new Set((data.feed?.items ?? []).map(i => i.id)));
   const idx = buildIndex(data);
+  setRelations(data.relations);
 
   initViews();
   renderChrome(data);
@@ -114,6 +116,8 @@ document.documentElement.classList.add("js");
       else if (arc) arc.style.strokeDashoffset = arc.dataset.off;
       if (vv.tone === "red") sealStroke(el, "var(--mark)");
     });
+    if (detectType(refang(raw)) === "cve")
+      attachRelated(consoleEl, [refang(raw).toUpperCase()], n => runLookup(n));
     drawHistory();
   }
 
@@ -163,6 +167,7 @@ document.documentElement.classList.add("js");
       </div>`;
     consoleEl.querySelectorAll("[data-sw]").forEach(b =>
       b.onclick = () => runLookup(b.dataset.sw));
+    attachRelated(consoleEl, [p.name, ...(p.aliases ?? [])], n => runLookup(n));
     sealStroke(consoleEl, "var(--line-bright)");
   }
 

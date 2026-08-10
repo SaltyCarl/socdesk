@@ -3,7 +3,7 @@
 // Two real bypasses closed upstream (unterminated tags borrowing a `>`, and
 // scheme-prefix URL checks allowing attribute breakout) — do not assume the
 // data is clean here either.
-const FILES = ["feed", "cves", "actors", "malware", "health", "sources", "trends"];
+const FILES = ["feed", "cves", "actors", "malware", "health", "sources", "trends", "relations"];
 
 export const esc = s => String(s ?? "").replace(/[&<>"'`]/g,
   c => "&#" + c.charCodeAt(0) + ";");

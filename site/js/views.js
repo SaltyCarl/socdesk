@@ -6,6 +6,7 @@ import { esc, safeUrl, rel, day, num, elapsed, nextPull, staleness,
 import { state, toggleReviewed, toggleNotable, notableCount, watchHit,
          addWatch, removeWatch } from "./state.js";
 import { countUp, onEnter, reflow, trackPointer, tick, startTicker } from "./motion.js";
+import { attachRelated } from "./related.js";
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -309,6 +310,8 @@ export function renderItem(rail, item, onEntity) {
 
   rail.querySelectorAll("[data-ent]").forEach(b =>
     b.onclick = () => onEntity?.(b.dataset.ent));
+
+  attachRelated(rail, Object.values(item.entities || {}).flat(), onEntity);
 
   rail.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => {
     const mode = b.dataset.copy, was = b.textContent;
