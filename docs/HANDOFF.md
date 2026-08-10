@@ -29,8 +29,11 @@ SOCDesk exists to make THAT loop painless. Everything else — CVE features
 included, for now — is secondary until the loop is excellent. See
 `BACKLOG.md` for the loop-to-feature map and the parked list.
 
-**Live:** https://socdesk.io (Cloudflare Pages; project must be created before
-the next deploy succeeds — see §8)
+**Live:** https://socdesk.io — **DEPLOYED & VERIFIED 2026-08-10.** Cloudflare
+Pages project up, custom domain attached (200), deploys green. `/api/enrich`
+confirmed live returning real multi-source verdicts (AbuseIPDB, VirusTotal,
+ipinfo, MalwareBazaar keyed; GreyNoise keyless by choice). The core Leg-1
+lookup loop is in production.
 **Repo:** https://github.com/SaltyCarl/socdesk
 **Local path:** `C:\Users\Carl\Desktop\Projects\VIGIL\` ⚠️ *folder is still named
 VIGIL; the product was renamed to SOCDesk on 2026-08-08. Do not be confused.*
@@ -188,13 +191,13 @@ Both now have regression tests.
 
 ## 8. Pending — owner actions
 
-- **Stand up the Cloudflare Pages project** (only blocker). Create a Pages
-  project named `socdesk`, mint a Pages-scoped API token, add
-  `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as Actions secrets, then
-  attach `socdesk.io` under Custom domains. Full steps in
-  `docs/OPERATIONS.md` → Deploying. The repo can go private once this is live.
+- ~~Stand up the Cloudflare Pages project~~ **DONE 2026-08-10.** Project up,
+  Actions secrets set, enrichment keys set as Pages secrets (GreyNoise left
+  blank — runs keyless by design), custom domain attached. Live + verified.
+- **Next (not a blocker): dogfood.** 2-3 analysts run real alerts through the
+  live site for a shift; fix what they trip on (BACKLOG P1).
 - Optional: read the employment IP-assignment clause before promoting widely
-  (parked by owner; still gates the honeypot phase).
+  (parked by owner; gates the repo-private decision and the Leg-3 sensor).
 
 ---
 
