@@ -23,11 +23,15 @@ Inline page annotation is deliberately deferred to v2.
 
 2. **Toolbar popup** — paste an indicator, press Enter. It classifies the input,
    calls `GET https://<origin>/api/enrich?type=<t>&q=<indicator>`, and shows the
-   composite verdict word (status-colored), an optional score, one line per
-   source (name · verdict badge · headline · a `verify ↗` link to the source),
-   an honest "not consulted" line for any sources that failed, plus loading and
-   error states. An **Open full report ↗** button jumps to the full SOCDesk
-   report for the same indicator.
+   **source-consensus tally** — `N / M flagged` (status-colored by the ratio)
+   and the headline "N of M consulted sources flagged this as adverse" — then one
+   **attributed** line per source (name · its own raw finding · a `verify ↗`
+   link), with `ipinfo` tagged "context — not a verdict" and an honest "not
+   consulted" line for any sources without a key. Beneath it is a ratio-led
+   **escalation card** with a **Copy for ticket** button that copies the §4
+   assessment block straight into an email. SOCDesk never prints a verdict word
+   of its own — only the count and each source's attribution. An **Open full
+   report ↗** button jumps to the full SOCDesk report for the same indicator.
 
 3. **Options** — set the SOCDesk origin (default `https://socdesk.io`), stored
    in `chrome.storage.sync`. Every fetch and every link uses this origin, so a
@@ -73,9 +77,11 @@ extension/
 ### Test it
 
 - **Popup, benign:** click the toolbar icon, paste `8.8.8.8`, press Enter →
-  expect a green/gray verdict with per-source rows.
+  expect a green `0 / M` tally ("0 of M consulted sources flagged this — no
+  adverse findings. Not a clearance.") with per-source rows.
 - **Popup, hostile:** paste `185.220.101.42` (a well-known Tor exit) → expect a
-  malicious/suspicious verdict with multiple sources.
+  red `N / M` tally with multiple attributed sources and an escalation card you
+  can copy into a ticket with **Copy for ticket**.
 - **Refang:** paste `evil[.]com` → it normalizes to `evil.com` (domain) before
   the lookup.
 - **Context menu:** select `1.1.1.1` on any page → right-click →
