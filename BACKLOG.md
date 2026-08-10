@@ -16,10 +16,10 @@ The loop, mapped to what exists:
 | Step | SOCDesk feature | Status |
 |---|---|---|
 | Paste indicator | Omnibox, type auto-detect, refang, bulk, bookmarklet | Shipped |
-| Get reputation | `/api/enrich` Pages Function → AbuseIPDB + VT + GreyNoise (IP), VT + MalwareBazaar (hash) | Built; **dormant until Cloudflare Pages exists + free keys set** |
+| Get reputation | `/api/enrich` Pages Function → AbuseIPDB + VT + GreyNoise + **ipinfo geo/ASN** (IP), VT + MalwareBazaar (hash), VT + **urlscan verdict** (URL/domain) | Built; **dormant until Cloudflare Pages exists + free keys set** |
 | Screenshot for the email | Evidence card rendered to canvas → copy as PNG | Shipped |
 | Paste into email | Copy image / markdown / text / .md download | Shipped |
-| URL safe-view | urlscan existing-scan pivot + Browserling live-view pivot | Shipped (verify Browserling deep-link format at first live use); urlscan screenshot preview in worker spec |
+| URL safe-view | urlscan existing-scan verdict+screenshot (in `/api/enrich`) + Browserling live-view pivot | Verdict shipped; on-page screenshot preview is P1.2 (below) |
 
 ## P0 — unblocks the entire loop (owner)
 Stand up Cloudflare Pages (`socdesk` project, two secrets, socdesk.io) and add
@@ -30,9 +30,17 @@ env vars. Until then: no public URL, red cron deploys, dormant enrichment.
 1. Live dogfood: 2-3 analysts run real alerts through it for a shift; fix
    what they trip on. The acceptance test: indicator → verdict → email
    evidence faster than the bookmark-folder workflow.
-2. urlscan screenshot preview (search-only, never submit) from the
-   enrichment worker spec — completes the URL leg.
-3. Verify the Browserling deep-link format against their current URL scheme.
+2. **urlscan screenshot preview rendered on-page** (the `screenshot` URL is
+   already returned by the enrich function, urlscan-origin-guarded). Two real
+   wrinkles to handle deliberately, not bolt on: (a) CSP is `default-src
+   'none'` — showing the image needs `img-src https://urlscan.io` added to
+   BOTH `_headers` and the `<meta>` copy (csp.spec.js enforces they match);
+   (b) the evidence-card canvas is copied to clipboard as PNG — drawing a
+   cross-origin urlscan image onto it taints the canvas and breaks the copy
+   unless urlscan sends CORS headers (verify; if not, show the preview as a
+   plain `<img>` beside the card, not composited into it).
+3. Verify the Browserling deep-link format against their current URL scheme
+   at first live use.
 
 ## P2 — next core component (only once the loop is excellent)
 CVE / Threat-Intel feed as the second pillar (feed, KEV/EPSS triage — already

@@ -180,6 +180,66 @@ test.describe("enrichment", () => {
     expect(consulted).not.toContain("GreyNoise");
   });
 
+  const URLSCAN_SEARCH_HIT = { body: { total: 1, results: [{
+    _id: "0198abcd-1234", task: { url: "http://evil.example/x", time: "2026-08-09T10:00:00Z" },
+    page: { url: "http://evil.example/x", domain: "evil.example" },
+    screenshot: "https://urlscan.io/screenshots/0198abcd-1234.png" }] } };
+  const URLSCAN_RESULT_MAL = { body: { verdicts: { overall: { score: 80, malicious: true } },
+    page: { ip: "1.2.3.4", server: "nginx", country: "RU" } } };
+
+  test("a URL with an existing urlscan gets a reputation verdict and a screenshot", async () => {
+    const r = await E.enrich(fakeFetch({
+      "virustotal.com": { status: 404, body: {} },       // not submitted to VT
+      "urlscan.io/api/v1/search": URLSCAN_SEARCH_HIT,
+      "urlscan.io/api/v1/result": URLSCAN_RESULT_MAL,
+    }), "url", "http://evil.example/x", { VT_API_KEY: "k" });
+
+    const us = r.sources.find(s => s.name === "urlscan");
+    expect(us, "urlscan must answer for URLs").toBeTruthy();
+    expect(us.verdict).toBe("malicious");
+    expect(us.headline.toLowerCase()).toContain("malicious");
+    // the screenshot the analyst pastes into the email, on urlscan's own origin
+    expect(us.screenshot).toBe("https://urlscan.io/screenshots/0198abcd-1234.png");
+    expect(us.url).toMatch(/^https:\/\/urlscan\.io\/result\//);
+    expect(r.verdict).toBe("malicious");                  // rolls up
+  });
+
+  test("a URL nobody has scanned is a finding, not a failure — and never submitted", async () => {
+    const seen = [];
+    const spy = async (url, init) => {
+      seen.push(String(url));
+      if (String(url).includes("urlscan.io/api/v1/search"))
+        return { ok: true, status: 200, json: async () => ({ total: 0, results: [] }) };
+      return { ok: true, status: 404, json: async () => ({}) };  // VT 404
+    };
+    const r = await E.enrich(spy, "url", "http://never-scanned.example/y", { VT_API_KEY: "k" });
+    const us = r.sources.find(s => s.name === "urlscan");
+    expect(us.verdict).toBe("unknown");
+    expect(us.headline.toLowerCase()).toMatch(/no existing scan|not scanned/);
+    // never a submit/scan POST — inspecting existing scans only
+    for (const u of seen)
+      expect(/\/api\/v1\/scan/.test(u), `must not submit a scan: ${u}`).toBe(false);
+  });
+
+  test("urlscan only ever fetches urlscan.io, never the indicator", async () => {
+    const seen = [];
+    const spy = async (url) => {
+      seen.push(String(url));
+      if (String(url).includes("search")) return { ok: true, status: 200,
+        json: async () => URLSCAN_SEARCH_HIT.body };
+      return { ok: true, status: 200, json: async () => URLSCAN_RESULT_MAL.body };
+    };
+    await E.enrich(spy, "url", "http://evil.example/x", {});   // urlscan is keyless-capable
+    // The indicator may appear as a query PARAMETER — that is how it is passed
+    // to the API. What must never happen is an outbound request TO the
+    // indicator's host. Check the fetched hostname, not the string.
+    expect(seen.length).toBeGreaterThan(0);
+    for (const u of seen) {
+      expect(new URL(u).hostname).toBe("urlscan.io");
+      expect(new URL(u).hostname).not.toBe("evil.example");
+    }
+  });
+
   test("private and malformed indicators are refused before any request", async () => {
     const never = fakeFetch({});               // any call throws "unrouted"
     for (const ip of ["10.0.0.5", "192.168.1.1", "127.0.0.1", "172.16.4.4", "169.254.1.1"])
@@ -200,7 +260,13 @@ test.describe("enrichment", () => {
       return { ok: true, status: 200, json: async () => ({ data: { attributes: {} } }) };
     };
     await E.enrich(spy, "url", "http://evil.example/payload.exe", { VT_API_KEY: "k" });
-    for (const u of seen)
-      expect(u.startsWith("https://www.virustotal.com/"), `unexpected outbound: ${u}`).toBe(true);
+    // URLs are enriched by VirusTotal AND urlscan; both are legitimate upstream
+    // hosts. The invariant is that we never fetch the indicator's own host.
+    const UPSTREAMS = new Set(["www.virustotal.com", "urlscan.io"]);
+    for (const u of seen) {
+      const h = new URL(u).hostname;
+      expect(h, `must not fetch the indicator host: ${u}`).not.toBe("evil.example");
+      expect(UPSTREAMS.has(h), `unexpected outbound host: ${u}`).toBe(true);
+    }
   });
 });

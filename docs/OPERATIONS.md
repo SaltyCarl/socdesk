@@ -264,6 +264,29 @@ Two, both set under Settings → Secrets and variables → Actions:
 Scope the token to Pages only. It can deploy the site; it should not be able to
 do anything else.
 
+### Enrichment keys — the `/api/enrich` function
+
+These are **Pages project environment variables**, a different place from the
+Actions secrets above: Cloudflare → Workers & Pages → **socdesk** → Settings →
+**Environment variables** (Production). They are read by the Pages Function at
+`functions/api/enrich.js`, never by the browser, and never by the GitHub
+workflow. All free tier.
+
+| Variable | Source | Covers | Without it |
+|---|---|---|---|
+| `ABUSEIPDB_API_KEY` | abuseipdb.com free account (1k checks/day) | IP reputation | IP verdicts drop AbuseIPDB; reported as "not configured", not hidden |
+| `VT_API_KEY` | virustotal.com free account (public API) | IP, domain, URL, hash | those types lose VirusTotal |
+| `GREYNOISE_API_KEY` | greynoise.io community (optional) | IP noise/targeting | still works keyless at ~10/day |
+| `IPINFO_TOKEN` | ipinfo.io free (50k/mo) — **required for reliable geo/ASN** | IP geolocation context | works keyless at a low cap; a token is strongly advised |
+| `ABUSECH_API_KEY` | auth.abuse.ch free key | hash → MalwareBazaar | hash verdicts drop MalwareBazaar |
+| `URLSCAN_API_KEY` | urlscan.io free (optional) | URL/domain existing-scan verdict + screenshot | still works keyless at a low cap |
+
+The function degrades honestly: any unset key makes its source report
+"not configured" on the evidence card rather than vanishing, so a half-keyed
+deploy is safe and obvious. Set them incrementally; IP and hash (AbuseIPDB +
+VirusTotal + ipinfo, VirusTotal + MalwareBazaar) are the 99% path — key those
+first.
+
 ### Custom domain
 
 `socdesk.io` is registered at Cloudflare, which is also where the site is
