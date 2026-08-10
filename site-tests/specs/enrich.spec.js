@@ -54,6 +54,21 @@ const GN_OK = { body: {
   ip: "185.220.101.42", noise: true, riot: false, classification: "malicious",
   name: "Tor Exit Node", last_seen: "2026-08-08", link: "https://viz.greynoise.io/ip/x" } };
 
+// A benign 8.8.8.8-shape: every consulted source returns a non-adverse verdict.
+const ABUSE_CLEAN = { body: { data: {
+  abuseConfidenceScore: 0, totalReports: 0, numDistinctUsers: 0,
+  isp: "Google LLC", usageType: "Content Delivery Network", countryCode: "US" } } };
+const VT_IP_CLEAN = { body: { data: { attributes: {
+  last_analysis_stats: { malicious: 0, suspicious: 0, harmless: 70, undetected: 24 },
+  reputation: 0, last_analysis_date: 1770000000 } } } };
+const GN_CLEAN = { body: {
+  ip: "8.8.8.8", noise: false, riot: true, classification: "benign",
+  name: "Google Public DNS", last_seen: "2026-08-08" } };
+const IPINFO_CLEAN = { body: {
+  ip: "8.8.8.8", hostname: "dns.google", city: "Mountain View",
+  region: "California", country: "US", org: "AS15169 Google LLC",
+  timezone: "America/Los_Angeles" } };
+
 test.describe("enrichment", () => {
   test("every row carries a link the recipient can verify", async () => {
     // The product decision this enforces: the evidence card is a composite, and
@@ -72,18 +87,67 @@ test.describe("enrichment", () => {
     }
   });
 
-  test("the headline verdict takes the worst credible answer", async () => {
+  test("the headline is a source-consensus tally, not a single verdict word", async () => {
+    // Three sources call this IP adverse; ipinfo answers too but is context and
+    // must not enter the tally. So: 3 of 3 consulted flagged it — red.
     const r = await E.enrich(fakeFetch({
       "abuseipdb.com": ABUSE_OK,           // malicious
       "virustotal.com": VT_IP_OK,          // malicious
       "greynoise.io": GN_OK,               // malicious
+      "ipinfo.io": IPINFO_OK,              // context — excluded from the tally
     }), "ipv4", "185.220.101.42", KEYS);
-    expect(r.verdict).toBe("malicious");
 
-    // An analyst deciding whether to escalate needs the ceiling, not an average.
-    expect(E.overall([{ verdict: "benign" }, { verdict: "suspicious" }])).toBe("suspicious");
-    expect(E.overall([{ verdict: "unknown" }, { verdict: "benign" }])).toBe("benign");
-    expect(E.overall([])).toBe("unknown");
+    // The single-word verdict is gone; the tally replaces it (§7).
+    expect(r.verdict).toBeUndefined();
+    expect(r.flagged).toBe(3);
+    expect(r.consulted).toBe(3);           // ipinfo context excluded, not counted
+    expect(r.tone).toBe("red");
+    // per-source verdicts are retained — they are what "flagged" counts
+    expect(r.sources.find(s => s.name === "AbuseIPDB").verdict).toBe("malicious");
+  });
+
+  test("a benign indicator is 0 of M — green, and never a clearance", async () => {
+    const r = await E.enrich(fakeFetch({
+      "abuseipdb.com": ABUSE_CLEAN,        // benign (0%)
+      "virustotal.com": VT_IP_CLEAN,       // benign (0/94)
+      "greynoise.io": GN_CLEAN,            // benign (RIOT known-good)
+      "ipinfo.io": IPINFO_CLEAN,           // context
+    }), "ipv4", "8.8.8.8", KEYS);
+    expect(r.flagged).toBe(0);
+    expect(r.consulted).toBe(3);           // benign still counts in M, not N
+    expect(r.tone).toBe("green");
+  });
+
+  test("consensus() is the whole rule — context out, ratio decides tone", async () => {
+    // context rows never enter M or N
+    expect(E.consensus([{ verdict: "malicious" },
+                        { kind: "context", verdict: "malicious" }]))
+      .toEqual({ consulted: 1, flagged: 1, tone: "red" });
+    // benign and no-data count in M, not N
+    expect(E.consensus([{ verdict: "benign" }, { verdict: "unknown" }]))
+      .toEqual({ consulted: 2, flagged: 0, tone: "green" });
+    // N ≥ M/2 is red; below is amber
+    expect(E.consensus([{ verdict: "suspicious" }, { verdict: "benign" }]))
+      .toEqual({ consulted: 2, flagged: 1, tone: "red" });
+    expect(E.consensus([{ verdict: "suspicious" }, { verdict: "benign" },
+                        { verdict: "benign" }]))
+      .toEqual({ consulted: 3, flagged: 1, tone: "amber" });
+    // nothing consulted returned → grey (never green — absence is not safety)
+    expect(E.consensus([])).toEqual({ consulted: 0, flagged: 0, tone: "grey" });
+    expect(E.consensus([{ kind: "context", verdict: "benign" }]))
+      .toEqual({ consulted: 0, flagged: 0, tone: "grey" });
+  });
+
+  test("nothing consulted returns → M = 0, grey, never a manufactured verdict", async () => {
+    // sha256 with no keys: VT and MalwareBazaar are both key-gated, so both are
+    // named as unconsulted and no source returns → the tally is empty (grey).
+    const r = await E.enrich(fakeFetch({}), "sha256", "a".repeat(64), {});
+    expect(r.sources).toEqual([]);
+    expect(r.consulted).toBe(0);
+    expect(r.flagged).toBe(0);
+    expect(r.tone).toBe("grey");
+    expect(r.errors.map(e => e.source).sort()).toEqual(["MalwareBazaar", "VirusTotal"]);
+    expect(r.partial).toBe(true);
   });
 
   test("a source with no key is reported as unconsulted, not omitted", async () => {
@@ -114,10 +178,11 @@ test.describe("enrichment", () => {
     ]));
     expect(geo.headline).toContain("Berlin");
 
-    // Context alone must not manufacture a verdict.
-    expect(E.overall([{ kind: "context", verdict: "unknown" }])).toBe("unknown");
-    expect(E.overall([{ kind: "context", verdict: "benign" },
-                      { verdict: "malicious" }])).toBe("malicious");
+    // ipinfo answered, but as the only source it leaves the tally empty (grey) —
+    // context alone never manufactures a consulted count.
+    expect(r.consulted).toBe(0);
+    expect(r.flagged).toBe(0);
+    expect(r.tone).toBe("grey");
   });
 
   test("one dead upstream never takes the verdict down", async () => {
@@ -129,7 +194,9 @@ test.describe("enrichment", () => {
 
     expect(r.sources.map(s => s.name).sort()).toEqual(["AbuseIPDB", "GreyNoise"]);
     expect(r.errors.find(e => e.source === "VirusTotal").reason).toContain("500");
-    expect(r.verdict).toBe("malicious");        // still answers
+    expect(r.flagged).toBe(2);                  // still tallies from the survivors
+    expect(r.consulted).toBe(2);
+    expect(r.tone).toBe("red");
     expect(r.partial).toBe(true);
   });
 
@@ -150,7 +217,11 @@ test.describe("enrichment", () => {
 
     expect(r.errors).toEqual([]);                      // no source failed
     expect(r.sources.length).toBe(2);
-    expect(r.verdict).toBe("unknown");
+    // "no data on record" is consulted (counts in M) but never flagged (N):
+    // 0 of 2 → green, and the green headline states it is not a clearance.
+    expect(r.flagged).toBe(0);
+    expect(r.consulted).toBe(2);
+    expect(r.tone).toBe("green");
     expect(r.sources.find(s => s.name === "VirusTotal").headline).toMatch(/not present/i);
     expect(r.sources.find(s => s.name === "MalwareBazaar").headline).toMatch(/no sample/i);
   });
@@ -165,9 +236,12 @@ test.describe("enrichment", () => {
     }), "sha256", "b".repeat(64), KEYS);
 
     const mb = r.sources.find(s => s.name === "MalwareBazaar");
-    expect(mb.verdict).toBe("malicious");
+    expect(mb.verdict).toBe("malicious");              // per-source verdict retained
     expect(mb.headline).toContain("AgentTesla");
-    expect(r.verdict).toBe("malicious");
+    // MalwareBazaar flags it, VT has nothing on record: 1 of 2 → red (N ≥ M/2).
+    expect(r.flagged).toBe(1);
+    expect(r.consulted).toBe(2);
+    expect(r.tone).toBe("red");
   });
 
   test("hash lookups never consult the IP-only sources", async () => {
@@ -201,7 +275,10 @@ test.describe("enrichment", () => {
     // the screenshot the analyst pastes into the email, on urlscan's own origin
     expect(us.screenshot).toBe("https://urlscan.io/screenshots/0198abcd-1234.png");
     expect(us.url).toMatch(/^https:\/\/urlscan\.io\/result\//);
-    expect(r.verdict).toBe("malicious");                  // rolls up
+    // urlscan flags it, VT has nothing on record: 1 of 2 → red.
+    expect(r.flagged).toBe(1);
+    expect(r.consulted).toBe(2);
+    expect(r.tone).toBe("red");
   });
 
   test("a URL nobody has scanned is a finding, not a failure — and never submitted", async () => {
