@@ -11,7 +11,8 @@
 // BUMP THIS on every change to the shell (html/css/js). The shell is cached
 // cache-first, so without a bump returning visitors keep the old UI after a
 // deploy — this masked two changes during development before it was caught.
-const VERSION = "socdesk-v8";   // v8: RELATED entity block (relations.json wired)
+const VERSION = "socdesk-v9";   // v9: pivot diet — T1 workflow vendors only
+                                // v8: RELATED entity block (relations.json wired)
                                 // v7: escalation evidence card
                                 // v6: Cloudflare Pages host, socdesk.io URLs
                                 // v5: bookmarklet install card

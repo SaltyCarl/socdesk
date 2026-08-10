@@ -86,6 +86,24 @@ test.describe("indicator verdicts", () => {
     }
   });
 
+  test("pivots are the T1 workflow set — no fluff vendors", async ({ page }) => {
+    // The product decision (2026-08-10): 99% of the workflow is IP/hash into
+    // AbuseIPDB/VirusTotal and URL into a safe viewer. Pivot rows carry exactly
+    // that; Shodan/Censys/Spamhaus-class vendors must not reappear.
+    const want = {
+      "185.220.101.42": ["virustotal", "abuseipdb", "greynoise"],
+      "d41d8cd98f00b204e9800998ecf8427e": ["virustotal", "malwarebazaar"],
+      "https://evil-updates.example/payload": ["virustotal", "urlscan", "browserling"],
+    };
+    for (const [q, expected] of Object.entries(want)) {
+      await lookup(page, q);
+      await expect(page.locator("#console .pivots a.pivot").first()).toBeVisible({ timeout: 8000 });
+      const names = (await page.locator("#console .pivots a.pivot").allInnerTexts())
+        .map(t => t.replace(/[⚠↗\s]/g, "").toLowerCase());
+      expect(names.sort()).toEqual(expected.sort());
+    }
+  });
+
   test("an unknown domain is NOT IN CORPUS and is never dressed as safe", async ({ page }) => {
     const rnd = `zq${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.example.com`;
     await lookup(page, rnd);

@@ -22,6 +22,13 @@ pastes any indicator (IP, domain, hash, URL, CVE, email) and gets:
 Personal project by Carlos Sanchez (SaltyCarl), sibling to his portfolio
 **SanchezOnSecurity.com**. Used by his MSSP SOC team; also a portfolio piece.
 
+**North star (owner-set 2026-08-10, governs all prioritization):** 99% of the
+analyst workflow is IP/hash → AbuseIPDB/VirusTotal → screenshot the
+reputation → paste into the escalation email (URLs: same, via a safe viewer).
+SOCDesk exists to make THAT loop painless. Everything else — CVE features
+included, for now — is secondary until the loop is excellent. See
+`BACKLOG.md` for the loop-to-feature map and the parked list.
+
 **Live:** https://socdesk.io (Cloudflare Pages; project must be created before
 the next deploy succeeds — see §8)
 **Repo:** https://github.com/SaltyCarl/socdesk
@@ -191,22 +198,18 @@ Both now have regression tests.
 
 ---
 
-## 9. Backlog, in priority order
+## 9. Backlog — superseded by BACKLOG.md (2026-08-10)
 
-1. Finish/verify the two in-flight agent workstreams (§4).
-3. **Enrichment Worker** — spec written:
-   `docs/superpowers/specs/2026-08-07-enrichment-worker-spec.md`. One stateless
-   Cloudflare Worker gives real reputation verdicts instead of pivot links,
-   plus **urlscan screenshot previews (search only — never submit)**. Biggest
-   remaining capability gain; still $0.
-4. Static-tier wins left: client-side fuzzy search, CVE corpus sharding.
-6. Phase C — Framework brief loop (`data/brief.json`).
-7. Phase D — own Cowrie honeypot sensor. Architecture and security review in
-   `BACKLOG.md`; **gated on the IP question**. Non-negotiables: no Tailscale on
-   the sensor, cloud-plane egress deny, publish /24s not full IPs, allowlist
-   published tokens, rebuild from cloud-init never snapshots.
-8. Wave-2 collectors (FeodoTracker, C2IntelFeeds, PhishTank, APTnotes) —
-   see `BACKLOG.md`.
+Priorities were re-cut around the north star (§1): **P0** owner stands up
+Cloudflare Pages + enrichment keys (unblocks public URL, green deploys, AND
+the dormant `/api/enrich`); **P1** hammer the 99% loop (dogfood with real
+analysts, urlscan screenshot preview, Browserling link verification);
+**P2** the CVE/threat-intel feed as the second pillar. Fuzzy search, CVE
+sharding, Phase C brief, honeypot (still IP-gated), and wave-2 collectors are
+all **parked** — see `BACKLOG.md` for the full map. Historical notes on each
+item remain valid where written (enrichment worker spec:
+`docs/superpowers/specs/2026-08-07-enrichment-worker-spec.md`; honeypot
+non-negotiables recorded in BACKLOG history / git).
 
 ---
 

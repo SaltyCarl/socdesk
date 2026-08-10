@@ -22,6 +22,11 @@ const enc = encodeURIComponent;
 
 /** Type-aware external pivots. Links only — clicking discloses to that service. */
 export function pivotsFor(type, q) {
+  // Deliberately short. The tool serves one workflow — IP/hash into
+  // AbuseIPDB/VirusTotal, URL into a safe viewer, screenshot, escalate —
+  // so each type offers exactly the services that workflow uses. Vendors an
+  // L1/L2 does not open on shift (Shodan, Censys, Spamhaus, sandboxes for
+  // URL triage) were removed on purpose; do not accrete them back.
   const all = [
     ["VirusTotal", `https://www.virustotal.com/gui/search/${enc(q)}`],
   ];
@@ -29,33 +34,19 @@ export function pivotsFor(type, q) {
   if (type === "ipv4") add([
     ["AbuseIPDB", `https://www.abuseipdb.com/check/${enc(q)}`],
     ["GreyNoise", `https://viz.greynoise.io/ip/${enc(q)}`],
-    ["Shodan", `https://www.shodan.io/host/${enc(q)}`],
-    ["Censys", `https://search.censys.io/hosts/${enc(q)}`],
-    ["Spamhaus", `https://check.spamhaus.org/results/?query=${enc(q)}`],
-    ["urlscan", `https://urlscan.io/search/#${enc(q)}`],
   ]);
   if (type === "domain") add([
     ["urlscan", `https://urlscan.io/domain/${enc(q)}`],
-    ["Pulsedive", `https://pulsedive.com/indicator/?ioc=${enc(q)}`],
-    ["X-Force", `https://exchange.xforce.ibmcloud.com/url/${enc(q)}`],
-    ["Censys", `https://search.censys.io/search?q=${enc(q)}`],
   ]);
   if (type === "url") add([
     // Existing public scans first — inspecting someone else's completed scan
-    // discloses nothing new. Detonation submits the URL to that service.
+    // discloses nothing new. Browserling opens a LIVE remote browser at the
+    // URL (active fetch = disclosure), hence the ⚠ convention.
     ["urlscan", `https://urlscan.io/search/#${enc(q)}`],
-    ["Pulsedive", `https://pulsedive.com/indicator/?ioc=${enc(q)}`],
-    ["PhishTank", `https://phishtank.org/`],
-    ["ANY.RUN ⚠", `https://any.run/report/${enc(q)}`],
-    ["Tria.ge ⚠", `https://tria.ge/s?q=${enc(q)}`],
-    ["Joe Sandbox ⚠", `https://www.joesandbox.com/search?q=${enc(q)}`],
+    ["Browserling ⚠", `https://www.browserling.com/browse/win/chrome/${enc(q)}`],
   ]);
   if (type === "md5" || type === "sha1" || type === "sha256") add([
     ["MalwareBazaar", `https://bazaar.abuse.ch/browse.php?search=${enc(q)}`],
-    ["MetaDefender", `https://metadefender.opswat.com/results/file/${enc(q)}/hash/overview`],
-    ["Hybrid Analysis", `https://www.hybrid-analysis.com/search?query=${enc(q)}`],
-    ["Tria.ge", `https://tria.ge/s?q=${enc(q)}`],
-    ["ANY.RUN", `https://any.run/report/${enc(q)}`],
   ]);
   if (type === "cve") add([
     ["NVD", `https://nvd.nist.gov/vuln/detail/${enc(q)}`],
