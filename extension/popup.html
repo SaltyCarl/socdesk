@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SOCDesk — Indicator Lookup</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <span class="brand">SOCDESK</span>
+      <span class="sub">Indicator Lookup</span>
+      <span class="tlp" title="Nothing here is classified">TLP:CLEAR</span>
+    </header>
+
+    <form id="form" class="search" autocomplete="off">
+      <input id="q" type="text" spellcheck="false" autocomplete="off"
+             placeholder="Paste an indicator — IP, domain, URL, hash" aria-label="Indicator" />
+      <span id="chip" class="chip" hidden></span>
+    </form>
+
+    <div id="out" class="out" aria-live="polite"></div>
+
+    <footer class="foot">
+      <button id="full" class="btn" type="button">Open full report ↗</button>
+      <button id="opts" class="link" type="button">Options</button>
+    </footer>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

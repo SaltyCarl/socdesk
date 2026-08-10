@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SOCDesk — Options</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main class="card">
+    <header class="top">
+      <span class="brand">SOCDESK</span>
+      <span class="sub">Extension Options</span>
+    </header>
+
+    <form id="form">
+      <label class="lbl" for="origin">SOCDesk origin</label>
+      <p class="hint">
+        The instance the extension talks to. Default is
+        <code>https://socdesk.io</code>. Point it at a self-hosted deployment if
+        you run your own. Enter a bare origin (scheme + host), e.g.
+        <code>https://socdesk.example.com</code>.
+      </p>
+      <div class="row">
+        <input id="origin" type="url" spellcheck="false" autocomplete="off"
+               placeholder="https://socdesk.io" aria-label="SOCDesk origin" />
+        <button id="save" class="btn" type="submit">Save</button>
+      </div>
+      <p id="status" class="status" aria-live="polite"></p>
+
+      <div class="note">
+        <strong>Custom origins:</strong> live lookups need host access. This
+        build ships with access to <code>https://socdesk.io</code> and
+        <code>https://socdesk.pages.dev</code>. A custom origin on another
+        domain requires the host to be added to <code>host_permissions</code> in
+        <code>manifest.json</code> and the extension reloaded (see README).
+      </div>
+    </form>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>
