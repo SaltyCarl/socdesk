@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOCDesk — Command</title>
+<meta name="description" content="SOCDesk COMMAND direction — a spatial operations console for indicator lookup and threat verdicts.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://unpkg.com/cobe"></script>
+<style>
+  :root{
+    --bg-void:#05070b;
+    --bg-base:#090c13;
+    --bg-panel:#0e1219;
+    --bg-elevated:#131826;
+    --bg-elevated-2:#182036;
+    --border-subtle:rgba(255,255,255,.055);
+    --border:rgba(255,255,255,.10);
+    --border-strong:rgba(255,255,255,.17);
+    --text-primary:#EDF0F6;
+    --text-secondary:#9BA4B8;
+    --text-tertiary:#5B6478;
+    --accent:#4C8DFF;
+    --accent-strong:#84AEFF;
+    --accent-dim:rgba(76,141,255,.14);
+    --accent-line:rgba(76,141,255,.35);
+    --alert:#FF6A4D;
+    --alert-dim:rgba(255,106,77,.14);
+    --watch:#F0A93E;
+    --watch-dim:rgba(240,169,62,.14);
+    --clean:#3ECF8E;
+    --clean-dim:rgba(62,207,142,.14);
+    --context:#8B93A7;
+    --context-dim:rgba(139,147,167,.12);
+    --purple:#A78BFA;
+    --r-sm:6px;
+    --r-md:10px;
+    --r-lg:16px;
+    --ease:cubic-bezier(.16,.8,.24,1);
+    --ui:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:'JetBrains Mono','SF Mono',ui-monospace,monospace;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{color-scheme:dark;scroll-behavior:smooth}
+  body{
+    background:var(--bg-void);
+    color:var(--text-primary);
+    font-family:var(--ui);
+    font-size:15px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--accent-dim);color:var(--accent-strong)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:var(--bg-base)}
+  ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:8px;border:2px solid var(--bg-base)}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer;background:none;border:none;color:inherit}
+  input{font-family:inherit;color:inherit}
+  svg{display:block}
+
+  .bg-field{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  .bg-grid{
+    position:absolute;inset:-1px;
+    background-image:
+      linear-gradient(var(--border-subtle) 1px,transparent 1px),
+      linear-gradient(90deg,var(--border-subtle) 1px,transparent 1px);
+    background-size:56px 56px;
+    -webkit-mask-image:radial-gradient(ellipse 85% 60% at 68% 20%,#000 0%,transparent 72%);
+    mask-image:radial-gradient(ellipse 85% 60% at 68% 20%,#000 0%,transparent 72%);
+    opacity:.7;
+  }
+  .bg-vignette{
+    position:absolute;inset:0;
+    background:radial-gradient(ellipse 60% 45% at 50% -8%,rgba(76,141,255,.08),transparent 60%),
+      linear-gradient(180deg,var(--bg-void) 0%,var(--bg-base) 30%,var(--bg-base) 100%);
+  }
+
+  .eyebrow{
+    font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--text-tertiary);
+  }
+  .panel-title{
+    font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--text-tertiary);
+  }
+
+  /* ===== Topbar ===== */
+  .topbar{
+    position:sticky;top:0;z-index:40;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 32px;
+    background:rgba(9,12,19,.72);
+    backdrop-filter:blur(14px) saturate(1.1);
+    -webkit-backdrop-filter:blur(14px) saturate(1.1);
+    border-bottom:1px solid var(--border-subtle);
+  }
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand-mark{width:26px;height:26px;flex:0 0 auto}
+  .brand-word{font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--text-primary)}
+  .brand-word span{color:var(--text-tertiary);font-weight:500}
+
+  .topnav{display:flex;align-items:center;gap:2px}
+  .topnav a{
+    font-size:13.5px;font-weight:500;color:var(--text-secondary);
+    padding:8px 14px;border-radius:var(--r-sm);transition:color .15s var(--ease),background .15s var(--ease);
+  }
+  .topnav a:hover{color:var(--text-primary);background:var(--bg-elevated)}
+  .topnav a.active{color:var(--text-primary);background:var(--bg-elevated)}
+
+  .top-right{display:flex;align-items:center;gap:14px}
+  .status-pill{
+    display:flex;align-items:center;gap:7px;
+    font-family:var(--mono);font-size:11.5px;color:var(--text-secondary);
+    padding:6px 11px 6px 9px;border:1px solid var(--border);border-radius:999px;
+    background:var(--bg-panel);
+  }
+  .status-dot{width:6px;height:6px;border-radius:50%;background:var(--clean);box-shadow:0 0 0 3px var(--clean-dim)}
+  .status-dot.pulse{animation:pulse-dot 2.4s ease-in-out infinite}
+  @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.45}}
+</style>
+</head>
+<body>
+<div class="bg-field" aria-hidden="true">
+  <div class="bg-vignette"></div>
+  <div class="bg-grid"></div>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <circle cx="16" cy="16" r="2.5" fill="#4C8DFF"/>
+      <circle cx="16" cy="16" r="13" stroke="#4C8DFF" stroke-width="1.5" stroke-dasharray="13.61 13.61" opacity=".9" transform="rotate(-12 16 16)"/>
+      <circle cx="16" cy="16" r="8.5" stroke="#84AEFF" stroke-width="1.3" stroke-dasharray="8.9 8.9" opacity=".55" transform="rotate(28 16 16)"/>
+    </svg>
+    <span class="brand-word">SOCDesk <span>/ command</span></span>
+  </div>
+  <nav class="topnav" aria-label="Primary">
+    <a href="#" class="active">Lookup</a>
+    <a href="#glimpse">Feed</a>
+    <a href="#glimpse">Vuln triage</a>
+    <a href="#">Actors</a>
+    <a href="#">Health</a>
+  </nav>
+  <div class="top-right">
+    <div class="status-pill"><span class="status-dot pulse"></span>6 sources online</div>
+  </div>
+</header>
+<style>
+  /* ===== Deck / Hero ===== */
+  .deck{position:relative;z-index:1}
+  .hero{
+    position:relative;
+    min-height:calc(100vh - 60px);
+    display:flex;flex-direction:column;justify-content:center;
+    padding:48px 32px 40px;
+    overflow:hidden;
+  }
+  .hero-backdrop{
+    position:absolute;top:50%;right:-6%;
+    width:min(58vw,760px);height:min(58vw,760px);
+    transform:translateY(-50%);
+    z-index:0;pointer-events:none;
+  }
+  .globe-glow{
+    position:absolute;inset:8%;border-radius:50%;
+    background:radial-gradient(circle at 42% 38%,rgba(76,141,255,.20),rgba(76,141,255,0) 62%);
+    filter:blur(6px);
+  }
+  #globe{width:100%;height:100%;display:block;opacity:0;cursor:grab}
+  .hero-content{
+    position:relative;z-index:2;
+    display:grid;grid-template-columns:minmax(0,600px) 1fr;
+    gap:40px;align-items:start;max-width:1360px;margin:0 auto;width:100%;
+  }
+  .hero-left{padding-top:6px}
+  .hero-left .eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+  .hero-left .eyebrow::before{content:'';width:14px;height:1px;background:var(--accent);display:inline-block}
+  .hero h1{
+    font-size:clamp(30px,3.6vw,44px);font-weight:700;letter-spacing:-.025em;line-height:1.08;
+    color:var(--text-primary);max-width:11.5ch;margin-bottom:16px;
+  }
+  .hero-sub{font-size:15px;line-height:1.6;color:var(--text-secondary);max-width:46ch;margin-bottom:30px}
+  .hero-sub b{color:var(--text-primary);font-weight:600}
+
+  .lookup-form{margin-bottom:34px}
+  .lookup-bar{
+    display:flex;align-items:stretch;gap:0;
+    background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-md);
+    box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 20px 40px -24px rgba(0,0,0,.6);
+    transition:border-color .18s var(--ease),box-shadow .18s var(--ease);
+    overflow:hidden;
+  }
+  .lookup-bar:focus-within{border-color:var(--accent-line);box-shadow:0 0 0 3px var(--accent-dim)}
+  .lookup-type{
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;
+    color:var(--accent-strong);background:var(--accent-dim);
+    padding:0 14px;min-width:64px;border-right:1px solid var(--border);
+    flex:0 0 auto;transition:color .15s,background .15s;
+  }
+  .lookup-bar input{
+    flex:1 1 auto;min-width:0;background:transparent;border:none;outline:none;
+    padding:16px 14px;font-family:var(--mono);font-size:15px;color:var(--text-primary);
+  }
+  .lookup-bar input::placeholder{color:var(--text-tertiary)}
+  .lookup-submit{
+    flex:0 0 auto;display:flex;align-items:center;gap:8px;
+    padding:0 22px;background:var(--accent);color:#061024;font-weight:700;font-size:13.5px;
+    transition:background .15s var(--ease),transform .1s var(--ease);
+  }
+  .lookup-submit:hover{background:var(--accent-strong)}
+  .lookup-submit:active{transform:scale(.97)}
+  .lookup-submit svg{width:15px;height:15px}
+
+  .lookup-try{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .lookup-try>span{font-size:12px;color:var(--text-tertiary);margin-right:2px}
+  .chip{
+    font-family:var(--mono);font-size:12px;color:var(--text-secondary);
+    padding:6px 11px;border:1px solid var(--border);border-radius:999px;background:var(--bg-panel);
+    transition:all .15s var(--ease);
+  }
+  .chip:hover{color:var(--text-primary);border-color:var(--border-strong);background:var(--bg-elevated)}
+  .chip-malicious:hover{border-color:rgba(255,106,77,.4);color:var(--alert);background:var(--alert-dim)}
+  .chip-clean:hover{border-color:rgba(62,207,142,.4);color:var(--clean);background:var(--clean-dim)}
+
+  .stat-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid var(--border-subtle);padding-top:22px}
+  .stat{padding-right:16px;border-right:1px solid var(--border-subtle)}
+  .stat:last-child{border-right:none}
+  .stat-value{display:block;font-family:var(--mono);font-weight:600;font-size:clamp(19px,2vw,26px);color:var(--text-primary);letter-spacing:-.01em}
+  .stat-label{display:block;font-size:11.5px;color:var(--text-tertiary);margin-top:5px;line-height:1.35}
+
+  .hero-right{position:relative;z-index:2;padding-top:8px;display:flex;justify-content:flex-end}
+  .country-panel{
+    width:100%;max-width:288px;background:rgba(14,18,25,.72);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 20px 18px;
+  }
+  .country-panel .panel-title{margin-bottom:2px}
+  .country-panel .panel-sub{font-size:11.5px;color:var(--text-tertiary);margin-bottom:16px;display:block}
+  .country-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+  .country-row{display:grid;grid-template-columns:22px 1fr 40px;align-items:center;gap:10px;font-size:12.5px}
+  .country-row .cflag{font-size:13px;color:var(--text-tertiary);font-family:var(--mono)}
+  .country-row .cname{color:var(--text-secondary)}
+  .country-bar-track{grid-column:1/-1;height:4px;background:var(--border-subtle);border-radius:2px;overflow:hidden;margin-top:-4px}
+  .country-bar-fill{height:100%;background:linear-gradient(90deg,var(--alert),var(--watch));border-radius:2px;width:0}
+  .country-count{font-family:var(--mono);color:var(--text-primary);text-align:right;font-size:12px}
+  .legend{display:flex;gap:14px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-subtle)}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-tertiary)}
+  .legend-dot{width:6px;height:6px;border-radius:50%}
+</style>
+
+<main class="deck">
+<section class="hero" id="hero">
+  <div class="hero-backdrop" aria-hidden="true">
+    <div class="globe-glow"></div>
+    <canvas id="globe" width="760" height="760"></canvas>
+  </div>
+
+  <div class="hero-content">
+    <div class="hero-left">
+      <span class="eyebrow">THREAT LOOKUP</span>
+      <h1>Paste an indicator.<br>Get a verdict.</h1>
+      <p class="hero-sub">IP, hash, URL, domain, or CVE — checked live against <b>AbuseIPDB, VirusTotal, GreyNoise, ipinfo, MalwareBazaar</b> and urlscan. One escalation card, ready to paste into a ticket.</p>
+
+      <form class="lookup-form" id="lookupForm">
+        <div class="lookup-bar">
+          <span class="lookup-type" id="lookupType">IP</span>
+          <input type="text" id="lookupInput" placeholder="185.220.101.42" autocomplete="off" spellcheck="false" aria-label="Indicator to check">
+          <button type="submit" class="lookup-submit">Check
+            <svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="lookup-try">
+          <span>Try:</span>
+          <button type="button" class="chip chip-malicious" data-demo="185.220.101.42">185.220.101.42</button>
+          <button type="button" class="chip chip-clean" data-demo="8.8.8.8">8.8.8.8</button>
+          <button type="button" class="chip" data-demo="8f14e45fceea167a5a36dedd4bea2543c8f14e45fceea167a5a36dedd4bea254">SHA-256 hash</button>
+        </div>
+      </form>
+
+      <div class="stat-strip">
+        <div class="stat"><span class="stat-value" data-count="8412">0</span><span class="stat-label">Indicators checked today</span></div>
+        <div class="stat"><span class="stat-value" data-count="2186">0</span><span class="stat-label">Malicious IPs tracked</span></div>
+        <div class="stat"><span class="stat-value" data-count="118">0</span><span class="stat-label">Countries reporting</span></div>
+        <div class="stat"><span class="stat-value" data-count="6">0</span><span class="stat-label">KEV entries added, 7d</span></div>
+      </div>
+    </div>
+
+    <div class="hero-right">
+      <div class="country-panel">
+        <span class="panel-title">Malicious-IP origins</span>
+        <span class="panel-sub">Rolling 30 days · by reporting volume</span>
+        <ul class="country-list" id="countryList"><!-- populated by JS --></ul>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--alert)"></span>High severity</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--watch)"></span>Elevated</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<style>
+  /* ===== Glimpse (second view) ===== */
+  .glimpse{padding:0 32px 100px;max-width:1360px;margin:0 auto}
+  .glimpse-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;border-top:1px solid var(--border-subtle);padding-top:36px}
+  .glimpse-head p{font-size:12.5px;color:var(--text-tertiary)}
+  .glimpse-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .glimpse-card{
+    background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-lg);
+    padding:22px 22px 18px;transition:border-color .18s var(--ease),transform .18s var(--ease);
+  }
+  .glimpse-card:hover{border-color:var(--border-strong)}
+  .glimpse-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .glimpse-card-head h3{font-size:14px;font-weight:600;color:var(--text-primary)}
+  .glimpse-card-head a{font-size:11.5px;color:var(--accent-strong);font-family:var(--mono)}
+  .glimpse-card-head a:hover{text-decoration:underline}
+
+  .feed-row{display:grid;grid-template-columns:14px 1fr auto auto;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border-subtle)}
+  .feed-row:first-of-type{border-top:none}
+  .feed-dot{width:6px;height:6px;border-radius:50%}
+  .feed-val{font-family:var(--mono);font-size:12.5px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .feed-src{font-size:10.5px;color:var(--text-tertiary)}
+  .feed-time{font-family:var(--mono);font-size:11px;color:var(--text-tertiary)}
+
+  .vuln-row{padding:11px 0;border-top:1px solid var(--border-subtle)}
+  .vuln-row:first-of-type{border-top:none}
+  .vuln-top{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .vuln-id{font-family:var(--mono);font-size:12.5px;color:var(--text-primary)}
+  .kev-chip{
+    font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.06em;
+    color:var(--alert);background:var(--alert-dim);border:1px solid rgba(255,106,77,.3);
+    padding:2px 6px;border-radius:4px;
+  }
+  .vuln-meta{display:flex;gap:16px;font-size:11px;color:var(--text-tertiary);font-family:var(--mono)}
+  .vuln-meta b{color:var(--text-secondary);font-weight:600}
+  .epss-track{width:56px;height:3px;background:var(--border-subtle);border-radius:2px;display:inline-block;overflow:hidden;vertical-align:middle;margin-left:6px}
+  .epss-fill{height:100%;background:var(--watch)}
+
+  /* ===== Inspection module ===== */
+  .inspection-scrim{
+    position:fixed;inset:0;z-index:90;background:rgba(4,6,10,.72);
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    opacity:0;pointer-events:none;transition:opacity .2s var(--ease);
+  }
+  .inspection-scrim.is-open{opacity:1;pointer-events:auto}
+  .inspection{
+    position:fixed;inset:0;z-index:91;display:flex;align-items:flex-start;justify-content:center;
+    padding:5vh 24px 5vh;overflow-y:auto;pointer-events:none;
+  }
+  .inspection.is-open{pointer-events:auto}
+  .inspection-panel{
+    width:100%;max-width:1060px;background:var(--bg-panel);
+    border:1px solid var(--border-strong);border-radius:var(--r-lg);
+    box-shadow:0 40px 100px -30px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.02);
+    opacity:0;transform:translateY(28px) scale(.98);
+  }
+  .inspection-head{
+    position:sticky;top:0;z-index:2;background:var(--bg-panel);
+    border-bottom:1px solid var(--border-subtle);border-radius:var(--r-lg) var(--r-lg) 0 0;
+    padding:22px 28px 20px;
+  }
+  .inspection-close{
+    position:absolute;top:20px;right:24px;display:flex;align-items:center;gap:6px;
+    font-family:var(--mono);font-size:11.5px;color:var(--text-tertiary);
+    padding:7px 11px;border:1px solid var(--border);border-radius:999px;
+    transition:all .15s var(--ease);
+  }
+  .inspection-close:hover{color:var(--text-primary);border-color:var(--border-strong);background:var(--bg-elevated)}
+  .verdict-id{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding-right:120px}
+  .indicator-type{font-family:var(--mono);font-size:11px;color:var(--text-tertiary);letter-spacing:.08em}
+  .indicator-value{font-family:var(--mono);font-size:clamp(19px,2.4vw,26px);font-weight:600;color:var(--text-primary);word-break:break-all}
+  .verdict-badge{
+    font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;
+    padding:4px 10px;border-radius:5px;white-space:nowrap;
+  }
+  .verdict-badge.malicious{color:var(--alert);background:var(--alert-dim);border:1px solid rgba(255,106,77,.35)}
+  .verdict-badge.clean{color:var(--clean);background:var(--clean-dim);border:1px solid rgba(62,207,142,.35)}
+  .verdict-badge.suspicious{color:var(--watch);background:var(--watch-dim);border:1px solid rgba(240,169,62,.35)}
+  .verdict-meta{margin-top:10px;font-size:12px;color:var(--text-tertiary);font-family:var(--mono)}
+
+  .inspection-body{display:grid;grid-template-columns:1fr 300px;gap:0}
+  .sources-col{padding:20px 28px 28px;display:flex;flex-direction:column;gap:14px;border-right:1px solid var(--border-subtle)}
+  .source-card{background:var(--bg-elevated);border:1px solid var(--border-subtle);border-left:2px solid var(--context);border-radius:var(--r-md);padding:16px 18px}
+  .source-card.sev-malicious{border-left-color:var(--alert)}
+  .source-card.sev-clean{border-left-color:var(--clean)}
+  .source-card.sev-context{border-left-color:var(--context)}
+  .source-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+  .source-name{font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--text-primary)}
+  .source-tag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:4px}
+  .source-tag.malicious{color:var(--alert);background:var(--alert-dim)}
+  .source-tag.clean{color:var(--clean);background:var(--clean-dim)}
+  .source-tag.context{color:var(--context);background:var(--context-dim)}
+  .source-summary{font-size:12.5px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5}
+  .source-fields{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 20px;margin-bottom:10px}
+  .field{display:flex;flex-direction:column;gap:2px}
+  .field-label{font-size:10.5px;color:var(--text-tertiary)}
+  .field-value{font-family:var(--mono);font-size:12px;color:var(--text-primary);word-break:break-word}
+  .source-link{font-family:var(--mono);font-size:11px;color:var(--accent-strong);display:inline-flex;align-items:center;gap:4px}
+  .source-link:hover{text-decoration:underline}
+  .not-consulted{padding:12px 18px;border:1px dashed var(--border);border-radius:var(--r-md);font-size:12px;color:var(--text-tertiary)}
+  .not-consulted b{color:var(--text-secondary);font-family:var(--mono);font-weight:500}
+
+  .escalation-col{padding:20px 22px 28px;position:sticky;top:86px;align-self:start}
+  .escalation-card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--r-md);padding:16px}
+  .escalation-card pre{
+    font-family:var(--mono);font-size:10.8px;line-height:1.65;color:var(--text-secondary);
+    white-space:pre-wrap;word-break:break-word;max-height:340px;overflow-y:auto;
+    margin:12px 0 14px;padding-right:4px;
+  }
+  .btn-primary{
+    width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--accent);color:#061024;font-weight:700;font-size:13px;
+    padding:11px 14px;border-radius:var(--r-sm);transition:background .15s var(--ease),transform .1s var(--ease);
+  }
+  .btn-primary:hover{background:var(--accent-strong)}
+  .btn-primary:active{transform:scale(.98)}
+  .btn-primary svg{width:14px;height:14px}
+  .btn-primary.copied{background:var(--clean);color:#04150c}
+  .escalation-hint{font-size:10.5px;color:var(--text-tertiary);margin-top:10px;line-height:1.5}
+</style>
+
+<section class="glimpse" id="glimpse">
+  <div class="glimpse-head">
+    <div><span class="eyebrow">Also on the desk</span></div>
+    <p>Feed and vuln triage share the same verdict language.</p>
+  </div>
+  <div class="glimpse-grid">
+    <article class="glimpse-card">
+      <div class="glimpse-card-head"><h3>Recent feed</h3><a href="#">View all →</a></div>
+      <div class="feed-list">
+        <div class="feed-row"><span class="feed-dot" style="background:var(--alert)"></span><span class="feed-val">185.220.101.42</span><span class="feed-src">AbuseIPDB</span><span class="feed-time">2m ago</span></div>
+        <div class="feed-row"><span class="feed-dot" style="background:var(--alert)"></span><span class="feed-val">invoice_08472.exe</span><span class="feed-src">MalwareBazaar</span><span class="feed-time">14m ago</span></div>
+        <div class="feed-row"><span class="feed-dot" style="background:var(--watch)"></span><span class="feed-val">185.220.101.0/24</span><span class="feed-src">GreyNoise</span><span class="feed-time">31m ago</span></div>
+        <div class="feed-row"><span class="feed-dot" style="background:var(--clean)"></span><span class="feed-val">8.8.8.8</span><span class="feed-src">ipinfo</span><span class="feed-time">42m ago</span></div>
+      </div>
+    </article>
+    <article class="glimpse-card">
+      <div class="glimpse-card-head"><h3>Vuln triage</h3><a href="#">View all →</a></div>
+      <div class="vuln-list">
+        <div class="vuln-row">
+          <div class="vuln-top"><span class="vuln-id">CVE-2026-31337</span><span class="kev-chip">KEV · exploited</span></div>
+          <div class="vuln-meta"><span>CVSS <b>9.8</b></span><span>EPSS <b>94%</b><span class="epss-track"><span class="epss-fill" style="width:94%"></span></span></span></div>
+        </div>
+        <div class="vuln-row">
+          <div class="vuln-top"><span class="vuln-id">CVE-2026-28810</span></div>
+          <div class="vuln-meta"><span>CVSS <b>8.1</b></span><span>EPSS <b>62%</b><span class="epss-track"><span class="epss-fill" style="width:62%"></span></span></span></div>
+        </div>
+        <div class="vuln-row">
+          <div class="vuln-top"><span class="vuln-id">CVE-2026-19042</span></div>
+          <div class="vuln-meta"><span>CVSS <b>6.5</b></span><span>EPSS <b>11%</b><span class="epss-track"><span class="epss-fill" style="width:11%"></span></span></span></div>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+</main>
+<div class="inspection-scrim" id="scrim"></div>
+<section class="inspection" id="inspection" role="dialog" aria-modal="true" aria-label="Indicator verdict" aria-hidden="true">
+  <div class="inspection-panel" id="inspectionPanel">
+    <header class="inspection-head">
+      <button class="inspection-close" id="closeInspection" type="button">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Back to lookup
+      </button>
+      <div class="verdict-id">
+        <span class="indicator-type">IP ADDRESS</span>
+        <h2 class="indicator-value">185.220.101.42</h2>
+        <span class="verdict-badge malicious">MALICIOUS</span>
+      </div>
+      <div class="verdict-meta">Checked 2026-08-09 04:12 UTC · 4 of 5 sources consulted</div>
+    </header>
+
+    <div class="inspection-body">
+      <div class="sources-col">
+        <div class="source-card sev-malicious">
+          <div class="source-top"><span class="source-name">AbuseIPDB</span><span class="source-tag malicious">MALICIOUS</span></div>
+          <p class="source-summary">100% abuse confidence · 412 reports in 90 days</p>
+          <div class="source-fields">
+            <div class="field"><span class="field-label">Abuse confidence</span><span class="field-value">100%</span></div>
+            <div class="field"><span class="field-label">Reports (90 days)</span><span class="field-value">412</span></div>
+            <div class="field"><span class="field-label">Distinct reporters</span><span class="field-value">89</span></div>
+            <div class="field"><span class="field-label">Last reported</span><span class="field-value">2026-08-08</span></div>
+            <div class="field"><span class="field-label">ISP</span><span class="field-value">Example Hosting BV</span></div>
+            <div class="field"><span class="field-label">Usage type</span><span class="field-value">Data Center/Web Hosting/Transit</span></div>
+            <div class="field"><span class="field-label">Country</span><span class="field-value">NL</span></div>
+            <div class="field"><span class="field-label">Tor exit node</span><span class="field-value">yes</span></div>
+          </div>
+          <a class="source-link" href="https://www.abuseipdb.com/check/185.220.101.42" target="_blank" rel="noopener">abuseipdb.com/check/185.220.101.42 ↗</a>
+        </div>
+
+        <div class="source-card sev-malicious">
+          <div class="source-top"><span class="source-name">VirusTotal</span><span class="source-tag malicious">MALICIOUS</span></div>
+          <p class="source-summary">12/94 engines flag this as malicious</p>
+          <div class="source-fields">
+            <div class="field"><span class="field-label">Detections</span><span class="field-value">12 malicious · 2 suspicious · of 94</span></div>
+            <div class="field"><span class="field-label">Reputation</span><span class="field-value">-41</span></div>
+            <div class="field"><span class="field-label">Last analysed</span><span class="field-value">2026-08-08</span></div>
+            <div class="field"><span class="field-label">Sample detections</span><span class="field-value">Fortinet: Malicious · ESET: Tor.Exit</span></div>
+          </div>
+          <a class="source-link" href="https://www.virustotal.com/gui/ip-address/185.220.101.42" target="_blank" rel="noopener">virustotal.com/gui/ip-address/185.220.101.42 ↗</a>
+        </div>
+
+        <div class="source-card sev-malicious">
+          <div class="source-top"><span class="source-name">GreyNoise</span><span class="source-tag malicious">MALICIOUS</span></div>
+          <p class="source-summary">Opportunistic internet scanner — mass activity, not targeted</p>
+          <div class="source-fields">
+            <div class="field"><span class="field-label">Classification</span><span class="field-value">malicious</span></div>
+            <div class="field"><span class="field-label">Actor</span><span class="field-value">Tor Exit Node</span></div>
+            <div class="field"><span class="field-label">Internet noise</span><span class="field-value">yes</span></div>
+            <div class="field"><span class="field-label">Last seen</span><span class="field-value">2026-08-08</span></div>
+          </div>
+          <a class="source-link" href="https://viz.greynoise.io/ip/185.220.101.42" target="_blank" rel="noopener">viz.greynoise.io/ip/185.220.101.42 ↗</a>
+        </div>
+
+        <div class="source-card sev-context">
+          <div class="source-top"><span class="source-name">ipinfo</span><span class="source-tag context">CONTEXT</span></div>
+          <p class="source-summary">Berlin, State of Berlin, DE · AS60729</p>
+          <div class="source-fields">
+            <div class="field"><span class="field-label">Location</span><span class="field-value">Berlin, State of Berlin, DE</span></div>
+            <div class="field"><span class="field-label">ASN</span><span class="field-value">AS60729</span></div>
+            <div class="field"><span class="field-label">Organisation</span><span class="field-value">Stiftung Erneuerbare Freiheit</span></div>
+            <div class="field"><span class="field-label">Reverse hostname</span><span class="field-value">tor-exit-42.for-privacy.net</span></div>
+            <div class="field"><span class="field-label">Timezone</span><span class="field-value">Europe/Berlin</span></div>
+          </div>
+          <a class="source-link" href="https://ipinfo.io/185.220.101.42" target="_blank" rel="noopener">ipinfo.io/185.220.101.42 ↗</a>
+        </div>
+
+        <div class="not-consulted"><b>Not consulted —</b> MalwareBazaar (not configured)</div>
+      </div>
+
+      <aside class="escalation-col">
+        <div class="escalation-card">
+          <span class="panel-title">Escalation card</span>
+          <pre id="escalationText">SOCDesk — Indicator Review
+185.220.101.42 — IP ADDRESS — MALICIOUS
+Checked 2026-08-09 04:12 UTC
+
+AbuseIPDB — MALICIOUS
+100% abuse confidence, 412 reports/90d, 89 reporters
+ISP Example Hosting BV · NL · Tor exit node: yes
+
+VirusTotal — MALICIOUS
+12/94 engines flag malicious · Reputation -41
+Fortinet: Malicious · ESET: Tor.Exit
+
+GreyNoise — MALICIOUS
+Opportunistic scanner, Tor Exit Node, not targeted
+
+ipinfo — CONTEXT
+Berlin, DE · AS60729 · Stiftung Erneuerbare Freiheit
+tor-exit-42.for-privacy.net
+
+Not consulted: MalwareBazaar (not configured)
+
+Compiled from sources above, each linked for
+verification. SOCDesk · socdesk.io</pre>
+          <button class="btn-primary" id="copyBtn" type="button">
+            <svg viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.3" stroke="currentColor" stroke-width="1.3"/><path d="M3 10.5V3.8A1.3 1.3 0 0 1 4.3 2.5h6.7" stroke="currentColor" stroke-width="1.3"/></svg>
+            Copy escalation card
+          </button>
+          <p class="escalation-hint">Paste directly into the ticket. Verdict and figures are the sources' own assessments at check time.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+<style>
+  .tag-fixed{
+    position:fixed;left:18px;bottom:18px;z-index:80;
+    font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.14em;
+    color:var(--text-tertiary);background:rgba(14,18,25,.72);
+    border:1px solid var(--border);border-radius:999px;padding:6px 12px 6px 10px;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    display:flex;align-items:center;gap:7px;user-select:none;
+  }
+  .tag-fixed::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+
+  .hero-backdrop.globe-fallback #globe{display:none}
+  .hero-backdrop.globe-fallback::after{
+    content:'';position:absolute;inset:6%;border-radius:50%;
+    background:radial-gradient(circle at 38% 32%,rgba(76,141,255,.20),rgba(10,13,20,.92) 70%);
+    border:1px solid var(--border);
+  }
+
+  @media (max-width:980px){
+    .hero-content{grid-template-columns:1fr}
+    .hero-right{justify-content:flex-start;margin-top:8px}
+    .country-panel{max-width:380px}
+    .hero-backdrop{opacity:.4;right:-28%;top:20%}
+    .glimpse-grid{grid-template-columns:1fr}
+    .inspection-body{grid-template-columns:1fr}
+    .sources-col{border-right:none}
+    .escalation-col{position:static}
+    .topnav{display:none}
+  }
+  @media (max-width:640px){
+    .stat-strip{grid-template-columns:repeat(2,1fr)}
+    .stat:nth-child(2n){border-right:none}
+    .topbar{padding:14px 18px}
+    .hero{padding:28px 18px 40px}
+    .glimpse{padding:0 18px 80px}
+    .source-fields{grid-template-columns:1fr}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  }
+</style>
+
+<div class="tag-fixed">COMMAND</div>
+
+<script>
+(function(){
+  "use strict";
+  var REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- Sample data: ~40 malicious-IP origin points (lat, lng, label, severity) ---- */
+  var MARKERS = [
+    {location:[55.7558,37.6173],label:'Moscow, RU',severity:'high'},
+    {location:[55.0084,82.9357],label:'Novosibirsk, RU',severity:'elevated'},
+    {location:[56.8389,60.6057],label:'Yekaterinburg, RU',severity:'elevated'},
+    {location:[39.9042,116.4074],label:'Beijing, CN',severity:'high'},
+    {location:[31.2304,121.4737],label:'Shanghai, CN',severity:'high'},
+    {location:[22.3193,114.1694],label:'Hong Kong, HK',severity:'elevated'},
+    {location:[23.1291,113.2644],label:'Guangzhou, CN',severity:'elevated'},
+    {location:[37.7749,-122.4194],label:'San Francisco, US',severity:'elevated'},
+    {location:[39.0438,-77.4874],label:'Ashburn, US',severity:'high'},
+    {location:[40.7128,-74.0060],label:'New York, US',severity:'elevated'},
+    {location:[41.8781,-87.6298],label:'Chicago, US',severity:'context'},
+    {location:[52.3676,4.9041],label:'Amsterdam, NL',severity:'high'},
+    {location:[51.9244,4.4777],label:'Rotterdam, NL',severity:'elevated'},
+    {location:[50.1109,8.6821],label:'Frankfurt, DE',severity:'elevated'},
+    {location:[52.5200,13.4050],label:'Berlin, DE',severity:'high'},
+    {location:[-23.5505,-46.6333],label:'São Paulo, BR',severity:'elevated'},
+    {location:[-15.7939,-47.8828],label:'Brasília, BR',severity:'context'},
+    {location:[21.0278,105.8342],label:'Hanoi, VN',severity:'elevated'},
+    {location:[10.8231,106.6297],label:'Ho Chi Minh City, VN',severity:'elevated'},
+    {location:[35.6892,51.3890],label:'Tehran, IR',severity:'elevated'},
+    {location:[50.4501,30.5234],label:'Kyiv, UA',severity:'elevated'},
+    {location:[49.9935,36.2304],label:'Kharkiv, UA',severity:'context'},
+    {location:[19.0760,72.8777],label:'Mumbai, IN',severity:'context'},
+    {location:[28.6139,77.2090],label:'New Delhi, IN',severity:'context'},
+    {location:[-6.2088,106.8456],label:'Jakarta, ID',severity:'context'},
+    {location:[6.5244,3.3792],label:'Lagos, NG',severity:'context'},
+    {location:[44.4268,26.1025],label:'Bucharest, RO',severity:'elevated'},
+    {location:[41.0082,28.9784],label:'Istanbul, TR',severity:'context'},
+    {location:[37.5665,126.9780],label:'Seoul, KR',severity:'context'},
+    {location:[1.3521,103.8198],label:'Singapore, SG',severity:'context'},
+    {location:[51.5072,-0.1276],label:'London, GB',severity:'context'},
+    {location:[48.8566,2.3522],label:'Paris, FR',severity:'context'},
+    {location:[52.2297,21.0122],label:'Warsaw, PL',severity:'elevated'},
+    {location:[19.4326,-99.1332],label:'Mexico City, MX',severity:'context'},
+    {location:[-34.6037,-58.3816],label:'Buenos Aires, AR',severity:'context'},
+    {location:[-26.2041,28.0473],label:'Johannesburg, ZA',severity:'context'},
+    {location:[24.8607,67.0011],label:'Karachi, PK',severity:'context'},
+    {location:[13.7563,100.5018],label:'Bangkok, TH',severity:'context'},
+    {location:[30.0444,31.2357],label:'Cairo, EG',severity:'context'},
+    {location:[43.6532,-79.3832],label:'Toronto, CA',severity:'context'},
+    {location:[50.0755,14.4378],label:'Prague, CZ',severity:'elevated'}
+  ];
+
+  var COUNTRIES = [
+    {code:'RU',name:'Russia',count:412},
+    {code:'NL',name:'Netherlands',count:388},
+    {code:'CN',name:'China',count:341},
+    {code:'US',name:'United States',count:298},
+    {code:'DE',name:'Germany',count:210},
+    {code:'VN',name:'Vietnam',count:178},
+    {code:'RO',name:'Romania',count:152},
+    {code:'UA',name:'Ukraine',count:134}
+  ];
+
+  function renderCountries(){
+    var list = document.getElementById('countryList');
+    if(!list) return;
+    var max = Math.max.apply(null, COUNTRIES.map(function(c){return c.count}));
+    var html = '';
+    COUNTRIES.forEach(function(c){
+      var pct = Math.round((c.count/max)*100);
+      html += '<li class="country-row">' +
+        '<span class="cflag">'+c.code+'</span>' +
+        '<span class="cname">'+c.name+'</span>' +
+        '<span class="country-count">'+c.count.toLocaleString()+'</span>' +
+        '<span class="country-bar-track"><span class="country-bar-fill" style="width:'+pct+'%"></span></span>' +
+        '</li>';
+    });
+    list.innerHTML = html;
+  }
+  renderCountries();
+
+  /* ---- Globe (cobe) ---- */
+  var globeInstance = null;
+  function initGlobe(){
+    var canvas = document.getElementById('globe');
+    var wrap = canvas ? canvas.parentElement : null;
+    if(!canvas || typeof window.createGlobe === 'undefined'){
+      if(wrap) wrap.classList.add('globe-fallback');
+      return;
+    }
+    var phi = 0.4;
+    var markers = MARKERS.map(function(m){
+      return {location:m.location, size: m.severity==='high'?0.085:(m.severity==='elevated'?0.058:0.038)};
+    });
+    try{
+      globeInstance = window.createGlobe(canvas, {
+        devicePixelRatio: Math.min(window.devicePixelRatio||1,2),
+        width: 1520, height: 1520,
+        phi: 0.4, theta: 0.28,
+        dark: 1, diffuse: 1.3,
+        mapSamples: 15000, mapBrightness: 5.5,
+        baseColor: [0.16,0.19,0.27],
+        markerColor: [0.98,0.36,0.27],
+        glowColor: [0.22,0.34,0.55],
+        markers: markers,
+        onRender: function(state){
+          if(!REDUCED_MOTION){ phi += 0.0026; }
+          state.phi = phi;
+        }
+      });
+      if(window.gsap){ gsap.to(canvas,{opacity:1,duration:1.2,delay:.25,ease:'power2.out'}); }
+      else { canvas.style.opacity = 1; }
+    }catch(e){
+      if(wrap) wrap.classList.add('globe-fallback');
+    }
+  }
+  initGlobe();
+
+  /* ---- Intro reveal ---- */
+  function countUp(){
+    document.querySelectorAll('.stat-value').forEach(function(el){
+      var target = parseInt(el.getAttribute('data-count'),10) || 0;
+      if(REDUCED_MOTION || !window.gsap){ el.textContent = target.toLocaleString(); return; }
+      var obj = {v:0};
+      gsap.to(obj,{
+        v:target, duration:1.3, ease:'power2.out',
+        onUpdate:function(){ el.textContent = Math.round(obj.v).toLocaleString(); }
+      });
+    });
+  }
+
+  function runIntro(){
+    if(!window.gsap){ countUp(); return; }
+    if(REDUCED_MOTION){
+      gsap.set('.topbar, .hero-left > *, .hero-right, .glimpse',{opacity:1,y:0,x:0});
+      countUp();
+      return;
+    }
+    var tl = gsap.timeline({defaults:{ease:'power3.out'}});
+    tl.from('.topbar',{y:-16,opacity:0,duration:.5})
+      .from('.hero-left .eyebrow',{y:10,opacity:0,duration:.4},'-=.2')
+      .from('.hero-left h1',{y:16,opacity:0,duration:.55},'-=.28')
+      .from('.hero-sub',{y:14,opacity:0,duration:.5},'-=.35')
+      .from('.lookup-bar',{y:14,opacity:0,duration:.5},'-=.32')
+      .from('.lookup-try',{y:10,opacity:0,duration:.4},'-=.3')
+      .from('.stat-strip .stat',{y:12,opacity:0,duration:.4,stagger:.06},'-=.22')
+      .from('.country-panel',{x:16,opacity:0,duration:.55},'-=.55')
+      .add(countUp,'-=.35');
+  }
+
+  /* ---- Indicator type detection ---- */
+  function detectType(v){
+    v = (v||'').trim();
+    if(/^cve-\d{4}-\d{4,7}$/i.test(v)) return 'CVE';
+    if(/^[a-f0-9]{32}$/i.test(v) || /^[a-f0-9]{40}$/i.test(v) || /^[a-f0-9]{64}$/i.test(v)) return 'HASH';
+    if(/^https?:\/\//i.test(v)) return 'URL';
+    if(/^(\d{1,3}\.){3}\d{1,3}$/.test(v)) return 'IP';
+    if(v.indexOf(':') > -1 && /^[0-9a-f:]+$/i.test(v)) return 'IP';
+    if(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(v)) return 'DOMAIN';
+    return 'IOC';
+  }
+
+  /* ---- Inspection module (the focused verdict layer) ---- */
+  var DEMO_STUB = '185.220.101.42';
+  var scrim = document.getElementById('scrim');
+  var inspection = document.getElementById('inspection');
+  var panel = document.getElementById('inspectionPanel');
+  var lastFocused = null;
+  var noticeEl = null;
+
+  function ensureNotice(){
+    if(noticeEl) return noticeEl;
+    var head = document.querySelector('.inspection-head');
+    noticeEl = document.createElement('div');
+    noticeEl.style.cssText = 'margin-top:14px;padding:9px 12px;border:1px solid var(--border);'+
+      'border-radius:8px;background:var(--bg-elevated);font-family:var(--mono);font-size:11px;'+
+      'color:var(--text-tertiary);display:none;';
+    noticeEl.textContent = 'Demo — showing the sample verdict stubbed for 185.220.101.42. Live lookups aren’t wired in this mockup.';
+    head.appendChild(noticeEl);
+    return noticeEl;
+  }
+
+  function openInspection(value){
+    value = (value || '').trim();
+    var notice = ensureNotice();
+    notice.style.display = (value && value !== DEMO_STUB) ? 'block' : 'none';
+
+    lastFocused = document.activeElement;
+    scrim.classList.add('is-open');
+    inspection.classList.add('is-open');
+    inspection.setAttribute('aria-hidden','false');
+    document.body.style.overflow = 'hidden';
+
+    if(window.gsap && !REDUCED_MOTION){
+      gsap.killTweensOf([panel,'.source-card','.escalation-col']);
+      gsap.set(panel,{opacity:0,y:28,scale:.98});
+      gsap.to(panel,{opacity:1,y:0,scale:1,duration:.5,ease:'power3.out'});
+      gsap.fromTo('.source-card',{opacity:0,y:10},{opacity:1,y:0,duration:.4,stagger:.05,delay:.12,ease:'power2.out'});
+      gsap.fromTo('.escalation-col',{opacity:0,x:12},{opacity:1,x:0,duration:.45,delay:.2,ease:'power2.out'});
+    } else if(window.gsap){
+      gsap.set(panel,{opacity:1,y:0,scale:1});
+    }
+    var closeBtn = document.getElementById('closeInspection');
+    if(closeBtn) closeBtn.focus();
+  }
+
+  function closeInspection(){
+    scrim.classList.remove('is-open');
+    inspection.classList.remove('is-open');
+    inspection.setAttribute('aria-hidden','true');
+    document.body.style.overflow = '';
+    if(lastFocused && lastFocused.focus) lastFocused.focus();
+  }
+
+  document.getElementById('closeInspection').addEventListener('click', closeInspection);
+  scrim.addEventListener('click', closeInspection);
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && inspection.classList.contains('is-open')) closeInspection();
+  });
+
+  /* ---- Lookup form wiring ---- */
+  var form = document.getElementById('lookupForm');
+  var input = document.getElementById('lookupInput');
+  var typeEl = document.getElementById('lookupType');
+
+  if(input){
+    input.addEventListener('input', function(){
+      typeEl.textContent = input.value.trim() ? detectType(input.value) : 'IP';
+    });
+  }
+  if(form){
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      openInspection(input.value.trim() || DEMO_STUB);
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.chip[data-demo]'), function(chip){
+    chip.addEventListener('click', function(){
+      var v = chip.getAttribute('data-demo');
+      input.value = v;
+      typeEl.textContent = detectType(v);
+      openInspection(v);
+    });
+  });
+
+  /* ---- Escalation card copy ---- */
+  var copyBtn = document.getElementById('copyBtn');
+  function fallbackCopy(text, cb){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try{ document.execCommand('copy'); }catch(err){}
+    document.body.removeChild(ta);
+    cb();
+  }
+  if(copyBtn){
+    copyBtn.addEventListener('click', function(){
+      var text = document.getElementById('escalationText').textContent;
+      var original = copyBtn.innerHTML;
+      var done = function(){
+        copyBtn.classList.add('copied');
+        copyBtn.textContent = 'Copied to clipboard';
+        setTimeout(function(){
+          copyBtn.classList.remove('copied');
+          copyBtn.innerHTML = original;
+        }, 1800);
+      };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done, function(){ fallbackCopy(text, done); });
+      } else {
+        fallbackCopy(text, done);
+      }
+    });
+  }
+
+  /* ---- Hover polish for cards (skipped entirely under reduced motion) ---- */
+  if(window.gsap && !REDUCED_MOTION){
+    Array.prototype.forEach.call(document.querySelectorAll('.glimpse-card, .source-card'), function(card){
+      card.addEventListener('mouseenter', function(){ gsap.to(card,{y:-2,duration:.25,ease:'power2.out'}); });
+      card.addEventListener('mouseleave', function(){ gsap.to(card,{y:0,duration:.3,ease:'power2.out'}); });
+    });
+  }
+
+  runIntro();
+})();
+</script>
+</body>
+</html>
