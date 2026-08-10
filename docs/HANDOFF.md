@@ -1,6 +1,58 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Read this first, then `docs/AUTOMATION.md`, `COMPLIANCE.md`, `design-system.md`.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-10 · **Read §0 first.**
+
+---
+
+## 0. LATEST — 2026-08-10 (design pivot · consensus model · extension)
+
+Major changes since the body below was written. **These supersede the stale
+parts, especially §5 "Design law," which describes the abandoned look.**
+
+**Design pivot — Chart Room is OUT; "RADAR" is the direction.** The owner
+reopened the visual identity (§5's "settled, do not re-litigate" no longer
+holds — do not follow it). A 3-way bake-off (RADAR / COMMAND / SIGNAL) picked
+**RADAR**: dark, search-first, an interactive real-data threat globe as an
+analytics hero, teal accent, a **data-table enrichment card**. Iterations:
+`design/mockups/rebuild-radar-v{1,2,3}.html` (v3 = globe.gl scroll-zoom +
+hover-to-reveal-TI, refined monoline mug mark, trimmed copy). In flight: a
+**branding pass** (logo + wordmark + a replacement font — Bricolage isn't
+landing) producing `design/mockups/brand-sheet.html`, and a reference-library
+review (Watermelon UI, Motion Primitives, Haikei). Elevation research:
+`docs/superpowers/specs/2026-08-02-frontend-elevation-charter.md`. Next build =
+**RADAR v4** (final logo/font + hero-scale globe + rich escalation card +
+consensus data), pending the owner's brand-sheet picks.
+
+**Stack decision — production rebuild moves to React + Vite + Tailwind +
+shadcn/ui + Recharts + globe.gl** (the vanilla site stays live meanwhile).
+`ui-ux-pro-max` is now the design engine (skill; CLI `search.py` under its dir).
+Watermelon UI (MIT, this exact stack) is a component starter kit for it.
+
+**Verdict language — the CONSENSUS-TALLY model (`docs/VERDICT-LANGUAGE.md`,
+binding).** SOCDesk NO LONGER emits a verdict word ("malicious"/etc.) in its own
+voice. It leads with a source-consensus ratio — "**N of M** public sources
+flagged this as adverse" (VT-style; a count, not a pronouncement). ipinfo =
+context (out of the tally); no-key sources shown "not consulted." Being
+implemented across `lib/enrich.mjs` (new `consensus()`; response gains
+`consulted`/`flagged`/`tone`, drops top-level `verdict`), the site, and the
+extension **in lockstep**. Escalation card carries **NO recommendation** (the
+analyst's call), copy button is **`COPY`**, and becomes a designed artifact.
+
+**Browser extension — v1 built (`extension/`), permission-reviewed, works.** MV3,
+minimal perms (`contextMenus`, `storage`; host = socdesk.io + socdesk.pages.dev
+only — NO broad host, NO content script yet). Right-click lookup + toolbar popup
+over the live `/api/enrich`. v2 = inline page annotation (broad perms — later).
+Publisher identity = **SanchezOnSecurity**; owner's Chrome Web Store dev account
+is set up. Privacy policy hosted at **`socdesk.io/privacy.html`**. Reach roadmap:
+`docs/superpowers/specs/2026-08-10-analyst-reach-scope.md`.
+
+**Privacy stance relaxed** — the "no analytics/no tracking" promise is dropped
+(owner: not essential). Cloudflare Web Analytics is fine; if its beacon
+CSP-errors, ALLOW it rather than disable. `site/privacy.html` reflects this.
+
+**Concurrency caution:** background implementation agents edit the working tree.
+Don't run `git pull --rebase` on a dirty tree; commit only your own files
+explicitly and let each agent commit its own.
 
 ---
 
@@ -116,7 +168,13 @@ payload currently ships unread. Wiring it is the cheapest remaining win.
 
 ---
 
-## 5. Design law (binding)
+## 5. Design law — ⚠️ SUPERSEDED (see §0)
+
+**Historical.** The owner pivoted away from Chart Room to the RADAR direction on
+2026-08-10; the fonts, the "settled — do not re-litigate" note, and the mug
+lockup rules below are being replaced (branding pass in flight). Do NOT apply
+this section to new design work — follow §0 and the RADAR mockups. Kept for
+context only.
 
 `design-system.md` v4 **"Chart Room"** — brutalist-editorial print.
 
@@ -189,15 +247,32 @@ Both now have regression tests.
 
 ---
 
-## 8. Pending — owner actions
+## 8. Pending — owner actions & open work
 
-- ~~Stand up the Cloudflare Pages project~~ **DONE 2026-08-10.** Project up,
-  Actions secrets set, enrichment keys set as Pages secrets (GreyNoise left
-  blank — runs keyless by design), custom domain attached. Live + verified.
-- **Next (not a blocker): dogfood.** 2-3 analysts run real alerts through the
-  live site for a shift; fix what they trip on (BACKLOG P1).
-- Optional: read the employment IP-assignment clause before promoting widely
-  (parked by owner; gates the repo-private decision and the Leg-3 sensor).
+**Owner:**
+- ~~Cloudflare Pages~~ **DONE.** ~~Chrome Web Store dev account~~ **DONE**
+  (under `carlos@sanchezonsecurity.com`, a Cloudflare-forwarded alias — created
+  the Google account via "use existing email"; publisher = SanchezOnSecurity).
+- **Design picks (gates RADAR v4):** from the branding brand-sheet, choose the
+  logo variant + wordmark lockup + replacement font.
+- **Extension → store:** owner smoke-tested v1 (works). Remaining before submit:
+  final mug icons (from the branding pass), package zip, submit **Unlisted**
+  first with `socdesk.io/privacy.html` as the policy URL.
+- Optional: employment IP-assignment clause (gates repo-private + Leg-3 sensor).
+
+**Open code work (next):**
+- **Escalation card fix** — the consensus-tally agent shipped it (commit
+  `4221cc3`) against the *pre-feedback* spec, so it still has a recommended-action
+  line and a "Copy for ticket" label. Per the updated `VERDICT-LANGUAGE.md`:
+  remove the recommendation from the copy-out card (analyst's call) and rename
+  the button to **`COPY`**, on both site (`verdict.js`) and extension
+  (`popup.js`), updating the tests. Small but explicit.
+- **RADAR v4 build** — after brand picks: React+shadcn production frontend with
+  the hero-scale globe (globe.gl + Spotlight/progressive-blur so it isn't
+  confined to a small circle), richer per-dot hover TI, and the escalation card
+  as a designed artifact (Watermelon-UI-style). Reference adoptions in the
+  reference-review (Watermelon UI / Motion Primitives / Haikei geometric-only).
+- **Dogfood** — 2-3 analysts run real alerts through the live tool + extension.
 
 ---
 
@@ -229,8 +304,14 @@ non-negotiables recorded in BACKLOG history / git).
 | `docs/RELATIONSHIPS.md` | The relationship index and why there is no node-link graph |
 | `docs/AUTOMATION.md` | The autonomous build loop, Definition of Done, hard gates |
 | `COMPLIANCE.md` | Licensing/legal findings + launch gates. **Read before adding any data source.** |
-| `design-system.md` | Chart Room v4 — binding visual law |
-| `design/brand.md` | Brand book (partly stale: "lit I" rule and triangulation mark are dead — mug seal replaced them) |
+| `docs/VERDICT-LANGUAGE.md` | **BINDING** — the consensus-tally model ("N of M flagged"), per-source attribution, escalation card (no recs, COPY), CVE language |
+| `docs/superpowers/specs/2026-08-10-analyst-reach-scope.md` | Bookmarklet / context-menu / MV3 extension reach roadmap |
+| `docs/superpowers/specs/2026-08-02-frontend-elevation-charter.md` | Front-end elevation research (motion engines, native APIs, stack) |
+| `extension/` | MV3 browser extension v1 (`README.md` = load/test/ship; `PRIVACY.md`) |
+| `site/privacy.html` | Hosted privacy policy (the store submission URL) |
+| `design/mockups/rebuild-radar-v{1,2,3}.html` | The RADAR direction iterations (v3 current); `brand-sheet.html` = branding options |
+| `design-system.md` | Chart Room v4 — ⚠️ SUPERSEDED by the RADAR direction (see §0) |
+| `design/brand.md` | Brand book — partly stale; the mug is being refined in the branding pass |
 | `BACKLOG.md` | Wave-2 collectors, knock-knock review, honeypot architecture + security review, CARL port notes |
 | `docs/INFRASTRUCTURE-OPTIONS.md` | What each infra tier unlocks and costs |
 | `docs/superpowers/plans/` | Phase A (pipeline, done) and Phase B (site) plans |
