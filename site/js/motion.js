@@ -25,12 +25,33 @@ if (g) {
 
 const hasScramble = () => !!(g && typeof ScrambleTextPlugin !== "undefined");
 
-/** Decode text into place. Falls back to plain assignment. */
+/** Decode text into place. Falls back to plain assignment.
+ *
+ * The scramble is decorative; the RESOLVED text is not. A tween that is killed
+ * mid-flight, re-fired over itself, or stalled by a starved ticker (a lookup
+ * fired in a backgrounded tab, a dropped animation frame) must never strand
+ * gibberish on screen — the masthead tagline shipped frozen on scramble glyphs
+ * exactly this way. So the final text is guaranteed three ways: the newest
+ * requested text wins (re-fire guard), it is written on the tween's own
+ * completion or interruption, and a timeout backstops a scramble that never
+ * ends. All of it degrades to a plain assignment when GSAP or scramble is
+ * absent, and to nothing at all under prefers-reduced-motion (g is null). */
 export function decode(el, text, dur = .9) {
   if (!el) return null;
-  if (!hasScramble()) { el.textContent = text; return null; }
-  return g.to(el, { duration: dur, ease: "none",
-    scrambleText: { text, chars: SCRAM, speed: .4 } });
+  const finalText = String(text);
+  el._decodeTarget = finalText;                       // newest intent wins on any settle
+  if (!hasScramble()) { el.textContent = finalText; return null; }
+  const settle = () => { el.textContent = el._decodeTarget; };
+  g.killTweensOf(el);                                 // a re-fire can't leave two scrambles fighting
+  const tw = g.to(el, {
+    duration: dur, ease: "none",
+    scrambleText: { text: finalText, chars: SCRAM, speed: .4 },
+    onComplete: settle, onInterrupt: settle,
+  });
+  // Backstop: if the tween has not landed the text within its own duration plus
+  // a margin (a stalled ticker never fires onComplete), force it.
+  setTimeout(() => { if (el.textContent !== el._decodeTarget) settle(); }, dur * 1000 + 400);
+  return tw;
 }
 
 /** Count a numeral up once, expo-out, tabular. */
