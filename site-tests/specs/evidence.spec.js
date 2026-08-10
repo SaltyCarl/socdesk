@@ -8,7 +8,9 @@ const { test, expect } = require("@playwright/test");
 const RESULT = {
   indicator: "185.220.101.42", type: "ipv4",
   checked_at: "2026-08-09T04:12:00.000Z",
-  verdict: "malicious",
+  // The consensus tally replaces the old single-word verdict: 3 of 3 consulted
+  // reputation sources flagged it (ipinfo is context, not consulted).
+  flagged: 3, consulted: 3, tone: "red",
   sources: [
     { name: "AbuseIPDB", verdict: "malicious",
       headline: "100% abuse confidence · 412 reports in 90 days",
@@ -47,11 +49,10 @@ const model = (page, result) => page.evaluate(async r => {
 test.describe("escalation evidence card", () => {
   test.beforeEach(async ({ page }) => { await load(page); });
 
-  test("geolocation is labelled context, never given a verdict", async ({ page }) => {
-    // Where an address is hosted says nothing about whether it is hostile.
-    // Printing UNKNOWN beside it would imply we asked and got a shrug, and it
-    // must not drag the headline verdict around either.
-    const m = await model(page, { ...RESULT, verdict: "malicious", sources: [
+  test("geolocation is labelled context, never counted in the tally", async ({ page }) => {
+    // Where an address is hosted says nothing about whether it is hostile. It is
+    // context — excluded from N and M — and it must sit last, after the findings.
+    const m = await model(page, { ...RESULT, sources: [
       ...RESULT.sources,
       { name: "ipinfo", kind: "context", verdict: "unknown",
         headline: "Berlin, State of Berlin, DE · AS60729",
@@ -61,9 +62,10 @@ test.describe("escalation evidence card", () => {
 
     const geo = m.blocks.find(b => b.name === "ipinfo");
     expect(geo.kind).toBe("context");
-    expect(geo.verdict).toBeNull();
     expect(m.blocks[m.blocks.length - 1].name).toBe("ipinfo");   // context last
-    expect(m.verdictWord).toBe("MALICIOUS");
+    // the tally is unaffected by adding context
+    expect(m.tallyNum).toBe("3 / 3");
+    expect(m.tone).toBe("red");
   });
 
   test("the card says what produced it", async ({ page }) => {
@@ -92,18 +94,23 @@ test.describe("escalation evidence card", () => {
     expect(m.notConsulted).toEqual(["MalwareBazaar (not configured)"]);
   });
 
-  test("the headline states the verdict in words a recipient can act on", async ({ page }) => {
+  test("the headline is the ratio, in words a recipient can act on", async ({ page }) => {
     const m = await model(page, RESULT);
-    expect(m.verdictWord).toBe("MALICIOUS");
+    expect(m.tallyNum).toBe("3 / 3");
+    expect(m.headline).toContain("3 of 3 consulted sources flagged this as adverse");
     expect(m.checkedAt).toBe("2026-08-09 04:12 UTC");
     expect(m.typeLabel).toBe("IP ADDRESS");
 
-    // "benign" must never render as a clean bill of health — the sources we
-    // asked found nothing, which is not the same as the indicator being safe.
-    const clean = await model(page, { ...RESULT, verdict: "benign", errors: [] });
-    expect(clean.verdictWord).toBe("NO ADVERSE FINDINGS");
-    const nothing = await model(page, { ...RESULT, verdict: "unknown", errors: [] });
-    expect(nothing.verdictWord).toBe("NO DATA ON RECORD");
+    // 0 of M must never render as a clean bill of health — the sources we asked
+    // found nothing, which is not the same as the indicator being safe.
+    const clean = await model(page, { ...RESULT, flagged: 0, consulted: 3, tone: "green", errors: [] });
+    expect(clean.tallyNum).toBe("0 / 3");
+    expect(clean.headline).toContain("no adverse findings");
+    expect(clean.headline).toContain("Not a clearance");
+    // nothing consulted → grey, and it is not evidence of safety
+    const nothing = await model(page, { ...RESULT, flagged: 0, consulted: 0, tone: "grey", errors: [] });
+    expect(nothing.tallyNum).toBe("0 / 0");
+    expect(nothing.headline).toContain("Not evidence of safety");
   });
 
   test("empty facts are dropped rather than printed as em dashes", async ({ page }) => {
@@ -156,7 +163,7 @@ test.describe("escalation evidence card", () => {
     const h = await page.evaluate(async () => {
       const { renderEvidence } = await import("./js/evidence.js");
       const long = { indicator: "d".repeat(64), type: "sha256",
-        checked_at: "2026-08-09T04:12:00.000Z", verdict: "malicious",
+        checked_at: "2026-08-09T04:12:00.000Z", flagged: 1, consulted: 1, tone: "red",
         sources: [{ name: "VirusTotal", verdict: "malicious",
           headline: "60/72 engines flag this as malicious",
           facts: [["Sample detections", "A".repeat(300)]],

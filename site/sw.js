@@ -11,7 +11,10 @@
 // BUMP THIS on every change to the shell (html/css/js). The shell is cached
 // cache-first, so without a bump returning visitors keep the old UI after a
 // deploy — this masked two changes during development before it was caught.
-const VERSION = "socdesk-v10";  // v10: live /api/enrich wired into the verdict
+const VERSION = "socdesk-v11";  // v11: consensus-tally verdict model — /api/enrich
+                                // returns N/M + tone (no single-word verdict);
+                                // gauge + attributed breakdown + §4 escalation
+                                // v10: live /api/enrich wired into the verdict
                                 // console (enrich-client.js) + tagline decode
                                 // never strands gibberish
                                 // v9: pivot diet — T1 workflow vendors only

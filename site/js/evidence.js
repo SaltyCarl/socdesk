@@ -26,12 +26,16 @@ const W = 760;            // CSS px — comfortable in an email body, not clippe
 const PAD = 30;
 const SCALE = 2;          // drawn at 2x so it stays crisp when scaled or printed
 
+import { tallyHeadline } from "./verdict.js";
+
 const INK = "#16202A", MUTED = "#5A6B7A", RULE = "#D8DFE5", BG = "#FFFFFF";
+// Tone inks keyed by the consensus-tally tone (red|amber|green|grey). These are
+// the print equivalents of the site's severity inks, tuned for a white ground.
 const TONE = {
-  malicious:  "#C0392B",
-  suspicious: "#B26A00",
-  benign:     "#1E7A46",
-  unknown:    "#5A6B7A",
+  red:   "#C0392B",
+  amber: "#B26A00",
+  green: "#1E7A46",
+  grey:  "#5A6B7A",
 };
 const SANS = '"Archivo", "Segoe UI", system-ui, sans-serif';
 const MONO = '"IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace';
@@ -49,28 +53,29 @@ const LABEL = {
  * tested without rendering a pixel.
  */
 export function evidenceModel(result, now = new Date()) {
-  const verdict = String(result?.verdict ?? "unknown").toLowerCase();
+  // The card carries the source-consensus tally, not a SOCDesk verdict word.
+  const flagged = Number(result?.flagged ?? 0);
+  const consulted = Number(result?.consulted ?? 0);
+  const tone = String(result?.tone ?? "grey");
   return {
     title: "INDICATOR REVIEW",
     indicator: result?.indicator ?? "",
     typeLabel: LABEL[result?.type] ?? String(result?.type ?? "").toUpperCase(),
     checkedAt: (result?.checked_at ?? now.toISOString()).replace("T", " ").slice(0, 16) + " UTC",
-    verdict,
-    verdictWord: {
-      malicious: "MALICIOUS", suspicious: "SUSPICIOUS",
-      benign: "NO ADVERSE FINDINGS", unknown: "NO DATA ON RECORD",
-    }[verdict] ?? "NO DATA ON RECORD",
-    // Assessments first, context (geolocation) last — the reader wants the
-    // judgement before the background.
+    flagged,
+    consulted,
+    tone,
+    tallyNum: `${flagged} / ${consulted}`,
+    headline: tallyHeadline(flagged, consulted),
+    // Attributed findings first, context (geolocation) last — the reader wants
+    // the reputation data before the background. No per-source verdict chip is
+    // printed: the tally above is the only assessment, each line is the source's
+    // own words (§3).
     blocks: [...(result?.sources ?? [])]
       .sort((a, b) => (a.kind === "context" ? 1 : 0) - (b.kind === "context" ? 1 : 0))
       .map(s => ({
         name: s.name,
         kind: s.kind === "context" ? "context" : "assessment",
-        // A context row is not withholding a verdict, it was never asked for
-        // one. Printing UNKNOWN beside it would misrepresent that.
-        verdict: s.kind === "context" ? null
-               : String(s.verdict ?? "unknown").toLowerCase(),
         headline: s.headline ?? "",
         facts: (s.facts ?? []).filter(([, v]) => v && v !== "—"),
         url: s.url ?? "",
@@ -132,7 +137,7 @@ function paint(ctx, m, draw) {
   };
   const mc = measurer();
   const inner = W - PAD * 2;
-  const tone = TONE[m.verdict] ?? TONE.unknown;
+  const tone = TONE[m.tone] ?? TONE.grey;
   let y = PAD;
 
   /* header ------------------------------------------------------------- */
@@ -148,24 +153,33 @@ function paint(ctx, m, draw) {
   put(m.typeLabel, `700 10px ${SANS}`, MUTED, PAD, y + 10);
   y += 22;
 
-  /* verdict band ------------------------------------------------------- */
+  /* consensus tally band ----------------------------------------------- */
   if (draw) {
     ctx.fillStyle = tone;
     ctx.fillRect(PAD, y, 4, 30);                 // a rule of colour, not a blob
   }
-  put(m.verdictWord, `800 19px ${SANS}`, tone, PAD + 14, y + 23);
-  y += 46;
+  put(m.tallyNum, `800 22px ${MONO}`, tone, PAD + 14, y + 24);
+  put("FLAGGED / CONSULTED", `700 9px ${SANS}`, MUTED,
+      PAD + 14 + (draw ? (ctx.font = `800 22px ${MONO}`, ctx.measureText(m.tallyNum).width) : 0) + 12,
+      y + 24);
+  y += 40;
+  for (const line of wrap(mc, m.headline, `400 13px ${SANS}`, inner)) {
+    put(line, `400 13px ${SANS}`, INK, PAD + 14, y + 13);
+    y += 18;
+  }
+  y += 8;
   rule(y); y += 22;
 
   /* one block per source ------------------------------------------------ */
   for (const b of m.blocks) {
     put(b.name.toUpperCase(), `700 12px ${SANS}`, INK, PAD, y + 12);
-    // Context rows get a neutral tag rather than a verdict chip.
-    const tag = b.kind === "context" ? "CONTEXT" : b.verdict.toUpperCase();
-    const tagTone = b.kind === "context" ? MUTED : (TONE[b.verdict] ?? TONE.unknown);
-    if (draw) ctx.font = `700 10px ${SANS}`;
-    put(tag, `700 10px ${SANS}`, tagTone,
-        W - PAD - (draw ? ctx.measureText(tag).width : 0), y + 12);
+    // Context rows are tagged so; reputation rows carry no verdict chip — the
+    // attributed headline beneath is the source's own finding, stated as fact.
+    if (b.kind === "context") {
+      if (draw) ctx.font = `700 10px ${SANS}`;
+      put("CONTEXT — NOT A VERDICT", `700 10px ${SANS}`, MUTED,
+          W - PAD - (draw ? ctx.measureText("CONTEXT — NOT A VERDICT").width : 0), y + 12);
+    }
     y += 20;
 
     for (const line of wrap(mc, b.headline, `400 13px ${SANS}`, inner)) {

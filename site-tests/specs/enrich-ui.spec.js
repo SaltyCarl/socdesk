@@ -18,11 +18,12 @@ test.use({ serviceWorkers: "block" });
 
 const IP = "185.220.101.42";
 
-// Shape per lib/enrich.mjs: malicious IP, one context row (ipinfo), one source
-// named-but-unconsulted (MalwareBazaar), partial:true.
+// Shape per lib/enrich.mjs: 3 of 3 consulted reputation sources flagged it, one
+// context row (ipinfo, excluded from the tally), one source named-but-
+// unconsulted (MalwareBazaar), partial:true.
 const MAL = {
   indicator: IP, type: "ipv4", checked_at: "2026-08-10T04:12:00.000Z",
-  verdict: "malicious",
+  flagged: 3, consulted: 3, tone: "red",
   sources: [
     { name: "AbuseIPDB", verdict: "malicious",
       headline: "100% abuse confidence · 412 reports in 90 days",
@@ -58,7 +59,7 @@ test.describe("live enrichment wiring", () => {
     await page.waitForFunction(() => document.querySelectorAll("#feedRows .row").length > 0);
   });
 
-  test("a loading state shows, then the live multi-source verdict replaces NOT IN CORPUS", async ({ page }) => {
+  test("a loading state shows, then the consensus tally replaces NOT IN CORPUS", async ({ page }) => {
     await page.route("**/api/enrich*", stub(MAL, { delay: 800 }));
 
     await lookup(page, IP);
@@ -67,20 +68,26 @@ test.describe("live enrichment wiring", () => {
     // is what sits above it, decoding in place).
     await expect(page.locator("#liveEnrich .live-status")).toContainText("Checking", { timeout: 4000 });
 
-    // Then the live answer arrives and takes over the headline.
-    await expect(page.locator("#liveEnrich .live-verdict .verdict-word"))
-      .toHaveText("MALICIOUS", { timeout: 8000 });
-    await expect(page.locator("#liveEnrich .live-verdict .verdict-word")).toHaveClass(/tone-red/);
+    // Then the tally arrives: N / M, colored by the ratio, with the §2 headline.
+    await expect(page.locator("#liveEnrich .tally .tally-num"))
+      .toHaveText("3 / 3", { timeout: 8000 });
+    await expect(page.locator("#liveEnrich .tally .tally-num")).toHaveClass(/tone-red/);
+    await expect(page.locator("#liveEnrich .tally-headline"))
+      .toContainText("3 of 3 consulted sources flagged this as adverse");
+    // SOCDesk never says a verdict word of its own for a live indicator
+    await expect(page.locator("#liveEnrich")).not.toContainText(/\bMALICIOUS\b/);
+
     // the static placeholder is REPLACED, not left contradicting the live answer
-    await expect(page.locator("#vword")).toHaveText("MALICIOUS", { timeout: 8000 });
+    await expect(page.locator("#vword")).toHaveText("3 / 3", { timeout: 8000 });
     await expect(page.locator("#vword")).toHaveClass(/tone-red/);
-    await expect(page.locator("#console .vc-head .caps").first()).toContainText("Live verdict");
-    // the on-screen escalation docket is rebuilt to the live assessment
-    await expect(page.locator("#escBody")).toContainText("MALICIOUS");
+    await expect(page.locator("#console .vc-head .caps").first()).toContainText("Live reputation");
+    // the on-screen escalation docket is rebuilt to the ratio-led §4 card
+    await expect(page.locator("#escBody")).toContainText("ASSESSMENT: 3 of 3 public reputation sources flagged this as adverse");
+    await expect(page.locator("#escBody")).toContainText("CAVEAT:");
     await expect(page.locator("#escBody")).not.toContainText("NOT IN CORPUS");
   });
 
-  test("every source is rendered with its verdict, facts and a verifiable link", async ({ page }) => {
+  test("every source is an attributed finding, with facts and a verifiable link", async ({ page }) => {
     await page.route("**/api/enrich*", stub(MAL));
     await lookup(page, IP);
     await expect(page.locator("#liveEnrich .src-block")).toHaveCount(4, { timeout: 8000 });
@@ -89,9 +96,13 @@ test.describe("live enrichment wiring", () => {
       .map(s => s.toLowerCase());
     expect(names.sort()).toEqual(["abuseipdb", "greynoise", "ipinfo", "virustotal"]);
 
-    // geolocation is CONTEXT, never dressed as a verdict
+    // each line attributes: the source name + its RAW finding, stated as fact
+    const abuse = page.locator("#liveEnrich .src-block", { hasText: "AbuseIPDB" });
+    await expect(abuse.locator(".src-headline")).toContainText("100% abuse confidence");
+
+    // geolocation is CONTEXT, explicitly not a verdict
     const geo = page.locator("#liveEnrich .src-block", { hasText: "ipinfo" });
-    await expect(geo.locator(".tag")).toHaveText("CONTEXT");
+    await expect(geo.locator(".tag")).toContainText("context — not a verdict");
 
     // every source links back, https only
     const hrefs = await page.locator("#liveEnrich .src-verify").evaluateAll(as => as.map(a => a.href));

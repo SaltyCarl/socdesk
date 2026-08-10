@@ -19,23 +19,18 @@
 //     result). Escape ALL of it with esc()/safeUrl() at render — same rule the
 //     feed renderer lives by.
 import { esc, safeUrl, copyToButton } from "./data.js";
-import { escalation, download, docketHTML } from "./verdict.js";
+import { download, toneClass, tallyHeadline, tallyEscalation, tallyDocketHTML } from "./verdict.js";
 import { renderEvidence, copyEvidence, downloadEvidence } from "./evidence.js";
 import { decode } from "./motion.js";
 
 const ENRICHABLE = new Set(["ipv4", "domain", "url", "md5", "sha1", "sha256"]);
 export const isEnrichable = t => ENRICHABLE.has(t);
 
-// The verdict roll-up is the worst credible answer (lib/enrich.mjs overall()).
-// Words are chosen so "benign" is never a clean bill of health and, per the
-// design law, gray is unknown and never green.
-const TONE = { malicious: "red", suspicious: "orange", benign: "green", unknown: "muted" };
-const WORD = {
-  malicious: "MALICIOUS", suspicious: "SUSPICIOUS",
-  benign: "NO ADVERSE FINDINGS", unknown: "NO DATA ON RECORD",
-};
-const toneOf = v => TONE[v] ?? "muted";
-const wordOf = v => WORD[v] ?? "NO DATA ON RECORD";
+// SOCDesk emits NO verdict word of its own (docs/VERDICT-LANGUAGE.md). The live
+// answer is a source-consensus tally — "N of M sources flagged this" — colored
+// by the ratio. `toneClass` (verdict.js) is the single mapping from the contract
+// tone (red|amber|green|grey) to a CSS ink; green is never a clearance and grey
+// (unknown) is never green.
 
 // The whole fan-out is bounded server-side (4.5s per upstream, run in
 // parallel); give the round-trip generous headroom, then stop waiting so the
@@ -82,11 +77,12 @@ function factsHTML(facts) {
   ).join("")}</div>`;
 }
 
+// One attributed line per source (§3): the source NAME, then its RAW finding as
+// fact — never promoted into a SOCDesk verdict. ipinfo is tagged "context — not
+// a verdict"; no verdict chip is ever shown, because the tally above is the only
+// assessment SOCDesk makes.
 function sourceBlockHTML(s) {
   const context = s.kind === "context";
-  const v = String(s.verdict ?? "unknown").toLowerCase();
-  const tag = context ? "CONTEXT" : (WORD[v] ? v.toUpperCase() : "UNKNOWN");
-  const tagTone = context ? "muted" : toneOf(v);
   const href = safeUrl(s.url);
   const shot = safeUrl(s.screenshot);
   const verify = href
@@ -95,11 +91,13 @@ function sourceBlockHTML(s) {
   const preview = shot
     ? `<a class="pivot src-verify" href="${shot}" target="_blank" rel="noopener noreferrer">Screenshot ↗</a>`
     : "";
+  const tag = context
+    ? `<span class="tag tone-muted">context — not a verdict</span>` : "";
   return `
     <div class="src-block">
       <div class="src-h">
         <span class="src-name">${esc(s.name)}</span>
-        <span class="tag tone-${tagTone}">${esc(tag)}</span>
+        ${tag}
       </div>
       <div class="src-headline">${esc(s.headline ?? "")}</div>
       ${factsHTML(s.facts)}
@@ -108,10 +106,25 @@ function sourceBlockHTML(s) {
 }
 
 function notConsultedHTML(errors) {
-  const rows = (errors ?? []).map(e => `${e.source} (${e.reason})`);
+  const rows = (errors ?? []).map(e => `${e.source} — not consulted (${e.reason})`);
   if (!rows.length) return "";
   return `<div class="ev"><div class="l">Not consulted — named, never hidden</div>
     <div class="live-gaps mono">${esc(rows.join(" · "))}</div></div>`;
+}
+
+// The VT-style consensus gauge: a ring filled N/M, colored by tone. The final
+// offset is baked in (no animation dependency), so it is correct the instant it
+// paints. `stroke-dashoffset` is an SVG presentation attribute, not a style="",
+// so it is CSP-clean.
+function tallyGauge(flagged, consulted, cls) {
+  const frac = consulted > 0 ? flagged / consulted : 0;
+  const r = 42, c = 2 * Math.PI * r, off = c * (1 - frac);
+  return `<svg class="gauge" viewBox="0 0 96 96" aria-hidden="true">
+    <circle class="track" cx="48" cy="48" r="${r}"></circle>
+    <circle class="arc tone-${cls}" cx="48" cy="48" r="${r}" stroke="currentColor"
+      stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
+      transform="rotate(-90 48 48)"></circle>
+  </svg>`;
 }
 
 function noteHTML(head, tone, body) {
@@ -121,52 +134,48 @@ function noteHTML(head, tone, body) {
 
 /** Replace the static router headline + on-screen docket so the console no
  *  longer contradicts the live answer, and re-point the copy/download controls
- *  at an escalation that carries the live findings. */
-function replaceStatic(consoleEl, staticVerdict, result, word, tone) {
+ *  at the §4 escalation card built from the live findings. */
+function replaceStatic(consoleEl, staticVerdict, result, cls) {
+  const num = `${result.flagged} / ${result.consulted}`;
   const vword = consoleEl.querySelector("#vword");
-  if (vword) {
-    vword.className = `verdict-word tone-${tone}`;
-    decode(vword, word, .45);
-  }
+  // decode() (not textContent): the static router verdict filled #vword via
+  // decode too, and its backstop timer settles to `_decodeTarget`. Re-firing
+  // decode updates that target to the live tally so the backstop can't revert us.
+  if (vword) { vword.className = `verdict-word tone-${cls}`; decode(vword, num, .45); }
   const caps = consoleEl.querySelector(".vc-head .caps");   // static header is first in DOM order
-  if (caps) { caps.className = `caps tone-${tone}`; caps.textContent = `Live verdict · ${staticVerdict.type}`; }
+  if (caps) { caps.className = `caps tone-${cls}`; caps.textContent = `Live reputation · ${staticVerdict.type}`; }
   const basis = consoleEl.querySelector(".vc-basis");
-  if (basis) basis.textContent =
-    `Composite of ${result.sources.length} public reputation source` +
-    `${result.sources.length === 1 ? "" : "s"}, each linked below for verification. ` +
-    `SOCDesk mirrors none of it — the escalation card is built from their own words.`;
-
-  // A live-aware verdict object so the copied escalation and the on-screen
-  // docket state the live assessment, with each source's line as public data.
-  const evidence = result.sources
-    .filter(s => s.kind !== "context")
-    .map(s => [s.name, s.headline])
-    .concat((result.errors ?? []).map(e => [e.source, `not consulted (${e.reason})`]));
-  const v2 = { ...staticVerdict, word, tone, score: null, basis: basis?.textContent ?? staticVerdict.basis, evidence };
+  if (basis) basis.textContent = tallyHeadline(result.flagged, result.consulted);
 
   const escBody = consoleEl.querySelector("#escBody");
-  if (escBody) escBody.innerHTML = docketHTML(v2);
+  if (escBody) escBody.innerHTML = tallyDocketHTML(result);
   consoleEl.querySelectorAll("[data-esc]").forEach(b => b.onclick = () => {
-    const mode = b.dataset.esc, was = b.textContent;
-    const text = escalation(v2, { markdown: mode !== "txt" });
-    if (mode === "dl") return download(`escalation-${v2.q}.md`, text, "text/markdown");
+    const was = b.textContent;
+    const text = tallyEscalation(result);
+    if (b.dataset.esc === "dl")
+      return download(`escalation-${result.indicator}.md`, text, "text/markdown");
     copyToButton(b, text, was);
   });
 }
 
 async function renderResult(consoleEl, box, staticVerdict, result) {
-  const word = wordOf(result.verdict), tone = toneOf(result.verdict);
+  const cls = toneClass(result.tone);
+  const headline = tallyHeadline(result.flagged, result.consulted);
   const checked = String(result.checked_at ?? "").replace("T", " ").slice(0, 16) + " UTC";
-  const n = result.sources.length;
+  const m = result.consulted;
 
   box.innerHTML = `
     <div class="vc-head">
-      <span class="caps tone-${tone}">Live reputation · ${esc(staticVerdict.type)}</span>
-      <span class="live-status mono">${esc(n)} source${n === 1 ? "" : "s"} · ${esc(checked)}</span>
+      <span class="caps tone-${cls}">Live reputation · ${esc(staticVerdict.type)}</span>
+      <span class="live-status mono">${esc(m)} consulted · ${esc(checked)}</span>
     </div>
-    <div class="live-verdict">
-      <span class="verdict-word tone-${tone}">${esc(word)}</span>
-      ${result.partial ? `<span class="live-partial mono">partial — one or more sources unavailable</span>` : ""}
+    <div class="tally">
+      ${tallyGauge(result.flagged, result.consulted, cls)}
+      <div class="tally-body">
+        <div class="tally-num tone-${cls}">${esc(result.flagged)} / ${esc(result.consulted)}</div>
+        <div class="tally-headline">${esc(headline)}</div>
+        ${result.partial ? `<span class="live-partial mono">partial — one or more sources unavailable</span>` : ""}
+      </div>
     </div>
     ${result.sources.map(sourceBlockHTML).join("")}
     ${notConsultedHTML(result.errors)}
@@ -181,7 +190,7 @@ async function renderResult(consoleEl, box, staticVerdict, result) {
       <div class="evcard-body" id="evCardBody"></div>
     </div>`;
 
-  replaceStatic(consoleEl, staticVerdict, result, word, tone);
+  replaceStatic(consoleEl, staticVerdict, result, cls);
 
   // Fonts must be resolved before the canvas is painted or it substitutes a
   // fallback face and the card looks nothing like the site (evidence.js).
