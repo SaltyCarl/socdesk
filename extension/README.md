@@ -28,10 +28,13 @@ Inline page annotation is deliberately deferred to v2.
    **attributed** line per source (name · its own raw finding · a `verify ↗`
    link), with `ipinfo` tagged "context — not a verdict" and an honest "not
    consulted" line for any sources without a key. Beneath it is a ratio-led
-   **escalation card** with a **Copy for ticket** button that copies the §4
-   assessment block straight into an email. SOCDesk never prints a verdict word
-   of its own — only the count and each source's attribution. An **Open full
-   report ↗** button jumps to the full SOCDesk report for the same indicator.
+   **escalation card** with a **COPY** button that copies the §4 assessment
+   block straight into an email. That copy-out wording is finalized to
+   `docs/VERDICT-LANGUAGE.md` §4 (consensus tally, no recommended action,
+   reworded caveat, neutral provenance) and is byte-identical to the site's
+   `site/js/verdict.js`. SOCDesk never prints a verdict word of its own — only
+   the count and each source's attribution. An **Open full report ↗** button
+   jumps to the full SOCDesk report for the same indicator.
 
 3. **Options** — set the SOCDesk origin (default `https://socdesk.io`), stored
    in `chrome.storage.sync`. Every fetch and every link uses this origin, so a
@@ -56,14 +59,18 @@ extension/
 ├─ icons/
 │  ├─ icon16.png
 │  ├─ icon48.png
-│  └─ icon128.png         placeholder seal mark — final art comes later
+│  └─ icon128.png         final coffee-mug mark (warm/periwinkle brand system)
 ├─ README.md
 └─ PRIVACY.md
 ```
 
-> **Icons are placeholders** (a bone diamond seal on Prussian-slate ink,
-> generated programmatically). Replace `icons/*.png` with final art before
-> store submission; the sizes (16/48/128) must stay the same.
+> **Icons are final.** The pixel coffee-mug mark — coffee-brown liquid
+> (`#A6612F`), golden crema (`#E0B36A`), cream rim, periwinkle steam
+> (`#7C8AFF`) — cut from the locked warm/periwinkle brand system
+> (`design/mockups/palette-warm-v2.html`) and set on a rounded dark warm tile
+> so it reads on both light and dark toolbars. Pixels land on integer
+> boundaries at 16/48/128 (crisp, no blur); the coffee-brown band carries the
+> "coffee" read at 16px where the steam collapses.
 
 ---
 
@@ -81,7 +88,7 @@ extension/
   adverse findings. Not a clearance.") with per-source rows.
 - **Popup, hostile:** paste `185.220.101.42` (a well-known Tor exit) → expect a
   red `N / M` tally with multiple attributed sources and an escalation card you
-  can copy into a ticket with **Copy for ticket**.
+  can copy into a ticket with **COPY**.
 - **Refang:** paste `evil[.]com` → it normalizes to `evil.com` (domain) before
   the lookup.
 - **Context menu:** select `1.1.1.1` on any page → right-click →
@@ -126,7 +133,10 @@ will show "Live reputation unavailable". Two ways to support it:
 
 ## Shipping checklist
 
-- [ ] Replace placeholder `icons/*.png` with final 16/48/128 art.
+- [x] Replace placeholder `icons/*.png` with final 16/48/128 art. **Done** — the
+      coffee-mug brand mark, rendered crisp at all three sizes.
+- [x] Finalize the escalation copy-out wording to `docs/VERDICT-LANGUAGE.md` §4
+      (kept byte-identical to the site's `site/js/verdict.js`).
 - [ ] Confirm `host_permissions` lists exactly the origins you support (drop
       `socdesk.pages.dev` for an apex-domain-only build).
 - [ ] Register a **Chrome Web Store developer account** (one-time **US $5** fee).
