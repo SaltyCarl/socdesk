@@ -51,6 +51,64 @@ env vars. Until then: no public URL, red cron deploys, dormant enrichment.
 CVE / Threat-Intel feed as the second pillar (feed, KEV/EPSS triage — already
 built, needs dogfood-driven sharpening rather than new construction).
 
+## Expansion lane — analyst-utility workflow (owner-directed 2026-08-11)
+
+Broaden the extension's **select → type-detect → focused output** gesture beyond
+IOC lookup into an L1/L2 "investigation copilot." A dispatcher recognizes what
+was highlighted and routes it to the right engine (the BASTION Tier-0.5 / CARL
+engine model, behind the highlight gesture, on any page). One knowledge source,
+two views: extension = quick highlight lookup where the analyst already is;
+site = the fuller browsable reference. Every output copyable (the COPY pattern).
+
+**Governing rule — ACCURACY FIRST (owner's #1 priority).** These outputs guide
+investigation; a wrong table, a broken query, or a mis-decoded command wastes
+analyst time and erodes trust worse than shipping nothing. So: deterministic /
+curated-vetted content, NOT on-the-fly LLM that can hallucinate table/column/flag
+names. Any LLM layer is a clearly-labelled "AI — verify" gloss on top of vetted
+facts, never the source of truth. Facts-not-verdicts, same as enrich. Built from
+PUBLIC sources only (LOLBAS, public ATT&CK, Microsoft table/schema docs) — never
+port proprietary CARL/employer knowledge into this public repo.
+
+**Guardrail:** this is an EXPANSION beyond the north-star loop, not part of it —
+additive, accuracy-gated, must not dilute or slow the core paste→enrich→email
+loop. Each candidate earns its place only if it removes a real step from the
+L1/L2 daily loop.
+
+Candidate engines (deterministic unless noted), by value:
+1. **Command-line deobfuscator** (v1.2 top pick) — highlight a PS/cmd line →
+   decode `-EncodedCommand`/Base64, expand aliases, flag switches
+   (`-nop -w hidden -ep bypass`), name LOLBins, extract embedded URLs/IPs/hashes
+   (each one-click into enrich). Client-side, deterministic. Reuses BASTION's
+   PS-analyzer technique, rebuilt from public sources.
+2. **Universal decoder** — highlight a blob → auto-detect + decode
+   Base64/hex/URL/gzip. Client-side.
+3. **Event ID + ATT&CK lookup** — highlight `4625` / `T1059.001` → what it is +
+   what to check. Deterministic reference (ATT&CK data already in the pipeline).
+4. **IOC extraction from a selection** — pull IOCs from a highlighted log/email,
+   defanged + one-click enrich. (Owner passed on *paste-a-blob*; this is the
+   highlight-driven cousin — confirm it's different enough before building.)
+5. **"Explain this" LLM gloss** — local-LLM plain-English layer for messy
+   obfuscated chains only; labelled AI + verify; grounded on the deterministic parse.
+
+**Bigger arc — analyst recommendations / relevant SIEM tables + queries (owner
+idea 2026-08-11).** Highlight an artifact (event ID, entity, technique) →
+recommend the relevant SIEM table(s) + a set of VETTED, copyable queries +
+bulleted context. Example: highlight `4625` → recommend `SecurityEvent`, a
+starter KQL set (`SecurityEvent | where EventID == 4625 | ...`), and what to
+check (logon types, source host, account).
+- **Accuracy:** a curated, vetted query LIBRARY keyed to artifact type — NOT
+  LLM-generated queries (they hallucinate table/column names). If an LLM ever
+  assists, it must be schema-grounded and KQL-syntax-validated.
+- **Scope:** start **KQL / Microsoft Sentinel + Defender** (best public docs,
+  widest analyst audience, fully public schema). Generalize later to other SIEMs
+  (Google SecOps UDM, Splunk SPL) — tag queries by SIEM.
+- **Incorporation:** knowledge in one place (bundled client-side data for the
+  common set; `/api` for the fuller KB). Extension = quick highlight lookup;
+  site = browsable "table / event / technique → queries" reference. Queries
+  copyable.
+- Largest and most accuracy-sensitive lane; scope as its own phase after the
+  smaller deterministic engines prove the dispatcher pattern.
+
 ## Parked (fluff until further notice)
 - Wave-2 collectors (FeodoTracker, C2IntelFeeds, PhishTank, APTnotes)
 - Relationship-index enhancements beyond the shipped RELATED block
