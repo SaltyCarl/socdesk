@@ -74,6 +74,22 @@ additive, accuracy-gated, must not dilute or slow the core paste→enrich→emai
 loop. Each candidate earns its place only if it removes a real step from the
 L1/L2 daily loop.
 
+**Public-vs-private data boundary (HARD RULE — the site is publicly reachable).**
+On the PUBLIC surface, user-submitted input is limited to a **bare indicator**
+(IP/hash/domain → reputation vendors, never an LLM), and the LLM only ever
+processes **public data** (the Leg-2 feed, server-side + scheduled — no user
+input reaches it). Therefore engines that ingest analyst-pasted content (command
+lines, alerts, logs, emails) must run **deterministically and 100% client-side**
+— the data never leaves the browser — which is what makes them safe on the public
+tool. This rules out even an LLM "intent gloss" on the public site: a command
+line can carry internal hostnames/users. Any **LLM-on-internal-data** assist
+(escalation write-up draft, alert/log triage, phishing-email triage) is
+**PRIVATE-ONLY** — a private instance (the extension's configurable origin →
+tailnet + auth) or the internal toolset (BASTION/CARL), never socdesk.io.
+Rationale: internal/client data must not leave the MSSP boundary into a public
+tool + the home LLM + its Langfuse traces. Preserves the public-until-employer-IP
+and never-leak posture.
+
 Candidate engines (deterministic unless noted), by value:
 1. **Command-line deobfuscator** (v1.2 top pick) — highlight a PS/cmd line →
    decode `-EncodedCommand`/Base64, expand aliases, flag switches
