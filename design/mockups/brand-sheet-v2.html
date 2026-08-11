@@ -1,0 +1,1084 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOCDESK — Brand Identity Sheet v2 · Mark &amp; Lockup</title>
+<meta name="description" content="Round-2 mark exploration for SOCDESK: pixel heritage mug with steam, steam-restored monoline mug, the mug-as-O emblem, a vertical SOC/DESK lockup, and an SD monogram — judged at 96px, 24px and in-topbar.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Red+Hat+Display:wght@400;500;600;700;800;900&family=Red+Hat+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   SOCDESK — Brand Identity Sheet v2
+   The SHEET's own chrome (kickers, labels, prose) runs on
+   Inter + JetBrains Mono so it never competes with the marks and
+   wordmarks under judgement. Every SOCDESK wordmark specimen is set
+   in Red Hat Display / Red Hat Mono (the settled brand face).
+   Palette is the settled RADAR token block — teal on Prussian-slate.
+   ============================================================ */
+:root{
+  --bg:            #070B10;
+  --bg-1:          #0A1017;
+  --panel:         #0E161E;
+  --panel-2:       #131E28;
+  --panel-3:       #182531;
+  --border:        #1C2A36;
+  --border-2:      #283C4A;
+  --border-3:      #375065;
+
+  --text:          #EAF1F5;
+  --text-dim:      #93A7B4;
+  --text-faint:    #56707F;
+
+  --accent:        #35E1C6;
+  --accent-2:      #7CF2DE;
+  --accent-dim:    #1B7D6C;
+  --accent-ink:    #04211B;
+  --accent-glow:   rgba(53,225,198,.35);
+
+  --amber:         #D97706;
+  --sev-crit:      #FF5A6E;
+
+  /* Pixel-mug palette — heritage favicon roles, teal-reconciled.
+     Heritage rim #e6e8ee → cooled to slate-white; coffee band adopts
+     the SOCDESK teal (was #22d3ee); body lifted just off bg so the
+     mug separates from the specimen grid. */
+  --rim:           #D7E1E8;
+  --body:          #16212D;
+  --steam:         #7C93A0;
+  --letter:        #EAF1F5;
+
+  --r-1: 3px; --r-2: 6px; --r-3: 10px; --r-4: 16px;
+  --chrome-sans: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --chrome-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --brand: 'Red Hat Display', var(--chrome-sans);
+  --brand-mono: 'Red Hat Mono', var(--chrome-mono);
+
+  --ease: cubic-bezier(.16,.84,.44,1);
+}
+
+*,*::before,*::after{ box-sizing:border-box; }
+html{ background:var(--bg); color-scheme:dark; }
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 620px at 82% -8%, rgba(53,225,198,.06), transparent 60%),
+    radial-gradient(900px 500px at 6% 0%, rgba(111,166,255,.04), transparent 55%),
+    var(--bg);
+  color:var(--text);
+  font-family:var(--chrome-sans);
+  font-size:15px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{ background:var(--accent); color:var(--accent-ink); }
+svg{ display:block; }
+p{ margin:0; }
+code{ font-family:var(--chrome-mono); font-size:.9em; color:var(--accent-2); }
+
+.mono{ font-family:var(--chrome-mono); font-variant-numeric:tabular-nums; }
+.wrap{ max-width:1280px; margin:0 auto; padding:0 40px; }
+.kicker{
+  font-family:var(--chrome-mono); font-size:11px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--accent); margin:0 0 10px;
+  display:flex; align-items:center; gap:8px;
+}
+.kicker::before{ content:''; width:14px; height:1px; background:var(--accent); display:inline-block; }
+.badge{
+  display:inline-flex; align-items:center; gap:6px; font-family:var(--chrome-mono);
+  font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--accent-ink); background:var(--accent); padding:4px 9px; border-radius:20px;
+}
+.badge.ghost{ color:var(--accent-2); background:transparent; border:1px solid var(--accent-dim); padding:3px 8px; }
+.badge.warn{ color:#0C0700; background:var(--amber); }
+.risk-note{
+  font-family:var(--chrome-mono); font-size:11.5px; color:var(--text-faint); line-height:1.6;
+  border-left:2px solid var(--border-3); padding-left:10px; margin-top:12px;
+}
+.risk-note b{ color:var(--amber); font-weight:700; }
+
+/* ---- Page header ---- */
+.page-head{ padding:60px 0 34px; border-bottom:1px solid var(--border); }
+.page-head h1{
+  font-family:var(--chrome-sans); font-weight:700; font-size:clamp(27px,3.4vw,38px);
+  letter-spacing:-.02em; margin:0 0 12px;
+}
+.page-head .lede{ font-size:15.5px; color:var(--text-dim); max-width:74ch; }
+.page-head .lede b{ color:var(--text); font-weight:600; }
+.answer-list{
+  list-style:none; margin:22px 0 0; padding:0; display:grid; gap:8px;
+  font-family:var(--chrome-mono); font-size:12px; color:var(--text-dim);
+}
+.answer-list li{ display:flex; gap:10px; align-items:baseline; }
+.answer-list .q{ color:var(--accent); font-weight:700; white-space:nowrap; }
+.answer-list b{ color:var(--text); font-weight:600; }
+
+/* ---- TL;DR ---- */
+.tldr{
+  margin:30px 0 0; padding:20px 24px; background:var(--panel);
+  border:1px solid var(--border-2); border-left:3px solid var(--accent);
+  border-radius:var(--r-2); display:grid; grid-template-columns:auto 1fr; gap:20px; align-items:center;
+}
+.tldr .tldr-label{
+  font-family:var(--chrome-mono); font-size:10.5px; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent); white-space:nowrap;
+}
+.tldr .tldr-body{ display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; font-size:13.5px; color:var(--text-dim); }
+.tldr .tldr-body strong{ color:var(--text); font-weight:600; }
+.tldr .sep{ color:var(--text-faint); }
+
+/* ---- Section shell ---- */
+section.block{ padding:56px 0; border-bottom:1px solid var(--border); }
+section.block:last-of-type{ border-bottom:none; }
+.block-head{ margin-bottom:30px; max-width:82ch; }
+.block-head .lane-tag{
+  display:inline-block; font-family:var(--chrome-mono); font-size:10.5px; font-weight:700;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--accent-ink); background:var(--accent);
+  padding:3px 10px; border-radius:4px; margin-bottom:12px;
+}
+.block-head h2{
+  font-family:var(--chrome-sans); font-weight:700; font-size:clamp(21px,2.6vw,27px);
+  letter-spacing:-.015em; margin:0 0 10px;
+}
+.block-head p{ font-size:14px; color:var(--text-dim); }
+.block-head p b{ color:var(--text); font-weight:600; }
+
+/* ---- Card grid ---- */
+.grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+.grid.two{ grid-template-columns:repeat(2,1fr); }
+.card{
+  background:var(--panel); border:1px solid var(--border-2); border-radius:var(--r-3);
+  padding:20px; display:flex; flex-direction:column; gap:15px; position:relative; min-width:0;
+}
+.card.rec{ border-color:var(--accent-dim); box-shadow:0 0 0 1px var(--accent-dim), 0 18px 44px -20px var(--accent-glow); }
+.card .rec-tag{ position:absolute; top:-11px; left:20px; }
+.c-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.c-name{ font-family:var(--chrome-sans); font-weight:700; font-size:14.5px; color:var(--text); }
+.c-tag{ font-family:var(--chrome-mono); font-size:9.5px; color:var(--text-faint); letter-spacing:.05em; text-align:right; white-space:nowrap; }
+
+/* ---- Specimen stage (96px judge) ---- */
+.stage{
+  background:
+    linear-gradient(rgba(53,225,198,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(53,225,198,.05) 1px, transparent 1px),
+    var(--bg-1);
+  background-size:16px 16px, 16px 16px, auto;
+  border:1px solid var(--border); border-radius:var(--r-2);
+  display:grid; place-items:center; min-height:168px; padding:20px; position:relative; overflow:hidden;
+}
+.stage .px-tag{
+  position:absolute; bottom:7px; right:9px; font-family:var(--chrome-mono); font-size:9px;
+  color:var(--text-faint); letter-spacing:.06em;
+}
+.mark-96{ color:var(--accent); }
+.mark-96.mono-mug{ width:96px; height:96px; }
+
+/* ---- Proof row: 24px favicon + mini topbar ---- */
+.proof{ display:flex; align-items:stretch; gap:10px; }
+.fav{
+  flex:0 0 auto; width:64px; display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:9px 6px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--r-2);
+}
+.fav .tile{
+  width:24px; height:24px; border-radius:5px; background:#0E1015;
+  display:grid; place-items:center; overflow:hidden;
+}
+.fav .tile.lg{ width:24px; height:24px; }
+.fav .fav-lbl{ font-family:var(--chrome-mono); font-size:8.5px; color:var(--text-faint); letter-spacing:.04em; }
+.fav .mark-24{ color:var(--accent); }
+
+.mini-topbar{
+  flex:1; min-width:0; display:flex; align-items:center; gap:12px;
+  background:rgba(7,11,16,.55); border:1px solid var(--border); border-radius:var(--r-2);
+  padding:0 12px; height:auto;
+}
+.mini-brand{ display:flex; align-items:center; gap:8px; padding:10px 0; }
+.mini-brand .mark-24{ color:var(--accent); flex:0 0 auto; }
+.mini-brand .word{
+  font-family:var(--brand); font-weight:900; font-size:13px; letter-spacing:.005em; color:var(--text);
+  text-transform:uppercase; white-space:nowrap;
+}
+.mini-nav{ display:flex; gap:9px; margin-left:auto; }
+.mini-nav span{
+  font-family:var(--brand-mono); font-size:9.5px; font-weight:600; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--text-dim); white-space:nowrap;
+}
+.mini-nav span.active{ color:var(--accent); }
+@media (max-width:1180px){ .mini-nav span:nth-child(n+2){ display:none; } }
+
+/* ---- Notes ---- */
+.note{ font-size:12.5px; color:var(--text-dim); line-height:1.62; }
+.note b{ color:var(--text); font-weight:600; }
+
+/* ---- Monoline SVG defaults (match v1) ---- */
+.mark-svg path, .mark-svg ellipse, .mark-svg circle, .mark-svg line{
+  fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round;
+}
+.mark-svg .fill-dot{ fill:currentColor; stroke:none; }
+.mark-svg .coffee{ stroke:var(--accent-2); }
+.mark-svg .steam{ stroke:var(--steam); animation:steamdrift 3s var(--ease) infinite; }
+.mark-svg .steam.s2{ animation-delay:.5s; }
+.mark-svg .pip{ fill:var(--accent); stroke:none; }
+@keyframes steamdrift{ 0%,100%{ opacity:.5; } 50%{ opacity:.92; } }
+
+/* ---- Pixel marks ---- */
+svg.px{ display:block; }
+svg.px rect.px-steam{ animation:pxsteam 2.6s var(--ease) infinite; }
+@keyframes pxsteam{ 0%,100%{ opacity:.5; } 50%{ opacity:.95; } }
+@media (prefers-reduced-motion:reduce){
+  .mark-svg .steam, svg.px rect.px-steam{ animation:none; opacity:.72; }
+}
+.compose{ display:flex; align-items:center; justify-content:center; }
+
+/* ---- Wordmark specimens ---- */
+.wm{ font-family:var(--brand); font-weight:900; text-transform:uppercase; letter-spacing:.005em; color:var(--text); line-height:.92; }
+.sub-mono{ font-family:var(--brand-mono); text-transform:uppercase; color:var(--text-dim); }
+
+/* Emblem: mug-as-O horizontal line */
+.soc-line{ display:flex; align-items:center; justify-content:center; gap:.04em; }
+.soc-line .lt{ font-family:var(--brand); font-weight:900; text-transform:uppercase; color:var(--text); line-height:1; }
+.soc-line .o-mug{ color:var(--accent); flex:0 0 auto; }
+
+/* Badge tile (emblem enclosure) */
+.emblem{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+.emblem .badge-tile{
+  background:linear-gradient(160deg,#0E1B24,#080D13);
+  border:1px solid var(--border-2); border-radius:var(--r-4);
+  padding:16px 20px; display:flex; flex-direction:column; align-items:center; gap:7px;
+  box-shadow:0 14px 40px -22px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.03);
+}
+.emblem .desk-rule{ width:100%; height:1px; background:linear-gradient(90deg,transparent,var(--border-3),transparent); }
+.emblem .desk{ font-family:var(--brand-mono); font-weight:600; text-transform:uppercase; letter-spacing:.34em; color:var(--accent-2); font-size:12px; padding-left:.34em; }
+
+/* Vertical stacked wordmark */
+.vstack{ display:flex; flex-direction:column; align-items:center; line-height:.86; }
+.vstack .l1{ font-family:var(--brand); font-weight:900; text-transform:uppercase; color:var(--text); }
+.vstack .l2{ font-family:var(--brand); font-weight:900; text-transform:uppercase; color:var(--accent); }
+.vstack.mono-tail .l2{ font-family:var(--brand-mono); font-weight:600; color:var(--text-dim); letter-spacing:.24em; padding-left:.24em; }
+
+/* SD monogram */
+.sd{ position:relative; display:inline-flex; align-items:center; }
+.sd .glyph{ font-family:var(--brand); font-weight:900; text-transform:uppercase; line-height:1; }
+.sd .s{ color:var(--accent); }
+.sd .d{ color:var(--text); margin-left:-.08em; }
+.sd-tile{
+  width:96px; height:96px; border-radius:22px; background:linear-gradient(160deg,#0E1B24,#080D13);
+  border:1px solid var(--border-2); display:grid; place-items:center; position:relative; overflow:hidden;
+  box-shadow:0 14px 40px -22px var(--accent-glow);
+}
+
+/* ---- Recommendation / assembled ---- */
+.rec-wrap{ display:grid; grid-template-columns:1.15fr .85fr; gap:22px; align-items:start; }
+.rec-panel{
+  background:var(--panel); border:1px solid var(--border-2); border-radius:var(--r-3); padding:24px 26px;
+}
+.rec-panel h3{ font-family:var(--chrome-sans); font-weight:700; font-size:16px; margin:0 0 14px; letter-spacing:-.01em; }
+.rec-panel ol{ margin:0; padding-left:0; list-style:none; display:grid; gap:14px; counter-reset:r; }
+.rec-panel ol li{ position:relative; padding-left:34px; font-size:13.5px; color:var(--text-dim); line-height:1.55; counter-increment:r; }
+.rec-panel ol li::before{
+  content:counter(r); position:absolute; left:0; top:0; width:22px; height:22px; border-radius:6px;
+  background:var(--panel-3); border:1px solid var(--border-2); color:var(--accent);
+  font-family:var(--chrome-mono); font-size:11px; font-weight:700; display:grid; place-items:center;
+}
+.rec-panel ol li b{ color:var(--text); font-weight:600; }
+.rec-panel .sleeper{ margin-top:18px; padding-top:16px; border-top:1px solid var(--border); font-size:13px; color:var(--text-dim); }
+.rec-panel .sleeper b{ color:var(--accent-2); }
+
+.assembled-col{ display:flex; flex-direction:column; gap:16px; }
+.assembled-topbar{
+  background:rgba(7,11,16,.6); border:1px solid var(--border-2); border-radius:var(--r-3);
+  padding:0 20px; height:60px; display:flex; align-items:center; gap:18px; overflow:hidden;
+}
+.assembled-topbar .mark-24{ color:var(--accent); flex:0 0 auto; }
+.assembled-topbar .word{ font-family:var(--brand); font-weight:900; font-size:17px; letter-spacing:.006em; text-transform:uppercase; color:var(--text); }
+.assembled-topbar nav{ display:flex; gap:4px; margin-left:auto; }
+.assembled-topbar nav span{ font-family:var(--brand-mono); font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); padding:6px 8px; }
+.assembled-topbar nav span.active{ color:var(--accent); }
+.assembled-row{ display:flex; gap:16px; flex-wrap:wrap; }
+.icon-spec{
+  display:flex; flex-direction:column; align-items:center; gap:8px; padding:16px;
+  background:var(--panel); border:1px solid var(--border-2); border-radius:var(--r-3); flex:1; min-width:130px;
+}
+.icon-spec .spec-lbl{ font-family:var(--chrome-mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint); }
+.app-icon{
+  width:104px; height:104px; border-radius:24px; background:radial-gradient(120% 100% at 50% 22%, #113040, #070B10 78%);
+  border:1px solid var(--border-2); display:grid; place-items:center;
+  box-shadow:0 20px 46px -20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.fav-strip{ display:flex; align-items:center; gap:12px; }
+.fav-strip .tile{ border-radius:6px; background:#0E1015; display:grid; place-items:center; overflow:hidden; }
+
+footer.foot{ padding:30px 0 60px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+footer.foot p{ font-family:var(--chrome-mono); font-size:11px; color:var(--text-faint); }
+
+@media (max-width:1024px){
+  .grid{ grid-template-columns:repeat(2,1fr); }
+  .rec-wrap{ grid-template-columns:1fr; }
+  .rec-panel, .assembled-col, .assembled-topbar, .assembled-row, .icon-spec{ min-width:0; }
+}
+@media (max-width:760px){
+  .wrap{ padding:0 20px; }
+  .grid, .grid.two{ grid-template-columns:1fr; }
+  .tldr{ grid-template-columns:1fr; }
+  .mini-nav{ display:none; }
+  .assembled-topbar{ overflow:hidden; }
+  .assembled-topbar nav span:nth-child(n+3){ display:none; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="page-head">
+  <p class="kicker">BRANDING &amp; IDENTITY · ROUND 2 · SOCDESK</p>
+  <h1>The mark, expanded — steam restored, the mug made the "O", and the badge you asked for</h1>
+  <p class="lede">Round 1 cut the steam and settled the wordmark and typeface. This round answers the four
+    notes left on that sheet, drawing straight from the <b>pixel coffee-mug heritage mark on
+    SanchezOnSecurity.com</b> without copying it wholesale. Palette, wordmark casing (fused-caps
+    <b>SOCDESK</b>) and typeface (<b>Red Hat Display + Red Hat Mono</b>) are settled and untouched — this
+    sheet is only about the <b>mark</b> and the <b>lockup</b>. Every candidate is judged three ways: at
+    <b>96px</b>, at <b>24px</b> (the favicon test), and dropped into the real product topbar. A mark that
+    only survives large is disqualified.</p>
+
+  <ul class="answer-list">
+    <li><span class="q">↳ steam back?</span> <span><b>Lane A</b> keeps it as heritage pixel dithering; <b>Lane B</b> restores it onto the monoline mug in three disciplined treatments.</span></li>
+    <li><span class="q">↳ vertical SOC / DESK?</span> <span><b>Lane D</b> — stacked wordmark, mark above or mark-as-the-O in the top line.</span></li>
+    <li><span class="q">↳ SD(mug) + SOCDESK under?</span> <span><b>Lane E</b> is the literal read; <b>Lane C</b> is the stronger "or something similar" — the mug becomes the O in SOC.</span></li>
+  </ul>
+</header>
+
+<div class="tldr">
+  <span class="tldr-label">Recommendation</span>
+  <div class="tldr-body">
+    <span><strong>Emblem / app-icon:</strong> Lane C — mug-as-O (S·mug·C over DESK)</span>
+    <span class="sep">&middot;</span>
+    <span><strong>Topbar mark:</strong> Lane B1 — monoline mug, single steam wisp</span>
+    <span class="sep">&middot;</span>
+    <span><strong>Favicon:</strong> Lane A2 — pixel top-down mug</span>
+    <span class="sep">&middot;</span>
+    <span>Full reasoning &amp; assembled preview at the end.</span>
+  </div>
+</div>
+
+<!-- ================= LANE A ================= -->
+<section class="block" id="lane-a">
+  <div class="block-head">
+    <span class="lane-tag">Lane A · Pixel heritage mug — steam retained</span>
+    <h2>The literal sibling of the favicon</h2>
+    <p>This is the closest thing to the mark already living on SanchezOnSecurity.com: the same
+      <b>16-cell dithered pixel steam</b>, the same light rim and dark body — the only change is the coffee band
+      trading heritage cyan <code>#22d3ee</code> for the settled SOCDESK teal <code>#35E1C6</code>, a shift so
+      small the two marks read as one family. Rendered <code>shape-rendering="crispEdges"</code> so the grid
+      never blurs. The steam stays because the owner likes it and it is heritage — but it stays as
+      <b>structured pixels</b>, not soft mascot curls.</p>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="c-head"><span class="c-name">A1 · Frontal</span><span class="c-tag mono">FAVICON SIBLING</span></div>
+      <div class="stage">
+        <svg class="px" data-mark="pixFrontal" data-h="112" aria-label="Pixel coffee mug, frontal, with steam"></svg>
+        <span class="px-tag">96PX</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile"><svg class="px" data-mark="pixFrontal" data-h="22"></svg></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand"><svg class="px" data-mark="pixFrontal" data-h="24"></svg><span class="word">SOCDESK</span></div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">The favicon, promoted to product mark and re-tealed. Rim, teal coffee band, dark body,
+        three dithered steam rows — a <b>1:1 heritage tie</b> to the existing site with zero redraw. Because the
+        pixels are already blocky, it survives 24px and 16px with no simplification.</p>
+      <p class="risk-note"><b>RISK</b> — pixel styling reads a touch "retro-gaming" for an analytics tool; it
+        leans on the teal + Prussian-slate chrome around it to stay serious rather than playful.</p>
+    </div>
+
+    <div class="card rec">
+      <span class="rec-tag badge">Best pixel cut</span>
+      <div class="c-head"><span class="c-name">A2 · Top-down</span><span class="c-tag mono">READS AS "O" / FAVICON</span></div>
+      <div class="stage">
+        <svg class="px" data-mark="pixTopdown" data-h="112" aria-label="Pixel coffee mug from above, with steam"></svg>
+        <span class="px-tag">96PX</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile"><svg class="px" data-mark="pixTopdown" data-h="22"></svg></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand"><svg class="px" data-mark="pixTopdown" data-h="24"></svg><span class="word">SOCDESK</span></div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">The mug seen from above — a teal-cored ring that <b>reads as a perfect circle at any
+        size</b>, which is exactly why it doubles as the favicon and seeds the mug-as-O emblem in Lane C. The
+        radial rim also rhymes with the product's own threat-globe. Cleanest small-size behaviour of any mark
+        on the sheet.</p>
+      <p class="risk-note"><b>RISK</b> — from above it can momentarily read as a target/donut before it reads
+        as a mug; the steam pixels above the rim are what disambiguate it, so they are load-bearing, not
+        decoration.</p>
+    </div>
+
+    <div class="card">
+      <div class="c-head"><span class="c-name">A3 · Frontal + handle</span><span class="c-tag mono">MOST LITERAL MUG</span></div>
+      <div class="stage">
+        <svg class="px" data-mark="pixHandle" data-h="112" aria-label="Pixel coffee mug with handle and steam"></svg>
+        <span class="px-tag">96PX</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile"><svg class="px" data-mark="pixHandle" data-h="22"></svg></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand"><svg class="px" data-mark="pixHandle" data-h="24"></svg><span class="word">SOCDESK</span></div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">The handle added back (as in the site's <code>PixelCoffee</code> component) makes it the
+        most unmistakably a <b>mug</b> and not an abstract shape — the warmest, most human of the three.</p>
+      <p class="risk-note"><b>RISK</b> — the handle is the first thing to clog at 24px; the favicon proof shows
+        it thinning to near-noise. If chosen, ship A1/A2 as the favicon and reserve A3 for larger placements.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================= LANE B ================= -->
+<section class="block" id="lane-b">
+  <div class="block-head">
+    <span class="lane-tag">Lane B · Monoline mug — steam restored</span>
+    <h2>The v1 Field Mark, with the steam brought back — three ways</h2>
+    <p>Round 1's Field Mark is the same three-stroke topology already in the live RADAR topbar; its only
+      fault, per the owner, was that the steam had been cut. Here it returns — <b>disciplined, thin, and
+      optical-weight-matched to the mug outline</b> so it never reverts to the soft mascot curls. A hairline
+      teal coffee arc (<code>--accent-2</code>) sits under the rim in all three, reconciling the heritage band
+      into the monoline mark.</p>
+  </div>
+
+  <div class="grid">
+
+    <div class="card rec">
+      <span class="rec-tag badge">Topbar pick</span>
+      <div class="c-head"><span class="c-name">B1 · Single wisp</span><span class="c-tag mono">CALMEST RESTORE</span></div>
+      <div class="stage">
+        <svg class="mark-svg mark-96 mono-mug" viewBox="0 0 32 32" aria-label="Monoline mug with single steam wisp">
+          <path class="steam" d="M15.9 7.6 Q14.3 5.6 15.9 3.6 Q17.5 1.8 15.9 0.5" stroke-width="1.4"/>
+          <ellipse class="coffee" cx="16" cy="10.2" rx="5" ry="1.2" stroke-width="1.4"/>
+          <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="1.8"/>
+          <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="1.8"/>
+          <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="1.8"/>
+        </svg>
+        <span class="px-tag">96PX</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile lg"><svg class="mark-svg" width="22" height="22" viewBox="0 0 32 32">
+          <path class="steam" d="M15.9 7.6 Q14.3 5.6 15.9 3.6 Q17.5 1.8 15.9 0.5" stroke-width="1.6" style="color:var(--accent)"/>
+          <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="2" style="color:var(--accent)"/>
+          <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="2" style="color:var(--accent)"/>
+          <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="2" style="color:var(--accent)"/>
+        </svg></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand"><svg class="mark-svg" width="24" height="24" viewBox="0 0 32 32" style="color:var(--accent)">
+            <path class="steam" d="M15.9 7.6 Q14.3 5.6 15.9 3.6 Q17.5 1.8 15.9 0.5" stroke-width="1.5"/>
+            <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="1.8"/>
+            <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="1.8"/>
+            <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="1.8"/>
+          </svg><span class="word">SOCDESK</span></div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">One centred S-curve — the least you can add and still honour the note. It reads as a
+        working cup, keeps the "the light's on / someone's watching" warmth, and <b>drops straight into the
+        existing topbar SVG</b> as a single extra path. Survives 24px where twin curls would collide.</p>
+      <p class="risk-note"><b>RISK</b> — at true favicon size (16px) the wisp is one or two pixels; acceptable,
+        but pair with the pixel favicon (A2) for the smallest slots.</p>
+    </div>
+
+    <div class="card">
+      <div class="c-head"><span class="c-name">B2 · Twin curl</span><span class="c-tag mono">CLOSEST TO HERITAGE</span></div>
+      <div class="stage">
+        <svg class="mark-svg mark-96 mono-mug" viewBox="0 0 32 32" aria-label="Monoline mug with twin steam curls">
+          <path class="steam" d="M13.4 7.4 Q12 5.5 13.4 3.6 Q14.8 1.9 13.4 0.4" stroke-width="1.3"/>
+          <path class="steam s2" d="M18.4 7.4 Q17 5.5 18.4 3.6 Q19.8 1.9 18.4 0.4" stroke-width="1.3"/>
+          <ellipse class="coffee" cx="16" cy="10.2" rx="5" ry="1.2" stroke-width="1.4"/>
+          <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="1.8"/>
+          <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="1.8"/>
+          <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="1.8"/>
+        </svg>
+        <span class="px-tag">96PX</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile lg"><svg class="mark-svg" width="22" height="22" viewBox="0 0 32 32" style="color:var(--accent)">
+          <path class="steam" d="M13.4 7.4 Q12 5.5 13.4 3.6 Q14.8 1.9 13.4 0.4" stroke-width="1.5"/>
+          <path class="steam s2" d="M18.4 7.4 Q17 5.5 18.4 3.6 Q19.8 1.9 18.4 0.4" stroke-width="1.5"/>
+          <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="2"/>
+          <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="2"/>
+          <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="2"/>
+        </svg></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand"><svg class="mark-svg" width="24" height="24" viewBox="0 0 32 32" style="color:var(--accent)">
+            <path class="steam" d="M13.4 7.4 Q12 5.5 13.4 3.6 Q14.8 1.9 13.4 0.4" stroke-width="1.4"/>
+            <path class="steam s2" d="M18.4 7.4 Q17 5.5 18.4 3.6 Q19.8 1.9 18.4 0.4" stroke-width="1.4"/>
+            <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="1.8"/>
+            <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="1.8"/>
+            <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="1.8"/>
+          </svg><span class="word">SOCDESK</span></div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">Two offset curls — the most faithful echo of the site's animated pixel steam, translated
+        to clean vector. At 96px it is the warmest, most characterful of the three and the one that most
+        obviously says <b>"we brought the steam back."</b></p>
+      <p class="risk-note"><b>RISK</b> — the exact element flagged in v1 as the "mascot-cute tell": at 24px the
+        two curls start to merge into fuzz. Best kept for hero / marketing scale, not the favicon.</p>
+    </div>
+
+    <div class="card">
+      <div class="c-head"><span class="c-name">B3 · Rising tri-dot</span><span class="c-tag mono">STEAM = LIVE-STATE PIP</span></div>
+      <div class="stage">
+        <svg class="mark-svg mark-96 mono-mug" viewBox="0 0 32 32" aria-label="Monoline mug with rising three-dot steam">
+          <circle class="fill-dot" cx="16" cy="6.6" r="1.15" style="opacity:.55"/>
+          <circle class="fill-dot" cx="16" cy="3.9" r="1.25" style="opacity:.8"/>
+          <circle class="pip" cx="16" cy="1.2" r="1.5"/>
+          <ellipse class="coffee" cx="16" cy="10.2" rx="5" ry="1.2" stroke-width="1.4"/>
+          <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="1.8"/>
+          <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="1.8"/>
+          <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="1.8"/>
+        </svg>
+        <span class="px-tag">96PX</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile lg"><svg class="mark-svg" width="22" height="22" viewBox="0 0 32 32" style="color:var(--accent)">
+          <circle class="pip" cx="16" cy="3.2" r="2"/>
+          <ellipse cx="16" cy="10.5" rx="7" ry="2" stroke-width="2"/>
+          <path d="M9.3 11.1 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 11.1" stroke-width="2"/>
+          <path d="M22.6 14.3 Q28.8 14.3 28.8 18.8 Q28.8 23.3 22.6 22.6" stroke-width="2"/>
+        </svg></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand"><svg class="mark-svg" width="24" height="24" viewBox="0 0 32 32" style="color:var(--accent)">
+            <circle class="fill-dot" cx="16" cy="6.6" r="1.15" style="opacity:.55"/>
+            <circle class="fill-dot" cx="16" cy="3.9" r="1.25" style="opacity:.8"/>
+            <circle class="pip" cx="16" cy="1.2" r="1.5"/>
+            <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="1.8"/>
+            <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="1.8"/>
+            <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="1.8"/>
+          </svg><span class="word">SOCDESK</span></div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">The steam abstracted to three rising dots, the top one solid teal. It keeps the "rising
+        heat" gesture while doing <b>double duty as a status pip</b> — the top dot is a ready-made
+        connected / streaming / on-watch indicator the product can pulse. The steam stops being decoration and
+        becomes a UI primitive.</p>
+      <p class="risk-note"><b>RISK</b> — it is the least literally "steam" of the three, so it may not scratch
+        the itch if what the owner missed is the <em>curl</em> specifically. At 24px, collapse to the single
+        teal pip (shown) rather than three dots.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================= LANE C ================= -->
+<section class="block" id="lane-c">
+  <div class="block-head">
+    <span class="lane-tag">Lane C · The emblem — mug-as-O (HERO)</span>
+    <h2>S · mug · C = "SOC", with DESK beneath</h2>
+    <p>This is the direct SOCDESK translation of the owner's own site mark, where the mug is already the "O" in
+      <b>S-O-S</b>. "SOC" also has an O — so the mug becomes the O in <b>SOC</b>, and <b>DESK</b> sets beneath
+      it as a stamped sub-line. It answers "SD(mug) with SOCDESK underneath" more strongly than a literal SD
+      would: the mark now <b>spells the product</b> instead of decorating two initials. The
+      logo-intelligence read backs this — a lettermark built on "interlocking letters and negative space" is
+      the recommended route for a name like this. Shown as a pixel cut (heritage) and a monoline cut (clean).</p>
+  </div>
+
+  <div class="grid two">
+
+    <div class="card">
+      <div class="c-head"><span class="c-name">C1 · Pixel cut</span><span class="c-tag mono">HERITAGE BADGE</span></div>
+      <div class="stage" style="min-height:196px">
+        <div class="emblem">
+          <div class="badge-tile">
+            <div class="compose" style="gap:5px">
+              <svg class="px" data-mark="pixS" data-h="70"></svg>
+              <svg class="px" data-mark="pixTopdown" data-h="70"></svg>
+              <svg class="px" data-mark="pixC" data-h="70"></svg>
+            </div>
+            <div class="compose" style="gap:3px">
+              <svg class="px" data-mark="pixD" data-h="26"></svg>
+              <svg class="px" data-mark="pixE" data-h="26"></svg>
+              <svg class="px" data-mark="pixS" data-h="26"></svg>
+              <svg class="px" data-mark="pixK" data-h="26"></svg>
+            </div>
+          </div>
+        </div>
+        <span class="px-tag">EMBLEM</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile"><svg class="px" data-mark="pixTopdown" data-h="22"></svg></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand"><svg class="px" data-mark="pixTopdown" data-h="24"></svg><span class="word">SOCDESK</span></div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">Fully pixel: chunky "S" and "C" flank the top-down mug, "DESK" stamped in smaller pixels
+        below — the whole thing sits on the favicon's rounded dark tile, so it is <b>unmistakably the same
+        maker's family</b>. As a square badge it makes an excellent app-icon / social avatar. At topbar scale
+        it degrades gracefully to just the mug-O + fused SOCDESK wordmark.</p>
+      <p class="risk-note"><b>RISK</b> — the full stacked badge is only legible from ~64px up; the favicon
+        must fall back to the mug-O alone (shown). Pixel "S/C" also flirt with reading as "5/(" until the eye
+        locks onto the word.</p>
+    </div>
+
+    <div class="card rec">
+      <span class="rec-tag badge">Hero direction</span>
+      <div class="c-head"><span class="c-name">C2 · Monoline cut</span><span class="c-tag mono">CLEAN LETTERMARK</span></div>
+      <div class="stage" style="min-height:196px">
+        <div class="emblem">
+          <div class="soc-line" style="font-size:58px">
+            <span class="lt">S</span>
+            <svg class="mark-svg o-mug" width="58" height="58" viewBox="0 0 32 32" aria-label="mug as the letter O">
+              <path class="steam" d="M16 5.6 Q14.6 3.9 16 2.2 Q17.4 0.7 16 -0.6" stroke-width="1.3"/>
+              <circle cx="16" cy="16.6" r="10" stroke-width="1.9"/>
+              <circle class="coffee" cx="16" cy="16.6" r="5.2" stroke-width="2.7"/>
+              <path d="M25.6 13.4 H29.3 V19.8 H25.6" stroke-width="1.9"/>
+            </svg>
+            <span class="lt">C</span>
+          </div>
+          <div class="desk-rule" style="max-width:150px"></div>
+          <div class="desk">DESK</div>
+        </div>
+        <span class="px-tag">EMBLEM</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile lg"><svg class="mark-svg" width="22" height="22" viewBox="0 0 32 32" style="color:var(--accent)">
+          <circle cx="16" cy="16" r="10.5" stroke-width="2"/>
+          <circle class="coffee" cx="16" cy="16" r="5.2" stroke-width="3"/>
+          <path d="M25.6 12.8 H29.4 V19.2 H25.6" stroke-width="2"/>
+        </svg></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand">
+            <span class="soc-line" style="font-size:16px">
+              <span class="lt" style="color:var(--text)">S</span>
+              <svg class="mark-svg o-mug" width="15" height="15" viewBox="0 0 32 32" style="color:var(--accent)">
+                <circle cx="16" cy="16" r="10.5" stroke-width="2"/>
+                <circle class="coffee" cx="16" cy="16" r="5.2" stroke-width="3"/>
+                <path d="M25.6 12.8 H29.4 V19.2 H25.6" stroke-width="2"/>
+              </svg>
+              <span class="lt" style="color:var(--text)">C</span>
+              <span class="lt" style="color:var(--text)">DESK</span>
+            </span>
+          </div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">Red Hat Display "S" and "C" in the brand weight, the monoline top-down mug dropped in as
+        the O with its teal coffee core, "DESK" engraved beneath in Red Hat Mono. The mug <b>is</b> the letter,
+        so the mark and the name are one object — the strongest, most ownable idea on the sheet, and it
+        collapses cleanly to a mug-O favicon.</p>
+      <p class="risk-note"><b>RISK</b> — needs the S/C cap-height and the mug diameter tuned by hand so the O
+        doesn't sit heavy; and the stacked "DESK" adds a second tier the flat topbar wordmark doesn't want, so
+        the horizontal in-app lockup should keep DESK inline (shown) rather than stacked.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================= LANE D ================= -->
+<section class="block" id="lane-d">
+  <div class="block-head">
+    <span class="lane-tag">Lane D · Vertical wordmark — SOC / DESK stacked</span>
+    <h2>The name stacked into a square</h2>
+    <p>The owner asked to see a vertically aligned <b>SOC / DESK</b>. Stacking turns a wide horizontal wordmark
+      into a compact near-square block that fits an app tile, a sidebar rail, or a watermark. Three placements
+      for the mark: floating above, replacing the O in the top line, or omitted entirely for a pure type
+      lockup.</p>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="c-head"><span class="c-name">D1 · Mark above</span><span class="c-tag mono">STACKED + CREST</span></div>
+      <div class="stage">
+        <div class="emblem" style="gap:11px">
+          <svg class="mark-svg mono-mug" width="40" height="40" viewBox="0 0 32 32" style="color:var(--accent)">
+            <path class="steam" d="M15.9 7.6 Q14.3 5.6 15.9 3.6 Q17.5 1.8 15.9 0.5" stroke-width="1.5"/>
+            <ellipse class="coffee" cx="16" cy="10.2" rx="5" ry="1.2" stroke-width="1.4"/>
+            <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="1.8"/>
+            <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="1.8"/>
+            <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="1.8"/>
+          </svg>
+          <div class="vstack" style="font-size:33px"><span class="l1">SOC</span><span class="l1">DESK</span></div>
+        </div>
+        <span class="px-tag">96PX</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile lg"><svg class="mark-svg" width="22" height="22" viewBox="0 0 32 32" style="color:var(--accent)">
+          <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="2"/>
+          <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="2"/>
+          <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="2"/>
+        </svg></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand"><svg class="mark-svg" width="24" height="24" viewBox="0 0 32 32" style="color:var(--accent)">
+            <path class="steam" d="M15.9 7.6 Q14.3 5.6 15.9 3.6 Q17.5 1.8 15.9 0.5" stroke-width="1.5"/>
+            <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="1.8"/>
+            <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="1.8"/>
+            <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="1.8"/>
+          </svg><span class="word">SOCDESK</span></div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">Mark as a crest over two tight lines of Red Hat Display 900. Balanced, formal, and
+        obviously an <b>app-icon / splash lockup</b>. The topbar reverts to the standard horizontal mark +
+        SOCDESK, so this coexists with the live product without a second wordmark asset.</p>
+      <p class="risk-note"><b>RISK</b> — three stacked elements (mark, SOC, DESK) is a lot of vertical weight;
+        only earns its place at splash / icon scale, never inline in the topbar.</p>
+    </div>
+
+    <div class="card">
+      <div class="c-head"><span class="c-name">D2 · Mug-as-O, stacked</span><span class="c-tag mono">SOC / DESK, MUG IN LINE 1</span></div>
+      <div class="stage">
+        <div class="vstack" style="font-size:36px">
+          <span class="soc-line" style="font-size:36px">
+            <span class="l1" style="font-family:var(--brand);font-weight:900">S</span>
+            <svg class="mark-svg o-mug" width="35" height="35" viewBox="0 0 32 32" style="color:var(--accent)">
+              <path class="steam" d="M16 5.6 Q14.6 3.9 16 2.2 Q17.4 0.7 16 -0.6" stroke-width="1.3"/>
+              <circle cx="16" cy="16.6" r="10" stroke-width="1.9"/>
+              <circle class="coffee" cx="16" cy="16.6" r="5.2" stroke-width="2.7"/>
+              <path d="M25.6 13.4 H29.3 V19.8 H25.6" stroke-width="1.9"/>
+            </svg>
+            <span class="l1" style="font-family:var(--brand);font-weight:900">C</span>
+          </span>
+          <span class="l2">DESK</span>
+        </div>
+        <span class="px-tag">96PX</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile lg"><svg class="mark-svg" width="22" height="22" viewBox="0 0 32 32" style="color:var(--accent)">
+          <circle cx="16" cy="16" r="10.5" stroke-width="2"/>
+          <circle class="coffee" cx="16" cy="16" r="5.2" stroke-width="3"/>
+          <path d="M25.6 12.8 H29.4 V19.2 H25.6" stroke-width="2"/>
+        </svg></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand">
+            <span class="soc-line" style="font-size:15px">
+              <span class="lt" style="color:var(--text)">S</span>
+              <svg class="mark-svg o-mug" width="14" height="14" viewBox="0 0 32 32" style="color:var(--accent)">
+                <circle cx="16" cy="16" r="10.5" stroke-width="2"/><circle class="coffee" cx="16" cy="16" r="5.2" stroke-width="3"/><path d="M25.6 12.8 H29.4 V19.2 H25.6" stroke-width="2"/>
+              </svg>
+              <span class="lt" style="color:var(--text)">C</span><span class="lt" style="color:var(--accent)">DESK</span>
+            </span>
+          </div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">The Lane C idea in a stacked frame: mug-as-O in line one, DESK in teal below. This is the
+        vertical answer that also carries the hero concept, so it keeps <b>one idea across both formats</b>
+        rather than splitting the brand into a horizontal and a vertical story.</p>
+      <p class="risk-note"><b>RISK</b> — the teal "DESK" under a teal mug-O can tip the balance too green; if
+        DESK stays teal, mute the mug's coffee core to keep one clear teal focal point.</p>
+    </div>
+
+    <div class="card">
+      <div class="c-head"><span class="c-name">D3 · Pure type</span><span class="c-tag mono">NO MARK / RULE ACCENT</span></div>
+      <div class="stage">
+        <div class="vstack" style="font-size:38px">
+          <span class="l1">SOC</span>
+          <span class="l1" style="display:flex;align-items:center;gap:.12em">DESK</span>
+        </div>
+        <div style="position:absolute;left:50%;top:50%;width:3px;height:66px;background:var(--accent);transform:translate(-64px,-50%);border-radius:3px;opacity:.9"></div>
+        <span class="px-tag">96PX</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile"><span style="font-family:var(--brand);font-weight:900;font-size:8px;line-height:.82;color:var(--text);text-align:center">SOC<br>DESK</span></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand"><span class="vstack" style="font-size:11px;align-items:flex-start"><span class="l1">SOC</span><span class="l1" style="color:var(--accent)">DESK</span></span></div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">Type only, a teal rule marking the stack — the option if the owner wants to see whether the
+        wordmark can <b>carry itself with no mug at all</b>. Cleanest possible; also the answer for
+        monochrome / single-colour print where the mug can't render.</p>
+      <p class="risk-note"><b>RISK</b> — drops the entire coffee-mug heritage, which is the equity this whole
+        exercise is protecting. Useful as a fallback, not as the primary identity.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================= LANE E ================= -->
+<section class="block" id="lane-e">
+  <div class="block-head">
+    <span class="lane-tag">Lane E · SD monogram + mug + SOCDESK</span>
+    <h2>The literal "SD(mug)" read — for a head-to-head</h2>
+    <p>This is the owner's suggestion taken at face value: an <b>SD</b> monogram with the mug worked in, and
+      <b>SOCDESK</b> set beneath — so it can be compared directly against the mug-as-O emblem in Lane C. Two
+      integrations of the mug: as the counter of the D, and as a tile-mounted pairing.</p>
+  </div>
+
+  <div class="grid two">
+
+    <div class="card">
+      <div class="c-head"><span class="c-name">E1 · Mug-in-D</span><span class="c-tag mono">SD LIGATURE + MUG COUNTER</span></div>
+      <div class="stage" style="min-height:196px">
+        <div class="emblem">
+          <div class="sd" style="font-size:74px">
+            <span class="glyph s">S</span>
+            <span style="position:relative;display:inline-flex">
+              <span class="glyph d" style="color:var(--text)">D</span>
+              <svg class="mark-svg" width="30" height="30" viewBox="0 0 32 32" style="position:absolute;left:52%;top:50%;transform:translate(-50%,-50%);color:var(--accent)">
+                <circle cx="16" cy="16" r="9" stroke-width="2.2"/>
+                <circle class="coffee" cx="16" cy="16" r="4.4" stroke-width="2.6"/>
+              </svg>
+            </span>
+          </div>
+          <div class="desk-rule" style="max-width:150px"></div>
+          <div class="desk" style="letter-spacing:.28em">SOCDESK</div>
+        </div>
+        <span class="px-tag">EMBLEM</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile"><span class="sd" style="font-size:15px"><span class="glyph s">S</span><span class="glyph d">D</span></span></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand"><span class="sd" style="font-size:18px"><span class="glyph s">S</span><span class="glyph d">D</span></span><span class="word">SOCDESK</span></div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">The mug nests inside the bowl of the D — an "SD" that still carries the coffee cue.
+        Compact, and the monogram alone works as a tiny favicon where a full mug would blur.</p>
+      <p class="risk-note"><b>RISK</b> — the mug inside the D counter is cramped and <b>reads as a generic
+        target/logo dot</b> at small size, losing the mug entirely. "SD" also doesn't spell anything — it asks
+        the viewer to remember an abbreviation, where Lane C's mug-O simply spells SOC.</p>
+    </div>
+
+    <div class="card">
+      <div class="c-head"><span class="c-name">E2 · Tiled SD</span><span class="c-tag mono">APP-TILE + MUG CORNER</span></div>
+      <div class="stage" style="min-height:196px">
+        <div class="emblem">
+          <div class="sd-tile">
+            <span class="sd" style="font-size:48px"><span class="glyph s">S</span><span class="glyph d" style="color:var(--text)">D</span></span>
+            <svg class="mark-svg" width="20" height="20" viewBox="0 0 32 32" style="position:absolute;right:12px;bottom:10px;color:var(--accent)">
+              <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="2.2"/>
+              <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="2.2"/>
+              <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="2.2"/>
+            </svg>
+          </div>
+          <div class="desk" style="letter-spacing:.28em;color:var(--text-dim)">SOCDESK</div>
+        </div>
+        <span class="px-tag">EMBLEM</span>
+      </div>
+      <div class="proof">
+        <div class="fav"><div class="tile"><span class="sd" style="font-size:15px"><span class="glyph s">S</span><span class="glyph d">D</span></span></div><span class="fav-lbl">24PX</span></div>
+        <div class="mini-topbar">
+          <div class="mini-brand"><span class="sd" style="font-size:18px"><span class="glyph s">S</span><span class="glyph d">D</span></span><span class="word">SOCDESK</span></div>
+          <div class="mini-nav"><span class="active">Triage</span><span>Feed</span></div>
+        </div>
+      </div>
+      <p class="note">Monogram on a rounded app-tile with the full mug tucked in the corner as a maker's stamp —
+        the cleanest way to keep both the initials and a fully-formed mug. Reads well as an <b>OS app icon</b>.</p>
+      <p class="risk-note"><b>RISK</b> — two marks doing one job (letters + corner mug) is the classic
+        over-stuffed monogram; the mug becomes a decoration you could delete without anyone noticing, which
+        argues against the whole SD route versus letting the mug carry the mark itself.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================= RECOMMENDATION ================= -->
+<section class="block" id="recommendation" style="border-bottom:none">
+  <div class="block-head">
+    <span class="lane-tag">Recommendation &amp; assembled system</span>
+    <h2>One coherent family — you pick, this is the case</h2>
+    <p>These are real options and the call is the owner's. But if the goal is one identity that spans an app
+      icon, a topbar and a 16px favicon while protecting the coffee-mug heritage, the pieces below fit together
+      with <b>no new asset pipeline</b> — every mark is the same three-stroke mug topology already in the live
+      SVG, plus pixel grids that are direct descendants of the existing favicon.</p>
+  </div>
+
+  <div class="rec-wrap">
+    <div class="rec-panel">
+      <h3>Why this trio</h3>
+      <ol>
+        <li><b>Emblem / app-icon → Lane C2 (mug-as-O).</b> It is the only candidate where the mark and the
+          name are the same object; it is the direct SOCDESK sibling of the owner's existing S-O-S mug mark,
+          and it answers "SD(mug) + SOCDESK" more strongly than SD itself.</li>
+        <li><b>Topbar mark → Lane B1 (single-wisp mug).</b> Restores the steam the owner missed, drops into the
+          current topbar as one extra path, and holds together at 24px where twin curls fall apart.</li>
+        <li><b>Favicon → Lane A2 (pixel top-down mug).</b> A literal descendant of the site favicon, crisp to
+          16px, and the same circle that becomes the O in the emblem — so the smallest and the largest marks
+          rhyme.</li>
+      </ol>
+      <p class="sleeper"><b>Sleeper:</b> Lane B3, the rising tri-dot. If the steam becomes a live
+        connected / on-watch <b>status pip</b>, the mark stops being decorative and earns a functional job in
+        the UI — the most "product-native" idea here, even if it reads less literally as steam.</p>
+    </div>
+
+    <div class="assembled-col">
+      <div class="assembled-topbar">
+        <svg class="mark-svg mark-24" width="26" height="26" viewBox="0 0 32 32">
+          <path class="steam" d="M15.9 7.6 Q14.3 5.6 15.9 3.6 Q17.5 1.8 15.9 0.5" stroke-width="1.5"/>
+          <ellipse class="coffee" cx="16" cy="10.2" rx="5" ry="1.2" stroke-width="1.4"/>
+          <ellipse cx="16" cy="10" rx="7" ry="2" stroke-width="1.8"/>
+          <path d="M9.3 10.6 L10.6 23.2 Q10.8 25.2 12.8 25.2 L19.2 25.2 Q21.2 25.2 21.4 23.2 L22.7 10.6" stroke-width="1.8"/>
+          <path d="M22.6 13.8 Q28.8 13.8 28.8 18.3 Q28.8 22.8 22.6 22.1" stroke-width="1.8"/>
+        </svg>
+        <span class="word">SOCDESK</span>
+        <nav><span class="active">Triage</span><span>Feed</span><span>Vulnerabilities</span><span>Actors</span></nav>
+      </div>
+
+      <div class="assembled-row">
+        <div class="icon-spec">
+          <span class="spec-lbl">App icon — Lane C2</span>
+          <div class="app-icon">
+            <div class="emblem">
+              <div class="soc-line" style="font-size:34px">
+                <span class="lt">S</span>
+                <svg class="mark-svg o-mug" width="33" height="33" viewBox="0 0 32 32" style="color:var(--accent)">
+                  <path class="steam" d="M16 5.6 Q14.6 3.9 16 2.2 Q17.4 0.7 16 -0.6" stroke-width="1.3"/>
+                  <circle cx="16" cy="16.6" r="10" stroke-width="1.9"/>
+                  <circle class="coffee" cx="16" cy="16.6" r="5.2" stroke-width="2.7"/>
+                  <path d="M25.6 13.4 H29.3 V19.8 H25.6" stroke-width="1.9"/>
+                </svg>
+                <span class="lt">C</span>
+              </div>
+              <div class="desk" style="font-size:9px;letter-spacing:.3em">DESK</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="icon-spec">
+          <span class="spec-lbl">Favicon — Lane A2</span>
+          <div class="fav-strip">
+            <div class="tile" style="width:48px;height:48px;border-radius:10px"><svg class="px" data-mark="pixTopdown" data-h="42"></svg></div>
+            <div class="tile" style="width:24px;height:24px"><svg class="px" data-mark="pixTopdown" data-h="22"></svg></div>
+            <div class="tile" style="width:16px;height:16px;border-radius:3px"><svg class="px" data-mark="pixTopdown" data-h="15"></svg></div>
+          </div>
+          <span class="spec-lbl" style="color:var(--text-dim)">48 · 24 · 16px</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <p>SOCDESK · brand identity sheet v2 · mark &amp; lockup exploration · internal review, not for ship</p>
+  <p>design/mockups/brand-sheet-v2.html</p>
+</footer>
+
+</div>
+
+<script>
+/* ============================================================
+   Pixel-mark renderer. Grids are direct descendants of the
+   heritage favicon.svg + BrandSOSVariant / PixelCoffee grids.
+   Cells:  . empty  R rim(light)  C coffee(teal)  B body(dark)
+           S steam  L letter(light)  H handle(=rim)
+   ============================================================ */
+const PXMAP = { R:'var(--rim)', C:'var(--accent)', B:'var(--body)', S:'var(--steam)', L:'var(--letter)', H:'var(--rim)' };
+
+const GRIDS = {
+  /* --- Lane A: frontal mug, faithful to favicon.svg (16x16) --- */
+  pixFrontal: [
+    "................",
+    "....S..S..S.....",
+    "...S..S..S......",
+    "....S..S..S.....",
+    "................",
+    "..RRRRRRRRRRRR..",
+    "...CCCCCCCCCC...",
+    "...CCCCCCCCCC...",
+    "..RBBBBBBBBBBR..",
+    "..RBBBBBBBBBBR..",
+    "..RBBBBBBBBBBR..",
+    "..RBBBBBBBBBBR..",
+    "..RBBBBBBBBBBR..",
+    "...RRRRRRRRRR...",
+    "................",
+    "................",
+  ],
+  /* --- Lane A: frontal + handle (PixelCoffee lineage) --- */
+  pixHandle: [
+    "................",
+    "....S..S..S.....",
+    "...S..S..S......",
+    "....S..S..S.....",
+    "................",
+    "..RRRRRRRRRR....",
+    "...CCCCCCCC.....",
+    "...CCCCCCCC.RR..",
+    "..RBBBBBBBBR.HH.",
+    "..RBBBBBBBBR..H.",
+    "..RBBBBBBBBR.HH.",
+    "..RBBBBBBBBR.H..",
+    "..RBBBBBBBBR....",
+    "...RRRRRRRR.....",
+    "................",
+    "................",
+  ],
+  /* --- Lane A/C: top-down mug (BrandSOSVariant topdownMug) 10x13 --- */
+  pixTopdown: [
+    ".S..S..S..",
+    "S..S..S...",
+    ".S..S..S..",
+    "..........",
+    "...RRRR...",
+    "..RBBBBR..",
+    ".RBCCCCBR.",
+    ".RBCCCCBR.",
+    ".RBCCCCBR.",
+    ".RBBBBBBR.",
+    "..RBBBBR..",
+    "...RRRR...",
+    "..........",
+  ],
+  /* --- Pixel letters (6 wide, padded to 13 tall) for Lane C --- */
+  pixS: [
+    "......",".LLLLL","LLLLLL","LL....","LL....","LLLLL.",".LLLLL",
+    "....LL","....LL","....LL","LLLLLL","LLLLL.","......",
+  ],
+  pixC: [
+    "......",".LLLLL","LLLLLL","LL....","LL....","LL....","LL....",
+    "LL....","LL....","LL....","LLLLLL",".LLLLL","......",
+  ],
+  pixD: [
+    "......","LLLLL.","LLLLLL","LL..LL","LL..LL","LL..LL","LL..LL",
+    "LL..LL","LL..LL","LL..LL","LLLLLL","LLLLL.","......",
+  ],
+  pixE: [
+    "......","LLLLLL","LLLLLL","LL....","LL....","LLLLL.","LLLLL.",
+    "LL....","LL....","LL....","LLLLLL","LLLLLL","......",
+  ],
+  pixK: [
+    "......","LL..LL","LL.LL.","LLLL..","LLL...","LLLL..","LL.LL.",
+    "LL.LL.","LL..LL","LL..LL","LL..LL","LL..LL","......",
+  ],
+};
+
+function buildPixel(svg){
+  const g = GRIDS[svg.dataset.mark];
+  if(!g) return;
+  const rows = g.length;
+  const cols = Math.max.apply(null, g.map(function(s){ return s.length; }));
+  const h = parseFloat(svg.dataset.h) || 96;
+  const cell = h / rows;
+  svg.setAttribute('viewBox', '0 0 ' + cols + ' ' + rows);
+  svg.setAttribute('width', (cell*cols).toFixed(2));
+  svg.setAttribute('height', (cell*rows).toFixed(2));
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  let out = '';
+  for(let y=0; y<rows; y++){
+    const row = g[y];
+    for(let x=0; x<row.length; x++){
+      const c = row[x];
+      if(c === '.' || c === ' ') continue;
+      const fill = PXMAP[c] || 'transparent';
+      const cls = (c === 'S') ? ' class="px-steam"' : '';
+      out += '<rect x="'+x+'" y="'+y+'" width="1.03" height="1.03" fill="'+fill+'"'+cls+'/>';
+    }
+  }
+  svg.innerHTML = out;
+}
+document.querySelectorAll('svg.px').forEach(buildPixel);
+</script>
+
+</body>
+</html>

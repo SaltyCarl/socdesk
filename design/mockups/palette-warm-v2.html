@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOCDESK — Warm UI v2 · coffee-joke resolution · light + dark · escalation card</title>
+<meta name="description" content="Resolves the coffee-legibility vs vibrant-accent tension: real coffee-brown liquid + periwinkle accent on the interface, in a full warm light + dark theme, with a professional escalation card per VERDICT-LANGUAGE policy.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Red+Hat+Display:wght@400;500;600;700;800;900&family=Red+Hat+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   SOCDESK — Warm UI v2
+   Resolves the coffee-legibility vs vibrant-accent tension.
+   ROLE SPLIT (the whole thesis):
+     warm neutrals  = the room
+     coffee-brown   = the mark's joke/warmth  (MARK-ONLY, never UI)
+     vibrant accent = the product's energy      (UI-only: tabs,
+                       buttons, links, focus, DESK, data highlights)
+     green/amber/red = verdict meaning           (tally-only)
+   Themes: full LIGHT palette on :root; DARK under
+   @media(prefers-color-scheme:dark) guarded so a [data-theme]
+   toggle still wins; scoped .theme-light/.theme-dark render both
+   at once for side-by-side comparison. body always paints a token bg.
+   ============================================================ */
+
+/* ---------- LIGHT tokens (default) ---------- */
+:root, .theme-light, :root[data-theme="light"]{
+  --bg:#F2E6D0; --bg-1:#ECDDC2; --panel:#FBF4E6; --panel-2:#F0E2C9;
+  --border:#DFC9A2; --border-2:#CDB183; --border-3:#B8975F;
+  --text:#2C2013; --text-dim:#6A5638; --text-faint:#98835D;
+  --caramel:#9A6B32;
+  /* mug material — reads on warm paper */
+  --rim:#33251A; --body:#6E4B2C; --steam:#9E8258; --letter:#2A1C10;
+  --coffee:#A6612F; --coffee-crema:#E4BE74;
+  /* accent — periwinkle, deepened for AA on paper */
+  --accent:#4A4FD0; --accent-2:#6E74E0; --accent-ink:#F1F2FF;
+  /* verdict — deepened for paper */
+  --v-green:#1E9E57; --v-amber:#B4740C; --v-red:#D33A50;
+  --steam-fill:var(--accent);
+  --glow:rgba(154,107,50,.10);
+  --shadow:rgba(70,46,16,.16);
+  --tile:linear-gradient(162deg,#FBF3E2,#F0E1C6);
+  --field:#FDF8EE;
+}
+/* ---------- DARK tokens (shared block) ---------- */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15100A; --bg-1:#1A140C; --panel:#1E1710; --panel-2:#2A2015;
+    --border:#34281B; --border-2:#473721; --border-3:#5E4829;
+    --text:#F1E8D8; --text-dim:#B7A488; --text-faint:#877253;
+    --caramel:#C9924F;
+    --rim:#ECE1CD; --body:#2A2015; --steam:#93826A; --letter:#F1E8D8;
+    --coffee:#A6612F; --coffee-crema:#E0B36A;
+    --accent:#7C8AFF; --accent-2:#ADB6FF; --accent-ink:#0C1030;
+    --v-green:#4FC97A; --v-amber:#F2A81E; --v-red:#F5566B;
+    --steam-fill:var(--accent);
+    --glow:rgba(201,146,79,.06);
+    --shadow:rgba(0,0,0,.5);
+    --tile:linear-gradient(162deg,#241a10,#150d09);
+    --field:#120D07;
+  }
+}
+:root[data-theme="dark"], .theme-dark{
+  --bg:#15100A; --bg-1:#1A140C; --panel:#1E1710; --panel-2:#2A2015;
+  --border:#34281B; --border-2:#473721; --border-3:#5E4829;
+  --text:#F1E8D8; --text-dim:#B7A488; --text-faint:#877253;
+  --caramel:#C9924F;
+  --rim:#ECE1CD; --body:#2A2015; --steam:#93826A; --letter:#F1E8D8;
+  --coffee:#A6612F; --coffee-crema:#E0B36A;
+  --accent:#7C8AFF; --accent-2:#ADB6FF; --accent-ink:#0C1030;
+  --v-green:#4FC97A; --v-amber:#F2A81E; --v-red:#F5566B;
+  --steam-fill:var(--accent);
+  --glow:rgba(201,146,79,.06);
+  --shadow:rgba(0,0,0,.5);
+  --tile:linear-gradient(162deg,#241a10,#150d09);
+  --field:#120D07;
+}
+
+/* ---------- accent overrides (raspberry compare) ---------- */
+.theme-dark.rasp{ --accent:#F0509A; --accent-2:#FF88BE; --accent-ink:#2C0817; }
+.theme-light.rasp{ --accent:#C21E6A; --accent-2:#E24C8E; --accent-ink:#FFF0F6; }
+
+/* ---------- liquid swap (before/after) ---------- */
+.liquid-accent{ --coffee:var(--accent); --coffee-crema:var(--accent-2); --steam-fill:var(--steam); }
+.liquid-coffee{ --steam-fill:var(--accent); }
+
+*,*::before,*::after{ box-sizing:border-box; }
+html{ background:var(--bg); }
+body{
+  margin:0;
+  background:radial-gradient(1200px 640px at 84% -10%, var(--glow), transparent 60%), var(--bg);
+  color:var(--text);
+  font-family:'Inter',-apple-system,'Segoe UI',system-ui,sans-serif;
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+svg{ display:block; } p{ margin:0; }
+.mono{ font-family:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; }
+.brandf{ font-family:'Red Hat Display',sans-serif; }
+.brandm{ font-family:'Red Hat Mono',monospace; }
+.wrap{ max-width:1320px; margin:0 auto; padding:0 40px; }
+
+.kicker{
+  font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--caramel); margin:0 0 12px; display:flex; align-items:center; gap:8px;
+}
+.kicker::before{ content:''; width:14px; height:1px; background:var(--caramel); display:inline-block; }
+
+/* ---------- header ---------- */
+.head{ padding:52px 0 26px; border-bottom:1px solid var(--border); }
+.head-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+.head h1{ font-family:'Red Hat Display',sans-serif; font-weight:800; font-size:clamp(25px,3.2vw,35px); letter-spacing:-.02em; margin:0 0 12px; max-width:20ch; }
+.head .lede{ font-size:15px; color:var(--text-dim); max-width:80ch; }
+.head .lede b{ color:var(--text); font-weight:600; }
+.theme-toggle{ display:inline-flex; background:var(--panel); border:1px solid var(--border-2); border-radius:8px; padding:3px; gap:2px; }
+.theme-toggle button{
+  font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--text-dim); background:none; border:none; padding:7px 12px; border-radius:6px; cursor:pointer;
+}
+.theme-toggle button.on{ background:var(--accent); color:var(--accent-ink); }
+
+.section{ padding:44px 0; border-bottom:1px solid var(--border); }
+.section:last-of-type{ border-bottom:none; }
+.sec-head{ margin-bottom:26px; max-width:82ch; }
+.sec-head .tag{ display:inline-block; font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-ink); background:var(--accent); padding:3px 10px; border-radius:5px; margin-bottom:12px; }
+.sec-head h2{ font-family:'Red Hat Display',sans-serif; font-weight:800; font-size:clamp(20px,2.5vw,26px); letter-spacing:-.015em; margin:0 0 9px; }
+.sec-head p{ font-size:14px; color:var(--text-dim); }
+.sec-head p b{ color:var(--text); font-weight:600; }
+
+/* ---------- pixel rendering ---------- */
+svg.px{ display:block; }
+svg.px rect.px-steam{ animation:pxsteam 2.6s cubic-bezier(.16,.84,.44,1) infinite; }
+@keyframes pxsteam{ 0%,100%{ opacity:.5; } 50%{ opacity:.95; } }
+@media (prefers-reduced-motion:reduce){ svg.px rect.px-steam{ animation:none; opacity:.72; } }
+
+/* ---------- emblem ---------- */
+.emblem-tile{
+  display:inline-flex; flex-direction:column; gap:10px; padding:18px 20px; border-radius:16px;
+  background:var(--tile); border:1px solid var(--border-2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 18px 40px -26px var(--accent);
+}
+.soc{ display:flex; align-items:center; justify-content:center; gap:5px; }
+.desk-rule{ height:1px; background:linear-gradient(90deg,transparent,var(--caramel),transparent); opacity:.55; }
+.desk-row{ display:flex; align-items:center; justify-content:space-between; }
+
+/* ---------- before/after ---------- */
+.ba-grid{ display:grid; grid-template-columns:1fr 1fr; gap:22px; max-width:760px; }
+.ba{ background:var(--panel); border:1px solid var(--border-2); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:14px; align-items:center; text-align:center; position:relative; }
+.ba.bad{ border-color:color-mix(in srgb, var(--v-red) 45%, var(--border-2)); }
+.ba.good{ border-color:color-mix(in srgb, var(--accent) 50%, var(--border-2)); box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 30%, transparent); }
+.ba .ba-lbl{ font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.ba.bad .ba-lbl{ color:var(--v-red); } .ba.good .ba-lbl{ color:var(--accent); }
+.ba .ba-stage{ background:var(--bg-1); border:1px solid var(--border); border-radius:10px; width:100%; display:grid; place-items:center; padding:22px 10px; }
+.ba .ba-cap{ font-size:12.5px; color:var(--text-dim); line-height:1.55; }
+.ba .ba-cap b{ color:var(--text); font-weight:600; }
+
+/* favicon proofs */
+.fav-proofs{ display:flex; align-items:flex-end; gap:16px; margin-top:6px; }
+.fav-proofs .fp{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+.fav-proofs .tile{ background:var(--bg-1); border:1px solid var(--border); display:grid; place-items:center; overflow:hidden; }
+.fav-proofs .flbl{ font-family:'JetBrains Mono',monospace; font-size:8.5px; color:var(--text-faint); letter-spacing:.05em; }
+
+/* coffee-tone options */
+.tone-row{ display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; }
+.tone-opt{ background:var(--panel); border:1px solid var(--border-2); border-radius:10px; padding:14px 16px 12px; display:flex; flex-direction:column; align-items:center; gap:8px; width:150px; }
+.tone-opt .tone-name{ font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text); }
+.tone-opt .tone-hex{ font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--text-faint); }
+.tone-opt .tone-note{ font-size:11px; color:var(--text-dim); text-align:center; line-height:1.5; }
+.tone-opt.pick{ border-color:var(--accent); box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 30%, transparent); }
+.t-espresso{ --coffee:#5A3A22; --coffee-crema:#7A5233; }
+.t-midroast{ --coffee:#A6612F; --coffee-crema:#E0B36A; }
+.t-caramel{ --coffee:#D2A15E; --coffee-crema:#F0D08A; }
+
+/* accent compare */
+.acc-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:18px; max-width:820px; }
+.acc-cell{ border-radius:12px; border:1px solid var(--border-2); padding:18px; display:flex; flex-direction:column; gap:14px; background:var(--bg); }
+.acc-cell .acc-hd{ display:flex; align-items:center; gap:9px; }
+.acc-cell .acc-sw{ width:14px; height:14px; border-radius:4px; background:var(--accent); box-shadow:0 0 12px -2px var(--accent); border:1px solid rgba(255,255,255,.2); }
+.acc-cell .acc-nm{ font-family:'Red Hat Display',sans-serif; font-weight:800; font-size:14px; color:var(--text); }
+.acc-cell .acc-hex{ margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-faint); }
+.acc-cell .acc-theme{ font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-faint); }
+.acc-demo{ display:flex; align-items:center; gap:10px; }
+.acc-btn{ font-family:'Red Hat Mono',monospace; font-weight:700; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-ink); background:var(--accent); border:none; border-radius:5px; padding:7px 14px; }
+.acc-dots{ display:flex; gap:6px; margin-left:auto; align-items:center; }
+.acc-dots .d{ width:9px; height:9px; border-radius:50%; }
+.acc-dots .accent-d{ background:var(--accent); }
+.acc-dots .red-d{ background:var(--v-red); } .acc-dots .amber-d{ background:var(--v-amber); } .acc-dots .green-d{ background:var(--v-green); }
+.acc-warn{ font-size:11.5px; color:var(--text-dim); line-height:1.5; }
+.acc-warn b{ color:var(--text); font-weight:600; }
+.clash{ color:var(--v-red); font-weight:700; }
+
+/* ---------- both-themes columns ---------- */
+.themes-2{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.theme-col{ background:var(--bg); color:var(--text); border:1px solid var(--border-2); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:18px; min-width:0; }
+.theme-col .col-lbl{ display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dim); }
+.theme-col .col-lbl .chip{ background:var(--accent); color:var(--accent-ink); border-radius:4px; padding:2px 8px; }
+
+/* product topbar */
+.topbar{ display:flex; align-items:center; gap:12px; padding:0 14px; height:46px; background:var(--panel); border:1px solid var(--border); border-radius:8px; }
+.topbar .brand{ display:flex; align-items:center; gap:8px; }
+.topbar .word{ font-family:'Red Hat Display',sans-serif; font-weight:900; font-size:14px; letter-spacing:.006em; text-transform:uppercase; color:var(--text); }
+.topbar nav{ display:flex; gap:9px; margin-left:auto; }
+.topbar nav span{ font-family:'Red Hat Mono',monospace; font-size:9.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); position:relative; padding-bottom:2px; }
+.topbar nav span.active{ color:var(--accent); }
+.topbar nav span.active::after{ content:''; position:absolute; left:0; right:0; bottom:-14px; height:2px; background:var(--accent); }
+@media (max-width:1240px){ .topbar nav span:nth-child(n+3){ display:none; } }
+
+.col-emblem{ display:flex; align-items:center; gap:14px; }
+.col-emblem .cap{ font-size:11.5px; color:var(--text-dim); line-height:1.5; }
+.col-emblem .cap b{ color:var(--text); font-weight:600; }
+
+/* enrichment tally card (lively product surface) */
+.tally{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:15px 16px; display:flex; flex-direction:column; gap:11px; }
+.tally .t-top{ display:flex; align-items:center; gap:8px; }
+.tally .t-ioc{ font-size:12.5px; color:var(--text); }
+.tally .t-type{ font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--text-faint); border:1px solid var(--border-2); border-radius:4px; padding:1px 6px; }
+.tally .t-copy{ margin-left:auto; font-family:'Red Hat Mono',monospace; font-weight:700; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-ink); background:var(--accent); border:none; border-radius:5px; padding:6px 13px; cursor:pointer; }
+.tally .t-hl{ font-family:'Red Hat Display',sans-serif; font-weight:700; font-size:15px; color:var(--text); letter-spacing:-.01em; }
+.tally .t-hl b{ color:var(--v-red); font-weight:900; }
+.tally .gauge{ height:7px; border-radius:4px; background:var(--panel-2); overflow:hidden; border:1px solid var(--border); }
+.tally .gauge span{ display:block; height:100%; background:var(--v-red); }
+.tally .t-src{ list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+.tally .t-src li{ display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--text-dim); }
+.dot{ width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
+.dot.red{ background:var(--v-red); } .dot.amber{ background:var(--v-amber); } .dot.green{ background:var(--v-green); }
+.tally .t-src .s-name{ color:var(--text); font-weight:500; } .tally .t-src .s-val{ margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); }
+
+/* ===== ESCALATION CARD — sober work product ===== */
+.esc{
+  background:var(--panel); border:1px solid var(--border-2); border-radius:10px;
+  overflow:hidden; box-shadow:0 12px 32px -24px var(--shadow);
+}
+.esc-accentbar{ height:2px; background:var(--accent); opacity:.85; }
+.esc-body{ padding:18px 18px 16px; display:flex; flex-direction:column; gap:14px; }
+.esc-top{ display:flex; align-items:center; gap:10px; }
+.esc-kicker{ font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); }
+.esc-src{ font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--text-faint); }
+.esc-copy{ margin-left:auto; font-family:'Red Hat Mono',monospace; font-weight:700; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-ink); background:var(--accent); border:none; border-radius:5px; padding:7px 16px; cursor:pointer; }
+.esc-ind{ display:flex; align-items:baseline; gap:9px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+.esc-ind .ioc{ font-size:15px; color:var(--text); font-weight:600; }
+.esc-ind .type{ font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); border:1px solid var(--border-2); border-radius:4px; padding:1px 6px; }
+.esc-lbl{ font-family:'JetBrains Mono',monospace; font-size:9.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--text-faint); display:block; margin-bottom:7px; }
+.esc-lbl em{ font-style:normal; font-weight:500; letter-spacing:.02em; text-transform:none; color:var(--text-faint); }
+.esc-headline{ font-family:'Red Hat Display',sans-serif; font-weight:700; font-size:16px; color:var(--text); letter-spacing:-.01em; line-height:1.3; }
+.esc-headline b{ color:var(--v-red); font-weight:900; }
+.esc-gauge{ height:6px; border-radius:4px; background:var(--panel-2); overflow:hidden; border:1px solid var(--border); margin:9px 0 8px; }
+.esc-gauge span{ display:block; height:100%; background:var(--v-red); }
+.esc-syn{ font-size:12.5px; color:var(--text-dim); line-height:1.55; }
+.esc-list{ list-style:none; margin:0; padding:0; display:grid; gap:0; border:1px solid var(--border); border-radius:7px; overflow:hidden; }
+.esc-list li{ display:flex; align-items:center; gap:9px; font-size:12px; padding:8px 11px; border-bottom:1px solid var(--border); }
+.esc-list li:last-child{ border-bottom:none; }
+.esc-list li:nth-child(even){ background:color-mix(in srgb, var(--panel-2) 45%, transparent); }
+.esc-list .src{ color:var(--text); font-weight:600; min-width:104px; }
+.esc-list .find{ color:var(--text-dim); font-size:11px; margin-left:auto; text-align:right; }
+.esc-list.ctx .src{ min-width:104px; }
+.esc-caveat{ font-size:11.5px; color:var(--text-dim); line-height:1.55; border-left:2px solid var(--border-3); padding-left:11px; }
+.esc-meta{ font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--text-faint); letter-spacing:.02em; }
+
+/* copy-out block */
+.copyout{ margin-top:2px; }
+.copyout .co-lbl{ font-family:'JetBrains Mono',monospace; font-size:9.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint); margin-bottom:7px; display:flex; align-items:center; gap:8px; }
+.copyout .co-lbl::after{ content:''; flex:1; height:1px; background:var(--border); }
+.copyout pre{
+  margin:0; background:var(--field); border:1px solid var(--border); border-radius:8px; padding:14px 15px;
+  font-family:'JetBrains Mono',monospace; font-size:10.5px; line-height:1.62; color:var(--text-dim);
+  white-space:pre-wrap; overflow-x:auto;
+}
+.copyout pre b{ color:var(--text); font-weight:600; }
+
+/* ---------- role-split table ---------- */
+.roles{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:6px; }
+.role{ background:var(--panel); border:1px solid var(--border-2); border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:9px; }
+.role .swatch{ height:34px; border-radius:6px; border:1px solid rgba(0,0,0,.15); }
+.role .rname{ font-family:'Red Hat Display',sans-serif; font-weight:800; font-size:13px; color:var(--text); }
+.role .rrole{ font-size:11.5px; color:var(--text-dim); line-height:1.5; }
+.role .rrole b{ color:var(--text); font-weight:600; }
+.sw-room{ background:linear-gradient(90deg,var(--bg),var(--panel-2)); }
+.sw-coffee{ background:linear-gradient(90deg,var(--coffee),var(--coffee-crema)); }
+.sw-accent{ background:var(--accent); }
+.sw-verdict{ background:linear-gradient(90deg,var(--v-green),var(--v-amber),var(--v-red)); }
+
+.foot{ padding:24px 0 60px; }
+.verdict-read{ background:var(--panel); border:1px solid var(--border-2); border-left:3px solid var(--accent); border-radius:10px; padding:20px 22px; font-size:14px; color:var(--text-dim); line-height:1.65; max-width:98ch; }
+.verdict-read b{ color:var(--text); font-weight:600; }
+.verdict-read .pk{ color:var(--accent); font-weight:700; }
+.foot .path{ font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); margin-top:16px; }
+
+@media (max-width:980px){
+  .themes-2{ grid-template-columns:1fr; }
+  .roles{ grid-template-columns:1fr 1fr; }
+  .acc-grid{ grid-template-columns:1fr; }
+}
+@media (max-width:640px){
+  .wrap{ padding:0 20px; }
+  .ba-grid{ grid-template-columns:1fr; }
+  .roles{ grid-template-columns:1fr; }
+  .head-top{ flex-direction:column; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <div class="head-top">
+    <div>
+      <p class="kicker">Warm UI v2 · coffee-joke resolution · light + dark · SOCDESK</p>
+      <h1>Keep the coffee brown. Put the vibrant on the interface.</h1>
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Page theme">
+      <button data-theme-set="light">Light</button>
+      <button data-theme-set="dark">Dark</button>
+      <button data-theme-set="system" class="on">System</button>
+    </div>
+  </div>
+  <p class="lede">The mug is the joke — SOC analysts run on coffee — so the <b>liquid must read as coffee</b>,
+    hardest of all at 16&ndash;24px. Setting the liquid to the vibrant accent turned it into a milkshake and the
+    gag fell flat. Resolution: the mark's liquid is a <b>real mid-roast brown</b>; the vibrant accent moves onto
+    the <b>product</b> (active tab, buttons, links, focus, the DESK accent, data highlights); and on the emblem
+    the accent survives as the <b>rising steam</b> — energy above, coffee below. Four zoned roles, no collisions:
+    <b>warm neutrals = the room</b>, <b>coffee = the mark</b>, <b>vibrant = the product</b>,
+    <b>green/amber/red = verdict</b>. Shown in full <b>light and dark</b>, and pressure-tested on the one
+    surface that must stay sober — the <b>escalation card</b>.</p>
+</header>
+
+<!-- ============ 1 · COFFEE-JOKE RESOLUTION ============ -->
+<section class="section">
+  <div class="sec-head">
+    <span class="tag">01 · The coffee joke lands</span>
+    <h2>Before / after: pink liquid vs coffee liquid</h2>
+    <p>Same pixel mug, same grid — only the liquid changes. The accent-liquid version stops reading as coffee;
+      the brown-liquid version is unmistakable, and the accent still rides the mark as steam.</p>
+  </div>
+
+  <div class="ba-grid">
+    <div class="ba bad liquid-accent">
+      <span class="ba-lbl">Before · accent liquid</span>
+      <div class="ba-stage"><svg class="px" data-mark="pixFrontal" data-h="104"></svg></div>
+      <p class="ba-cap"><b>Reads as a milkshake.</b> Vibrant liquid fights the gag — a tired analyst's cup
+        isn't bubblegum. At 16px it's just "a mug of something."</p>
+    </div>
+    <div class="ba good liquid-coffee">
+      <span class="ba-lbl">After · coffee liquid + accent steam</span>
+      <div class="ba-stage"><svg class="px" data-mark="pixFrontal" data-h="104"></svg></div>
+      <p class="ba-cap"><b>Unmistakably coffee.</b> Mid-roast body, a golden crema line, warm rim — the joke
+        lands. The accent lives in the <b>steam</b>, so the mark still carries brand energy.</p>
+    </div>
+  </div>
+
+  <div class="fav-proofs">
+    <div class="fp liquid-coffee"><div class="tile" style="width:48px;height:48px;border-radius:9px"><svg class="px" data-mark="pixFrontal" data-h="44"></svg></div><span class="flbl">48PX</span></div>
+    <div class="fp liquid-coffee"><div class="tile" style="width:24px;height:24px;border-radius:5px"><svg class="px" data-mark="pixFrontal" data-h="22"></svg></div><span class="flbl">24PX</span></div>
+    <div class="fp liquid-coffee"><div class="tile" style="width:16px;height:16px;border-radius:3px"><svg class="px" data-mark="pixFrontal" data-h="15"></svg></div><span class="flbl">16PX</span></div>
+    <p class="ba-cap" style="text-align:left;max-width:40ch">At favicon sizes the steam collapses — and that's
+      fine: the <b>coffee-brown band is what carries "coffee"</b> when the wisps disappear. The band, not the
+      steam, is load-bearing small. Silhouette + brown band = coffee, no saucer needed.</p>
+  </div>
+
+  <div style="margin-top:26px">
+    <span class="esc-lbl" style="color:var(--text-faint)">Which coffee tone</span>
+    <div class="tone-row">
+      <div class="tone-opt t-espresso liquid-coffee"><svg class="px" data-mark="pixFrontal" data-h="52"></svg><span class="tone-name">Espresso</span><span class="tone-hex mono">#5A3A22</span><span class="tone-note">Too dark — goes muddy on the warm base.</span></div>
+      <div class="tone-opt pick t-midroast liquid-coffee"><svg class="px" data-mark="pixFrontal" data-h="52"></svg><span class="tone-name" style="color:var(--accent)">Mid-roast ✓</span><span class="tone-hex mono">#A6612F</span><span class="tone-note">Pops on dark & paper, clearly coffee.</span></div>
+      <div class="tone-opt t-caramel liquid-coffee"><svg class="px" data-mark="pixFrontal" data-h="52"></svg><span class="tone-name">Caramel</span><span class="tone-hex mono">#D2A15E</span><span class="tone-note">Drifts into "décor gold" near the hairlines.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2 · ACCENT: PERIWINKLE vs RASPBERRY ============ -->
+<section class="section">
+  <div class="sec-head">
+    <span class="tag">02 · The vibrant accent</span>
+    <h2>Periwinkle vs raspberry — and the one that fights the verdict</h2>
+    <p>Both are off-kilter and non-cyber. The deciding factor is the tally: the accent must never sit in the
+      same colour family as a verdict tone, or "red = bad" gets muddy. Amethyst is out (purple is the AI-tool
+      tell). Each shown with its Copy button beside the green/amber/red verdict dots, in both grounds.</p>
+  </div>
+
+  <div class="acc-grid">
+    <div class="acc-cell theme-dark peri">
+      <div class="acc-hd"><span class="acc-sw"></span><span class="acc-nm">Periwinkle</span><span class="acc-hex mono">#7C8AFF</span></div>
+      <span class="acc-theme">Recommended · dark ground</span>
+      <div class="acc-demo"><button class="acc-btn">Copy</button><div class="acc-dots"><span class="d accent-d"></span><span style="color:var(--text-faint);font-size:9px" class="mono">vs</span><span class="d green-d"></span><span class="d amber-d"></span><span class="d red-d"></span></div></div>
+      <p class="acc-warn"><b>Zero collision.</b> Cool blue-violet sits far from every verdict tone; the Copy
+        button never competes with "red = malicious." Warm/cool tension with espresso reads sophisticated, and
+        blue carries the built-in "actionable" affordance for links & buttons.</p>
+    </div>
+    <div class="acc-cell theme-dark rasp">
+      <div class="acc-hd"><span class="acc-sw"></span><span class="acc-nm">Raspberry</span><span class="acc-hex mono">#F0509A</span></div>
+      <span class="acc-theme">Alternate · dark ground</span>
+      <div class="acc-demo"><button class="acc-btn">Copy</button><div class="acc-dots"><span class="d accent-d"></span><span style="color:var(--text-faint);font-size:9px" class="mono">vs</span><span class="d green-d"></span><span class="d amber-d"></span><span class="d red-d"></span></div></div>
+      <p class="acc-warn"><span class="clash">Adjacency risk.</span> Raspberry <code class="mono">#F0509A</code>
+        is one hue-step from the red verdict <code class="mono">#F5566B</code> — on the tally the accent and the
+        "malicious" dots share a pink-red family. Boldest, most ownable, warmest; but it taxes the verdict read.</p>
+    </div>
+    <div class="acc-cell theme-light peri">
+      <div class="acc-hd"><span class="acc-sw"></span><span class="acc-nm">Periwinkle</span><span class="acc-hex mono">#4A4FD0</span></div>
+      <span class="acc-theme">Recommended · light ground (deepened for AA)</span>
+      <div class="acc-demo"><button class="acc-btn">Copy</button><div class="acc-dots"><span class="d accent-d"></span><span style="color:var(--text-faint);font-size:9px" class="mono">vs</span><span class="d green-d"></span><span class="d amber-d"></span><span class="d red-d"></span></div></div>
+      <p class="acc-warn">On warm paper the periwinkle deepens to <code class="mono">#4A4FD0</code> to clear AA;
+        still emphatically not cyber-cyan, still far from the verdict tones.</p>
+    </div>
+    <div class="acc-cell theme-light rasp">
+      <div class="acc-hd"><span class="acc-sw"></span><span class="acc-nm">Raspberry</span><span class="acc-hex mono">#C21E6A</span></div>
+      <span class="acc-theme">Alternate · light ground (deepened for AA)</span>
+      <div class="acc-demo"><button class="acc-btn">Copy</button><div class="acc-dots"><span class="d accent-d"></span><span style="color:var(--text-faint);font-size:9px" class="mono">vs</span><span class="d green-d"></span><span class="d amber-d"></span><span class="d red-d"></span></div></div>
+      <p class="acc-warn">Deepened raspberry reads well on paper, but the red-verdict adjacency persists in both
+        grounds — the reason it's the alternate, not the pick.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3 · BOTH THEMES, SIDE BY SIDE ============ -->
+<section class="section">
+  <div class="sec-head">
+    <span class="tag">03 · Light + dark · the whole system</span>
+    <h2>Emblem, topbar, tally, and the escalation card — in both themes</h2>
+    <p>Warm-paper light and espresso dark, each with its own retuned accent and mug material. The
+      <b>enrichment tally</b> is the lively product surface (accent used freely). The <b>escalation card</b> is
+      the work product — sober, restrained, accent only as a hairline and the COPY button, no mug, no mascot —
+      and it emits a clean copy-out that survives a client reading it. Periwinkle shown.</p>
+  </div>
+
+  <div class="themes-2">
+
+    <!-- ===== LIGHT COLUMN ===== -->
+    <div class="theme-col theme-light peri">
+      <div class="col-lbl"><span class="chip">Light</span> warm paper</div>
+
+      <div class="topbar">
+        <div class="brand"><svg class="px" data-mark="pixFrontal" data-h="24"></svg><span class="word">SOCDESK</span></div>
+        <nav><span class="active">Triage</span><span>Feed</span><span>Actors</span><span>Health</span></nav>
+      </div>
+
+      <div class="col-emblem">
+        <div class="emblem-tile">
+          <div class="soc"><svg class="px" data-mark="pixS" data-h="44"></svg><svg class="px" data-mark="pixTopdown" data-h="44"></svg><svg class="px" data-mark="pixC" data-h="44"></svg></div>
+          <div class="desk-rule"></div>
+          <div class="desk-row"><svg class="px" data-mark="pixD" data-h="20"></svg><svg class="px" data-mark="pixE" data-h="20"></svg><svg class="px" data-mark="pixS" data-h="20"></svg><svg class="px" data-mark="pixK" data-h="20"></svg></div>
+        </div>
+        <p class="cap">Coffee-brown liquid, <b>periwinkle steam</b> (3 wisps), width-matched DESK. The joke is
+          in the mark; the energy is in the steam.</p>
+      </div>
+
+      <div class="tally">
+        <div class="t-top"><span class="t-ioc mono">185.220.101.42</span><span class="t-type">IPv4</span><button class="t-copy">Copy</button></div>
+        <p class="t-hl"><b>5</b> of 6 sources flagged</p>
+        <div class="gauge"><span style="width:83%"></span></div>
+        <ul class="t-src">
+          <li><i class="dot red"></i><span class="s-name">AbuseIPDB</span><span class="s-val">98% · 1,204</span></li>
+          <li><i class="dot red"></i><span class="s-name">MalwareBazaar</span><span class="s-val">3 · Cobalt Strike</span></li>
+          <li><i class="dot amber"></i><span class="s-name">VirusTotal</span><span class="s-val">12 / 94</span></li>
+          <li><i class="dot green"></i><span class="s-name">Spamhaus</span><span class="s-val">not listed</span></li>
+        </ul>
+      </div>
+
+      <div class="esc">
+        <div class="esc-accentbar"></div>
+        <div class="esc-body">
+          <div class="esc-top"><span class="esc-kicker">Escalation draft</span><span class="esc-src mono">SOCDESK · TRIAGE</span><button class="esc-copy">Copy</button></div>
+          <div class="esc-ind"><span class="ioc mono">185.220.101.42</span><span class="type">IPv4</span></div>
+          <div>
+            <span class="esc-lbl">Assessment</span>
+            <p class="esc-headline"><b>5</b> of 6 public reputation sources flagged this as adverse.</p>
+            <div class="esc-gauge"><span style="width:83%"></span></div>
+            <p class="esc-syn">Strongest signal: MalwareBazaar catalogs 3 known samples (Cobalt Strike).
+              GreyNoise tags this a Tor exit node — elevated abuse reporting can reflect dual-use traffic.</p>
+          </div>
+          <div>
+            <span class="esc-lbl">Evidence <em>— third-party reputation, attributed, not independently verified</em></span>
+            <ul class="esc-list">
+              <li><i class="dot red"></i><span class="src">AbuseIPDB</span><span class="find mono">reports 98% abuse · 1,204 reports</span></li>
+              <li><i class="dot red"></i><span class="src">GreyNoise</span><span class="find mono">classifies malicious · scanning · Tor exit</span></li>
+              <li><i class="dot red"></i><span class="src">MalwareBazaar</span><span class="find mono">catalogs 3 samples · Cobalt Strike</span></li>
+              <li><i class="dot red"></i><span class="src">ThreatFox</span><span class="find mono">records 2 IOCs · botnet C2</span></li>
+              <li><i class="dot amber"></i><span class="src">VirusTotal</span><span class="find mono">12 / 94 engines flag</span></li>
+              <li><i class="dot green"></i><span class="src">Spamhaus</span><span class="find mono">not listed</span></li>
+            </ul>
+          </div>
+          <div>
+            <span class="esc-lbl">Context <em>— not a verdict</em></span>
+            <ul class="esc-list ctx">
+              <li><span class="src">ipinfo</span><span class="find mono">AS3209 (Vodafone) · Germany</span></li>
+              <li><span class="src">Tor exit</span><span class="find mono">dual-use traffic</span></li>
+              <li><span class="src">Not consulted</span><span class="find mono">urlscan</span></li>
+            </ul>
+          </div>
+          <p class="esc-caveat">Reputation data can be stale or wrong and has not been independently verified;
+            verify before any blocking or client-facing action.</p>
+          <p class="esc-meta">Generated by SOCDesk · 2026-08-10 14:22 UTC · sources queried 14:22</p>
+        </div>
+      </div>
+
+      <div class="copyout">
+        <p class="co-lbl">Copy-out · what lands in the ticket</p>
+        <pre><b>INDICATOR:</b> 185.220.101.42  (IPv4)
+<b>ASSESSMENT:</b> 5 of 6 public reputation sources flagged this as adverse.
+  Strongest signal: MalwareBazaar catalogs 3 known samples (Cobalt Strike).
+  Note: GreyNoise tags this a Tor exit node — elevated abuse reporting can
+  reflect dual-use traffic.
+
+<b>EVIDENCE</b> (third-party reputation data — attributed, not independently verified):
+  • AbuseIPDB — reports 98% abuse confidence, 1,204 reports (last 2d ago).
+  • GreyNoise — classifies as malicious; observed scanning; tagged Tor exit.
+  • MalwareBazaar — catalogs 3 known samples; family: Cobalt Strike.
+  • ThreatFox — records 2 IOCs; threat type: botnet C2.
+  • VirusTotal — 12 / 94 engines flag this indicator.
+  • Spamhaus — not listed.
+
+<b>CONTEXT</b> (not a verdict):
+  • ipinfo — AS3209 (Vodafone), Germany.
+  • Tor exit node — elevated abuse reporting can reflect dual-use traffic.
+  • Not consulted: urlscan.
+
+<b>CAVEAT:</b> Reputation data can be stale or wrong and has not been independently
+  verified; verify before any blocking or client-facing action.
+— Generated by SOCDesk 2026-08-10 14:22 UTC. Sources queried 14:22.</pre>
+      </div>
+    </div>
+
+    <!-- ===== DARK COLUMN ===== -->
+    <div class="theme-col theme-dark peri">
+      <div class="col-lbl"><span class="chip">Dark</span> espresso</div>
+
+      <div class="topbar">
+        <div class="brand"><svg class="px" data-mark="pixFrontal" data-h="24"></svg><span class="word">SOCDESK</span></div>
+        <nav><span class="active">Triage</span><span>Feed</span><span>Actors</span><span>Health</span></nav>
+      </div>
+
+      <div class="col-emblem">
+        <div class="emblem-tile">
+          <div class="soc"><svg class="px" data-mark="pixS" data-h="44"></svg><svg class="px" data-mark="pixTopdown" data-h="44"></svg><svg class="px" data-mark="pixC" data-h="44"></svg></div>
+          <div class="desk-rule"></div>
+          <div class="desk-row"><svg class="px" data-mark="pixD" data-h="20"></svg><svg class="px" data-mark="pixE" data-h="20"></svg><svg class="px" data-mark="pixS" data-h="20"></svg><svg class="px" data-mark="pixK" data-h="20"></svg></div>
+        </div>
+        <p class="cap">Same mark on espresso: the crema line and cream rim keep the coffee legible; the
+          <b>periwinkle steam</b> glows against the dark.</p>
+      </div>
+
+      <div class="tally">
+        <div class="t-top"><span class="t-ioc mono">185.220.101.42</span><span class="t-type">IPv4</span><button class="t-copy">Copy</button></div>
+        <p class="t-hl"><b>5</b> of 6 sources flagged</p>
+        <div class="gauge"><span style="width:83%"></span></div>
+        <ul class="t-src">
+          <li><i class="dot red"></i><span class="s-name">AbuseIPDB</span><span class="s-val">98% · 1,204</span></li>
+          <li><i class="dot red"></i><span class="s-name">MalwareBazaar</span><span class="s-val">3 · Cobalt Strike</span></li>
+          <li><i class="dot amber"></i><span class="s-name">VirusTotal</span><span class="s-val">12 / 94</span></li>
+          <li><i class="dot green"></i><span class="s-name">Spamhaus</span><span class="s-val">not listed</span></li>
+        </ul>
+      </div>
+
+      <div class="esc">
+        <div class="esc-accentbar"></div>
+        <div class="esc-body">
+          <div class="esc-top"><span class="esc-kicker">Escalation draft</span><span class="esc-src mono">SOCDESK · TRIAGE</span><button class="esc-copy">Copy</button></div>
+          <div class="esc-ind"><span class="ioc mono">185.220.101.42</span><span class="type">IPv4</span></div>
+          <div>
+            <span class="esc-lbl">Assessment</span>
+            <p class="esc-headline"><b>5</b> of 6 public reputation sources flagged this as adverse.</p>
+            <div class="esc-gauge"><span style="width:83%"></span></div>
+            <p class="esc-syn">Strongest signal: MalwareBazaar catalogs 3 known samples (Cobalt Strike).
+              GreyNoise tags this a Tor exit node — elevated abuse reporting can reflect dual-use traffic.</p>
+          </div>
+          <div>
+            <span class="esc-lbl">Evidence <em>— third-party reputation, attributed, not independently verified</em></span>
+            <ul class="esc-list">
+              <li><i class="dot red"></i><span class="src">AbuseIPDB</span><span class="find mono">reports 98% abuse · 1,204 reports</span></li>
+              <li><i class="dot red"></i><span class="src">GreyNoise</span><span class="find mono">classifies malicious · scanning · Tor exit</span></li>
+              <li><i class="dot red"></i><span class="src">MalwareBazaar</span><span class="find mono">catalogs 3 samples · Cobalt Strike</span></li>
+              <li><i class="dot red"></i><span class="src">ThreatFox</span><span class="find mono">records 2 IOCs · botnet C2</span></li>
+              <li><i class="dot amber"></i><span class="src">VirusTotal</span><span class="find mono">12 / 94 engines flag</span></li>
+              <li><i class="dot green"></i><span class="src">Spamhaus</span><span class="find mono">not listed</span></li>
+            </ul>
+          </div>
+          <div>
+            <span class="esc-lbl">Context <em>— not a verdict</em></span>
+            <ul class="esc-list ctx">
+              <li><span class="src">ipinfo</span><span class="find mono">AS3209 (Vodafone) · Germany</span></li>
+              <li><span class="src">Tor exit</span><span class="find mono">dual-use traffic</span></li>
+              <li><span class="src">Not consulted</span><span class="find mono">urlscan</span></li>
+            </ul>
+          </div>
+          <p class="esc-caveat">Reputation data can be stale or wrong and has not been independently verified;
+            verify before any blocking or client-facing action.</p>
+          <p class="esc-meta">Generated by SOCDesk · 2026-08-10 14:22 UTC · sources queried 14:22</p>
+        </div>
+      </div>
+
+      <div class="copyout">
+        <p class="co-lbl">Copy-out · what lands in the ticket</p>
+        <pre><b>INDICATOR:</b> 185.220.101.42  (IPv4)
+<b>ASSESSMENT:</b> 5 of 6 public reputation sources flagged this as adverse.
+  Strongest signal: MalwareBazaar catalogs 3 known samples (Cobalt Strike).
+  Note: GreyNoise tags this a Tor exit node — elevated abuse reporting can
+  reflect dual-use traffic.
+
+<b>EVIDENCE</b> (third-party reputation data — attributed, not independently verified):
+  • AbuseIPDB — reports 98% abuse confidence, 1,204 reports (last 2d ago).
+  • GreyNoise — classifies as malicious; observed scanning; tagged Tor exit.
+  • MalwareBazaar — catalogs 3 known samples; family: Cobalt Strike.
+  • ThreatFox — records 2 IOCs; threat type: botnet C2.
+  • VirusTotal — 12 / 94 engines flag this indicator.
+  • Spamhaus — not listed.
+
+<b>CONTEXT</b> (not a verdict):
+  • ipinfo — AS3209 (Vodafone), Germany.
+  • Tor exit node — elevated abuse reporting can reflect dual-use traffic.
+  • Not consulted: urlscan.
+
+<b>CAVEAT:</b> Reputation data can be stale or wrong and has not been independently
+  verified; verify before any blocking or client-facing action.
+— Generated by SOCDesk 2026-08-10 14:22 UTC. Sources queried 14:22.</pre>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ 4 · ROLE SPLIT ============ -->
+<section class="section">
+  <div class="sec-head">
+    <span class="tag">04 · Four colours, four jobs</span>
+    <h2>Is that one colour too many? No — because every role is zoned</h2>
+    <p>The system stays clean only if each colour has one job and one place. Coffee-brown is <b>mark-only</b>
+      (it never becomes a UI control, so it can't be mistaken for interactive or semantic). The vibrant is
+      <b>UI-only</b>. Verdict tones are <b>tally-only</b>. Break those walls and it turns to mud; keep them and
+      four colours read as a language.</p>
+  </div>
+  <div class="roles">
+    <div class="role"><div class="swatch sw-room"></div><span class="rname">Warm neutrals</span><span class="rrole"><b>The room.</b> Espresso / paper base, cream / ink text, caramel structure.</span></div>
+    <div class="role liquid-coffee"><div class="swatch sw-coffee"></div><span class="rname">Coffee brown</span><span class="rrole"><b>The mark's joke.</b> Mid-roast + crema. Lives only inside the mug — never in UI.</span></div>
+    <div class="role"><div class="swatch sw-accent"></div><span class="rname">Vibrant accent</span><span class="rrole"><b>The product's energy.</b> Tabs, buttons, links, focus, DESK, data — never a verdict.</span></div>
+    <div class="role"><div class="swatch sw-verdict"></div><span class="rname">Green · amber · red</span><span class="rrole"><b>Verdict meaning.</b> The tally only. Reserved so a flag always reads as a flag.</span></div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="verdict-read">
+    <b>My read.</b> The warm + vibrant direction holds as a system — but only with the role-split enforced.
+    Keep the mug's liquid a real <b>mid-roast <span class="mono">#A6612F</span></b> (with a crema highlight and
+    warm rim) so the coffee gag lands at every size, including 16px where the steam disappears and the brown
+    band does the work — no saucer needed. Move the vibrant entirely onto the interface, and let it ride the
+    emblem only as the <b>steam</b>. For the accent I recommend <span class="pk">Periwinkle</span>
+    (<span class="mono">#7C8AFF</span> dark / <span class="mono">#4A4FD0</span> light): it's the only candidate
+    with <b>zero adjacency to the red verdict tone</b>, it gives blue's actionable affordance, and the warm/cool
+    tension against espresso reads designed rather than loud. <b>Raspberry</b> is the bolder, warmer alternate,
+    but <span class="mono">#F0509A</span> sits one hue-step from the red verdict — it taxes the one read the
+    product can't afford to lose. And the escalation card proves the thesis: <b>witty identity, professional
+    work product</b> — the playfulness lives in the mark and chrome; the artifact that travels into a ticket
+    stays sober, tally-led, and client-safe.
+  </div>
+  <p class="path">design/mockups/palette-warm-v2.html · internal review, not for ship</p>
+</footer>
+
+</div>
+
+<script>
+/* Pixel renderer — grids descend from favicon.svg + BrandSOSVariant/PixelCoffee.
+   Cells: .=empty R=rim C=coffee F=crema/foam B=body S=steam L=letter H=handle.
+   C→--coffee, F→--coffee-crema, S→--steam-fill (accent on emblem, grey small). */
+const PXMAP = { R:'var(--rim)', C:'var(--coffee)', F:'var(--coffee-crema)', B:'var(--body)', S:'var(--steam-fill)', L:'var(--letter)', H:'var(--rim)' };
+const GRIDS = {
+  pixFrontal: [
+    "................","....S..S..S.....","...S..S..S......","....S..S..S.....","................",
+    "..RRRRRRRRRRRR..","...FFFFFFFFFF...","...CCCCCCCCCC...","..RBBBBBBBBBBR..","..RBBBBBBBBBBR..",
+    "..RBBBBBBBBBBR..","..RBBBBBBBBBBR..","..RBBBBBBBBBBR..","...RRRRRRRRRR...","................","................",
+  ],
+  pixTopdown: [
+    ".S..S..S..","S..S..S...",".S..S..S..","..........","...RRRR...","..RBBBBR..",".RBCCCCBR.",
+    ".RBCCCCBR.",".RBCCCCBR.",".RBBBBBBR.","..RBBBBR..","...RRRR...","..........",
+  ],
+  pixS: ["......",".LLLLL","LLLLLL","LL....","LL....","LLLLL.",".LLLLL","....LL","....LL","....LL","LLLLLL","LLLLL.","......"],
+  pixC: ["......",".LLLLL","LLLLLL","LL....","LL....","LL....","LL....","LL....","LL....","LL....","LLLLLL",".LLLLL","......"],
+  pixD: ["......","LLLLL.","LLLLLL","LL..LL","LL..LL","LL..LL","LL..LL","LL..LL","LL..LL","LL..LL","LLLLLL","LLLLL.","......"],
+  pixE: ["......","LLLLLL","LLLLLL","LL....","LL....","LLLLL.","LLLLL.","LL....","LL....","LL....","LLLLLL","LLLLLL","......"],
+  pixK: ["......","LL..LL","LL.LL.","LLLL..","LLL...","LLLL..","LL.LL.","LL.LL.","LL..LL","LL..LL","LL..LL","LL..LL","......"],
+};
+function buildPixel(svg){
+  const g = GRIDS[svg.dataset.mark]; if(!g) return;
+  const rows = g.length, cols = Math.max.apply(null, g.map(function(s){ return s.length; }));
+  const h = parseFloat(svg.dataset.h) || 96, cell = h / rows;
+  svg.setAttribute('viewBox', '0 0 ' + cols + ' ' + rows);
+  svg.setAttribute('width', (cell*cols).toFixed(2));
+  svg.setAttribute('height', (cell*rows).toFixed(2));
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  let out = '';
+  for(let y=0; y<rows; y++){ const row = g[y];
+    for(let x=0; x<row.length; x++){ const c = row[x];
+      if(c === '.' || c === ' ') continue;
+      const fill = PXMAP[c] || 'transparent';
+      const cls = (c === 'S') ? ' class="px-steam"' : '';
+      out += '<rect x="'+x+'" y="'+y+'" width="1.03" height="1.03" fill="'+fill+'"'+cls+'/>';
+    }
+  }
+  svg.innerHTML = out;
+}
+document.querySelectorAll('svg.px').forEach(buildPixel);
+
+/* Theme toggle — sets [data-theme] on <html>; 'system' clears it so the
+   @media(prefers-color-scheme) rule governs. Scoped .theme-* columns are
+   unaffected and always render their own theme. */
+(function(){
+  const btns = document.querySelectorAll('.theme-toggle button');
+  btns.forEach(function(b){
+    b.addEventListener('click', function(){
+      const set = b.dataset.themeSet;
+      if(set === 'system'){ delete document.documentElement.dataset.theme; }
+      else { document.documentElement.dataset.theme = set; }
+      btns.forEach(function(x){ x.classList.toggle('on', x === b); });
+    });
+  });
+})();
+</script>
+</body>
+</html>
