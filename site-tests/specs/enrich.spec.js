@@ -175,6 +175,9 @@ test.describe("enrichment", () => {
     expect(geo.facts).toEqual(expect.arrayContaining([
       ["ASN", "AS60729"],
       ["Reverse hostname", "tor-exit-42.for-privacy.net"],
+      // ipinfo's raw lat/long is surfaced (context) so the escalation card can
+      // plot the locator pin at the real coordinates.
+      ["Coordinates", "52.5244,13.4105"],
     ]));
     expect(geo.headline).toContain("Berlin");
 

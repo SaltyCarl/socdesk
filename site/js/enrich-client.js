@@ -183,7 +183,7 @@ async function renderResult(consoleEl, box, staticVerdict, result) {
       <div class="evcard-h">
         <span class="caps">Escalation card — paste straight into the ticket</span>
         <span class="live-acts">
-          <button class="act" data-ev="copy">Copy image</button>
+          <button class="act" data-ev="copy">Copy card</button>
           <button class="act" data-ev="png">Download PNG</button>
         </span>
       </div>

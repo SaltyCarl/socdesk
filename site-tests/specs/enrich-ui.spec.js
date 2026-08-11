@@ -118,7 +118,11 @@ test.describe("live enrichment wiring", () => {
     await expect(page.locator("#liveEnrich .live-gaps")).toContainText("not configured");
   });
 
-  test("the ready-to-paste evidence card renders on a light ground", async ({ page }) => {
+  test("the ready-to-paste Copy card renders, theme-aware (warm paper under a light scheme)", async ({ page }) => {
+    // The card is now theme-aware (owner decision): it renders light or dark to
+    // match the current theme. Under a light colour scheme it is warm paper —
+    // a light artifact that reads correctly in an email body.
+    await page.emulateMedia({ colorScheme: "light" });
     await page.route("**/api/enrich*", stub(MAL));
     await lookup(page, IP);
     const canvas = page.locator("#liveEnrich canvas.evcard-canvas");
@@ -127,7 +131,8 @@ test.describe("live enrichment wiring", () => {
       const d = c.getContext("2d").getImageData(20, 20, 1, 1).data;
       return [d[0], d[1], d[2]];
     });
-    expect(corner.every(v => v > 240), "the escalation card is a light artifact").toBe(true);
+    // warm paper panel (#FBF4E6) — a light ground, not pure white.
+    expect(corner.every(v => v > 200), "the light Copy card is a warm-paper artifact").toBe(true);
   });
 
   test("a dead endpoint degrades to the static verdict and pivots, never a blank or a crash", async ({ page }) => {

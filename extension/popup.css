@@ -213,20 +213,27 @@ body{
 .esc::before{ content:""; display:block; height:2px; background:var(--accent); opacity:.85; }
 .esc-h{
   display:flex; justify-content:space-between; align-items:center; gap:8px;
-  padding:11px 12px 10px; border-bottom:1px solid var(--border);
+  flex-wrap:wrap; padding:11px 12px 10px; border-bottom:1px solid var(--border);
 }
 .esc-cap{
   font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:.14em;
   text-transform:uppercase; color:var(--accent);
 }
-.esc-copy{
-  background:var(--accent); color:var(--accent-ink); border:none; border-radius:6px;
-  font-family:var(--mono); font-weight:700; font-size:10px; letter-spacing:.12em;
-  text-transform:uppercase; padding:7px 14px; cursor:pointer;
-  transition:filter .15s ease;
+/* two ways out: Copy card (primary, filled) + Copy text (secondary, ghost).
+   Labelled by target, never by a verdict/action (VERDICT-LANGUAGE §4). */
+.esc-actions{ display:flex; gap:7px; flex-wrap:wrap; margin-left:auto; }
+.esc-btn{
+  display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+  font-family:var(--mono); font-weight:700; font-size:10px; letter-spacing:.11em;
+  text-transform:uppercase; border-radius:6px; padding:7px 13px;
+  border:1px solid transparent; transition:filter .15s ease, background .15s ease;
 }
-.esc-copy:hover{ filter:brightness(1.08); }
-.esc-copy:focus-visible{ outline:2px solid var(--accent-2); outline-offset:2px; }
+.esc-btn.primary{ background:var(--accent); color:var(--accent-ink); }
+.esc-btn.primary:hover{ filter:brightness(1.08); }
+.esc-btn.ghost{ background:transparent; color:var(--accent); border-color:var(--border-2); }
+.esc-btn.ghost:hover{ background:color-mix(in srgb, var(--accent) 10%, transparent); }
+.esc-btn:disabled{ opacity:.6; cursor:default; filter:none; }
+.esc-btn:focus-visible{ outline:2px solid var(--accent-2); outline-offset:2px; }
 /* the copied text, rendered verbatim on a recessed field — mono, calm */
 .esc-body{ padding:12px; max-height:230px; overflow:auto; background:var(--field); }
 .esc-line{

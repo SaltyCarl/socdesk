@@ -12,6 +12,9 @@ import {
   refang, detectType, isEnrichable, safeUrl,
   normalizeOrigin, enrichUrl, reportUrl, DEFAULT_ORIGIN,
 } from "./lib/indicators.js";
+// The Copy-card canvas renderer is SHARED, byte-for-byte, with the site
+// (site/js/evidence.js). Both surfaces therefore emit an identical PNG.
+import { renderEvidence, copyEvidence, downloadEvidence } from "./lib/evidence.js";
 
 const $ = id => document.getElementById(id);
 const form = $("form"), input = $("q"), chip = $("chip"),
@@ -134,11 +137,15 @@ function sourceRow(s) {
 /* ---- the ratio-led escalation card (§4) — copy straight into an email ---- */
 function escalationCard(result) {
   const text = tallyEscalation(result);
-  const btn = el("button", { class: "esc-copy", text: "COPY",
+  // Copy card (primary) puts the rendered PNG on the clipboard; Copy text
+  // (secondary) puts the attributed plain-text block. Both artifacts, always.
+  const cardBtn = el("button", { class: "esc-btn primary", text: "Copy card",
+    attrs: { type: "button" } });
+  const textBtn = el("button", { class: "esc-btn ghost", text: "Copy text",
     attrs: { type: "button" } });
   const head = el("div", { class: "esc-h" }, [
     el("span", { class: "esc-cap", text: "Escalation — copy into the ticket" }),
-    btn,
+    el("div", { class: "esc-actions" }, [cardBtn, textBtn]),
   ]);
   // Render the exact copied text, line for line (textContent — never innerHTML),
   // so what the analyst reads equals what lands in the email.
@@ -146,12 +153,32 @@ function escalationCard(result) {
   for (const line of text.split("\n"))
     body.appendChild(el("div", { class: "esc-line", text: line || " " }));
 
-  btn.addEventListener("click", async () => {
+  // Copy card — render the canvas, write image/png to the clipboard. Fonts must
+  // resolve first or canvas substitutes a fallback face. Feature-detected; if
+  // the image clipboard is refused, fall back to a PNG download so the analyst
+  // still gets the artifact, and never claim a success that did not happen.
+  cardBtn.addEventListener("click", async () => {
+    const was = cardBtn.textContent;
+    cardBtn.disabled = true; cardBtn.textContent = "Rendering…";
+    let label = "Copy blocked";
+    try {
+      try { await (document.fonts?.ready ?? Promise.resolve()); } catch { /* no-op */ }
+      const canvas = renderEvidence(result);
+      if (await copyEvidence(canvas)) label = "Copied ✓";
+      else if (await downloadEvidence(canvas, result.indicator)) label = "Saved PNG";
+    } catch { label = "Copy blocked"; }
+    cardBtn.textContent = label;
+    setTimeout(() => { cardBtn.textContent = was; cardBtn.disabled = false; }, 1300);
+  });
+
+  // Copy text — the attributed plain-text block, verbatim.
+  textBtn.addEventListener("click", async () => {
     let ok = false;
     try { await navigator.clipboard.writeText(text); ok = true; } catch { ok = false; }
-    btn.textContent = ok ? "Copied ✓" : "Copy blocked";
-    setTimeout(() => { btn.textContent = "COPY"; }, 1200);
+    textBtn.textContent = ok ? "Copied ✓" : "Copy blocked";
+    setTimeout(() => { textBtn.textContent = "Copy text"; }, 1200);
   });
+
   return el("div", { class: "esc" }, [head, body]);
 }
 
