@@ -1,59 +1,135 @@
-/* options.css — same Chart Room tokens as the popup, laid out as a settings
-   card. Opens in its own tab (options_ui.open_in_tab). */
+/* options.css — SOCDESK warm/periwinkle system, settings-card layout. Same
+   tokens/theming/fonts as popup.css (see notes there). Opens in its own tab
+   (options_ui.open_in_tab). Dark-first; light via prefers-color-scheme; explicit
+   [data-theme] wins. No remote loads — bundled Archivo + IBM Plex Mono. */
+
+@font-face{
+  font-family:'Archivo'; font-style:normal; font-weight:100 900; font-stretch:62% 125%;
+  font-display:swap; src:url("fonts/archivo-100_900.woff2") format('woff2');
+}
+@font-face{
+  font-family:'IBM Plex Mono'; font-style:normal; font-weight:400;
+  font-display:swap; src:url("fonts/ibmplexmono-400.woff2") format('woff2');
+}
+@font-face{
+  font-family:'IBM Plex Mono'; font-style:normal; font-weight:600;
+  font-display:swap; src:url("fonts/ibmplexmono-600.woff2") format('woff2');
+}
+
+/* ---------- ESPRESSO DARK tokens (default) ---------- */
 :root{
-  --ink:#0F161C; --panel:#141D26; --panel-soft:#1A2530; --raised:#213040;
-  --line:#263644; --line-bright:#3C566C;
-  --paper:#E8E1CF; --muted:#8799A6;
-  --accent:#E8E1CF; --ink-on-accent:#10171D; --mark:#E2513A;
-  --green:#7CC492; --orange:#F09A4A;
-  --sans:system-ui,"Segoe UI",Roboto,sans-serif;
+  --bg:#15100A; --bg-1:#1A140C; --panel:#1E1710; --panel-2:#2A2015;
+  --border:#34281B; --border-2:#473721; --border-3:#5E4829;
+  --text:#F1E8D8; --text-dim:#B7A488; --text-faint:#877253;
+  --caramel:#C9924F;
+  --accent:#7C8AFF; --accent-2:#ADB6FF; --accent-ink:#0C1030;
+  --v-green:#4FC97A; --v-amber:#F2A81E; --v-red:#F5566B;
+  --field:#120D07; --glow:rgba(201,146,79,.06); --shadow:rgba(0,0,0,.55);
+  --m-rim:#ECE1CD; --m-body:#2A2015; --m-coffee:#A6612F; --m-crema:#E0B36A; --m-steam:var(--accent);
+  --sans:"Archivo",system-ui,"Segoe UI",Roboto,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
 }
+/* ---------- WARM PAPER LIGHT (OS preference, unless forced dark) ---------- */
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#F2E6D0; --bg-1:#ECDDC2; --panel:#FBF4E6; --panel-2:#F0E2C9;
+    --border:#DFC9A2; --border-2:#CDB183; --border-3:#B8975F;
+    --text:#2C2013; --text-dim:#6A5638; --text-faint:#98835D;
+    --caramel:#9A6B32;
+    --accent:#4A4FD0; --accent-2:#6E74E0; --accent-ink:#F1F2FF;
+    --v-green:#1E9E57; --v-amber:#B4740C; --v-red:#D33A50;
+    --field:#FDF8EE; --glow:rgba(154,107,50,.10); --shadow:rgba(70,46,16,.16);
+    --m-rim:#33251A; --m-body:#6E4B2C; --m-coffee:#A6612F; --m-crema:#E4BE74;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#F2E6D0; --bg-1:#ECDDC2; --panel:#FBF4E6; --panel-2:#F0E2C9;
+  --border:#DFC9A2; --border-2:#CDB183; --border-3:#B8975F;
+  --text:#2C2013; --text-dim:#6A5638; --text-faint:#98835D;
+  --caramel:#9A6B32;
+  --accent:#4A4FD0; --accent-2:#6E74E0; --accent-ink:#F1F2FF;
+  --v-green:#1E9E57; --v-amber:#B4740C; --v-red:#D33A50;
+  --field:#FDF8EE; --glow:rgba(154,107,50,.10); --shadow:rgba(70,46,16,.16);
+  --m-rim:#33251A; --m-body:#6E4B2C; --m-coffee:#A6612F; --m-crema:#E4BE74;
+}
+:root[data-theme="dark"]{
+  --bg:#15100A; --bg-1:#1A140C; --panel:#1E1710; --panel-2:#2A2015;
+  --border:#34281B; --border-2:#473721; --border-3:#5E4829;
+  --text:#F1E8D8; --text-dim:#B7A488; --text-faint:#877253;
+  --caramel:#C9924F;
+  --accent:#7C8AFF; --accent-2:#ADB6FF; --accent-ink:#0C1030;
+  --v-green:#4FC97A; --v-amber:#F2A81E; --v-red:#F5566B;
+  --field:#120D07; --glow:rgba(201,146,79,.06); --shadow:rgba(0,0,0,.55);
+  --m-rim:#ECE1CD; --m-body:#2A2015; --m-coffee:#A6612F; --m-crema:#E0B36A;
+}
+
 *{ box-sizing:border-box; }
+html{ background:var(--bg); }
 body{
-  margin:0; min-height:100vh; background:var(--ink); color:var(--paper);
+  margin:0; min-height:100vh; color:var(--text);
+  background:radial-gradient(1000px 520px at 84% -10%, var(--glow), transparent 60%), var(--bg);
   font-family:var(--sans); font-size:14px; line-height:1.55;
-  display:flex; justify-content:center; padding:40px 16px;
+  -webkit-font-smoothing:antialiased;
+  display:flex; justify-content:center; padding:44px 16px;
 }
 .card{
   width:100%; max-width:560px; background:var(--panel);
-  border:1px solid var(--line); align-self:flex-start;
+  border:1px solid var(--border-2); border-radius:12px; align-self:flex-start;
+  overflow:hidden; box-shadow:0 24px 60px -34px var(--shadow);
 }
+.card::before{ content:""; display:block; height:2px; background:var(--accent); opacity:.85; }
+
 .top{
-  display:flex; align-items:baseline; gap:10px;
-  padding:16px 20px; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:10px;
+  padding:16px 20px; border-bottom:1px solid var(--border); background:var(--panel);
 }
-.brand{ font-weight:800; letter-spacing:.14em; }
-.brand::first-letter{ color:var(--mark); }
-.sub{ color:var(--muted); font-size:12px; letter-spacing:.04em; }
+.mark{ display:flex; flex:0 0 auto; }
+.mark svg{ display:block; width:24px; height:24px; }
+.mark .mug-steam{ animation:mugsteam 2.6s cubic-bezier(.16,.84,.44,1) infinite; }
+@keyframes mugsteam{ 0%,100%{ opacity:.5; } 50%{ opacity:.95; } }
+@media (prefers-reduced-motion: reduce){ .mark .mug-steam{ animation:none; opacity:.72; } }
+.brand{
+  font-family:var(--sans); font-weight:800; font-size:15px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text); line-height:1;
+}
+.sub{ color:var(--text-dim); font-size:12px; letter-spacing:.03em; }
 
 form{ padding:20px; }
 .lbl{
-  display:block; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
-  color:var(--muted); margin-bottom:6px;
+  display:block; font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-faint); margin-bottom:6px;
 }
-.hint{ color:var(--muted); font-size:12.5px; margin:0 0 12px; }
+.hint{ color:var(--text-dim); font-size:12.5px; margin:0 0 12px; }
 code{
-  font-family:var(--mono); font-size:12px; color:var(--paper);
-  background:var(--panel-soft); padding:1px 4px; border:1px solid var(--line);
+  font-family:var(--mono); font-size:12px; color:var(--text);
+  background:var(--field); padding:1px 5px; border:1px solid var(--border); border-radius:4px;
 }
 .row{ display:flex; gap:8px; }
 #origin{
-  flex:1; padding:10px 12px; background:var(--panel-soft); color:var(--paper);
-  border:1px solid var(--line-bright); border-radius:0; outline:none;
+  flex:1; padding:10px 12px; background:var(--field); color:var(--text);
+  border:1px solid var(--border-2); border-radius:8px; outline:none;
   font-family:var(--mono); font-size:13px;
 }
-#origin:focus{ border-color:var(--accent); }
+#origin:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
 .btn{
-  padding:10px 18px; background:var(--accent); color:var(--ink-on-accent);
-  border:none; border-radius:0; font-weight:600; font-size:13px; cursor:pointer;
+  padding:10px 18px; background:var(--accent); color:var(--accent-ink);
+  border:none; border-radius:8px; font-family:var(--sans); font-weight:700;
+  font-size:13px; letter-spacing:.02em; cursor:pointer; transition:filter .15s ease;
 }
-.btn:hover{ background:#fff; }
-.status{ min-height:18px; margin:10px 0 0; font-family:var(--mono); font-size:12px; }
-.status.ok{ color:var(--green); }
-.status.err{ color:var(--orange); }
+.btn:hover{ filter:brightness(1.08); }
+.btn:focus-visible{ outline:2px solid var(--accent-2); outline-offset:2px; }
+
+.status{ min-height:18px; margin:10px 0 0; font-family:var(--mono); font-size:12px; color:var(--text-dim); }
+/* status uses green for a genuine confirmation (not a source verdict); errors
+   stay off the reserved verdict tones — a caramel rule reads as "attention". */
+.status.ok{ color:var(--v-green); }
+.status.err{ color:var(--text); border-left:2px solid var(--caramel); padding-left:10px; }
+
 .note{
-  margin-top:20px; padding:12px 14px; background:var(--panel-soft);
-  border:1px solid var(--line); color:var(--muted); font-size:12.5px;
+  margin-top:20px; padding:13px 15px; background:var(--field);
+  border:1px solid var(--border); border-radius:8px; color:var(--text-dim); font-size:12.5px;
 }
-.note strong{ color:var(--paper); }
+.note strong{ color:var(--text); font-weight:600; }
