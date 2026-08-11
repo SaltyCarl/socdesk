@@ -75,7 +75,7 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
 
 <div class="mast">
   <h1>SOC<span>·</span>DESK</h1>
-  <div class="sub">PRODUCT OVERVIEW &amp; ROADMAP<br>EDITION <b>2026-08-10</b><br>github.com/SaltyCarl/<b>socdesk</b></div>
+  <div class="sub">PRODUCT OVERVIEW &amp; ROADMAP<br>EDITION <b>2026-08-11</b><br>github.com/SaltyCarl/<b>socdesk</b></div>
 </div>
 
 <div class="tagline">The analyst's first stop for any indicator.</div>
@@ -92,7 +92,7 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
 <li><b>No secrets in the repo.</b> Collectors are keyless; enrichment keys live server-side in Cloudflare, never in git or the browser.</li>
 <li><b>Privacy by default.</b> Analyst state (reviewed, watchlist, notable) is localStorage only. No accounts, no analytics, no tracking.</li>
 <li><b>Strict CSP + defence in depth.</b> <span class="mono">default-src 'none'</span>, no inline script; every upstream string sanitised at collection and escaped again at render.</li>
-<li><b>RADAR visual direction.</b> Dark, search-first analytics: an interactive real-data threat globe as hero, teal accent, data-table enrichment. Distinctive, not AI-slop. (Chart Room superseded.)</li>
+<li><b>RADAR visual direction.</b> Dark warm-espresso / warm-paper, search-first, <b>periwinkle</b> accent + coffee-mug mark; evolved in-place on the vanilla site (no framework, no build step). Distinctive, not AI-slop. (Chart Room superseded.)</li>
 </ul>
 </div>
 
@@ -124,20 +124,20 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
     <div>
       <div class="sub-h">Output — the differentiator</div>
       <ul>
-        <li class="done"><b>Escalation card</b> — the analyst copies it into the ticket; no SOCDesk recommendation (their call), button reads COPY</li>
+        <li class="done"><b>Escalation card</b> — copied into the ticket as a PNG image (Copy card) or text; no SOCDesk recommendation (the analyst's call)</li>
         <li class="done"><b>Type-aware pivots</b>, trimmed to the T1 workflow set (no fluff vendors)</li>
         <li class="done"><b>CVE</b> — authoritative, attributed: CISA-confirmed exploited (KEV) + CVSS + EPSS</li>
         <li class="done">Honest states — "0 of M flagged" is never dressed as a clearance</li>
       </ul>
       <div class="sub-h">Reach — the Recorded-Future move</div>
       <ul>
-        <li class="done"><b>Browser extension v1</b> — right-click lookup + toolbar popup over the live API (built, permission-reviewed)</li>
+        <li class="done"><b>Browser extension v1</b> — right-click lookup + toolbar popup over the live API; warm/periwinkle brand, ready to submit (Unlisted)</li>
         <li class="plan"><b>v2 · inline page annotation</b> — highlight indicators on any page <span class="t">(broad perms — later)</span></li>
         <li class="plan"><b>Bookmarklet selection-capture</b> — no-install fallback</li>
       </ul>
     </div>
   </div>
-  <p class="note">LIVE at socdesk.io. In progress: the RADAR visual rebuild (React + shadcn), shipping the extension (Unlisted), and analyst dogfood. Verdict output is the consensus tally — see docs/VERDICT-LANGUAGE.md.</p>
+  <p class="note">LIVE at socdesk.io. In progress: the RADAR visual rebuild (the vanilla site evolved in-place to the warm/periwinkle brand — built, awaiting the logo + verdict-graphic picks, then commit/deploy); Extension v1 ready to submit (Unlisted); analyst dogfood. Verdict output is the consensus tally — see docs/VERDICT-LANGUAGE.md.</p>
 </div>
 
 <!-- LEG 2 -->
@@ -217,7 +217,7 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
   <div class="kicker">Sequencing &amp; current status</div>
   <ul>
     <li class="done"><b>Done:</b> Leg 1 is LIVE at socdesk.io — live multi-source enrichment, the consensus tally, and the browser extension v1.</li>
-    <li class="build"><b>Now:</b> the RADAR visual rebuild (React + shadcn) — final branding, a hero-scale interactive globe, a designed escalation card; ship the extension (Unlisted); analyst dogfood.</li>
+    <li class="build"><b>Now:</b> ship the RADAR visual rebuild (the vanilla site evolved to the warm/periwinkle brand — built, uncommitted; gated on the logo + verdict-graphic picks); submit Extension v1 (Unlisted); analyst dogfood.</li>
     <li class="plan"><b>Then:</b> settle the employer-IP question → repo public vs. private; Leg 2 threat-intel feed on the existing pipeline.</li>
     <li class="plan"><b>Later:</b> Leg 3 sensor, once the IP gate clears.</li>
   </ul>

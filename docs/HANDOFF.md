@@ -1,58 +1,122 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-10 · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-11 · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-10 (design pivot · consensus model · extension)
+## 0. LATEST — 2026-08-11 (RADAR rebuild built [UNCOMMITTED] · extension v1 ready · copy-card)
 
-Major changes since the body below was written. **These supersede the stale
-parts, especially §5 "Design law," which describes the abandoned look.**
+Read this whole section. Two things gate the next session: **an uncommitted
+working tree** and a **reversed stack decision.** These supersede the stale body
+below (especially §5 "Design law" and any "React + shadcn / teal" phrasing).
 
-**Design pivot — Chart Room is OUT; "RADAR" is the direction.** The owner
-reopened the visual identity (§5's "settled, do not re-litigate" no longer
-holds — do not follow it). A 3-way bake-off (RADAR / COMMAND / SIGNAL) picked
-**RADAR**: dark, search-first, an interactive real-data threat globe as an
-analytics hero, teal accent, a **data-table enrichment card**. Iterations:
-`design/mockups/rebuild-radar-v{1,2,3}.html` (v3 = globe.gl scroll-zoom +
-hover-to-reveal-TI, refined monoline mug mark, trimmed copy). In flight: a
-**branding pass** (logo + wordmark + a replacement font — Bricolage isn't
-landing) producing `design/mockups/brand-sheet.html`, and a reference-library
-review (Watermelon UI, Motion Primitives, Haikei). Elevation research:
-`docs/superpowers/specs/2026-08-02-frontend-elevation-charter.md`. Next build =
-**RADAR v4** (final logo/font + hero-scale globe + rich escalation card +
-consensus data), pending the owner's brand-sheet picks.
+### ⚠️ CRITICAL — the RADAR visual rebuild is BUILT but UNCOMMITTED
 
-**Stack decision — production rebuild moves to React + Vite + Tailwind +
-shadcn/ui + Recharts + globe.gl** (the vanilla site stays live meanwhile).
-`ui-ux-pro-max` is now the design engine (skill; CLI `search.py` under its dir).
-Watermelon UI (MIT, this exact stack) is a component starter kit for it.
+The RADAR rebuild lives in the working tree, **not committed and not deployed.**
+Do NOT `git pull --rebase`, do NOT `git checkout`/`reset` these files, and do NOT
+let a stray `git add -A` sweep them into an unrelated commit. This docs handoff
+commits **`docs/` only** for exactly this reason.
 
-**Verdict language — the CONSENSUS-TALLY model (`docs/VERDICT-LANGUAGE.md`,
-binding).** SOCDesk NO LONGER emits a verdict word ("malicious"/etc.) in its own
-voice. It leads with a source-consensus ratio — "**N of M** public sources
-flagged this as adverse" (VT-style; a count, not a pronouncement). ipinfo =
-context (out of the tally); no-key sources shown "not consulted." Being
-implemented across `lib/enrich.mjs` (new `consensus()`; response gains
-`consulted`/`flagged`/`tone`, drops top-level `verdict`), the site, and the
-extension **in lockstep**. Escalation card carries **NO recommendation** (the
-analyst's call), copy button is **`COPY`**, and becomes a designed artifact.
+**Decision: EVOLVE the vanilla site — NOT a framework rewrite.** The site was
+restyled in place (still vanilla ES modules, no build step):
+- Palette **warm-espresso** (dark) / **warm-paper** (light) + **periwinkle**
+  accent + the **coffee-mug** mark. **Light / Dark / System** toggle added.
+- Compact RADAR header — the old giant "SOC DESK" masthead was **deleted.**
+- Search-hero: H1 stacked **"IOC in." / "OSINT out."** ("OSINT" in periwinkle).
+- The broken score gauge is **fixed** (value now centered in the ring).
+- Feed rows + actor cards brought to the escalation-card visual language.
+- Stat band restrained (periwinkle slab removed); hero decluttered — Live-Wire
+  ticker + TRY chips cut, disclosure collapsed to one line, "Escalation summary"
+  renamed **"Intelligence summary."**
+- `site/sw.js` bumped to **v15.**
+- Files (all uncommitted): `site/index.html`,
+  `site/css/{tokens,base,chrome,panels}.css`,
+  `site/js/{verdict,views,app,motion,state}.js`, `site/favicon.svg`,
+  `site/sw.js`, `site-tests/specs/*`. Tests **~108–110 green.** Not deployed.
 
-**Browser extension — v1 built (`extension/`), permission-reviewed, works.** MV3,
-minimal perms (`contextMenus`, `storage`; host = socdesk.io + socdesk.pages.dev
-only — NO broad host, NO content script yet). Right-click lookup + toolbar popup
-over the live `/api/enrich`. v2 = inline page annotation (broad perms — later).
-Publisher identity = **SanchezOnSecurity**; owner's Chrome Web Store dev account
-is set up. Privacy policy hosted at **`socdesk.io/privacy.html`**. Reach roadmap:
-`docs/superpowers/specs/2026-08-10-analyst-reach-scope.md`.
+### ⚠️ STALE DECISION REVERSED (it was in the old §0)
 
-**Privacy stance relaxed** — the "no analytics/no tracking" promise is dropped
-(owner: not essential). Cloudflare Web Analytics is fine; if its beacon
-CSP-errors, ALLOW it rather than disable. `site/privacy.html` reflects this.
+The previous §0 said the production rebuild moves to **React + Vite + Tailwind +
+shadcn, teal accent, Bricolage/Geist fonts.** **That is reversed.** We evolved
+the vanilla site (no framework); accent = **periwinkle** (not teal); fonts =
+self-hosted **Archivo + IBM Plex Mono** (Red Hat / Bricolage were only mockup
+stand-ins). `ui-ux-pro-max` / Watermelon-UI / React-shadcn are no longer the
+plan. Ignore any surviving "React + shadcn" phrasing elsewhere in this doc.
 
-**Concurrency caution:** background implementation agents edit the working tree.
-Don't run `git pull --rebase` on a dirty tree; commit only your own files
-explicitly and let each agent commit its own.
+### Committed this session
+- **Escalation "Copy card"** — the evidence card is drawn to canvas and copied
+  to the clipboard as a **PNG image,** from byte-identical code shared across
+  `site/js/evidence.js` and `extension/lib/evidence.js`. The popup now offers
+  **Copy card** (image) + **Copy text.** `lib/enrich.mjs` surfaces ipinfo `loc`
+  → a city-level pin. Card cleanups: `GEOLOCATION` header; not-consulted/footer
+  lines removed; single timestamp; clean/negative sources retained (honest
+  "5 of 6"); **no SOCDesk branding in the copied image;** dual-use note promoted
+  under the tally; jargon glossed.
+- **`docs/VERDICT-LANGUAGE.md` §4** updated to match (no branding in the copied
+  artifact, reworded caveat, named sources retained, dual-use promoted,
+  plain-text ships alongside the image).
+- **Extension v1** finished and ready to ship — final pixel-coffee-mug icons;
+  popup/options restyled to the warm/periwinkle brand (self-hosted Archivo +
+  IBM Plex Mono); escalation copy-out fixed (button `COPY`, no recommendation
+  line, neutral provenance). Submission **zip is on Carl's Desktop**
+  (`socdesk-extension-v1.zip`). Store upload (Unlisted, `privacy.html` as the
+  policy URL) is **Carl's action.**
+- **`BACKLOG.md`** — added the analyst-utility expansion lane (highlight→engine
+  dispatcher, ACCURACY-FIRST) and the public-vs-private data boundary. See §9.
+
+### In flight — design explorations (mockups UNCOMMITTED in `design/mockups/`)
+- **RADAR globe hero (Phase 3)** — NOT built. Plan: self-host GSAP + globe.gl
+  locally, a local/embedded earth texture (CSP-safe), a self-drawn dot-matrix
+  fallback, tighten CSP `script-src` to `'self'`. On hold until the foundation +
+  logo + verdict-graphic settle.
+- **Verdict graphic** (`design/mockups/verdict-graphic-explore.html`) —
+  replacing the VT-donut score ring. Recommended: **B · Severity Spine**
+  (segmented bullet meter unifying the CVE score + the N-of-M tally, animated)
+  as the primary mark; **A · Threat Radar** (spider-scope, on-brand) as a
+  secondary CVE-page view. **Owner picking.**
+- **Logo redesign** (`design/mockups/logo-v2.html`, being built) — the pixel mug
+  had a tonal mismatch; refining a dimensional coffee mug + periwinkle pixel
+  steam (owner-provided reference), glow-free, in our tokens, proven at 16px.
+  **Owner picking.**
+
+### Leg 2 (Threat-Intel bulletins) — PLANNED, not built
+- The full build plan + the **`brief.json` contract** (`schemas/brief.schema.json`
+  + `tests/fixtures/brief/example.json`) were produced **inline** by the
+  architect (Write was disabled) and are **NOT yet persisted to disk** — the
+  exact content is in this session's task logs. **Next session: persist them
+  first,** then dispatch the two lanes. Shape: `pipeline/cluster.py` (dedup) +
+  rank (reuse `relevance.py`) + trending (extend `history.py`) + register
+  `brief.json` in `validate.py`'s gate + a stubbable local-LLM summarizer
+  (`pipeline/llm.py` + `pipeline/summarize.py`) + extend `renderBrief`. CI never
+  calls the LLM; the box writes `brief.stories.json`.
+- **Summarizer model (empirically verified on the Framework box):** target
+  LiteLLM **`summarize-local` (Qwen3-Next-80B-A3B)** — 3–4 s / ~150 tokens,
+  grounded. The paper pick "reuse GLM-4.7-Flash" was **rejected** by the box
+  test (verbose/slow: 25 s / ~1,300 tokens). Optional: re-probe GLM with
+  thinking off; add `Qwen3.6-35B-A3B` (~21 GB, Apache) as `brief-local` for half
+  the memory.
+- **Sequencing:** build Leg 2 **only AFTER the RADAR rebuild lands** — both touch
+  `site/js/views.js` + `index.html`; never run them concurrently.
+- **One structural decision pending owner:** trending is pipeline-owned (free,
+  every run) and `brief.json` publishes even with empty stories → the Brief tab
+  would appear on trending-only (a behavior change). Confirm before building.
+
+### Infra (from the Framework Stack Bible, reviewed)
+- LiteLLM live on `framework:4444` (tailnet): `summarize-local` (Qwen3-Next-80B),
+  `agent-fast` (GLM-4.7-Flash), gemma; n8n on `:5678`. **SSH `carl@framework`
+  works** from Carl's Windows box via Tailscale — **but** Tailscale-SSH
+  check-mode needs interactive browser re-approval; flip the ACL
+  **`check` → `accept`** (or add a raw key) for durable headless automation.
+  No Anthropic key on the box (cloud lane blocked; the local summarizer is
+  unaffected).
+- Automation: Mode 1 (drive the box via SSH from here) + Mode 2 (delegate to the
+  box's local Aider/Claude, plan-then-build). Production brief job = a user
+  systemd timer or n8n workflow on the box → `generate_brief.py` → push → deploy.
+
+### Concurrency caution
+Background implementation agents edit the working tree. Don't `git pull --rebase`
+on a dirty tree; commit only your own files explicitly and let each agent commit
+its own.
 
 ---
 
@@ -253,41 +317,57 @@ Both now have regression tests.
 - ~~Cloudflare Pages~~ **DONE.** ~~Chrome Web Store dev account~~ **DONE**
   (under `carlos@sanchezonsecurity.com`, a Cloudflare-forwarded alias — created
   the Google account via "use existing email"; publisher = SanchezOnSecurity).
-- **Design picks (gates RADAR v4):** from the branding brand-sheet, choose the
-  logo variant + wordmark lockup + replacement font.
-- **Extension → store:** owner smoke-tested v1 (works). Remaining before submit:
-  final mug icons (from the branding pass), package zip, submit **Unlisted**
-  first with `socdesk.io/privacy.html` as the policy URL.
+- **Ship the RADAR rebuild** (built + uncommitted, see §0) — decide the ship
+  path: **ship-with-globe** (build the Phase-3 globe hero first, then deploy the
+  complete rebuild) vs **ship-now.** Lead recommendation: with-globe, after the
+  logo + verdict-graphic settle.
+- **Pick the verdict graphic** (recommendation: **B · Severity Spine**) and the
+  **logo** execution (`design/mockups/logo-v2.html`). Both gate the ship.
+- **Upload Extension v1** to the Chrome Web Store **Unlisted** — the submission
+  zip is on Carl's Desktop (`socdesk-extension-v1.zip`), `socdesk.io/privacy.html`
+  as the policy URL.
+- **Tailscale SSH ACL flip** (`check` → `accept`) for durable headless box
+  automation.
+- **Leg 2 green-light:** ransomware.live license call (leans keep, non-commercial),
+  abuse.ch free key (add?), and confirm the trending / Brief-tab structural
+  decision (§0) before the build starts.
 - Optional: employment IP-assignment clause (gates repo-private + Leg-3 sensor).
 
 **Open code work (next):**
-- **Escalation card fix** — the consensus-tally agent shipped it (commit
-  `4221cc3`) against the *pre-feedback* spec, so it still has a recommended-action
-  line and a "Copy for ticket" label. Per the updated `VERDICT-LANGUAGE.md`:
-  remove the recommendation from the copy-out card (analyst's call) and rename
-  the button to **`COPY`**, on both site (`verdict.js`) and extension
-  (`popup.js`), updating the tests. Small but explicit.
-- **RADAR v4 build** — after brand picks: React+shadcn production frontend with
-  the hero-scale globe (globe.gl + Spotlight/progressive-blur so it isn't
-  confined to a small circle), richer per-dot hover TI, and the escalation card
-  as a designed artifact (Watermelon-UI-style). Reference adoptions in the
-  reference-review (Watermelon UI / Motion Primitives / Haikei geometric-only).
+- **Commit + deploy the RADAR rebuild** once the owner picks the ship path
+  (§0 lists the uncommitted files; bump `sw.js` is already at v15). Not done here
+  because this handoff commits `docs/` only.
+- **Persist the Leg-2 `brief.json` contract + build plan** — currently only in
+  this session's task logs (`schemas/brief.schema.json` +
+  `tests/fixtures/brief/example.json`), then dispatch the two lanes. Build Leg 2
+  **only after** the RADAR rebuild lands (shared files — see §0).
 - **Dogfood** — 2-3 analysts run real alerts through the live tool + extension.
 
 ---
 
-## 9. Backlog — superseded by BACKLOG.md (2026-08-10)
+## 9. Backlog — superseded by BACKLOG.md (updated 2026-08-11)
 
-Priorities were re-cut around the north star (§1): **P0** owner stands up
-Cloudflare Pages + enrichment keys (unblocks public URL, green deploys, AND
-the dormant `/api/enrich`); **P1** hammer the 99% loop (dogfood with real
-analysts, urlscan screenshot preview, Browserling link verification);
-**P2** the CVE/threat-intel feed as the second pillar. Fuzzy search, CVE
-sharding, Phase C brief, honeypot (still IP-gated), and wave-2 collectors are
-all **parked** — see `BACKLOG.md` for the full map. Historical notes on each
-item remain valid where written (enrichment worker spec:
+Priorities were re-cut around the north star (§1): **P0 DONE** (Cloudflare Pages
++ enrichment keys live); **P1** hammer the 99% loop (dogfood with real analysts,
+urlscan screenshot preview, Browserling link verification); **P2** the
+CVE/threat-intel feed as the second pillar. Two lanes were added on 2026-08-11
+(in `BACKLOG.md`):
+- **Analyst-utility expansion lane** — broaden the extension's select →
+  type-detect → focused-output gesture into an L1/L2 investigation copilot
+  (highlight→engine dispatcher): command-line deobfuscator (top pick), universal
+  decoder, event-ID/ATT&CK lookup, IOC-from-selection, and a vetted SIEM
+  table/query recommender (KQL/Sentinel first). **ACCURACY-FIRST** — deterministic
+  curated content, not on-the-fly LLM; additive, must not slow the core loop.
+- **Public-vs-private data boundary (HARD RULE)** — the public site's LLM only
+  processes public data and user input is a bare indicator; any LLM-on-internal-
+  data assist (escalation-draft, alert/log/phishing triage) is **PRIVATE-ONLY**
+  (a private instance or BASTION/CARL), never socdesk.io.
+
+Fuzzy search, CVE sharding, Phase C brief, honeypot (IP-gated), and wave-2
+collectors remain **parked** — see `BACKLOG.md` for the full map. Historical
+notes remain valid (enrichment worker spec:
 `docs/superpowers/specs/2026-08-07-enrichment-worker-spec.md`; honeypot
-non-negotiables recorded in BACKLOG history / git).
+non-negotiables in BACKLOG history / git).
 
 ---
 
@@ -309,8 +389,10 @@ non-negotiables recorded in BACKLOG history / git).
 | `docs/superpowers/specs/2026-08-02-frontend-elevation-charter.md` | Front-end elevation research (motion engines, native APIs, stack) |
 | `extension/` | MV3 browser extension v1 (`README.md` = load/test/ship; `PRIVACY.md`) |
 | `site/privacy.html` | Hosted privacy policy (the store submission URL) |
-| `design/mockups/rebuild-radar-v{1,2,3}.html` | The RADAR direction iterations (v3 current); `brand-sheet.html` = branding options |
-| `design-system.md` | Chart Room v4 — ⚠️ SUPERSEDED by the RADAR direction (see §0) |
+| `design/mockups/rebuild-radar-v{1,2,3}.html` | The RADAR direction iterations (superseded by the in-tree evolved site, §0) |
+| `design/mockups/verdict-graphic-explore.html` | Verdict-graphic options (B Severity Spine rec, A Threat Radar) — owner picking |
+| `design/mockups/logo-v2.html` | Refined coffee-mug logo + periwinkle pixel steam — owner picking |
+| `design-system.md` | Chart Room v4 — ⚠️ SUPERSEDED by the RADAR/periwinkle direction (see §0) |
 | `design/brand.md` | Brand book — partly stale; the mug is being refined in the branding pass |
 | `BACKLOG.md` | Wave-2 collectors, knock-knock review, honeypot architecture + security review, CARL port notes |
 | `docs/INFRASTRUCTURE-OPTIONS.md` | What each infra tier unlocks and costs |
