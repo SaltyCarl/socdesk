@@ -1,10 +1,104 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-11 · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-11 (session 2 — brand/logo) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-11 (RADAR rebuild built [UNCOMMITTED] · extension v1 ready · copy-card)
+## 0. LATEST — 2026-08-11 (session 2 — brand/logo · NO shippable logo)
+
+> This is the **later** of two 2026-08-11 sessions. The **session 1** block (RADAR
+> rebuild / extension / copy-card) is directly below, kept for context. Where the
+> two conflict, **THIS block wins** — specifically it **supersedes** session 1's
+> verdict-graphic pick ("B · Severity Spine") and the "logo-v2, owner picking"
+> line.
+
+**Honest framing:** this whole session went to the **logo** and produced **NO
+shippable logo** — ~5 hours in failure loops. Recorded plainly so next session
+starts from the correct approach, **not the loop.** The real design decisions
+that DID get made are below and must not be lost.
+
+### Design decisions LOCKED this session (preserve)
+- **Verdict graphic — DECIDED** (this replaces session 1's "Severity Spine" rec):
+  **Core radar** — filled polygon + a bold central number on a faceted hex plate
+  — for **CVEs**; plus a **range-gate companion** — discrete count "blips," the
+  benign source shown **hollow** — for the **enrich consensus tally.** Mockups
+  (uncommitted): `design/mockups/verdict-graphic-explore.html`,
+  `design/mockups/verdict-graphic-radar-round2.html`. **Build note:** before
+  wiring into `verdict.js` / `evidence.js`, decide whether the big center number
+  is **EPSS%** (current) or a **labeled composite** (KEV+CVSS+EPSS).
+- **Palette — CONFIRMED #1 "warm + periwinkle"** (the current RADAR-rebuild
+  scheme) after a 3-way comparison (`design/mockups/palette-explore.html`).
+  Graphite-ground and gold-mono were **rejected** — gold collides with the
+  reserved **verdict-amber.** Mug/ceramic = caramel **`#C68B5B`**; do **NOT**
+  drift to pale-latte tones (a mid-session color error, corrected).
+- **Lockup orientation:** mug → **thin vertical rule** (sized to the text block,
+  not stretched) → **SOCDESK** (Archivo 800, −0.02em) over **"THREAT
+  INTELLIGENCE, FASTER."** (FASTER. in periwinkle), **no wordmark underline.**
+  (The topbar "underline" was an accidental `<a>` default; `site/css/base.css`
+  already ships `a{text-decoration:none}`, so the live site is fine.)
+
+### LOGO — UNRESOLVED (the time sink) — do NOT re-enter the loop
+- **Definitive reference = the ChatGPT brand sheet** (Carl's file
+  `chatgptbrandsheet.png`): a **dimensional caramel MUG** with a rounded
+  **D-handle**, periwinkle **PIXEL steam**, **no saucer**; tagline "Good intel,
+  hot coffee"; palette `#F5F1EB` text / `#C68B5B` mug / `#6B8AFF` steam /
+  `#1A150F` bg. **This is the target.**
+- **Dead ends — DO NOT resume:** cup-and-saucer silhouette, **wavy** steam,
+  pale-latte ceramic, and the flat-geometric "UI icon" register — all detours
+  (assistant-led). Steam is **PIXEL** per the sheet, not wavy.
+- **Why it failed (root cause):** the mug is **AI-image-generated** — fidelity
+  **cannot be hand-authored or recovered from a screenshot.** Two wrong
+  approaches were burned: (a) sub-agents hand-coding SVG from *text descriptions*
+  of the reference → clipart (the agent can't see the image; telephone game);
+  (b) cropping the 928px brand-sheet *screenshot* + background-keying → a lossy
+  ~107px raster with a dark handle-eye artifact, not portfolio-grade.
+- **Correct path for next session — EITHER:**
+  1. **Carl exports the actual full-resolution generated master** from ChatGPT —
+     isolated icon, transparent, **1024px+**, the **real file (NOT a
+     screenshot)**; OR
+  2. **Stand up local image generation on the Framework box** — ComfyUI +
+     **FLUX.1-schnell / SDXL** over the tailnet, **reference-conditioned**
+     (img2img / IP-Adapter) to match the sheet, driven from Claude Code via
+     SSH/HTTP — then **`rembg`** for a clean alpha + **`vtracer`** for an optional
+     scalable SVG. Then wire the logo in. (See memory `feedback-logo-asset-generation`.)
+- **Tooling installed on Carl's Windows box this session (reuse):** Python
+  **Pillow** + **vtracer**. **cairosvg / svglib FAILED** (no native cairo on
+  Windows). **Headless-Chrome screenshotting FAILED** (collides with the
+  already-open Chrome profile + flag quirks) — next time pass a **fresh
+  `--user-data-dir`**, or render on the Framework box.
+
+### ⚠️ Working tree / cleanup (flag prominently)
+- **The LIVE `site/favicon.svg` was overwritten** by a failed logo attempt
+  (uncommitted) — it currently holds a **non-approved cup/caramel experiment.**
+  **Revert or replace it before any deploy.**
+- Uncommitted logo explorations: `design/mockups/logo-v2.html`,
+  `design/mockups/logo-v3.html`, `design/mockups/favicon-v3.svg` (+ the
+  verdict/palette mockups above).
+- **The entire RADAR visual rebuild is STILL uncommitted** (`site/index.html`,
+  `site/css/*`, `site/js/*`, `sw.js` at **v15**) — **unchanged from session 1.**
+  Nothing has been committed since the docs-only commit **`6b68393`** (session
+  1's handoff). Keep the standing rule: **do NOT `git add -A` / rebase / checkout
+  blindly** — this handoff commits `docs/` only.
+
+### Next-session sequence
+1. **Resolve the logo** via image generation (path above) — the first real step.
+2. **Wire the locked set into the rebuild in ONE pass:** the logo asset (topbar +
+   favicon + lockup), the verdict **Core + range-gate companion** into
+   `verdict.js` / `evidence.js` (decide **EPSS vs composite** center number), and
+   the **palette #1** tokens.
+3. **Revert/replace** the experimental `site/favicon.svg`.
+4. **Commit the rebuild;** then the **ship decision** (with-globe vs ship-now);
+   then **Leg 2** (build plan + `brief.json` contract still to be persisted from
+   the earlier architect log; `summarize-local` / Qwen3-Next-80B verified).
+
+### Still-open owner actions (unchanged)
+- **Upload Extension v1** — Chrome Web Store, **Unlisted**; zip on Carl's Desktop.
+- **Tailscale SSH ACL flip** (`check` → `accept`) for durable headless automation.
+- **Leg-2 source decisions** — ransomware.live license, abuse.ch key.
+
+---
+
+## 0-EARLIER. 2026-08-11 (session 1 — RADAR rebuild built [UNCOMMITTED] · extension v1 ready · copy-card)
 
 Read this whole section. Two things gate the next session: **an uncommitted
 working tree** and a **reversed stack decision.** These supersede the stale body
@@ -65,6 +159,12 @@ plan. Ignore any surviving "React + shadcn" phrasing elsewhere in this doc.
   dispatcher, ACCURACY-FIRST) and the public-vs-private data boundary. See §9.
 
 ### In flight — design explorations (mockups UNCOMMITTED in `design/mockups/`)
+
+> ⚠ The **verdict-graphic** and **logo** items below are **SUPERSEDED by §0
+> (session 2)** — the verdict graphic is now decided (**Core radar + range-gate
+> companion**, not Severity Spine), and the logo direction changed to an
+> **image-generated asset** (ref = `chatgptbrandsheet.png`). Kept for context.
+
 - **RADAR globe hero (Phase 3)** — NOT built. Plan: self-host GSAP + globe.gl
   locally, a local/embedded earth texture (CSP-safe), a self-drawn dot-matrix
   fallback, tighten CSP `script-src` to `'self'`. On hold until the foundation +
@@ -321,8 +421,15 @@ Both now have regression tests.
   path: **ship-with-globe** (build the Phase-3 globe hero first, then deploy the
   complete rebuild) vs **ship-now.** Lead recommendation: with-globe, after the
   logo + verdict-graphic settle.
-- **Pick the verdict graphic** (recommendation: **B · Severity Spine**) and the
-  **logo** execution (`design/mockups/logo-v2.html`). Both gate the ship.
+- **Verdict graphic — DECIDED** (session 2, §0): **Core radar** for CVEs + a
+  **range-gate companion** for the consensus tally (supersedes the old "Severity
+  Spine" rec). Remaining: pick the center number (**EPSS%** vs **KEV+CVSS+EPSS
+  composite**) at build time, then wire into `verdict.js` / `evidence.js`.
+- **Logo — UNRESOLVED, still gates the ship.** No longer a mockup pick: it needs
+  an **image-generated asset** — Carl exports the full-res ChatGPT master
+  (`chatgptbrandsheet.png` is the reference), OR local gen on the Framework box
+  (ComfyUI + FLUX, reference-conditioned). Do NOT hand-code SVG from text or crop
+  the screenshot again — see §0 (session 2).
 - **Upload Extension v1** to the Chrome Web Store **Unlisted** — the submission
   zip is on Carl's Desktop (`socdesk-extension-v1.zip`), `socdesk.io/privacy.html`
   as the policy URL.
@@ -390,8 +497,9 @@ non-negotiables in BACKLOG history / git).
 | `extension/` | MV3 browser extension v1 (`README.md` = load/test/ship; `PRIVACY.md`) |
 | `site/privacy.html` | Hosted privacy policy (the store submission URL) |
 | `design/mockups/rebuild-radar-v{1,2,3}.html` | The RADAR direction iterations (superseded by the in-tree evolved site, §0) |
-| `design/mockups/verdict-graphic-explore.html` | Verdict-graphic options (B Severity Spine rec, A Threat Radar) — owner picking |
-| `design/mockups/logo-v2.html` | Refined coffee-mug logo + periwinkle pixel steam — owner picking |
+| `design/mockups/verdict-graphic-{explore,radar-round2}.html` | Verdict-graphic explorations — **DECIDED: Core radar + range-gate companion** (§0 session 2) |
+| `design/mockups/palette-explore.html` | 3-way palette comparison — **CONFIRMED #1 warm + periwinkle** (§0 session 2) |
+| `design/mockups/logo-v{2,3}.html`, `favicon-v3.svg` | Logo explorations — **superseded**; logo is now an image-gen task, ref = `chatgptbrandsheet.png` (§0 session 2) |
 | `design-system.md` | Chart Room v4 — ⚠️ SUPERSEDED by the RADAR/periwinkle direction (see §0) |
 | `design/brand.md` | Brand book — partly stale; the mug is being refined in the branding pass |
 | `BACKLOG.md` | Wave-2 collectors, knock-knock review, honeypot architecture + security review, CARL port notes |
