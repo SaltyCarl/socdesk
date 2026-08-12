@@ -81,10 +81,12 @@ test.describe("live enrichment wiring", () => {
     await expect(page.locator("#vword")).toHaveText("3 / 3", { timeout: 8000 });
     await expect(page.locator("#vword")).toHaveClass(/tone-red/);
     await expect(page.locator("#console .vc-head .caps").first()).toContainText("Live reputation");
-    // the on-screen escalation docket is rebuilt to the ratio-led §4 card
-    await expect(page.locator("#escBody")).toContainText("ASSESSMENT: 3 of 3 public reputation sources flagged this as adverse");
-    await expect(page.locator("#escBody")).toContainText("CAVEAT:");
-    await expect(page.locator("#escBody")).not.toContainText("NOT IN CORPUS");
+    // reputation types have NO text docket — the escalation output is the
+    // geo-led image card (Copy card + Copy text), per escalation-card-v3. The
+    // "Intelligence summary" markdown docket is CVE-only now.
+    await expect(page.locator("#escBody")).toHaveCount(0);
+    await expect(page.locator("#liveEnrich .evcard [data-ev=copy]")).toHaveText("Copy card");
+    await expect(page.locator("#liveEnrich .evcard [data-ev=text]")).toHaveText("Copy text");
   });
 
   test("every source is an attributed finding, with facts and a verifiable link", async ({ page }) => {

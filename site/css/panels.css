@@ -154,6 +154,7 @@
 /* the left column carries the gauge + basis (lighter now the duplicate Public
    Data block is gone), the right the denser escalation summary */
 .vc-grid{display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr)}
+.vc-grid.solo{grid-template-columns:minmax(0,1fr)}   /* reputation verdicts: no text docket, single column */
 .vc-main{padding:24px;min-width:0}
 .vc-ind{font-family:var(--mono);font-size:14px;word-break:break-all;margin-bottom:10px}
 .vc-basis{color:var(--muted);font-size:13px;line-height:1.55;max-width:56ch}

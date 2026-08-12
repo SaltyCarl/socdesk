@@ -11,7 +11,9 @@
 // BUMP THIS on every change to the shell (html/css/js). The shell is cached
 // cache-first, so without a bump returning visitors keep the old UI after a
 // deploy — this masked two changes during development before it was caught.
-const VERSION = "socdesk-v17";  // v17: interactive cobe globe in the home hero
+const VERSION = "socdesk-v18";  // v18: escalation = geo-led image card (Copy card +
+                                // Copy text); text docket CVE-only; .live layout collision fixed
+                                // v17: interactive cobe globe in the home hero
                                 // (js/globe.js + js/vendor/cobe.js + css/globe.css)
                                 // v16: SD-monogram logo (topbar sdmark + favicon)
                                 // replaces the pixel coffee-mug. v15: hero H1 stacked + periwinkle OSINT, "Intelligence summary" label. v14: hero declutter — Live-wire ticker cut,

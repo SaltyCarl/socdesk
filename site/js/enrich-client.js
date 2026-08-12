@@ -221,6 +221,7 @@ async function renderResult(consoleEl, box, staticVerdict, result) {
         <span class="caps">Escalation card — paste straight into the ticket</span>
         <span class="live-acts">
           <button class="act" data-ev="copy">Copy card</button>
+          <button class="act" data-ev="text">Copy text</button>
           <button class="act" data-ev="png">Download PNG</button>
         </span>
       </div>
@@ -228,6 +229,13 @@ async function renderResult(consoleEl, box, staticVerdict, result) {
     </div>`;
 
   replaceStatic(consoleEl, staticVerdict, result, cls);
+
+  // Copy text — the plain-text escalation (§4) that travels alongside the image
+  // card; wired unconditionally so it works even if the canvas image fails.
+  box.querySelector('[data-ev="text"]').onclick = e => {
+    const b = e.currentTarget;
+    copyToButton(b, tallyEscalation(result), b.textContent);
+  };
 
   // Fonts must be resolved before the canvas is painted or it substitutes a
   // fallback face and the card looks nothing like the site (evidence.js).
@@ -269,7 +277,7 @@ export async function enrichInto(consoleEl, { type, indicator, verdict }, opts =
 
   const box = document.createElement("section");
   box.id = "liveEnrich";
-  box.className = "live";
+  box.className = "live-enrich";
   box.setAttribute("aria-live", "polite");
   box.innerHTML = `
     <div class="vc-head">

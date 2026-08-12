@@ -260,12 +260,31 @@ export function renderVerdict(el, v, onDone) {
   // summary on the right, so the left column reads clean: radar, indicator, basis.
   const gaugeBlock = v.kind === "cve" ? radarSVG(v) : "";
 
+  // The escalation TEXT docket is the CVE escalation surface ONLY. For the
+  // reputation types (IP/domain/hash/url) the agreed escalation output is the
+  // geo-led image card — Copy card + Copy text — rendered by enrich-client.js,
+  // NOT a text docket (design/mockups/escalation-card-v3.html; the "text card"
+  // was deliberately weeded out). So the docket renders for CVEs; reputation
+  // verdicts get a clean single-column console and let the image card own the
+  // escalation.
+  const isCve = v.kind === "cve";
+  const sideBlock = isCve ? `
+      <div class="vc-side esc">
+        <div class="esc-h"><span class="cap">Intelligence summary</span>
+          <span class="esc-acts">
+            <button class="act" data-esc="md">Copy markdown</button>
+            <button class="act" data-esc="txt">Copy text</button>
+            <button class="act" data-esc="dl">Download .md</button>
+          </span></div>
+        <div class="docket" id="escBody">${docketHTML(v)}</div>
+      </div>` : "";
+
   el.innerHTML = `
     <div class="vc-head">
       <span class="caps tone-${esc(v.tone)}">Verdict · ${esc(v.type)}</span>
       <button class="act" data-vc="clear">Clear · Esc</button>
     </div>
-    <div class="vc-grid">
+    <div class="vc-grid${isCve ? "" : " solo"}">
       <div class="vc-main">
         <div class="gauge-wrap">${gaugeBlock}
           <div>
@@ -275,15 +294,7 @@ export function renderVerdict(el, v, onDone) {
         <div class="mono vc-ind" id="vq">${esc(defangText(v.q))}</div>
         <p class="vc-basis">${esc(v.basis)}</p>
       </div>
-      <div class="vc-side esc">
-        <div class="esc-h"><span class="cap">Intelligence summary</span>
-          <span class="esc-acts">
-            <button class="act" data-esc="md">Copy markdown</button>
-            <button class="act" data-esc="txt">Copy text</button>
-            <button class="act" data-esc="dl">Download .md</button>
-          </span></div>
-        <div class="docket" id="escBody">${docketHTML(v)}</div>
-      </div>
+      ${sideBlock}
     </div>
     <div class="ev"><div class="l">Pivot to — discloses this indicator to that service</div></div>
     <div class="pivots">${pivots}</div>`;
