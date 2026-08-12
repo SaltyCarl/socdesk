@@ -1,10 +1,89 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-11 (session 2 — brand/logo) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-12 (session 3 — logo RESOLVED + segmented) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-11 (session 2 — brand/logo · NO shippable logo)
+## 0. LATEST — 2026-08-12 (session 3 — logo RESOLVED + segmented)
+
+> Newest block. It **supersedes the session-2 logo section** below (§0-PRIOR
+> "LOGO — UNRESOLVED"): the logo is now **decided and locked.** Everything else
+> in §0-PRIOR — verdict graphic, palette, the working-tree guard — still stands.
+
+**Read this first.** The logo saga is over. The next session is a set of
+**segmented, mostly-independent tasks** (only #4 is a sequence). **Palette is
+unchanged — no re-skin.**
+
+### LOGO — RESOLVED (locked) ✅
+- **Primary mark = "SD Monogram" (brand-sheet Option 1)** — interlocking S/D
+  built from clean geometry, with periwinkle **signal-bars.** The **coffee mug is
+  demoted to a SECONDARY brand motif** (warmth / community / merch — shift-start,
+  daily-brief, physical mug), **NOT** the primary logo. This dissolved the mug's
+  16px-favicon problem in one move.
+- **Palette UNCHANGED** — the brand sheet sits on our already-shipped
+  **warm-espresso / warm-paper + periwinkle** tokens
+  (`#15100A / #F2E6D0 / #A6612F / #7C8AFF`). **NO re-skin.**
+- **Rejected: the "System Mug" alternative sheet** (VOID `#080C10` +
+  electric-blue `#5A78FF` + copper + **paid Aeonik** font). Void = the cold-cyber
+  slop we left; copper collides with the reserved **verdict-gold**; Aeonik is a
+  paid font (breaks no-paid-tools + CSP self-host). A System-Mug preview was built
+  (`design/mockups/brand-systemmug-preview.*`) then **discarded.**
+- **Asset — `design/mockups/sd_logo.svg`:** the monogram **traced to clean,
+  scalable SVG** from the brand sheet (`suggestions.png`) and recolored to exact
+  tokens. **Theme-aware:** monogram `fill="currentColor"` (cream on dark, espresso
+  on light); bars `fill="var(--sd-bar,#7C8AFF)"` (`#4A4FD0` on light). Crisp
+  200 → 32px; at 16px the **SD holds but the 4 bars compress** → a **2-bar 16px
+  favicon cut** is still needed.
+- **Preview — `design/mockups/hero-sd-preview.*`:** the warm globe hero with the
+  SD monogram in the topbar + an added hero lockup, both themes, verified
+  **CSP-clean.**
+- **NOT yet wired into `site/`.** The logo lives **only in mockups.**
+  `site/favicon.svg` still holds a **non-approved experimental mark** (revert
+  pending).
+- **Committed design-only at `c4cd6fd`** (`design/` — `sd_logo.svg` +
+  hero/brand mockups + `UX-DIRECTION.md` + `REFERENCES.md` + brand explorations).
+
+### Memory rules added/strengthened this session (so the saga can't repeat)
+- **`feedback-visual-asset-generation`** — polished raster/brand visuals come
+  **ONLY** from an image generator or an approved master; **never** hand-authored
+  SVG / raster-recolor / agent-redraw ("it's just a flat icon" is the trap).
+  **Converge the instant the user approves one; no variant fan-out.**
+- **`framework-local-dev`** — **READ the Stack Bible**
+  (`Desktop\Projects\stack-bible\`) **before touching the Framework box;** the
+  memory was marked stale (Bible §A is source of truth).
+- **`feedback-no-personable-filler`** — task-focused communication only.
+
+### Next-session tasks — SEGMENTED (also logged in the task tracker)
+1. **Wire the SD logo into `site/`** — topbar + favicon (+ the **2-bar 16px cut**)
+   + hero lockup; theme-aware; **palette unchanged.**
+2. **Fix the light-theme globe** — dark-sphere-on-cream → warm-greige instrument
+   (isolated tweak; **gates nothing**).
+3. **Globe elevations** — depth / rim-light, denser dots, node emphasis, dot
+   richness (the **4 palette-independent wins** from the globe review).
+4. **Finish the RADAR rebuild → commit + ship** (the one sequence) — verdict
+   **Core + companion** into `verdict.js` / `evidence.js` (decide **EPSS% vs
+   composite** center number), **globe Phase 3** (self-host **cobe**), then
+   **commit the `site/` rebuild** + make the **ship call.**
+5. **Revert the experimental `site/favicon.svg`.**
+6. **Leg 2 build** (already tracked — see §0-EARLIER; build **only after** the
+   rebuild lands, shared files).
+
+### Still-open owner actions (carry forward, unchanged)
+- **Upload Extension v1** — Chrome Web Store, **Unlisted**; zip on Carl's Desktop.
+- **Tailscale SSH ACL flip** (`check` → `accept`) for headless box automation.
+- **Leg-2 source decisions** — ransomware.live license, abuse.ch key.
+- **Deferred fix for future asset generation:** local image-gen on the Framework
+  box (**ComfyUI + FLUX** via the kyuz0 ROCm toolbox, Stack Bible §D/§H).
+
+### Working tree (standing guard — unchanged)
+- `site/` (**12 files, the RADAR rebuild**) remains **uncommitted + incomplete**
+  since commit `f029b26`. Keep the standing rule: **no `git add -A` / rebase /
+  checkout** — this handoff commits **`docs/` only.**
+- `design/` is **now committed** (`c4cd6fd`).
+
+---
+
+## 0-PRIOR. 2026-08-11 (session 2 — brand/logo · logo now RESOLVED in §0)
 
 > This is the **later** of two 2026-08-11 sessions. The **session 1** block (RADAR
 > rebuild / extension / copy-card) is directly below, kept for context. Where the
@@ -37,7 +116,11 @@ that DID get made are below and must not be lost.
   (The topbar "underline" was an accidental `<a>` default; `site/css/base.css`
   already ships `a{text-decoration:none}`, so the live site is fine.)
 
-### LOGO — UNRESOLVED (the time sink) — do NOT re-enter the loop
+### LOGO — ⚠️ SUPERSEDED by §0 (session 3): RESOLVED as the SD Monogram
+> Historical — kept to show why the mug-as-primary path was abandoned. The logo
+> is now the **SD Monogram** (mug demoted to a secondary motif); do **not**
+> resume the image-gen-the-mug plan below. See §0.
+
 - **Definitive reference = the ChatGPT brand sheet** (Carl's file
   `chatgptbrandsheet.png`): a **dimensional caramel MUG** with a rounded
   **D-handle**, periwinkle **PIXEL steam**, **no saucer**; tagline "Good intel,
@@ -417,19 +500,21 @@ Both now have regression tests.
 - ~~Cloudflare Pages~~ **DONE.** ~~Chrome Web Store dev account~~ **DONE**
   (under `carlos@sanchezonsecurity.com`, a Cloudflare-forwarded alias — created
   the Google account via "use existing email"; publisher = SanchezOnSecurity).
-- **Ship the RADAR rebuild** (built + uncommitted, see §0) — decide the ship
-  path: **ship-with-globe** (build the Phase-3 globe hero first, then deploy the
-  complete rebuild) vs **ship-now.** Lead recommendation: with-globe, after the
-  logo + verdict-graphic settle.
+- **Ship the RADAR rebuild** (built + uncommitted, see §0) — the **logo is now
+  settled,** so the remaining path is the **segmented next-session plan (§0):**
+  wire the SD logo, fix the light-theme globe, add the globe elevations, finish
+  the verdict graphic + globe Phase 3, then **commit `site/` and make the ship
+  call.**
 - **Verdict graphic — DECIDED** (session 2, §0): **Core radar** for CVEs + a
   **range-gate companion** for the consensus tally (supersedes the old "Severity
   Spine" rec). Remaining: pick the center number (**EPSS%** vs **KEV+CVSS+EPSS
   composite**) at build time, then wire into `verdict.js` / `evidence.js`.
-- **Logo — UNRESOLVED, still gates the ship.** No longer a mockup pick: it needs
-  an **image-generated asset** — Carl exports the full-res ChatGPT master
-  (`chatgptbrandsheet.png` is the reference), OR local gen on the Framework box
-  (ComfyUI + FLUX, reference-conditioned). Do NOT hand-code SVG from text or crop
-  the screenshot again — see §0 (session 2).
+- **Logo — RESOLVED (session 3, §0).** Locked to the **SD Monogram** (brand-sheet
+  Option 1); the mug is demoted to a secondary motif. Asset =
+  `design/mockups/sd_logo.svg` (theme-aware, on the **existing tokens — no
+  re-skin**), committed design-only at `c4cd6fd`. Remaining code work: **wire it
+  into `site/`** (topbar + favicon + **2-bar 16px cut** + hero lockup) and
+  **revert the experimental `site/favicon.svg`.**
 - **Upload Extension v1** to the Chrome Web Store **Unlisted** — the submission
   zip is on Carl's Desktop (`socdesk-extension-v1.zip`), `socdesk.io/privacy.html`
   as the policy URL.
@@ -499,7 +584,9 @@ non-negotiables in BACKLOG history / git).
 | `design/mockups/rebuild-radar-v{1,2,3}.html` | The RADAR direction iterations (superseded by the in-tree evolved site, §0) |
 | `design/mockups/verdict-graphic-{explore,radar-round2}.html` | Verdict-graphic explorations — **DECIDED: Core radar + range-gate companion** (§0 session 2) |
 | `design/mockups/palette-explore.html` | 3-way palette comparison — **CONFIRMED #1 warm + periwinkle** (§0 session 2) |
-| `design/mockups/logo-v{2,3}.html`, `favicon-v3.svg` | Logo explorations — **superseded**; logo is now an image-gen task, ref = `chatgptbrandsheet.png` (§0 session 2) |
+| `design/mockups/sd_logo.svg` | **THE LOCKED LOGO** — SD Monogram, theme-aware, on existing tokens; committed `c4cd6fd`. Not yet wired into `site/` (§0 session 3) |
+| `design/mockups/hero-sd-preview.*` | SD-monogram-in-topbar + hero-lockup preview, both themes, CSP-clean (§0 session 3) |
+| `design/mockups/logo-v{2,3}.html`, `favicon-v3.svg`, `brand-systemmug-preview.*` | Superseded logo/brand explorations — historical; the mug-as-primary and System-Mug paths were both rejected (§0 session 3) |
 | `design-system.md` | Chart Room v4 — ⚠️ SUPERSEDED by the RADAR/periwinkle direction (see §0) |
 | `design/brand.md` | Brand book — partly stale; the mug is being refined in the branding pass |
 | `BACKLOG.md` | Wave-2 collectors, knock-knock review, honeypot architecture + security review, CARL port notes |
