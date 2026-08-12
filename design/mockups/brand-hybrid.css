@@ -1,0 +1,323 @@
+/* ============================================================
+   SOCDESK — Brand HYBRID sheet.
+   The "bar-chart-in-mug" concept, de-slopped into OUR system:
+     coffee-brown mug (mark-only)  +  periwinkle bars (the product/data)
+     on warm-espresso / warm-paper ground.  FLAT. No glow, no gloss, no neon.
+
+   CSP-safe: NO inline <style>, NO inline style="" attributes, NO inline
+   <script>. Every paint/size lives here or in brand-hybrid.js. Fonts are
+   self-hosted from ../../site/fonts — zero external requests.
+
+   Tokens mirror site/css/tokens.css exactly (the source of truth). Two theme
+   scopes, .tt-dark / .tt-light, let both themes sit side-by-side in one view.
+   ============================================================ */
+
+@font-face{
+  font-family:'Archivo';font-style:normal;font-weight:100 900;font-stretch:62% 125%;
+  font-display:swap;src:url(../../site/fonts/archivo-100_900.woff2) format('woff2');
+}
+@font-face{
+  font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;
+  src:url(../../site/fonts/ibmplexmono-400.woff2) format('woff2');
+}
+@font-face{
+  font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;
+  src:url(../../site/fonts/ibmplexmono-600.woff2) format('woff2');
+}
+
+:root{
+  --sans:'Archivo',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --coffee:#A6612F;                 /* mug-only mid-roast — same on paper & espresso */
+  --r-1:3px;--r-2:6px;--r-3:10px;--r-btn:5px;--r-chip:4px;
+  /* page shell (dark, matches the espresso app shell) */
+  --shell:#0d0a06;--shell-line:#2a2116;--shell-ink:#e9dcc6;--shell-muted:#b7a488;
+  --shell-kick:#c99a4f;
+}
+
+/* ============================================================
+   THEME TOKEN BLOCKS — hexes verbatim from site/css/tokens.css.
+   --m-* are the MARK paints the inline SVG consumes:
+     --m-cup  = coffee (fixed, both themes)   → mug wall / rim / handle
+     --m-bar  = accent (flips)                → the periwinkle bars
+   ============================================================ */
+.tt-light{
+  --ink:#F2E6D0;--panel:#FBF4E6;--panel-soft:#F0E2C9;--raised:#FDF8EE;
+  --line:#DFC9A2;--line-bright:#CDB183;
+  --paper:#2C2013;--muted:#6A5638;
+  --accent:#4A4FD0;--accent-dim:#6E74E0;--ink-on-accent:#F1F2FF;
+  --red:#D33A50;--gold:#B4740C;--green:#1E9E57;
+  --coffee-crema:#E4BE74;--rim:#33251A;--steam:#9E8258;
+  --glow:rgba(154,107,50,.10);--shadow:rgba(70,46,16,.16);
+  --m-cup:var(--coffee);--m-bar:var(--accent);
+}
+.tt-dark{
+  --ink:#15100A;--panel:#1E1710;--panel-soft:#2A2015;--raised:#241A10;
+  --line:#34281B;--line-bright:#473721;
+  --paper:#F1E8D8;--muted:#B7A488;
+  --accent:#7C8AFF;--accent-dim:#ADB6FF;--ink-on-accent:#0C1030;
+  --red:#F5566B;--gold:#F2A81E;--green:#4FC97A;
+  --coffee-crema:#E0B36A;--rim:#ECE1CD;--steam:#93826A;
+  --glow:rgba(201,146,79,.06);--shadow:rgba(0,0,0,.5);
+  --m-cup:var(--coffee);--m-bar:var(--accent);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+a{color:inherit;text-decoration:none}         /* matches site/css/base.css — wordmark never underlined */
+html{background:var(--shell)}
+body{
+  font-family:var(--sans);color:var(--shell-ink);background:var(--shell);
+  -webkit-font-smoothing:antialiased;line-height:1.6;font-size:15px;overflow-x:hidden;
+}
+svg{display:block}
+img{display:block}
+.wrap{max-width:1300px;margin:0 auto;padding:0 40px}
+.mt-2{margin-top:2px}.mt-18{margin-top:18px}
+
+/* ---------- page head ---------- */
+.phead{padding:56px 0 30px;border-bottom:1px solid var(--shell-line)}
+.kick{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--shell-kick);margin-bottom:14px;display:flex;align-items:center;gap:9px}
+.kick::before{content:'';width:16px;height:1px;background:var(--shell-kick)}
+.phead h1{font-weight:800;font-size:clamp(26px,3.4vw,40px);letter-spacing:-.026em;
+  line-height:1.04;max-width:24ch;color:#f6ecda}
+.phead h1 .peri{color:#8b93ff}
+.phead h1 .cof{color:#c98a52}
+.phead p{margin-top:16px;color:var(--shell-muted);font-size:15px;max-width:94ch}
+.phead p b{color:var(--shell-ink);font-weight:600}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- section ---------- */
+.sec{padding:48px 0;border-bottom:1px solid var(--shell-line)}
+.sec:last-of-type{border-bottom:none}
+.sec-hd{max-width:92ch;margin-bottom:28px}
+.sec-hd .tag{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;color:#0c1030;background:#7C8AFF;
+  padding:3px 10px;border-radius:var(--r-btn);margin-bottom:13px}
+.sec-hd .tag.muted{background:transparent;color:#9a7c52;border:1px solid #3a2e1f}
+.sec-hd .tag.win{background:#4FC97A;color:#06210f}
+.sec-hd h2{font-weight:800;font-size:clamp(20px,2.5vw,28px);letter-spacing:-.02em;color:#f6ecda}
+.sec-hd p{margin-top:10px;color:var(--shell-muted);font-size:14px;max-width:92ch}
+.sec-hd p b{color:var(--shell-ink);font-weight:600}
+
+/* ---------- dual-theme split canvas ---------- */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.stage{border:1px solid var(--line);border-radius:14px;padding:26px;
+  display:flex;flex-direction:column;gap:22px;background:var(--ink);color:var(--paper)}
+.stage .slbl{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+.stage .slbl .chip{background:var(--accent);color:var(--ink-on-accent);border-radius:var(--r-chip);
+  padding:2px 8px;font-weight:700}
+
+/* ============================================================
+   THE MARK — inline SVG paints via these classes (never via var() in an
+   attribute, which SVG does not support, and never via inline style, which
+   the CSP forbids). Same rule the shipping chrome.css uses for .cup.
+   ============================================================ */
+.m-wall{stroke:var(--m-cup);fill:none;stroke-linecap:round;stroke-linejoin:round}
+.m-rim{stroke:var(--m-cup);fill:none;stroke-linecap:round}
+.m-handle{stroke:var(--m-cup);fill:none;stroke-linecap:round}
+.m-bar{fill:var(--m-bar)}
+.m-wisp{stroke:var(--m-bar);fill:none;stroke-linecap:round}   /* periwinkle steam — the shipped-equity comparison cut */
+
+/* ---------- generic mark rows ---------- */
+.markrow{display:grid;place-items:center;padding:8px 0}
+.mkbig{display:flex;align-items:flex-end;justify-content:center;gap:40px;flex-wrap:wrap;padding:6px 0}
+.mcell{display:flex;flex-direction:column;align-items:center;gap:12px}
+.mcell .clbl{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:7px}
+.mcell.pick .clbl{color:var(--paper)}
+.mk{display:inline-flex}
+.mk svg{display:block}
+
+/* icon-in-tile (rounded app-icon presentation) */
+.appicon{background:var(--raised);border:1px solid var(--line);border-radius:22%;
+  display:grid;place-items:center;overflow:hidden}
+.sz-128{width:128px;height:128px}.sz-96{width:96px;height:96px}
+.sz-72{width:72px;height:72px}.sz-64{width:64px;height:64px}
+.sz-56{width:56px;height:56px}.sz-48{width:48px;height:48px}
+.sz-32{width:32px;height:32px}.sz-24{width:24px;height:24px}.sz-16{width:16px;height:16px}
+
+/* ============================================================
+   16px MAKE-OR-BREAK proof
+   ============================================================ */
+.proof{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.pcard{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.pcard.win{border-color:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent)}
+.pcard .p-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 13px;border-bottom:1px solid var(--line)}
+.pcard .p-name{font-weight:800;font-size:12px;color:var(--paper);letter-spacing:-.01em}
+.pcard .p-tag{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;padding:2px 7px;border-radius:var(--r-chip);
+  color:var(--muted);border:1px solid var(--line-bright)}
+.pcard.win .p-tag{background:var(--accent);color:var(--ink-on-accent);border-color:transparent}
+.pcard .p-body{padding:18px 14px;display:flex;flex-direction:column;gap:14px;
+  align-items:center;background:var(--ink)}
+/* the true-pixel magnifier: a canvas rasterised at 16 then blown up nearest-neighbour */
+.mag{width:128px;height:128px;image-rendering:pixelated;border:1px solid var(--line);
+  border-radius:6px;background:var(--ink)}
+.nativepair{display:flex;align-items:center;gap:14px}
+.nativepair .nb{display:flex;flex-direction:column;align-items:center;gap:6px}
+.nativepair .cap{font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;color:var(--muted)}
+.native16{width:16px;height:16px;display:grid;place-items:center}
+.native24{width:24px;height:24px;display:grid;place-items:center}
+.p-note{padding:11px 13px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.5}
+.p-note b{color:var(--paper);font-weight:600}
+
+/* ---------- favicon rail ---------- */
+.rail{display:flex;align-items:flex-end;gap:26px;flex-wrap:wrap}
+.rcell{display:flex;flex-direction:column;align-items:center;gap:9px}
+.rcap{font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--muted)}
+.tile{background:var(--raised);border:1px solid var(--line);border-radius:6px;
+  display:grid;place-items:center;overflow:hidden}
+/* browser-tab strip mock */
+.tabstrip{display:flex;align-items:stretch;border-radius:8px 8px 0 0;overflow:hidden;
+  border:1px solid var(--line);border-bottom:none;background:var(--panel-soft)}
+.tabstrip .tab{display:flex;align-items:center;gap:7px;padding:9px 14px;font-family:var(--mono);
+  font-size:11px;color:var(--muted);border-right:1px solid var(--line);white-space:nowrap}
+.tabstrip .tab .native16{flex:0 0 auto}
+.tabstrip .tab.on{background:var(--ink);color:var(--paper)}
+
+/* ============================================================
+   WORDMARK LOCKUP — mark · rule · SOCDESK over a restrained descriptor
+   ============================================================ */
+.lockrow{display:flex;flex-direction:column;gap:26px}
+.lock{display:flex;align-items:center;gap:16px;color:var(--paper)}
+.lock .vr{width:1.5px;background:var(--line-bright);border-radius:1px;height:46px;flex:0 0 auto}
+.lock .wt{display:flex;flex-direction:column;gap:7px}
+.lock .word{font-weight:800;letter-spacing:-.02em;line-height:.9;font-size:34px}
+.lock .desc{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.18em;
+  color:var(--muted);text-transform:uppercase;line-height:1}
+.lock .desc .hl{color:var(--accent)}
+.lock.sm{gap:11px}
+.lock.sm .vr{height:26px}
+.lock.sm .word{font-size:17px;letter-spacing:-.015em}
+.lock.sm .desc{font-size:6.5px;letter-spacing:.14em}
+.lock.sm .wt{gap:5px}
+.lock-stacked{display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--paper)}
+.lock-stacked .word{font-weight:800;letter-spacing:-.02em;font-size:26px}
+.lock-stacked .desc{font-family:var(--mono);font-size:8.5px;font-weight:600;letter-spacing:.16em;
+  color:var(--muted);text-transform:uppercase}
+.lock-stacked .desc .hl{color:var(--accent)}
+.locktag{font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted)}
+.lockline{display:flex;align-items:center;gap:22px 40px;flex-wrap:wrap}
+
+/* ============================================================
+   REAL TOPBAR replica — verbatim geometry from site/css/chrome.css so the
+   mark is judged in situ, not floating.
+   ============================================================ */
+.tb{border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background:color-mix(in srgb,var(--panel) 92%,transparent)}
+.tb .tbwrap{display:flex;align-items:center;flex-wrap:wrap;min-height:60px;gap:12px 20px;padding:0 20px}
+.tb .logo{display:flex;align-items:center;gap:9px;color:var(--paper)}
+.tb .logo .word{font-weight:800;font-size:16px;letter-spacing:-.01em;line-height:1}
+.tb .cup{width:30px;height:30px;display:block;flex:0 0 auto}
+.tb .tlp{border:1px solid var(--line-bright);color:var(--muted);font-family:var(--mono);
+  font-size:9px;letter-spacing:.14em;padding:4px 8px;white-space:nowrap}
+.tb nav{display:flex;gap:16px;margin-left:auto}
+.tb nav span{font-family:var(--mono);color:var(--muted);font-size:10.5px;font-weight:600;
+  letter-spacing:.09em;text-transform:uppercase;padding:8px 0;border-bottom:2px solid transparent}
+.tb nav span.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tb .live{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:10px;
+  font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.tb .live b{width:8px;height:8px;border-radius:50%;background:var(--green);display:block}
+.tb .ttoggle{display:inline-flex;gap:2px;padding:2px;background:var(--panel);
+  border:1px solid var(--line-bright);border-radius:var(--r-1)}
+.tb .ttoggle span{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);padding:5px 8px;border-radius:var(--r-1)}
+.tb .ttoggle span.on{background:var(--accent);color:var(--ink-on-accent)}
+@media (max-width:1240px){.tb nav span:nth-child(n+5){display:none}}
+
+/* ============================================================
+   HERO glimpse — the mark over the shipping RADAR search hero
+   ============================================================ */
+.hero{padding:34px 30px 30px;border-radius:14px;border:1px solid var(--line);
+  background:var(--ink);color:var(--paper);overflow:hidden}
+.hero .hkick{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:9px}
+.hero .hkick::before{content:'';width:14px;height:1px;background:var(--accent);flex:0 0 auto}
+.hero .h1{font-size:clamp(28px,3.4vw,40px);font-weight:800;letter-spacing:-.025em;
+  line-height:1.06;margin-bottom:20px}
+.hero .h1 .hl{color:var(--accent)}
+.hero .search{display:flex;align-items:center;height:60px;background:var(--panel);
+  border:1px solid var(--line-bright);border-radius:var(--r-2);padding:0 20px;gap:14px;max-width:640px}
+.hero .search .si{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:2;flex:0 0 auto}
+.hero .search .ph{flex:1;font-family:var(--mono);font-size:13px;color:var(--muted);min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hero .search kbd{font-family:var(--mono);font-size:10px;color:var(--muted);
+  border:1px solid var(--line);padding:3px 8px;border-radius:3px}
+.hero .watermark{position:absolute}   /* reserved; mark shown inline in the hero head */
+.hero-head{display:flex;align-items:center;gap:11px;margin-bottom:26px}
+.hero-head .word{font-weight:800;font-size:18px;letter-spacing:-.015em;color:var(--paper)}
+
+/* ============================================================
+   DECISION / SPEC / CALLOUT cards
+   ============================================================ */
+.decide{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.dcard{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.dcard.pick{border-color:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 34%,transparent)}
+.dcard .d-top{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;
+  border-bottom:1px solid var(--line)}
+.dcard .d-name{font-weight:800;font-size:13.5px;color:var(--paper);letter-spacing:-.01em}
+.dcard .d-pick{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-on-accent);background:var(--accent);padding:3px 8px;border-radius:var(--r-chip)}
+.dcard .d-alt{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);border:1px solid var(--line-bright);padding:2px 7px;border-radius:var(--r-chip)}
+.dcard .d-stage{display:grid;place-items:center;padding:28px 10px;gap:20px;background:var(--ink);grid-auto-flow:column}
+.dcard .d-note{padding:13px 15px;font-size:11.5px;color:var(--muted);line-height:1.55;border-top:1px solid var(--line)}
+.dcard .d-note b{color:var(--paper);font-weight:600}
+
+.calls{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.callcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.callcard h3{font-size:13px;font-weight:800;color:var(--paper);letter-spacing:-.01em;margin-bottom:4px;
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.callcard .badge{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  padding:2px 8px;border-radius:var(--r-chip);background:var(--accent);color:var(--ink-on-accent)}
+.callcard .badge.rec{background:var(--green);color:#06210f}
+.callcard .badge.avoid{background:transparent;color:var(--red);border:1px solid var(--red)}
+.callcard p{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:6px}
+.callcard p b{color:var(--paper);font-weight:600}
+
+/* numbered suggestion list */
+.sug{counter-reset:s;display:flex;flex-direction:column;gap:12px}
+.sug .item{display:flex;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:15px 18px}
+.sug .item::before{counter-increment:s;content:counter(s);font-family:var(--mono);font-weight:700;font-size:12px;
+  color:var(--ink-on-accent);background:var(--accent);width:24px;height:24px;border-radius:6px;
+  display:grid;place-items:center;flex:0 0 auto}
+.sug .item .st{font-size:13px}
+.sug .item .st b{color:var(--paper);font-weight:700}
+.sug .item .st .tagn{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--accent);margin-left:8px}
+.sug .item .st p{color:var(--muted);margin-top:4px;font-size:12.5px;line-height:1.6}
+
+/* palette swatches */
+.swrow{display:flex;gap:14px;flex-wrap:wrap}
+.sw{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:10px;
+  padding:12px;background:var(--panel);min-width:150px}
+.sw .chip{height:44px;border-radius:6px;border:1px solid var(--line)}
+.sw .nm{font-family:var(--mono);font-size:10px;color:var(--paper);font-weight:600}
+.sw .hx{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.sw .ro{font-size:11px;color:var(--muted);line-height:1.4}
+.sw-coffee .chip{background:#A6612F}
+.sw-peri-d .chip{background:#7C8AFF}
+.sw-peri-l .chip{background:#4A4FD0}
+.sw-espresso .chip{background:#15100A}
+.sw-paper .chip{background:#F2E6D0}
+
+/* ---------- code blocks ---------- */
+.code{margin-top:18px}
+.code .clbl{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:#9a7c52;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.code .clbl::after{content:'';flex:1;height:1px;background:var(--shell-line)}
+.code pre{background:#120d07;border:1px solid var(--shell-line);border-radius:8px;padding:15px 16px;
+  font-family:var(--mono);font-size:10.5px;line-height:1.62;color:#b7a488;overflow-x:auto;white-space:pre}
+.code pre b{color:#e9dcc6;font-weight:600}
+
+.foot{padding:28px 0 66px;color:#9a7c52}
+.foot b{color:var(--shell-ink);font-weight:600}
+.foot .path{font-family:var(--mono);font-size:10.5px;margin-top:8px;line-height:1.7}
+
+@media (max-width:1040px){.proof{grid-template-columns:1fr 1fr}}
+@media (max-width:960px){.duo,.decide,.calls{grid-template-columns:1fr}}
+@media (max-width:640px){.wrap{padding:0 20px}.proof{grid-template-columns:1fr}}

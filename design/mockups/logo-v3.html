@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOCDESK — Brand polish v3 · cup & saucer · warm caramel · wavy steam · favicon family</title>
+<meta name="description" content="Convergence pass on the SOCDesk coffee mark: the handled mug is replaced by an elegant CERAMIC CUP resting on a SAUCER — a rounded cappuccino-cup silhouette, widest at the rim, curved sides tapering to a narrower rounded base seated on an elliptical saucer, a cream lip over a dark coffee opening, a clean C-loop handle on the right, and a refined two-tone warm caramel ceramic (lighter front face #C68B5B, deeper caramel shadow face #915B32 and saucer underside). The steam is settled on the wavy periwinkle lines (the owner's pick); the pixel cluster is kept, marked superseded, for the record. The favicon drops the saucer and holds cup + steam at 16px. Proofed at 16/24/32, both themes; prior mug explorations kept lower for contrast. Warm caramel + periwinkle system, self-hosted fonts, zero external requests.">
+<link rel="icon" href="favicon-v3.svg" type="image/svg+xml">
+<style>
+/* ============================================================
+   SOCDESK — Brand polish v3  ·  CONVERGENCE PASS (internal review)
+
+   The mark is rebuilt to MATCH the owner-supplied reference: an
+   elegant CERAMIC CUP resting on a SAUCER — not the handled, saucer-less
+   mug of the prior passes. What the cup does now:
+     • BODY — a rounded cappuccino-cup silhouette: WIDEST at the rim,
+       gently curved sides that taper inward and down to a narrower,
+       rounded base (a small foot) — never a straight-sided cone.
+     • SAUCER — an elliptical plate beneath the cup, same ceramic, with
+       a subtle raised inner rim; the cup's foot sits centred on it.
+     • TREATMENT — a refined TWO-TONE ceramic: a lighter caramel face on
+       the front/left, a deeper caramel on the right/shadow side and
+       the saucer underside. Clean and flat-leaning — no gloss, bloom or
+       reflections; just enough tone to read ceramic and dimensional.
+     • RIM — a defined cream lip over a dark coffee opening.
+     • HANDLE — a clean C/D-loop on the right, open centre, joined
+       mid-upper body, two-tone to sit on the shadow side.
+     • STEAM — shown BOTH ways for the owner to choose (we do not pick):
+         (A) three smooth wavy periwinkle lines, and
+         (B) the settled periwinkle pixel-square cluster.
+
+   Carried forward, untouched: the cup | vertical-rule | SOCDESK-over-
+   tagline lockup (FASTER. periwinkle, no wordmark underline), the real
+   topbar replica, a theme-aware favicon, self-hosted fonts (zero
+   external requests). Tokens mirror site/css/tokens.css + js/evidence.js;
+   the ceramic is theme-independent (a caramel cup reads on espresso AND on
+   paper); only the periwinkle steam flips with the theme. The prior mug
+   explorations are preserved LOWER on the page for direct contrast.
+   ============================================================ */
+
+@font-face{
+  font-family:'Archivo';font-style:normal;font-weight:100 900;font-stretch:62% 125%;
+  font-display:swap;src:url(../../site/fonts/archivo-100_900.woff2) format('woff2');
+}
+@font-face{
+  font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;
+  src:url(../../site/fonts/ibmplexmono-400.woff2) format('woff2');
+}
+@font-face{
+  font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;
+  src:url(../../site/fonts/ibmplexmono-600.woff2) format('woff2');
+}
+
+:root{
+  --sans:'Archivo',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --r-1:3px;--r-2:6px;--r-3:10px;
+}
+
+/* ============================================================
+   THEME TOKEN BLOCKS — every neutral/accent hex matches tokens.css.
+   --c-* are the CUP MATERIAL tokens. The caramel ceramic is
+   theme-INDEPENDENT (identical values in both blocks) so the cup reads
+   the same on espresso and on paper; only --c-steam (periwinkle)
+   flips with the theme. --m-* + --m-ceramic* remain for the prior mug
+   explorations kept lower on the page.
+   ============================================================ */
+.tt-light{
+  --ink:#F2E6D0;--panel:#FBF4E6;--panel-soft:#F0E2C9;--raised:#FDF8EE;
+  --line:#DFC9A2;--line-bright:#CDB183;
+  --paper:#2C2013;--muted:#6A5638;
+  --accent:#4A4FD0;--accent-dim:#6E74E0;--ink-on-accent:#F1F2FF;
+  --red:#D33A50;--gold:#B4740C;--green:#1E9E57;
+  --glow:rgba(154,107,50,.10);--shadow:rgba(70,46,16,.16);
+  /* cup material — warm caramel two-tone (fixed) + steam (flips) */
+  --c-face:#C68B5B;--c-shade:#915B32;--c-deep:#915B32;--c-lip:#ECE1CD;--c-coffee:#43291A;
+  --c-steam:#4A4FD0;
+  /* prior-mug tokens (kept for the lower contrast sections) */
+  --m-rim:#33251A;--m-rim-inner:#4A3320;--m-coffee:#A6612F;--m-steam:#4A4FD0;
+  --m-ceramic:#C68B5B;--m-ceramic-shade:#9C6238;
+}
+.tt-dark{
+  --ink:#15100A;--panel:#1E1710;--panel-soft:#2A2015;--raised:#241A10;
+  --line:#34281B;--line-bright:#473721;
+  --paper:#F1E8D8;--muted:#B7A488;
+  --accent:#7C8AFF;--accent-dim:#ADB6FF;--ink-on-accent:#0C1030;
+  --red:#F5566B;--gold:#F2A81E;--green:#4FC97A;
+  --glow:rgba(201,146,79,.06);--shadow:rgba(0,0,0,.5);
+  --c-face:#C68B5B;--c-shade:#915B32;--c-deep:#915B32;--c-lip:#ECE1CD;--c-coffee:#43291A;
+  --c-steam:#7C8AFF;
+  --m-rim:#ECE1CD;--m-rim-inner:#4A3320;--m-coffee:#A6612F;--m-steam:#7C8AFF;
+  --m-ceramic:#C68B5B;--m-ceramic-shade:#94623A;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+/* reset anchor decoration exactly as the shipping site/css/base.css does,
+   so the topbar wordmark is never underlined. */
+a{color:inherit;text-decoration:none}
+html{background:#0d0a06}
+body{
+  font-family:var(--sans);color:#e9dcc6;background:#0d0a06;
+  -webkit-font-smoothing:antialiased;line-height:1.6;font-size:15px;overflow-x:hidden;
+}
+svg{display:block}
+.wrap{max-width:1300px;margin:0 auto;padding:0 40px}
+.defs{position:absolute;width:0;height:0;overflow:hidden}
+
+/* ---------- page head ---------- */
+.phead{padding:54px 0 30px;border-bottom:1px solid #2a2116}
+.kick{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.18em;
+  text-transform:uppercase;color:#c99a4f;margin-bottom:14px;display:flex;align-items:center;gap:9px}
+.kick::before{content:'';width:16px;height:1px;background:#c99a4f}
+.phead h1{font-weight:800;font-size:clamp(26px,3.4vw,38px);letter-spacing:-.025em;
+  line-height:1.05;max-width:30ch;color:#f6ecda}
+.phead p{margin-top:16px;color:#b7a488;font-size:15px;max-width:90ch}
+.phead p b{color:#e9dcc6;font-weight:600}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- section ---------- */
+.sec{padding:46px 0;border-bottom:1px solid #2a2116}
+.sec.hero{padding-top:40px}
+.sec-hd{max-width:88ch;margin-bottom:28px}
+.sec-hd .tag{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;color:#0c1030;background:#7C8AFF;
+  padding:3px 10px;border-radius:5px;margin-bottom:13px}
+.sec-hd .tag.muted{background:transparent;color:#877253;border:1px solid #3a2e1f}
+.sec-hd h2{font-weight:800;font-size:clamp(20px,2.5vw,27px);letter-spacing:-.02em;color:#f6ecda}
+.sec-hd p{margin-top:9px;color:#b7a488;font-size:14px}
+.sec-hd p b{color:#e9dcc6;font-weight:600}
+
+/* ---------- theme split canvas ---------- */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.stage{border:1px solid;border-radius:14px;padding:26px;display:flex;flex-direction:column;gap:22px;
+  background:radial-gradient(1000px 520px at 82% -20%,var(--glow),transparent 60%),var(--ink);
+  border-color:var(--line);color:var(--paper)}
+.stage .slbl{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+.stage .slbl .chip{background:var(--accent);color:var(--ink-on-accent);border-radius:4px;padding:2px 8px}
+
+/* ============================================================
+   CUP MATERIAL — the cup & saucer renders from --c-* tokens inline;
+   these steam classes carry the drift animation only.
+   ============================================================ */
+.cup-svg .wisp{animation:steamdrift 4.4s ease-in-out infinite}
+.cup-svg .w2{animation-delay:-1.5s}
+.cup-svg .w3{animation-delay:-3s}
+@keyframes steamdrift{0%,100%{opacity:.95}42%{opacity:.42}72%{opacity:.7}}
+@media (prefers-reduced-motion:reduce){.cup-svg .wisp{animation:none;opacity:.9}}
+.fav{shape-rendering:geometricPrecision}
+
+/* ---------- prior-mug material classes (lower sections) ---------- */
+.mug .rim{fill:var(--m-rim)}
+.mug .rim-inner{fill:var(--m-rim-inner)}
+.mug .coffee{fill:var(--m-coffee)}
+.mug .steam-pix{fill:var(--m-steam)}
+.mug .ceramic{fill:var(--m-ceramic)}
+.mug .ceramic-shade{fill:var(--m-ceramic-shade)}
+.mug .handle-flat{stroke:var(--m-ceramic);fill:none;stroke-linecap:round;stroke-linejoin:round}
+.mug .wisp{animation:steamdrift 4.4s ease-in-out infinite}
+.mug .w2{animation-delay:-1.5s}
+.mug .w3{animation-delay:-3s}
+
+/* ---------- generic mark row ---------- */
+.markrow{display:grid;place-items:center;padding:6px 0}
+.pairrow{display:flex;align-items:flex-end;justify-content:center;gap:36px;flex-wrap:wrap;padding:6px 0}
+.pcell{display:flex;flex-direction:column;align-items:center;gap:12px}
+.pcell .plbl{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:7px}
+.pcell .plbl .dot{width:8px;height:8px;border-radius:2px;background:var(--accent)}
+.pcell.pick .plbl{color:var(--paper)}
+.pcell .steamtag{font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;padding:2px 8px;border-radius:4px;background:var(--accent);color:var(--ink-on-accent)}
+.pcell .steamtag.alt{background:transparent;color:var(--muted);border:1px solid var(--line-bright)}
+
+/* ---------- lockup: cup | rule | SOCDESK / tagline ---------- */
+.lockv{display:flex;align-items:center;gap:16px;color:var(--paper)}
+.lockv .vr{width:1.5px;background:var(--line-bright);border-radius:1px;height:46px;flex:0 0 auto}
+.lockv .wt{display:flex;flex-direction:column;gap:8px}
+.lockv .word{font-weight:800;letter-spacing:-.02em;line-height:.9;font-size:34px}
+.lockv .tagl{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.2em;
+  color:var(--muted);text-transform:uppercase;line-height:1}
+.lockv .tagl .hl{color:var(--accent)}
+.lockv.sm{gap:11px}
+.lockv.sm .vr{height:26px}
+.lockv.sm .word{font-size:17px;letter-spacing:-.015em}
+.lockv.sm .tagl{font-size:6.5px;letter-spacing:.16em}
+.lockv.sm .wt{gap:5px}
+.lock-row{display:flex;align-items:center;gap:22px 40px;flex-wrap:wrap}
+.lock-tag{font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted)}
+
+/* ---------- real topbar replica (verbatim from site/css/chrome.css) ---------- */
+.tb{border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background:color-mix(in srgb,var(--panel) 92%,transparent)}
+.tb .tbwrap{display:flex;align-items:center;flex-wrap:wrap;min-height:60px;gap:12px 20px;padding:0 20px}
+.tb .logo{display:flex;align-items:center;gap:10px;color:var(--paper)}
+.tb .logo .word{font-weight:800;font-size:16px;letter-spacing:-.012em;line-height:1}
+.tb .cup{width:34px;height:34px;display:block;flex:0 0 auto}
+.tb .tlp{border:1px solid var(--line-bright);color:var(--muted);font-family:var(--mono);
+  font-size:9px;letter-spacing:.14em;padding:4px 8px;white-space:nowrap}
+.tb nav{display:flex;gap:16px;margin-left:auto}
+.tb nav span{font-family:var(--mono);color:var(--muted);font-size:10.5px;font-weight:600;
+  letter-spacing:.09em;text-transform:uppercase;padding:8px 0;border-bottom:2px solid transparent}
+.tb nav span.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tb .live{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:10px;
+  font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.tb .live b{width:8px;height:8px;border-radius:50%;background:var(--green);display:block}
+.tbcap{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.tbcap .steamtag{font-size:8.5px;padding:2px 8px;border-radius:4px;background:var(--accent);color:var(--ink-on-accent)}
+.tbcap .steamtag.alt{background:transparent;color:var(--muted);border:1px solid var(--line-bright)}
+@media (max-width:1180px){.tb nav span:nth-child(n+6){display:none}}
+
+/* ---------- size rail ---------- */
+.rail{display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap}
+.rail .cell{display:flex;flex-direction:column;align-items:center;gap:9px}
+.rail .cap{font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--muted)}
+.tile{background:var(--raised);border:1px solid var(--line);border-radius:8px;display:grid;place-items:center;overflow:hidden}
+.subhd{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--muted);display:flex;align-items:center;gap:8px}
+.subhd .steamtag{font-size:8.5px;padding:2px 8px;border-radius:4px;background:var(--accent);color:var(--ink-on-accent)}
+.subhd .steamtag.alt{background:transparent;color:var(--muted);border:1px solid var(--line-bright)}
+.tabstrip{display:flex;align-items:stretch;gap:0;border-radius:8px 8px 0 0;overflow:hidden;
+  border:1px solid var(--line);border-bottom:none;background:var(--panel-soft)}
+.tabstrip .tab{display:flex;align-items:center;gap:7px;padding:9px 14px;font-family:var(--mono);
+  font-size:11px;color:var(--muted);border-right:1px solid var(--line);white-space:nowrap}
+.tabstrip .tab.on{background:var(--ink);color:var(--paper)}
+
+/* ---------- before/after grid ---------- */
+.ba2{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);
+  border-radius:14px;overflow:hidden}
+.ba2 .ba-col+.ba-col{border-left:1px solid var(--line)}
+.ba-hd{display:flex;align-items:center;gap:9px;padding:11px 16px;border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase}
+.ba-hd.before{color:var(--muted)}
+.ba-hd .pill{font-size:8.5px;padding:2px 7px;border-radius:4px}
+.ba-hd.before .pill{background:color-mix(in srgb,var(--muted) 20%,transparent);color:var(--muted)}
+.ba-body{padding:24px 20px;display:flex;flex-direction:column;gap:16px;
+  background:radial-gradient(900px 460px at 82% -20%,var(--glow),transparent 60%),var(--ink);
+  color:var(--paper)}
+
+/* ---------- decision / spec cards ---------- */
+.decide{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.dcard{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.dcard.pick{border-color:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 34%,transparent)}
+.dcard .d-top{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;
+  border-bottom:1px solid var(--line)}
+.dcard .d-name{font-weight:800;font-size:13.5px;color:var(--paper);letter-spacing:-.01em}
+.dcard .d-pick{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-on-accent);background:var(--accent);padding:3px 8px;border-radius:4px}
+.dcard .d-alt{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);border:1px solid var(--line-bright);padding:2px 7px;border-radius:4px}
+.dcard .d-stage{display:grid;place-items:center;padding:26px 10px;gap:18px;
+  background:radial-gradient(600px 300px at 80% -30%,var(--glow),transparent 60%),var(--ink);grid-auto-flow:column}
+.dcard .d-note{padding:13px 15px;font-size:11.5px;color:var(--muted);line-height:1.55;border-top:1px solid var(--line)}
+.dcard .d-note b{color:var(--paper);font-weight:600}
+
+/* ---------- code blocks ---------- */
+.code{margin-top:16px}
+.code .clbl{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:#877253;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.code .clbl::after{content:'';flex:1;height:1px;background:#2a2116}
+.code pre{background:#120d07;border:1px solid #2a2116;border-radius:8px;padding:15px 16px;
+  font-family:var(--mono);font-size:10.5px;line-height:1.62;color:#b7a488;overflow-x:auto;white-space:pre}
+.code pre b{color:#e9dcc6;font-weight:600}
+
+/* ---------- callouts ---------- */
+.calls{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px}
+.callcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.callcard h3{font-size:13px;font-weight:800;color:var(--paper);letter-spacing:-.01em;margin-bottom:4px;
+  display:flex;align-items:center;gap:9px}
+.callcard .verdict{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  padding:2px 8px;border-radius:4px;background:var(--accent);color:var(--ink-on-accent)}
+.callcard p{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:6px}
+.callcard p b{color:var(--paper);font-weight:600}
+.sug{counter-reset:s;display:flex;flex-direction:column;gap:12px}
+.sug .item{display:flex;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:15px 18px}
+.sug .item::before{counter-increment:s;content:counter(s);font-family:var(--mono);font-weight:700;font-size:12px;
+  color:var(--ink-on-accent);background:var(--accent);width:24px;height:24px;border-radius:6px;
+  display:grid;place-items:center;flex:0 0 auto}
+.sug .item .st{font-size:13px}
+.sug .item .st b{color:var(--paper);font-weight:700}
+.sug .item .st .tagn{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--accent);margin-left:8px}
+.sug .item .st p{color:var(--muted);margin-top:4px;font-size:12.5px;line-height:1.6}
+
+.foot{padding:26px 0 64px;color:#877253}
+.foot .path{font-family:var(--mono);font-size:10.5px;margin-top:8px}
+
+@media (max-width:960px){.duo,.decide,.calls{grid-template-columns:1fr}}
+@media (max-width:640px){.wrap{padding:0 20px}}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SHARED GRADIENT DEFS — feed the PRIOR dimensional-mug section only
+     (kept lower for contrast). The new cup renders flat from --c-* tokens
+     and needs none of these.
+     ============================================================ -->
+<svg class="defs" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg"><defs>
+  <linearGradient id="ceramicBody" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0"    stop-color="#B07749"/>
+    <stop offset="0.15" stop-color="#D9A877"/>
+    <stop offset="0.33" stop-color="#CB9463"/>
+    <stop offset="0.55" stop-color="#C68B5B"/>
+    <stop offset="0.78" stop-color="#A96F3E"/>
+    <stop offset="1"    stop-color="#915B32"/>
+  </linearGradient>
+  <radialGradient id="ceramicHi" cx="0.5" cy="0.5" r="0.5">
+    <stop offset="0"   stop-color="#FFF6E7" stop-opacity="0.66"/>
+    <stop offset="0.6" stop-color="#FFF6E7" stop-opacity="0.12"/>
+    <stop offset="1"   stop-color="#FFF6E7" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="baseShadow" cx="0.5" cy="0.5" r="0.5">
+    <stop offset="0"   stop-color="#3C2410" stop-opacity="0.50"/>
+    <stop offset="0.7" stop-color="#3C2410" stop-opacity="0.16"/>
+    <stop offset="1"   stop-color="#3C2410" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="handleGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0"   stop-color="#C68B5B"/>
+    <stop offset="0.5" stop-color="#AF744A"/>
+    <stop offset="1"   stop-color="#8C5730"/>
+  </linearGradient>
+  <radialGradient id="coffeeGrad" cx="0.44" cy="0.4" r="0.75">
+    <stop offset="0"   stop-color="#8F521F"/>
+    <stop offset="1"   stop-color="#A6612F"/>
+  </radialGradient>
+</defs></svg>
+
+<div class="wrap">
+
+<header class="phead tt-dark" style="background:transparent">
+  <p class="kick">Brand polish v3 · convergence pass · SOCDESK</p>
+  <h1>Cup &amp; saucer — the mark, matched to the reference.</h1>
+  <p>Correcting course: the prior passes drew a handled <b>mug with no saucer</b>. The owner's reference is an elegant
+    ceramic <b>CUP resting on a SAUCER</b>, so the mark is rebuilt to it. The cup is a <b>rounded cappuccino-cup
+    silhouette</b> — widest at the rim, with gently curved sides that taper inward to a <b>narrower, rounded base</b> that
+    seats into an <b>elliptical saucer</b>; a defined <b>cream lip</b> over a <b>dark coffee opening</b>; a clean
+    <b>C-loop handle</b> on the right; and a refined <b>two-tone caramel ceramic</b> — a lighter face on the front/left, a
+    deeper caramel on the shadow side and saucer underside. No gloss, no bloom — a polished, flat-leaning icon.
+    The <b>steam is settled: wavy</b> — smooth periwinkle lines (the owner's pick); the pixel cluster is kept, marked
+    <b>superseded</b>, for the record. Everything else stays locked — the cup&nbsp;|&nbsp;rule&nbsp;|&nbsp;SOCDESK-over-tagline lockup
+    with <b>FASTER.</b> in periwinkle and no wordmark underline, the real topbar, and a theme-aware favicon (which drops
+    the saucer to hold at 16px). The <b>prior mug explorations are kept lower</b> for direct contrast.</p>
+</header>
+
+<!-- ============ 00 · CUP & SAUCER — MATCHED TO REFERENCE ============ -->
+<section class="sec hero">
+  <div class="sec-hd">
+    <span class="tag">00 · Cup &amp; saucer · warm caramel · wavy steam</span>
+    <h2>The mark — warm caramel ceramic, seated on its saucer, with the wavy steam</h2>
+    <p>The shipped mark: an elegant <b>ceramic cup seated on a saucer</b> in the locked <b>warm caramel</b> two-tone
+      (<span class="mono">#C68B5B</span> face over <span class="mono">#915B32</span>), a cream lip over dark coffee, and the
+      <b>wavy</b> periwinkle steam — the owner's pick. Shown large in <b>both themes</b>. The ceramic reads identically on
+      espresso and paper; only the periwinkle steam flips with the theme; the pixel steam is kept small, marked
+      <b>superseded</b>, for the record.</p>
+  </div>
+
+  <!-- 00A · the mark, large, both steams -->
+  <div class="duo" style="margin-bottom:18px">
+    <div class="stage tt-dark">
+      <div class="slbl"><span class="chip">Dark</span> espresso · shipped mark · wavy</div>
+      <div class="pairrow">
+        <div class="pcell pick"><span class="cupslot" data-size="188" data-steam="wavy"></span>
+          <span class="plbl"><span class="steamtag">Wavy · shipped</span></span></div>
+        <div class="pcell"><span class="cupslot" data-size="78" data-steam="pixel" style="opacity:.5"></span>
+          <span class="plbl"><span class="steamtag alt">Pixel · superseded</span></span></div>
+      </div>
+    </div>
+    <div class="stage tt-light">
+      <div class="slbl"><span class="chip">Light</span> warm paper · shipped mark · wavy</div>
+      <div class="pairrow">
+        <div class="pcell pick"><span class="cupslot" data-size="188" data-steam="wavy"></span>
+          <span class="plbl"><span class="steamtag">Wavy · shipped</span></span></div>
+        <div class="pcell"><span class="cupslot" data-size="78" data-steam="pixel" style="opacity:.5"></span>
+          <span class="plbl"><span class="steamtag alt">Pixel · superseded</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 00B · the lockup, both steams, both themes -->
+  <div class="duo" style="margin-bottom:18px">
+    <div class="stage tt-dark">
+      <div class="slbl"><span class="chip">Dark</span> lockup</div>
+      <div class="lock-row"><div class="lockv"><span class="cupslot" data-size="64" data-steam="wavy"></span><span class="vr"></span>
+        <div class="wt"><span class="word">SOCDESK</span><span class="tagl">Threat intelligence, <span class="hl">Faster.</span></span></div></div>
+        <span class="lock-tag">primary</span></div>
+      <div class="lock-row"><div class="lockv sm"><span class="cupslot" data-size="34" data-steam="wavy"></span><span class="vr"></span>
+        <div class="wt"><span class="word">SOCDESK</span><span class="tagl">Threat intelligence, <span class="hl">Faster.</span></span></div></div>
+        <span class="lock-tag">small</span></div>
+    </div>
+    <div class="stage tt-light">
+      <div class="slbl"><span class="chip">Light</span> lockup</div>
+      <div class="lock-row"><div class="lockv"><span class="cupslot" data-size="64" data-steam="wavy"></span><span class="vr"></span>
+        <div class="wt"><span class="word">SOCDESK</span><span class="tagl">Threat intelligence, <span class="hl">Faster.</span></span></div></div>
+        <span class="lock-tag">primary</span></div>
+      <div class="lock-row"><div class="lockv sm"><span class="cupslot" data-size="34" data-steam="wavy"></span><span class="vr"></span>
+        <div class="wt"><span class="word">SOCDESK</span><span class="tagl">Threat intelligence, <span class="hl">Faster.</span></span></div></div>
+        <span class="lock-tag">small</span></div>
+    </div>
+  </div>
+
+  <!-- 00C · the real topbar, both steams, both themes -->
+  <div class="duo" style="margin-bottom:18px">
+    <div class="stage tt-dark">
+      <div class="slbl"><span class="chip">Dark</span> topbar · real chrome</div>
+      <div>
+        <div class="tbcap"><span class="steamtag">Wavy · shipped</span></div>
+        <div class="tb"><div class="tbwrap"><a class="logo" href="#" aria-label="SOCDesk home"><span class="cup cupslot" data-size="34" data-steam="wavy"></span><span class="word">SOCDESK</span></a><span class="tlp">TLP:CLEAR</span><nav><span class="on">Feed</span><span>Vulns</span><span>Actors</span><span>Health</span><span>Sources</span></nav><span class="live"><b></b>1,204</span></div></div>
+      </div>
+    </div>
+    <div class="stage tt-light">
+      <div class="slbl"><span class="chip">Light</span> topbar · real chrome</div>
+      <div>
+        <div class="tbcap"><span class="steamtag">Wavy · shipped</span></div>
+        <div class="tb"><div class="tbwrap"><a class="logo" href="#" aria-label="SOCDesk home"><span class="cup cupslot" data-size="34" data-steam="wavy"></span><span class="word">SOCDESK</span></a><span class="tlp">TLP:CLEAR</span><nav><span class="on">Feed</span><span>Vulns</span><span>Actors</span><span>Health</span><span>Sources</span></nav><span class="live"><b></b>1,204</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 00D · the favicon family — saucer dropped, cup + steam only -->
+  <div class="duo">
+    <div class="stage tt-dark">
+      <div class="slbl"><span class="chip">Dark</span> favicon · saucer dropped · true sizes</div>
+      <div class="subhd"><span class="steamtag">Wavy · built</span> shipped default</div>
+      <div class="rail">
+        <div class="cell"><div class="tile" style="width:64px;height:64px"><span class="favslot" data-size="56" data-steam="wavy"></span></div><span class="cap">×3.5</span></div>
+        <div class="cell"><div class="tile" style="width:32px;height:32px"><span class="favslot" data-size="32" data-steam="wavy"></span></div><span class="cap">32</span></div>
+        <div class="cell"><div class="tile" style="width:24px;height:24px"><span class="favslot" data-size="24" data-steam="wavy"></span></div><span class="cap">24</span></div>
+        <div class="cell"><div class="tile" style="width:16px;height:16px"><span class="favslot" data-size="16" data-steam="wavy"></span></div><span class="cap">16 · tab</span></div>
+      </div>
+      <div class="subhd"><span class="steamtag alt">Pixel · superseded</span> for the record</div>
+      <div class="rail">
+        <div class="cell"><div class="tile" style="width:32px;height:32px"><span class="favslot" data-size="32" data-steam="pixel" style="opacity:.5"></span></div><span class="cap">32</span></div>
+        <div class="cell"><div class="tile" style="width:16px;height:16px"><span class="favslot" data-size="16" data-steam="pixel" style="opacity:.5"></span></div><span class="cap">16</span></div>
+      </div>
+      <div class="tabstrip">
+        <div class="tab on"><span class="favslot" data-size="16" data-steam="wavy"></span>SOCDESK — Feed</div>
+        <div class="tab"><span class="favslot" data-size="16" data-steam="wavy" style="opacity:.6"></span>Actors</div>
+      </div>
+    </div>
+    <div class="stage tt-light">
+      <div class="slbl"><span class="chip">Light</span> favicon · saucer dropped · true sizes</div>
+      <div class="subhd"><span class="steamtag">Wavy · built</span> shipped default</div>
+      <div class="rail">
+        <div class="cell"><div class="tile" style="width:64px;height:64px"><span class="favslot" data-size="56" data-steam="wavy"></span></div><span class="cap">×3.5</span></div>
+        <div class="cell"><div class="tile" style="width:32px;height:32px"><span class="favslot" data-size="32" data-steam="wavy"></span></div><span class="cap">32</span></div>
+        <div class="cell"><div class="tile" style="width:24px;height:24px"><span class="favslot" data-size="24" data-steam="wavy"></span></div><span class="cap">24</span></div>
+        <div class="cell"><div class="tile" style="width:16px;height:16px"><span class="favslot" data-size="16" data-steam="wavy"></span></div><span class="cap">16 · tab</span></div>
+      </div>
+      <div class="subhd"><span class="steamtag alt">Pixel · superseded</span> for the record</div>
+      <div class="rail">
+        <div class="cell"><div class="tile" style="width:32px;height:32px"><span class="favslot" data-size="32" data-steam="pixel" style="opacity:.5"></span></div><span class="cap">32</span></div>
+        <div class="cell"><div class="tile" style="width:16px;height:16px"><span class="favslot" data-size="16" data-steam="pixel" style="opacity:.5"></span></div><span class="cap">16</span></div>
+      </div>
+      <div class="tabstrip">
+        <div class="tab on"><span class="favslot" data-size="16" data-steam="wavy"></span>SOCDESK — Feed</div>
+        <div class="tab"><span class="favslot" data-size="16" data-steam="wavy" style="opacity:.6"></span>Actors</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 01 · HOW THE CUP + SAUCER WERE BUILT ============ -->
+<section class="sec">
+  <div class="sec-hd">
+    <span class="tag">01 · Construction</span>
+    <h2>The cup silhouette &amp; the saucer</h2>
+    <p>Three moves make it read as an elegant cup rather than a flowerpot or a mug: the <b>rim is the widest point</b>;
+      the <b>sides curve</b> (a symmetric cubic wall, a whisper of flare at the lip, tucking inward) down to a
+      <b>narrow, rounded base</b>; and that base <b>seats into a saucer</b>. The saucer is two stacked ellipses — a deeper-caramel
+      underside peeking below a caramel top — with a hairline raised inner rim and a soft contact shadow where the cup's foot
+      meets it. The two-tone is flat, not a gradient: one lighter face, one slightly deeper shadow face divided just right
+      of centre. Clean enough to hold from 188px down to the 16px favicon (where the saucer is dropped).</p>
+  </div>
+  <div class="decide">
+    <div class="dcard pick">
+      <div class="d-top"><span class="d-name">Cup &amp; saucer · chosen</span><span class="d-pick">Reference</span></div>
+      <div class="d-stage tt-dark"><span class="cupslot" data-size="120" data-steam="wavy"></span><span class="cupslot" data-size="60" data-steam="wavy"></span></div>
+      <div class="d-stage tt-light"><span class="cupslot" data-size="120" data-steam="wavy"></span><span class="cupslot" data-size="60" data-steam="wavy"></span></div>
+      <p class="d-note"><b>Elegant ceramic cup on a saucer.</b> Rounded silhouette widest at the rim, curved taper to a
+        narrow base, elliptical saucer, cream lip over dark coffee, clean C-handle, two-tone caramel. Matches the reference.</p>
+    </div>
+    <div class="dcard">
+      <div class="d-top"><span class="d-name">Handled mug · superseded</span><span class="d-alt">Prior</span></div>
+      <div class="d-stage tt-dark"><span class="mugslot-dim" data-size="120"></span><span class="mugslot-dim" data-size="60"></span></div>
+      <div class="d-stage tt-light"><span class="mugslot-dim" data-size="120"></span><span class="mugslot-dim" data-size="60"></span></div>
+      <p class="d-note"><b>Dimensional caramel mug, no saucer.</b> The previous convergence attempt — a glossier barrel mug.
+        Kept here (and below) for contrast; not the direction.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 · PRIOR EXPLORATIONS — KEPT FOR CONTRAST ============ -->
+<section class="sec">
+  <div class="sec-hd">
+    <span class="tag muted">02 · Superseded mug explorations · kept for contrast</span>
+    <h2>The earlier mugs — for the record</h2>
+    <p>Everything below is <b>prior</b>: the dimensional caramel mug (gradient-shaded barrel, no saucer), and — further
+      back — a flat single-plane icon and an over-tapered trapezoid. Retained so the move to an elegant cup &amp; saucer
+      is legible side by side. Not the shipping direction.</p>
+  </div>
+
+  <div class="ba2" style="margin-bottom:18px">
+    <div class="ba-col">
+      <div class="ba-hd before"><span class="pill">Prior</span> Dimensional mug · no saucer</div>
+      <div class="ba-body tt-dark" style="align-items:center"><span class="mugslot-dim" data-size="132"></span></div>
+      <div class="ba-body tt-light" style="align-items:center"><span class="mugslot-dim" data-size="132"></span></div>
+    </div>
+    <div class="ba-col">
+      <div class="ba-hd before"><span class="pill">Prior</span> Dimensional mug · in the lockup</div>
+      <div class="ba-body tt-dark"><div class="lockv"><span class="mugslot-dim" data-size="60"></span><span class="vr"></span><div class="wt"><span class="word">SOCDESK</span><span class="tagl">Threat intelligence, <span class="hl">Faster.</span></span></div></div></div>
+      <div class="ba-body tt-light"><div class="lockv"><span class="mugslot-dim" data-size="60"></span><span class="vr"></span><div class="wt"><span class="word">SOCDESK</span><span class="tagl">Threat intelligence, <span class="hl">Faster.</span></span></div></div></div>
+    </div>
+  </div>
+
+  <div class="ba2">
+    <div class="ba-col">
+      <div class="ba-hd before"><span class="pill">Older</span> Flat single-plane icon</div>
+      <div class="ba-body tt-dark" style="align-items:center"><span class="mugslot" data-size="120"></span></div>
+      <div class="ba-body tt-light" style="align-items:center"><span class="mugslot" data-size="120"></span></div>
+    </div>
+    <div class="ba-col">
+      <div class="ba-hd before"><span class="pill">Oldest</span> Over-tapered trapezoid</div>
+      <div class="ba-body tt-dark" style="align-items:center"><span class="mugslot" data-size="120" data-variant="prior"></span></div>
+      <div class="ba-body tt-light" style="align-items:center"><span class="mugslot" data-size="120" data-variant="prior"></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 · BUILD-READY ============ -->
+<section class="sec" style="border-bottom:none">
+  <div class="sec-hd">
+    <span class="tag">03 · Build-ready</span>
+    <h2>The assets, ready to drop in</h2>
+    <p>The cup mark is flat two-tone: theme-independent caramel ceramic (fixed hexes) plus a <span class="mono">var(--accent)</span>
+      periwinkle steam that already flips with the app theme. The favicon bakes the same cup — <b>saucer dropped</b> — with a
+      <span class="mono">prefers-color-scheme</span> flip for the steam on a light tab strip, and defaults to the <b>wavy</b>
+      steam. Saved as <span class="mono">design/mockups/favicon-v3.svg</span> (and mirrored to <span class="mono">site/favicon.svg</span>),
+      powering this page's real tab icon. Self-contained: zero external requests.</p>
+  </div>
+
+  <div class="code tt-dark" style="background:transparent">
+    <p class="clbl">Anchor reset · site/css/base.css already ships this — the fix for the topbar underline</p>
+    <pre><b>a{color:inherit;text-decoration:none}</b>   /* wordmark is never underlined; underline = active nav tab only */</pre>
+  </div>
+
+  <div class="code tt-dark" style="background:transparent">
+    <p class="clbl">Cup &amp; saucer mark · inline SVG — fixed warm caramel ceramic + var(--accent) periwinkle steam (wavy)</p>
+    <pre id="markCode"></pre>
+  </div>
+
+  <div class="code tt-dark" style="background:transparent">
+    <p class="clbl">favicon.svg · cup + wavy steam · saucer dropped · theme-aware</p>
+    <pre id="favCode"></pre>
+  </div>
+</section>
+
+<!-- ============ 04 · WHAT CHANGED ============ -->
+<section class="sec" style="border-bottom:none">
+  <div class="sec-hd"><span class="tag">04 · Fresh-eye read</span><h2>What changed, and why it lands</h2></div>
+  <div class="calls" style="margin-bottom:22px">
+    <div class="callcard tt-dark" style="background:var(--panel)">
+      <h3>Shape <span class="verdict">Cup + saucer</span></h3>
+      <p>The handled mug becomes an elegant <b>cup on a saucer</b>. Rim widest, <b>curved</b> walls to a narrow rounded
+        base, an <b>elliptical saucer</b> with a raised rim and a foot contact shadow. The saucer + foot + curve are what
+        read as an elegant cup rather than a mug or a flowerpot.</p>
+    </div>
+    <div class="callcard tt-dark" style="background:var(--panel)">
+      <h3>Ceramic &amp; steam <span class="verdict">Caramel + wavy</span></h3>
+      <p>Restored to the locked <b>warm caramel two-tone</b> — a lighter <span class="mono">#C68B5B</span> face over a
+        deeper <span class="mono">#915B32</span> caramel shadow face and saucer underside, flat and clean, no gloss or
+        bloom. Steam is <b>settled on wavy</b>: smooth periwinkle lines in
+        <span class="mono">#7C8AFF</span> / <span class="mono">#4A4FD0</span>.</p>
+    </div>
+  </div>
+  <div class="sug">
+    <div class="item"><div class="st"><b>Rounded cup silhouette, widest at the rim</b><span class="tagn">Applied</span>
+      <p>A symmetric cubic wall with a whisper of lip flare curves inward to a narrow, rounded base — a cappuccino-cup
+        read, height roughly equal to the rim width. Not a straight cone, not a barrel mug.</p></div></div>
+    <div class="item"><div class="st"><b>Cup seated into the saucer well</b><span class="tagn">Fixed</span>
+      <p>Two stacked ellipses give the plate its thickness (deeper-caramel underside under a caramel top); a hairline inner
+        rim marks the well; the cup is dropped so its foot meets the plate — no daylight — with a soft contact shadow
+        directly beneath it.</p></div></div>
+    <div class="item"><div class="st"><b>Warm caramel two-tone ceramic</b><span class="tagn">Restored</span>
+      <p>Back on the locked brand caramel: face <span class="mono">#C68B5B</span>,
+        shadow face &amp; deep edge / saucer underside <span class="mono">#915B32</span>, cream lip
+        <span class="mono">#ECE1CD</span> over dark coffee <span class="mono">#43291A</span>. Flat and
+        clean — reads ceramic and dimensional without gloss.</p></div></div>
+    <div class="item"><div class="st"><b>Steam settled: wavy</b><span class="tagn">Decided</span>
+      <p>The owner picked the <b>wavy</b> steam (three smooth periwinkle lines); it is the shipped steam in the mark,
+        lockup, topbar and favicon. The pixel cluster is kept small, marked superseded, for the record only.</p></div></div>
+    <div class="item"><div class="st"><b>Favicon drops the saucer, holds at 16px</b><span class="tagn">Verified</span>
+      <p>At 16px the saucer is too busy, so the favicon is cup + steam only — the ceramic stays separate from the dark
+        coffee opening, and the periwinkle steam flips per <span class="mono">prefers-color-scheme</span>.</p></div></div>
+  </div>
+</section>
+
+<div class="foot tt-dark">
+  <div>Internal review — not for ship. Convergence pass: elegant ceramic cup seated on its saucer, matched to reference,
+    in warm caramel with the chosen wavy steam. Warm caramel + periwinkle system, self-hosted fonts, both themes captured,
+    zero external requests.</div>
+  <div class="path">design/mockups/logo-v3.html · design/mockups/favicon-v3.svg · site/favicon.svg</div>
+</div>
+
+</div>
+
+<script>
+/* ============================================================
+   CUP & SAUCER RENDERER — an elegant ceramic cup on a saucer.
+   viewBox 0 0 56 60 (square output; preserveAspectRatio centres it).
+   Painter order (back → front):
+     saucer underside · saucer top · raised rim · foot contact ·
+     handle(shade behind, face front) · body · shadow face ·
+     cream lip · dark coffee · steam (wavy | pixel).
+   Flat two-tone from --c-* tokens; steam flips via --c-steam.
+   ============================================================ */
+const CUP_BODY   = "M14,16 C13.4,24 14,33 18,41 Q21.5,43.6 28,43.6 Q34.5,43.6 38,41 C42,33 42.6,24 42,16 Z";
+const CUP_SHADE  = "M29.6,17.5 C30.7,25 31,33 33.2,40.4 Q35.4,42.9 38,41 C42,33 42.6,24 42,16 Q39,17.4 29.6,17.5 Z";
+const CUP_HANDLE = "M42,19.6 C50.4,18.2 53.8,22 53.8,25.2 C53.8,28.4 50.4,32.4 42,31.2";
+
+function cupWavy(){
+  return '<g class="wisp-g" fill="none" stroke="var(--c-steam)" stroke-width="2" stroke-linecap="round">'
+    + '<path class="wisp w1" d="M21,13.2 C18.4,10.6 23.2,8.6 20.6,5.8 C18.7,3.7 21.9,2.4 20.4,0.6"/>'
+    + '<path class="wisp w2" d="M28,13.6 C25.2,10.6 30.4,8.4 27.6,5.2 C25.5,2.8 29.1,1.6 27.4,-0.2"/>'
+    + '<path class="wisp w3" d="M35,13.2 C32.6,10.6 37.2,8.6 34.8,5.8 C33.1,3.7 36.1,2.4 34.8,0.8"/>'
+    + '</g>';
+}
+function cupPixel(){
+  const cols=[
+    [[19.9,11.2],[18.7,8.6],[19.9,6.0]],
+    [[26.9,12.0],[25.7,9.4],[26.9,6.8],[25.7,4.2]],
+    [[33.9,11.2],[32.7,8.6],[33.9,6.0]]
+  ];
+  let o='';
+  cols.forEach((c,i)=>{
+    o+='<g class="wisp w'+(i+1)+'" fill="var(--c-steam)" shape-rendering="crispEdges">';
+    c.forEach(p=>o+='<rect x="'+p[0]+'" y="'+p[1]+'" width="2.4" height="2.4"/>');
+    o+='</g>';
+  });
+  return o;
+}
+function cupMark(size,steam){
+  let g='';
+  /* saucer */
+  g+='<ellipse fill="var(--c-deep)" cx="28" cy="50.3" rx="21.5" ry="5"/>';
+  g+='<ellipse fill="var(--c-face)" cx="28" cy="49" rx="21.5" ry="5"/>';
+  g+='<ellipse fill="none" stroke="var(--c-shade)" stroke-width="0.7" opacity="0.75" cx="28" cy="48.4" rx="12.5" ry="2.4"/>';
+  /* soft contact shadow directly under the seated foot */
+  g+='<ellipse fill="var(--c-deep)" opacity="0.5" cx="28" cy="47.2" rx="8.6" ry="1.7"/>';
+  /* cup seated down into the saucer well so the foot meets the plate (no daylight) */
+  g+='<g transform="translate(0,4)">';
+  /* handle — shade behind, face front (two-tone) */
+  g+='<path fill="none" stroke="var(--c-shade)" stroke-width="4.1" stroke-linecap="round" d="'+CUP_HANDLE+'" transform="translate(0.5,0.9)"/>';
+  g+='<path fill="none" stroke="var(--c-face)" stroke-width="4.1" stroke-linecap="round" d="'+CUP_HANDLE+'"/>';
+  /* body + shadow face */
+  g+='<path fill="var(--c-face)" d="'+CUP_BODY+'"/>';
+  g+='<path fill="var(--c-shade)" d="'+CUP_SHADE+'"/>';
+  /* cream lip · dark coffee opening */
+  g+='<ellipse fill="var(--c-lip)" cx="28" cy="16" rx="14" ry="3.4"/>';
+  g+='<ellipse fill="var(--c-coffee)" cx="28" cy="16.3" rx="11.4" ry="2.5"/>';
+  /* steam */
+  g+=(steam==='pixel'?cupPixel():cupWavy());
+  g+='</g>';
+  return '<svg class="cup-svg" width="'+size+'" height="'+size+'" viewBox="0 0 56 60" '+
+         'fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">'+g+'</svg>';
+}
+document.querySelectorAll('.cupslot').forEach(el=>{
+  el.innerHTML = cupMark(parseFloat(el.dataset.size)||120, el.dataset.steam||'wavy');
+});
+
+/* ============================================================
+   FAVICON RENDERER — the cup, SAUCER DROPPED, for 16px. viewBox 0 0 16 16.
+   Same two-tone body + cream lip + dark coffee + steam; no saucer.
+   ============================================================ */
+const FAV_BODY   = "M3,5 C2.8,7.6 3.2,10.6 4.4,12.6 Q5.6,13.8 8,13.8 Q10.4,13.8 11.6,12.6 C12.8,10.6 13.2,7.6 13,5 Z";
+const FAV_SHADE  = "M8.4,5.6 C8.9,8 9.1,10.6 10,12.4 Q11,13.6 11.6,12.6 C12.8,10.6 13.2,7.6 13,5 Q11,5.7 8.4,5.6 Z";
+const FAV_HANDLE = "M12.7,7 C14.7,6.6 15.4,8 15.4,9.1 C15.4,10.2 14.7,11.6 12.7,11.2";
+function favWavy(){
+  return '<g class="wisp-g" fill="none" stroke="var(--c-steam)" stroke-width="1.35" stroke-linecap="round">'
+    + '<path class="wisp w1" d="M5.4,4.4 C4.3,3.3 6.5,2.4 5.4,1.0"/>'
+    + '<path class="wisp w2" d="M8,4.7 C6.9,3.5 9.1,2.4 8,0.7"/>'
+    + '<path class="wisp w3" d="M10.6,4.4 C9.5,3.3 11.7,2.4 10.6,1.0"/>'
+    + '</g>';
+}
+function favPixel(){
+  const px=[[5,1],[4,2],[5,3],[8,1],[7,2],[8,3],[11,1],[10,2],[11,3]];
+  let o='<g class="wisp" fill="var(--c-steam)" shape-rendering="crispEdges">';
+  px.forEach(p=>o+='<rect x="'+p[0]+'" y="'+p[1]+'" width="1" height="1"/>');
+  return o+'</g>';
+}
+function cupFav(size,steam){
+  let g='';
+  g+='<path fill="none" stroke="var(--c-shade)" stroke-width="1.7" stroke-linecap="round" d="'+FAV_HANDLE+'"/>';
+  g+='<path fill="var(--c-face)" d="'+FAV_BODY+'"/>';
+  g+='<path fill="var(--c-shade)" d="'+FAV_SHADE+'"/>';
+  g+='<ellipse fill="var(--c-lip)" cx="8" cy="5" rx="5" ry="1.4"/>';
+  g+='<ellipse fill="var(--c-coffee)" cx="8" cy="5.15" rx="3.6" ry="0.9"/>';
+  g+=(steam==='pixel'?favPixel():favWavy());
+  return '<svg class="cup-svg fav" width="'+size+'" height="'+size+'" viewBox="0 0 16 16" '+
+         'fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">'+g+'</svg>';
+}
+document.querySelectorAll('.favslot').forEach(el=>{
+  el.innerHTML = cupFav(parseFloat(el.dataset.size)||16, el.dataset.steam||'wavy');
+});
+
+/* ============================================================
+   PRIOR DIMENSIONAL MUG RENDERER — kept for the lower contrast section.
+   viewBox 0 0 46 46. Gradient-shaded barrel, no saucer.
+   ============================================================ */
+const DIM_BODY   = "M7.4,14.5 C6.3,21 6.6,31 8.7,37.4 Q9.4,40.4 12.2,40.6 Q19.5,41.7 26.8,40.6 Q29.6,40.4 30.3,37.4 C32.4,31 32.7,21 31.6,14.5 Z";
+const DIM_HANDLE = "M31,20.6 C39.5,19.4 43,22.4 43,25.9 C43,29.4 39.5,32.4 31,31.2";
+function steamDim(){
+  const cols = [
+    [[14.0,10.4],[12.8,7.8],[14.0,5.2]],
+    [[18.9,11.2],[17.7,8.6],[18.9,6.0],[17.7,3.4]],
+    [[23.2,10.4],[22.0,7.8],[23.2,5.2]]
+  ];
+  let out = '';
+  cols.forEach((col,i)=>{
+    out += '<g class="steam-pix wisp w'+(i+1)+'" shape-rendering="crispEdges">';
+    col.forEach(p=>{ out += '<rect x="'+p[0]+'" y="'+p[1]+'" width="2.2" height="2.2"/>'; });
+    out += '</g>';
+  });
+  return out;
+}
+function mugDim(size){
+  let g = '';
+  g += '<path fill="none" stroke="url(#handleGrad)" stroke-width="3.7" stroke-linecap="round" stroke-linejoin="round" d="'+DIM_HANDLE+'"/>';
+  g += '<path fill="url(#ceramicBody)" d="'+DIM_BODY+'"/>';
+  g += '<ellipse fill="url(#ceramicHi)" cx="14.4" cy="22.5" rx="6.2" ry="9.4"/>';
+  g += '<ellipse fill="url(#baseShadow)" cx="19.5" cy="38.2" rx="11" ry="4.4"/>';
+  g += '<ellipse class="rim"       cx="19.5" cy="14.5" rx="12.4" ry="3.85"/>';
+  g += '<ellipse class="rim-inner" cx="19.5" cy="14.7" rx="11.1" ry="3.25"/>';
+  g += '<ellipse fill="url(#coffeeGrad)" cx="19.5" cy="14.6" rx="9.5" ry="2.65"/>';
+  g += steamDim();
+  const s = size;
+  return '<svg class="mug" width="'+s+'" height="'+s+'" viewBox="0 0 46 46" '+
+         'fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">'+g+'</svg>';
+}
+document.querySelectorAll('.mugslot-dim').forEach(el=>{
+  el.innerHTML = mugDim(parseFloat(el.dataset.size)||96);
+});
+
+/* ============================================================
+   FLAT EXPLORATION RENDERER — kept for the lower contrast section.
+   viewBox 0 0 46 44. Single flat shade plane.
+   ============================================================ */
+const BODY_GEO   = "M7,14.9 L8.7,36.4 Q8.7,39 11.2,39 L26.8,39 Q29.3,39 29.3,36.4 L31,14.9 Z";
+const SHADE_GEO  = "M7,14.9 L8.7,36.4 Q8.7,39 11.2,39 L13.6,39 L14.2,14.9 Z";
+const HANDLE_GEO = "M30.2,20.5 C37.4,19.6 41,22 41,26 C41,30 37.4,32.4 30.2,31.5";
+const PRIOR_BODY   = "M7,15 L31,15 L28.6,36.6 Q28.2,39 25.6,39 L12.4,39 Q9.8,39 9.4,36.6 Z";
+const PRIOR_SHADE  = "M7,15 L14.4,15 L13.35,39 L12.4,39 Q9.8,39 9.4,36.6 Z";
+const PRIOR_HANDLE = "M31,19.5 L35.4,19.5 Q39.3,19.5 39.3,23.4 L39.3,25.1 Q39.3,29 35.4,29 L31,29";
+function openingGeo(){
+  return '<ellipse class="rim" cx="19" cy="14.9" rx="12" ry="3.5"/>'+
+         '<ellipse class="coffee" cx="19" cy="14.9" rx="9.3" ry="2.3"/>';
+}
+function steamPixFlat(){
+  const cols = [
+    [[13.4,10.2],[12.2,7.6],[13.4,5.0]],
+    [[18.0,11.0],[16.8,8.4],[18.0,5.8],[16.8,3.2]],
+    [[22.6,10.2],[21.4,7.6],[22.6,5.0]]
+  ];
+  let out = '';
+  cols.forEach((col,i)=>{
+    out += '<g class="steam-pix wisp w'+(i+1)+'" shape-rendering="crispEdges">';
+    col.forEach(p=>{ out += '<rect x="'+p[0]+'" y="'+p[1]+'" width="2.1" height="2.1"/>'; });
+    out += '</g>';
+  });
+  return out;
+}
+function mugFlat(size, opts){
+  opts = opts || {};
+  const prior  = opts.variant === 'prior';
+  const body   = prior ? PRIOR_BODY   : BODY_GEO;
+  const shade  = prior ? PRIOR_SHADE  : SHADE_GEO;
+  const handle = prior ? PRIOR_HANDLE : HANDLE_GEO;
+  let g = steamPixFlat();
+  g += '<path class="ceramic" d="'+body+'"/>';
+  g += '<path class="ceramic-shade" d="'+shade+'"/>';
+  g += '<path class="handle-flat" stroke-width="3.4" stroke-linejoin="round" d="'+handle+'"/>';
+  g += openingGeo();
+  const h = size, w = size * (46/44);
+  return '<svg class="mug" width="'+w.toFixed(1)+'" height="'+h+'" viewBox="0 0 46 44" '+
+         'fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">'+g+'</svg>';
+}
+document.querySelectorAll('.mugslot').forEach(el=>{
+  el.innerHTML = mugFlat(parseFloat(el.dataset.size)||96, {variant: el.dataset.variant});
+});
+
+/* ---- build-ready static code ---- */
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+const markStatic =
+'<svg width="52" height="52" viewBox="0 0 56 60" fill="none"\n'+
+'     xmlns="http://www.w3.org/2000/svg" aria-hidden="true">\n'+
+'  <!-- saucer: deeper-caramel underside, caramel top, hairline raised rim -->\n'+
+'  <ellipse fill="#915B32" cx="28" cy="50.3" rx="21.5" ry="5"/>\n'+
+'  <ellipse fill="#C68B5B" cx="28" cy="49" rx="21.5" ry="5"/>\n'+
+'  <ellipse fill="none" stroke="#915B32" stroke-width=".7" opacity=".75" cx="28" cy="48.4" rx="12.5" ry="2.4"/>\n'+
+'  <!-- soft contact shadow directly under the seated foot -->\n'+
+'  <ellipse fill="#915B32" opacity=".5" cx="28" cy="47.2" rx="8.6" ry="1.7"/>\n'+
+'  <!-- cup seated down into the saucer well so the foot meets the plate -->\n'+
+'  <g transform="translate(0,4)">\n'+
+'    <!-- handle: shade behind, face front (two-tone) -->\n'+
+'    <path fill="none" stroke="#915B32" stroke-width="4.1" stroke-linecap="round" d="M42.5,20.5 C50.9,19.1 54.3,22.9 54.3,26.1 C54.3,29.3 50.9,33.3 42.5,32.1"/>\n'+
+'    <path fill="none" stroke="#C68B5B" stroke-width="4.1" stroke-linecap="round" d="'+CUP_HANDLE+'"/>\n'+
+'    <!-- body + shadow face -->\n'+
+'    <path fill="#C68B5B" d="'+CUP_BODY+'"/>\n'+
+'    <path fill="#915B32" d="'+CUP_SHADE+'"/>\n'+
+'    <!-- cream lip · dark coffee opening -->\n'+
+'    <ellipse fill="#ECE1CD" cx="28" cy="16" rx="14" ry="3.4"/>\n'+
+'    <ellipse fill="#43291A" cx="28" cy="16.3" rx="11.4" ry="2.5"/>\n'+
+'    <!-- steam — periwinkle wavy (chosen), flips with the app theme -->\n'+
+'    <g fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round">\n'+
+'      <path d="M21,13.2 C18.4,10.6 23.2,8.6 20.6,5.8 C18.7,3.7 21.9,2.4 20.4,.6"/>\n'+
+'      <path d="M28,13.6 C25.2,10.6 30.4,8.4 27.6,5.2 C25.5,2.8 29.1,1.6 27.4,-.2"/>\n'+
+'      <path d="M35,13.2 C32.6,10.6 37.2,8.6 34.8,5.8 C33.1,3.7 36.1,2.4 34.8,.8"/>\n'+
+'    </g>\n'+
+'  </g>\n'+
+'</svg>';
+document.getElementById('markCode').innerHTML =
+  esc(markStatic).replace(/(fill=&quot;#[0-9A-Fa-f]{6}&quot;|stroke=&quot;#[0-9A-Fa-f]{6}&quot;|var\(--accent\))/g,'<b>$1</b>');
+
+const favStatic =
+'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">\n'+
+'  <!-- cup + wavy steam · saucer dropped for 16px · transparent (adapts to the tab strip) -->\n'+
+'  <style>\n'+
+'    .steam{stroke:#7C8AFF}\n'+
+'    @media (prefers-color-scheme:light){ .steam{stroke:#4A4FD0} }\n'+
+'  </style>\n'+
+'  <path fill="none" stroke="#915B32" stroke-width="1.7" stroke-linecap="round" d="'+FAV_HANDLE+'"/>\n'+
+'  <path fill="#C68B5B" d="'+FAV_BODY+'"/>\n'+
+'  <path fill="#915B32" d="'+FAV_SHADE+'"/>\n'+
+'  <ellipse fill="#ECE1CD" cx="8" cy="5" rx="5" ry="1.4"/>\n'+
+'  <ellipse fill="#43291A" cx="8" cy="5.15" rx="3.6" ry=".9"/>\n'+
+'  <g class="steam" fill="none" stroke-width="1.35" stroke-linecap="round">\n'+
+'    <path d="M5.4,4.4 C4.3,3.3 6.5,2.4 5.4,1"/>\n'+
+'    <path d="M8,4.7 C6.9,3.5 9.1,2.4 8,.7"/>\n'+
+'    <path d="M10.6,4.4 C9.5,3.3 11.7,2.4 10.6,1"/>\n'+
+'  </g>\n'+
+'</svg>';
+document.getElementById('favCode').textContent = favStatic;
+</script>
+</body>
+</html>

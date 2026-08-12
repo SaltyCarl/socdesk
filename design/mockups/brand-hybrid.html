@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOCDESK — Brand hybrid · bar-chart mug in warm-espresso / periwinkle</title>
+<meta name="description" content="Brand-implementation sheet for the SOCDESK bar-chart-in-mug mark, translated into the warm-espresso / periwinkle system: flat coffee mug + periwinkle bars, no glow. Mark system, wordmark lockup, favicon family, the 16px make-or-break proof, and the mark in the real topbar and hero — both themes, self-hosted fonts, zero external requests.">
+<!-- CSP mirrors site/_headers: the whole point is to prove this sheet is
+     policy-clean. No inline <style>, no inline style="", no inline <script>. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="brand-hybrid-favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="brand-hybrid.css">
+<script defer src="brand-hybrid.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+<header class="phead tt-dark">
+  <p class="kick">Brand implementation · hybrid translation · SOCDESK</p>
+  <h1>The <span class="cof">bar-chart mug</span>, de-slopped into our
+    <span class="peri">warm-espresso / periwinkle</span> system.</h1>
+  <p>The owner's reference renders this mark as a glossy <b>gold</b> mug with <b>electric-blue</b> glossy bars and a heavy
+    neon glow on a black void. That skin is rejected. This is the <b>hybrid</b>: the mug body becomes our warm
+    <b>coffee-brown</b> (<span class="mono">#A6612F</span>, mark-only — never gold, which is reserved for verdicts), the
+    bars become <b>periwinkle</b> (<span class="mono">#7C8AFF</span> dark / <span class="mono">#4A4FD0</span> light — the
+    product/data colour), and the ground is <b>warm-espresso</b> (dark) or <b>warm-paper</b> (light) — never black.
+    Everything is <b>flat, crisp, scalable SVG</b>: no glow, no bloom, no gloss, no gradient-as-decoration. Both themes
+    below sit side-by-side; fonts are self-hosted; zero external requests.</p>
+</header>
+
+<!-- ============ 00 · THE MARK ============ -->
+<section class="sec">
+  <div class="sec-hd">
+    <span class="tag">00 · The mark</span>
+    <h2>The primary mark — coffee vessel, periwinkle signal rising inside</h2>
+    <p>A coffee mug (open rim, D-handle) drawn in our warm coffee-brown, holding <b>three ascending periwinkle bars</b> —
+      the "signal rising / intelligence" motif. The role split does the storytelling for free: the <b>vessel is coffee</b>
+      (the mark tone), the <b>data is periwinkle</b> (the product tone). Two brand tones, nothing else. The coffee is
+      theme-fixed; only the periwinkle retunes between themes.</p>
+  </div>
+
+  <div class="duo">
+    <div class="stage tt-dark">
+      <div class="slbl"><span class="chip">Dark</span> warm-espresso ground</div>
+      <div class="mkbig">
+        <div class="mcell pick"><span class="mk" data-kind="detail" data-size="132"></span>
+          <span class="clbl">Primary mark</span></div>
+        <div class="mcell"><span class="mk" data-kind="detail" data-size="64"></span>
+          <span class="clbl">Icon-only</span></div>
+        <div class="mcell"><div class="appicon sz-96"><span class="mk" data-kind="detail" data-size="76"></span></div>
+          <span class="clbl">App tile</span></div>
+      </div>
+    </div>
+    <div class="stage tt-light">
+      <div class="slbl"><span class="chip">Light</span> warm-paper ground</div>
+      <div class="mkbig">
+        <div class="mcell pick"><span class="mk" data-kind="detail" data-size="132"></span>
+          <span class="clbl">Primary mark</span></div>
+        <div class="mcell"><span class="mk" data-kind="detail" data-size="64"></span>
+          <span class="clbl">Icon-only</span></div>
+        <div class="mcell"><div class="appicon sz-96"><span class="mk" data-kind="detail" data-size="76"></span></div>
+          <span class="clbl">App tile</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 01 · THE 16px MAKE-OR-BREAK ============ -->
+<section class="sec">
+  <div class="sec-hd">
+    <span class="tag win">01 · The make-or-break · 16px</span>
+    <h2>Does it survive the favicon? The 16px proof, rasterised and magnified</h2>
+    <p>The brand review's flag: thin bars collapse to a smudge at tab size. Each cut below is rendered at <b>true 16&times;16</b>
+      (right, native) and <b>rasterised then blown up 8&times; nearest-neighbour</b> (left) so you see the actual favicon pixels,
+      not a lying vector zoom. Verdict: the master's 3 slim bars <b>do</b> smudge at 16px; the reduced <b>"rise" cut</b> — two
+      bars with the tall one breaking the rim — holds cleanly and still says "mug + rising signal."</p>
+  </div>
+
+  <div class="proof">
+    <div class="pcard">
+      <div class="p-hd"><span class="p-name">Master, scaled</span><span class="p-tag">3 slim bars</span></div>
+      <div class="p-body">
+        <canvas class="mag" width="128" height="128" data-var="bars3" data-theme="dark" aria-label="3-bar cut at 16px, magnified, dark"></canvas>
+        <div class="nativepair">
+          <div class="nb"><div class="native16"><span class="mk" data-kind="fav" data-var="bars3" data-size="16"></span></div><span class="cap">16 native</span></div>
+          <div class="nb"><div class="native24"><span class="mk" data-kind="fav" data-var="bars3" data-size="24"></span></div><span class="cap">24 native</span></div>
+        </div>
+      </div>
+      <div class="p-note"><b>Fails.</b> Three 1.3px bars merge into one periwinkle block — the chart reads as a smudge.</div>
+    </div>
+
+    <div class="pcard">
+      <div class="p-hd"><span class="p-name">Reduced</span><span class="p-tag">2 bold bars</span></div>
+      <div class="p-body">
+        <canvas class="mag" width="128" height="128" data-var="bars2" data-theme="dark" aria-label="2-bar cut at 16px, magnified, dark"></canvas>
+        <div class="nativepair">
+          <div class="nb"><div class="native16"><span class="mk" data-kind="fav" data-var="bars2" data-size="16"></span></div><span class="cap">16 native</span></div>
+          <div class="nb"><div class="native24"><span class="mk" data-kind="fav" data-var="bars2" data-size="24"></span></div><span class="cap">24 native</span></div>
+        </div>
+      </div>
+      <div class="p-note"><b>Holds.</b> Two bars stay separate and read as ascending — but stay inside the cup, so the "rise" is quiet.</div>
+    </div>
+
+    <div class="pcard win">
+      <div class="p-hd"><span class="p-name">Rise cut</span><span class="p-tag">recommended</span></div>
+      <div class="p-body">
+        <canvas class="mag" width="128" height="128" data-var="rise" data-theme="dark" aria-label="Rise cut at 16px, magnified, dark"></canvas>
+        <div class="nativepair">
+          <div class="nb"><div class="native16"><span class="mk" data-kind="fav" data-var="rise" data-size="16"></span></div><span class="cap">16 native</span></div>
+          <div class="nb"><div class="native24"><span class="mk" data-kind="fav" data-var="rise" data-size="24"></span></div><span class="cap">24 native</span></div>
+        </div>
+      </div>
+      <div class="p-note"><b>Best.</b> The tall bar breaks the rim — the vertical "signal rising out of the cup" is unmistakable even at 16px.</div>
+    </div>
+
+    <div class="pcard">
+      <div class="p-hd"><span class="p-name">Steam (equity)</span><span class="p-tag">no bars</span></div>
+      <div class="p-body">
+        <canvas class="mag" width="128" height="128" data-var="steam" data-theme="dark" aria-label="Steam cut at 16px, magnified, dark"></canvas>
+        <div class="nativepair">
+          <div class="nb"><div class="native16"><span class="mk" data-kind="fav" data-var="steam" data-size="16"></span></div><span class="cap">16 native</span></div>
+          <div class="nb"><div class="native24"><span class="mk" data-kind="fav" data-var="steam" data-size="24"></span></div><span class="cap">24 native</span></div>
+        </div>
+      </div>
+      <div class="p-note">The <b>shipped</b> move (mug + periwinkle steam). Clean small, but abandons the bar-chart concept — see the tweak note.</div>
+    </div>
+  </div>
+
+  <div class="duo mt-2">
+    <div class="stage tt-light">
+      <div class="slbl"><span class="chip">Light</span> same four cuts, on warm-paper — the periwinkle stays legible</div>
+      <div class="proof">
+        <div class="pcard"><div class="p-hd"><span class="p-name">3 slim</span><span class="p-tag">fails</span></div>
+          <div class="p-body"><canvas class="mag" width="128" height="128" data-var="bars3" data-theme="light"></canvas>
+            <div class="native16"><span class="mk" data-kind="fav" data-var="bars3" data-size="16"></span></div></div></div>
+        <div class="pcard"><div class="p-hd"><span class="p-name">2 bold</span><span class="p-tag">holds</span></div>
+          <div class="p-body"><canvas class="mag" width="128" height="128" data-var="bars2" data-theme="light"></canvas>
+            <div class="native16"><span class="mk" data-kind="fav" data-var="bars2" data-size="16"></span></div></div></div>
+        <div class="pcard win"><div class="p-hd"><span class="p-name">Rise</span><span class="p-tag">pick</span></div>
+          <div class="p-body"><canvas class="mag" width="128" height="128" data-var="rise" data-theme="light"></canvas>
+            <div class="native16"><span class="mk" data-kind="fav" data-var="rise" data-size="16"></span></div></div></div>
+        <div class="pcard"><div class="p-hd"><span class="p-name">Steam</span><span class="p-tag">equity</span></div>
+          <div class="p-body"><canvas class="mag" width="128" height="128" data-var="steam" data-theme="light"></canvas>
+            <div class="native16"><span class="mk" data-kind="fav" data-var="steam" data-size="16"></span></div></div></div>
+      </div>
+    </div>
+    <div class="stage tt-dark">
+      <div class="slbl"><span class="chip">Rule</span> which cut serves which size</div>
+      <div class="sug">
+        <div class="item"><div class="st"><b>Detailed 3-bar mark</b><span class="tagn">&ge; ~24px</span>
+          <p>Topbar (30px), app tiles, hero, OG art. The full bar chart reads and carries the "intelligence" concept.</p></div></div>
+        <div class="item"><div class="st"><b>"Rise" 2-bar cut</b><span class="tagn">16 / 24 / 32 favicon</span>
+          <p>One consistent favicon artwork across the small sizes. Tall bar breaks the rim so the rise survives the tab.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 · WORDMARK LOCKUP ============ -->
+<section class="sec">
+  <div class="sec-hd">
+    <span class="tag">02 · Wordmark lockup</span>
+    <h2>Mark &middot; rule &middot; SOCDESK, with a restrained descriptor</h2>
+    <p>SOCDESK is set live in <b>Archivo 800</b>; the descriptor is <b>IBM Plex Mono</b>. The descriptor shown is the
+      product line the brand review prefers — <b>"IOC in. OSINT out."</b> (it is already the shipping hero H1). The
+      weak reference tagline is <em>not</em> baked in; see the tagline decision below.</p>
+  </div>
+
+  <div class="duo">
+    <div class="stage tt-dark">
+      <div class="slbl"><span class="chip">Dark</span> lockups</div>
+      <div class="lockrow">
+        <div class="lockline"><div class="lock"><span class="mk" data-kind="detail" data-size="52"></span><span class="vr"></span>
+          <div class="wt"><span class="word">SOCDESK</span><span class="desc">IOC in. <span class="hl">OSINT</span> out.</span></div></div>
+          <span class="locktag">primary · horizontal</span></div>
+        <div class="lockline"><div class="lock sm"><span class="mk" data-kind="detail" data-size="26"></span><span class="vr"></span>
+          <div class="wt"><span class="word">SOCDESK</span><span class="desc">IOC in. <span class="hl">OSINT</span> out.</span></div></div>
+          <span class="locktag">small</span></div>
+        <div class="lockline"><div class="lock-stacked"><span class="mk" data-kind="detail" data-size="60"></span>
+          <span class="word">SOCDESK</span><span class="desc">IOC in. <span class="hl">OSINT</span> out.</span></div>
+          <span class="locktag">stacked · OG / slide</span></div>
+      </div>
+    </div>
+    <div class="stage tt-light">
+      <div class="slbl"><span class="chip">Light</span> lockups</div>
+      <div class="lockrow">
+        <div class="lockline"><div class="lock"><span class="mk" data-kind="detail" data-size="52"></span><span class="vr"></span>
+          <div class="wt"><span class="word">SOCDESK</span><span class="desc">IOC in. <span class="hl">OSINT</span> out.</span></div></div>
+          <span class="locktag">primary · horizontal</span></div>
+        <div class="lockline"><div class="lock sm"><span class="mk" data-kind="detail" data-size="26"></span><span class="vr"></span>
+          <div class="wt"><span class="word">SOCDESK</span><span class="desc">IOC in. <span class="hl">OSINT</span> out.</span></div></div>
+          <span class="locktag">small</span></div>
+        <div class="lockline"><div class="lock-stacked"><span class="mk" data-kind="detail" data-size="60"></span>
+          <span class="word">SOCDESK</span><span class="desc">IOC in. <span class="hl">OSINT</span> out.</span></div>
+          <span class="locktag">stacked · OG / slide</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="calls mt-18">
+    <div class="callcard">
+      <h3>Tagline is a separate owner decision <span class="badge rec">recommend</span></h3>
+      <p><b>"IOC in. OSINT out."</b> — four words, product-native, already installed as the hero H1. It lands on what the
+        tool actually does. Use it as the lockup descriptor.</p>
+    </div>
+    <div class="callcard">
+      <h3>The reference line <span class="badge avoid">avoid</span></h3>
+      <p><b>"Threat intelligence, faster."</b> — the brand review calls it table-stakes and category-generic. Not baked into
+        any lockup here. If a mood line is wanted, the installed masthead line reads calmer than "faster."</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 · FAVICON FAMILY ============ -->
+<section class="sec">
+  <div class="sec-hd">
+    <span class="tag">03 · Favicon family</span>
+    <h2>16 / 24 / 32 — one artwork (the "rise" cut) across the small sizes</h2>
+    <p>The favicon family uses the <b>reduced "rise" cut</b> at every small size so the tab icon is internally consistent;
+      the detailed 3-bar mark takes over at app-icon scale and up. All rendered at their <b>true pixel size</b> in the tiles.</p>
+  </div>
+
+  <div class="duo">
+    <div class="stage tt-dark">
+      <div class="slbl"><span class="chip">Dark</span> favicon · true sizes</div>
+      <div class="rail">
+        <div class="rcell"><div class="appicon sz-64"><span class="mk" data-kind="detail" data-size="50"></span></div><span class="rcap">64 · app</span></div>
+        <div class="rcell"><div class="tile sz-48"><span class="mk" data-kind="fav" data-var="rise" data-size="40"></span></div><span class="rcap">48</span></div>
+        <div class="rcell"><div class="tile sz-32"><span class="mk" data-kind="fav" data-var="rise" data-size="28"></span></div><span class="rcap">32</span></div>
+        <div class="rcell"><div class="tile sz-24"><span class="mk" data-kind="fav" data-var="rise" data-size="22"></span></div><span class="rcap">24</span></div>
+        <div class="rcell"><div class="tile sz-16"><span class="mk" data-kind="fav" data-var="rise" data-size="16"></span></div><span class="rcap">16 · tab</span></div>
+      </div>
+      <div class="tabstrip">
+        <div class="tab on"><div class="native16"><span class="mk" data-kind="fav" data-var="rise" data-size="16"></span></div>SOCDESK — Feed</div>
+        <div class="tab"><div class="native16"><span class="mk" data-kind="fav" data-var="rise" data-size="16"></span></div>Actors</div>
+        <div class="tab"><div class="native16"><span class="mk" data-kind="fav" data-var="rise" data-size="16"></span></div>Health</div>
+      </div>
+    </div>
+    <div class="stage tt-light">
+      <div class="slbl"><span class="chip">Light</span> favicon · true sizes</div>
+      <div class="rail">
+        <div class="rcell"><div class="appicon sz-64"><span class="mk" data-kind="detail" data-size="50"></span></div><span class="rcap">64 · app</span></div>
+        <div class="rcell"><div class="tile sz-48"><span class="mk" data-kind="fav" data-var="rise" data-size="40"></span></div><span class="rcap">48</span></div>
+        <div class="rcell"><div class="tile sz-32"><span class="mk" data-kind="fav" data-var="rise" data-size="28"></span></div><span class="rcap">32</span></div>
+        <div class="rcell"><div class="tile sz-24"><span class="mk" data-kind="fav" data-var="rise" data-size="22"></span></div><span class="rcap">24</span></div>
+        <div class="rcell"><div class="tile sz-16"><span class="mk" data-kind="fav" data-var="rise" data-size="16"></span></div><span class="rcap">16 · tab</span></div>
+      </div>
+      <div class="tabstrip">
+        <div class="tab on"><div class="native16"><span class="mk" data-kind="fav" data-var="rise" data-size="16"></span></div>SOCDESK — Feed</div>
+        <div class="tab"><div class="native16"><span class="mk" data-kind="fav" data-var="rise" data-size="16"></span></div>Actors</div>
+        <div class="tab"><div class="native16"><span class="mk" data-kind="fav" data-var="rise" data-size="16"></span></div>Health</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 · IN CONTEXT: TOPBAR ============ -->
+<section class="sec">
+  <div class="sec-hd">
+    <span class="tag">04 · In context · topbar</span>
+    <h2>Dropped into the real chrome, replacing the current <span class="mono">.cup</span></h2>
+    <p>Verbatim topbar geometry from <span class="mono">site/css/chrome.css</span> — the mark at 30px beside the Archivo
+      wordmark, TLP chip, nav tabs (active = periwinkle underline), live count, theme toggle. Judged in situ, not floating.</p>
+  </div>
+
+  <div class="lockrow">
+    <div class="tb tt-dark">
+      <div class="tbwrap">
+        <a class="logo" href="#" aria-label="SOCDesk home"><span class="cup mk" data-kind="detail" data-size="30"></span><span class="word">SOCDESK</span></a>
+        <span class="tlp">TLP:CLEAR</span>
+        <nav><span class="on">Feed</span><span>Vulnerabilities</span><span>Actors</span><span>Health</span><span>Sources</span><span>Toolbelt</span></nav>
+        <span class="live"><b></b>1,204</span>
+        <div class="ttoggle"><span class="on">Dark</span><span>Light</span><span>System</span></div>
+      </div>
+    </div>
+    <div class="tb tt-light">
+      <div class="tbwrap">
+        <a class="logo" href="#" aria-label="SOCDesk home"><span class="cup mk" data-kind="detail" data-size="30"></span><span class="word">SOCDESK</span></a>
+        <span class="tlp">TLP:CLEAR</span>
+        <nav><span class="on">Feed</span><span>Vulnerabilities</span><span>Actors</span><span>Health</span><span>Sources</span><span>Toolbelt</span></nav>
+        <span class="live"><b></b>1,204</span>
+        <div class="ttoggle"><span>Dark</span><span class="on">Light</span><span>System</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 05 · IN CONTEXT: HERO ============ -->
+<section class="sec">
+  <div class="sec-hd">
+    <span class="tag">05 · In context · hero</span>
+    <h2>The RADAR search hero — mark in the head, periwinkle carrying the product</h2>
+    <p>The mark sits in the hero head lockup; the accent runs the kicker, the highlighted word, and the search focus — the
+      coffee stays in the mark, exactly as the role split requires.</p>
+  </div>
+
+  <div class="duo">
+    <div class="stage tt-dark">
+      <div class="slbl"><span class="chip">Dark</span> hero</div>
+      <div class="hero">
+        <div class="hero-head"><span class="mk" data-kind="detail" data-size="30"></span><span class="word">SOCDESK</span></div>
+        <p class="hkick">Threat intelligence lookup</p>
+        <div class="h1">IOC in. <span class="hl">OSINT</span> out.</div>
+        <div class="search"><svg class="si" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <span class="ph">Paste any indicator — IP, domain, hash, URL, CVE, or email</span><kbd>/</kbd></div>
+      </div>
+    </div>
+    <div class="stage tt-light">
+      <div class="slbl"><span class="chip">Light</span> hero</div>
+      <div class="hero">
+        <div class="hero-head"><span class="mk" data-kind="detail" data-size="30"></span><span class="word">SOCDESK</span></div>
+        <p class="hkick">Threat intelligence lookup</p>
+        <div class="h1">IOC in. <span class="hl">OSINT</span> out.</div>
+        <div class="search"><svg class="si" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <span class="ph">Paste any indicator — IP, domain, hash, URL, CVE, or email</span><kbd>/</kbd></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 06 · PALETTE / ROLE SPLIT ============ -->
+<section class="sec">
+  <div class="sec-hd">
+    <span class="tag">06 · Palette &amp; role split</span>
+    <h2>Two tones do the work — and the walls stay up</h2>
+    <p>Coffee is <b>mark-only</b> (it never becomes a UI control, and never gold — gold is a reserved verdict tone).
+      Periwinkle is <b>the product</b> — it is also the mark's data. The ground is warm, never black.</p>
+  </div>
+  <div class="swrow">
+    <div class="sw sw-coffee"><div class="chip"></div><span class="nm">--coffee</span><span class="hx">#A6612F</span><span class="ro">Mug body / rim / handle. Mark only, both themes.</span></div>
+    <div class="sw sw-peri-d"><div class="chip"></div><span class="nm">--accent · dark</span><span class="hx">#7C8AFF</span><span class="ro">Bars + all product accent, espresso theme.</span></div>
+    <div class="sw sw-peri-l"><div class="chip"></div><span class="nm">--accent · light</span><span class="hx">#4A4FD0</span><span class="ro">Bars + all product accent, paper theme.</span></div>
+    <div class="sw sw-espresso"><div class="chip"></div><span class="nm">--ink · dark</span><span class="hx">#15100A</span><span class="ro">Warm-espresso ground. Never pure black.</span></div>
+    <div class="sw sw-paper"><div class="chip"></div><span class="nm">--ink · light</span><span class="hx">#F2E6D0</span><span class="ro">Warm-paper ground.</span></div>
+  </div>
+</section>
+
+<!-- ============ 07 · BUILD-READY ============ -->
+<section class="sec">
+  <div class="sec-hd">
+    <span class="tag">07 · Build-ready</span>
+    <h2>The assets, ready to drop in</h2>
+    <p>The mark paints ride classes (coffee = <span class="mono">--coffee</span>, bars = <span class="mono">--accent</span>) —
+      the same discipline the shipping <span class="mono">.cup</span> uses, so it retunes with the theme and stays CSP-clean.
+      The favicon is the standalone "rise" cut with a <span class="mono">prefers-color-scheme</span> flip.</p>
+  </div>
+
+  <div class="code tt-dark">
+    <p class="clbl">Topbar mark · inline SVG (replaces the current .cup in index.html)</p>
+    <pre id="code-mark"></pre>
+  </div>
+  <div class="code tt-dark">
+    <p class="clbl">chrome.css · the mark paints</p>
+    <pre id="code-css"></pre>
+  </div>
+  <div class="code tt-dark">
+    <p class="clbl">favicon.svg · the 16px "rise" cut · theme-aware · saved as design/mockups/brand-hybrid-favicon.svg</p>
+    <pre id="code-favicon"></pre>
+  </div>
+</section>
+
+<!-- ============ 08 · READ & TWEAKS ============ -->
+<section class="sec">
+  <div class="sec-hd">
+    <span class="tag">08 · Honest read &amp; tweaks</span>
+    <h2>Does flat periwinkle bars-in-a-mug actually work? Yes — with two moves</h2>
+    <p>The concept reads: a coffee vessel holding rising periwinkle data is a genuinely distinctive CTI mark (nobody else owns
+      "instrument that measures your coffee-break"), and it survives 16px once reduced. Two recommendations.</p>
+  </div>
+  <div class="sug">
+    <div class="item"><div class="st"><b>Bar count: three big, two small</b><span class="tagn">recommended</span>
+      <p>Three ascending bars is the minimum that reads as a <b>chart</b> (two reads as a step, four is dead weight even at
+        32px). So: <b>three bars for the detailed mark</b>, and drop to <b>two</b> for the 16/24/32 favicon. Four bars — as in
+        the reference — is rejected on legibility grounds at every size.</p></div></div>
+    <div class="item"><div class="st"><b>Let the tall bar break the rim at favicon size</b><span class="tagn">recommended</span>
+      <p>Inside the cup, an ascending chart is legible but the "rising" cue is quiet small. Pushing the tall bar just
+        <b>above the rim</b> gives an unmistakable vertical signal at 16px — and it quietly inherits the shipped mark's
+        "signal rising out of the cup" equity (the old steam) while staying a <b>bar</b>, not a wisp. This is the "rise" cut.</p></div></div>
+    <div class="item"><div class="st"><b>Steam vs bars — keep bars, borrow the rise</b><span class="tagn">decision</span>
+      <p>A steam wisp is marginally cleaner at 16px, but it makes the mark a generic "coffee + steam" icon and throws away
+        the one idea that differentiates it — <b>the chart</b>. The "rise" cut keeps the bar-chart concept <em>and</em> gets
+        most of steam's small-size clarity. Recommend bars; do not replace them with steam.</p></div></div>
+  </div>
+</section>
+
+<div class="foot">
+  <div><b>Internal review — not for ship.</b> Hybrid translation of the bar-chart-mug into the warm-espresso / periwinkle
+    system: flat coffee mug + periwinkle bars, no glow / gloss / gradient, both themes, self-hosted Archivo + IBM Plex Mono,
+    zero external requests. Tokens mirror site/css/tokens.css; topbar geometry mirrors site/css/chrome.css.</div>
+  <div class="path">design/mockups/brand-hybrid.html · brand-hybrid.css · brand-hybrid.js · brand-hybrid-favicon.svg</div>
+</div>
+
+</div>
+</body>
+</html>
