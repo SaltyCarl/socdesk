@@ -11,8 +11,12 @@
 // BUMP THIS on every change to the shell (html/css/js). The shell is cached
 // cache-first, so without a bump returning visitors keep the old UI after a
 // deploy — this masked two changes during development before it was caught.
-const VERSION = "socdesk-v18";  // v18: escalation = geo-led image card (Copy card +
-                                // Copy text); text docket CVE-only; .live layout collision fixed
+const VERSION = "socdesk-v19";  // v19: SW install bypasses the HTTP cache so every
+                                // deploy ships the FRESH shell (returning visitors were
+                                // getting the stale shell for up to 4h — cache.add baked
+                                // in HTTP-cached assets). v18: escalation = geo-led image
+                                // card (Copy card + Copy text); text docket CVE-only;
+                                // .live layout collision fixed
                                 // v17: interactive cobe globe in the home hero
                                 // (js/globe.js + js/vendor/cobe.js + css/globe.css)
                                 // v16: SD-monogram logo (topbar sdmark + favicon)
@@ -57,9 +61,17 @@ const SHELL_ASSETS = [
 self.addEventListener("install", e => {
   e.waitUntil((async () => {
     const c = await caches.open(SHELL);
-    // addAll is atomic — one 404 would fail the whole install, so add
-    // individually and tolerate misses.
-    await Promise.all(SHELL_ASSETS.map(u => c.add(u).catch(() => {})));
+    // Fetch each shell asset bypassing the HTTP cache (cache:"reload"). cache.add
+    // fetches THROUGH the browser's HTTP cache, and the shell JS/CSS carry a 4h
+    // max-age — so a returning visitor's stale assets get baked into the new
+    // versioned cache and served cache-first for hours after a deploy. That is
+    // exactly what stranded returning visitors on the old shell. Reloading
+    // guarantees the versioned cache holds the freshly-deployed shell. add is
+    // atomic (one 404 fails the batch), so fetch + put individually, tolerate misses.
+    await Promise.all(SHELL_ASSETS.map(async u => {
+      try { const res = await fetch(u, { cache: "reload" }); if (res.ok) await c.put(u, res); }
+      catch { /* tolerate a missing asset; the fetch handler retries online */ }
+    }));
     self.skipWaiting();
   })());
 });
