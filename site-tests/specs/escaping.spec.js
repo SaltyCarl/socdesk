@@ -89,7 +89,6 @@ test.describe("hostile feed content cannot execute or break out", () => {
     expect(await pwned(page)).toEqual([]);
     // nothing attacker-authored became live DOM
     await expect(page.locator("#feedRows img, #feedRows script")).toHaveCount(0);
-    await expect(page.locator("#tickTrack img, #tickTrack script")).toHaveCount(0);
     await expect(page.locator("#rail img, #rail script")).toHaveCount(0);
   });
 

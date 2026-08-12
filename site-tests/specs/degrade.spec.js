@@ -35,8 +35,10 @@ test.describe("degraded operation", () => {
     }
 
     // the counters that GSAP would have animated must still land on their value
-    await expect(page.locator("#mastCount")).toHaveText(R.trackedTotal().toLocaleString("en-US"));
-    await expect(page.locator("#tagline")).not.toHaveText("");
+    // (the masthead tracked-object count was cut; the stat band carries the
+    // feed count now, still driven by countUp)
+    await expect(page.locator('#band button[data-cat="all"] b'))
+      .toHaveText(R.feed().items.length.toLocaleString("en-US"));
 
     // THE REGRESSION: no content block may sit at opacity 0 in the active view
     // (.rv hover affordances are opacity-0 by design and are excluded)

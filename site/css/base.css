@@ -1,11 +1,14 @@
-*{box-sizing:border-box;margin:0;padding:0;border-radius:0}
-html{scroll-behavior:smooth}
+/* radius is no longer force-reset to 0 globally — tokens.css exposes
+   --r-1..3 and chrome opts in per component; the warm system uses soft
+   corners on cards/controls, sharp hairlines everywhere else. */
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;color-scheme:light dark}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
 body{
-  background:
-    linear-gradient(rgba(111,168,220,.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(111,168,220,.045) 1px, transparent 1px),
-    var(--ink);
-  background-size:56px 56px, 56px 56px, auto;
+  /* warm ambient ground — a single soft glow top-right over the base,
+     tokenised so it retunes per theme (see --glow in tokens.css) */
+  background:radial-gradient(1200px 640px at 84% -10%, var(--glow), transparent 60%), var(--ink);
   color:var(--paper);font-family:var(--sans);font-size:15px;line-height:1.6;
   -webkit-font-smoothing:antialiased;overflow-x:hidden;
 }
@@ -14,9 +17,11 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;opacity:.05;mi
 a{color:inherit;text-decoration:none}
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 input,textarea{font:inherit;color:var(--paper);background:none;border:none;outline:none}
-::selection{background:#e8e1cf3d}
-::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:var(--line);border:2px solid var(--ink)}
-:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+::selection{background:var(--accent);color:var(--ink-on-accent)}
+::-webkit-scrollbar{width:10px}
+::-webkit-scrollbar-track{background:var(--ink)}
+::-webkit-scrollbar-thumb{background:var(--accent);border:2px solid var(--ink);border-radius:var(--r-3)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .wrap{max-width:1360px;margin:0 auto;padding:0 40px;position:relative;z-index:2}
 .caps{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}

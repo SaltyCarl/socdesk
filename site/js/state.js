@@ -12,8 +12,17 @@ export const state = {
   notable:   read("notable", {}),     // feed id -> {title,url,source,ts}
   watchlist: read("watchlist", []),   // lowercase vendor/product strings
   history:   read("history", []),     // [{q,type,verdict,ts}] most-recent-first
+  theme:     read("theme", ""),       // "" = follow OS · "light" · "dark"
   lastVisit: "",                      // previous session start
 };
+
+/** Persist the theme preference. "" (or anything not light/dark) means
+ *  "follow the OS", and the stored key is removed so nothing lingers. */
+export function setTheme(t) {
+  state.theme = (t === "light" || t === "dark") ? t : "";
+  if (state.theme) write("theme", state.theme);
+  else { try { localStorage.removeItem(NS + "theme"); } catch {} }
+}
 
 export function beginSession() {
   state.lastVisit = read("sessionStart", "");
@@ -76,5 +85,5 @@ export function clearAll() {
       .forEach(k => localStorage.removeItem(k));
   } catch {}
   state.reviewed = {}; state.notable = {}; state.watchlist = [];
-  state.history = []; state.lastVisit = "";
+  state.history = []; state.theme = ""; state.lastVisit = "";
 }

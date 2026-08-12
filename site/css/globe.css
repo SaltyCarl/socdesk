@@ -1,0 +1,224 @@
+/* ============================================================
+   SOCDesk — Home-hero globe (ported from design/mockups/hero-globe.css).
+   The two-column hero: left = the shipped copy column (kicker, H1, omnibox,
+   recent chips, disclosure — untouched), right = a matte periwinkle cobe
+   dot-matrix globe bleeding off the right edge, with a low-contrast CSS aurora
+   behind it. Tokens are inherited from tokens.css; nothing here re-declares a
+   token. Strict-CSP safe: no inline styles — all runtime writes are CSSOM
+   property assignments from globe.js.
+
+   Deliberately NOT ported from the mockup: the scroll-melt system, the sticky
+   omnibox dock, the hero-stats strip, and the glass escalation card. The live
+   verdict console (#console, panels.css) remains the answer surface; a fly-to
+   here only springs the globe + drops the located pin.
+   ============================================================ */
+
+/* ---- HERO: give the feed-home hero room for the two-column showpiece.
+   (.hero is feed-scoped by chrome.css; these override the shipped compact
+   values.) The copy stays left; the globe is absolutely placed on the right. */
+.hero{padding:56px 0 20px;min-height:clamp(480px,68vh,720px);position:relative;overflow:visible}
+
+/* aurora / atmosphere — two low-contrast periwinkle blobs (§5.4), behind the
+   globe, heavy blur, slow drift. Reuses the accent hue via color-mix so it
+   retunes per theme. */
+.hero-atmos{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.hero-atmos::before,.hero-atmos::after{content:'';position:absolute;border-radius:50%;
+  filter:blur(100px);opacity:.45;pointer-events:none;
+  background:radial-gradient(circle, color-mix(in srgb,var(--accent) 24%, transparent), transparent 70%)}
+.hero-atmos::before{width:520px;height:520px;top:-10%;right:4%;
+  animation:globeDrift 42s var(--ease-inout) infinite alternate}
+.hero-atmos::after{width:380px;height:380px;bottom:-14%;left:8%;opacity:.30;
+  animation:globeDrift 52s var(--ease-inout) infinite alternate-reverse}
+@keyframes globeDrift{to{transform:translate3d(4%, -3%, 0)}}
+/* paper shows atmosphere more — soften on light */
+:root[data-theme="light"] .hero-atmos::before{opacity:.28}
+:root[data-theme="light"] .hero-atmos::after{opacity:.18}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]) .hero-atmos::before{opacity:.28}
+  :root:not([data-theme="dark"]) .hero-atmos::after{opacity:.18}
+}
+
+/* globe — bleeds off the right edge; the stage carries the GROWTH via a pure
+   compositor transform (scale(--globe-grow)); cobe's backing store is a STABLE
+   high-res render (devicePixelRatio bumped once at build), so the dots stay
+   crisp at every zoom and cobe never flashes an intermediate resize()/clear
+   mid-swell. Growing from the disc centre lets the fly-to "zoom into" the
+   front-centre point. Canvas carries the load entrance. */
+.globe-wrap{position:absolute;top:50%;right:-6%;z-index:1;
+  transform-origin:60% 50%;transform:translateY(-50%);will-change:transform}
+.globe-stage{position:relative;width:min(56vw,680px);
+  aspect-ratio:1;cursor:grab;touch-action:none;
+  transform:scale(var(--globe-grow, 1));transform-origin:50% 50%;
+  will-change:transform}
+.globe-stage.dragging{cursor:grabbing}
+#globe{display:block;width:100%;height:100%;
+  opacity:0;transform:scale(.98);
+  transition:opacity .8s var(--ease) .15s, transform .8s var(--ease) .15s}
+#globe.globe-ready{opacity:1;transform:scale(1)}
+
+/* projected pin overlay — sits exactly over the canvas box, never eats pointer
+   events (the canvas keeps drag/wheel); globe.js writes each pin's transform. */
+.globe-pins{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.pin{position:absolute;top:0;left:0;width:var(--d,14px);height:var(--d,14px);
+  margin:calc(var(--d,14px) / -2) 0 0 calc(var(--d,14px) / -2);
+  border-radius:50%;transform:translate3d(-999px,-999px,0);
+  will-change:transform,opacity;transition:width .18s var(--ease),height .18s var(--ease)}
+/* matte disc: filled core + hairline ring, NO glow/bloom — reads as data */
+.pin::before{content:'';position:absolute;inset:0;border-radius:50%;
+  background:var(--pin);border:1px solid color-mix(in srgb,var(--pin) 60%, var(--ink));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--pin) 16%, transparent)}
+/* the "on the surface" contact dot */
+.pin::after{content:'';position:absolute;inset:30%;border-radius:50%;
+  background:color-mix(in srgb,var(--pin) 40%, var(--ink))}
+.pin.active{z-index:3}
+.pin.active::before{border-color:var(--pin);
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--pin) 26%, transparent)}
+/* COMMITTED — Option B: matte verdict tones, sized by severity, NO glow.
+   red critical / amber suspicious / muted low. Solid tokens, no light-emitting
+   fill; the ring is a hairline data disc, not a bloom. */
+.pin.crit{--pin:var(--red)}
+.pin.susp{--pin:var(--gold)}
+.pin.low{--pin:var(--steam)}
+/* (#7) hairline CONCENTRIC periwinkle ring on critical pins — the 4px accent
+   shadow sits behind the 3px tint, so only the 3..4px annulus shows: a 1px
+   hairline ring, no glow. */
+.pin.crit::before{
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--pin) 16%, transparent),
+             0 0 0 4px color-mix(in srgb,var(--accent) 55%, transparent)}
+.pin.crit.active::before{
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--pin) 26%, transparent),
+             0 0 0 5px color-mix(in srgb,var(--accent) 55%, transparent)}
+
+/* ---- landed fly-to pin: drops + pulses ONCE at the located coordinate.
+   Position is written by projectLanded on the outer element; the drop + pulse
+   live on children so the keyframes never fight the per-frame projection
+   transform. Matte — the pulse is a hairline ring that expands once. ---- */
+.pin.landed{position:absolute;top:0;left:0;z-index:5;
+  width:var(--d,22px);height:var(--d,22px);
+  margin:calc(var(--d,22px) / -2) 0 0 calc(var(--d,22px) / -2);
+  transform:translate3d(-999px,-999px,0);opacity:0;pointer-events:none;
+  --pin:var(--accent)}
+.pin.landed.show{opacity:1}
+/* the landed pin draws its own disc — suppress the base .pin pseudo-elements */
+.pin.landed::before,.pin.landed::after{content:none}
+.pin.landed .pin-disc{position:absolute;inset:0;border-radius:50%;
+  background:var(--pin);border:1px solid color-mix(in srgb,var(--pin) 62%, var(--ink));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--pin) 18%, transparent)}
+.pin.landed .pin-disc::after{content:'';position:absolute;inset:30%;border-radius:50%;
+  background:color-mix(in srgb,var(--pin) 42%, var(--ink))}
+.pin.landed .pin-pulse{position:absolute;inset:0;border-radius:50%;
+  border:1.5px solid var(--pin);opacity:0;pointer-events:none}
+@keyframes pinDrop{from{transform:translateY(-12px) scale(.5);opacity:0}
+  60%{opacity:1}to{transform:none;opacity:1}}
+@keyframes pinPulse{0%{transform:scale(1);opacity:.65}70%{opacity:0}100%{transform:scale(2.8);opacity:0}}
+.pin.landed.dropping .pin-disc{animation:pinDrop .5s var(--ease) both}
+.pin.landed.pulsing  .pin-pulse{animation:pinPulse .9s var(--ease) both}
+
+/* copy column sits above the globe */
+.hero-copy{position:relative;z-index:2;max-width:54ch}
+
+/* ============================================================
+   PIN TOOLTIP — a glass analyst verdict card: indicator, what-it-is,
+   consensus, score, trend, actor, geo. Positioned via setProperty (CSP-safe).
+   ============================================================ */
+.pin-tip{position:fixed;top:0;left:0;z-index:60;width:300px;max-width:78vw;
+  padding:0;pointer-events:none;opacity:0;visibility:hidden;
+  transform:translate3d(-999px,-999px,0) scale(.98);transform-origin:top left;
+  border-radius:var(--r-2);border:1px solid var(--line-bright);
+  border-top-color:color-mix(in srgb, var(--paper) 16%, var(--line-bright));
+  background:color-mix(in srgb, var(--panel) 82%, transparent);
+  -webkit-backdrop-filter:blur(16px) saturate(140%);
+  backdrop-filter:blur(16px) saturate(140%);
+  box-shadow:inset 3px 0 0 var(--tip-accent, var(--accent)),
+    inset 0 1px 0 color-mix(in srgb, var(--paper) 8%, transparent),
+    0 22px 50px -18px var(--shadow);
+  contain:paint;isolation:isolate;overflow:hidden;
+  transition:opacity .16s var(--ease), transform .16s var(--ease)}
+.pin-tip.show{opacity:1;visibility:visible;transform:translate3d(var(--tx,0),var(--ty,0),0) scale(1)}
+.pin-tip .tip-head{display:flex;align-items:center;gap:8px;
+  padding:12px 14px 8px;border-bottom:1px solid var(--line)}
+.pin-tip .tip-type{font-family:var(--mono);font-size:9px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink-on-accent);
+  background:var(--tip-accent, var(--accent));padding:3px 7px;border-radius:var(--r-chip);white-space:nowrap}
+.pin-tip .tip-ind{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--paper);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
+.pin-tip .tip-body{padding:10px 14px 12px}
+.pin-tip .tip-what{font-size:14px;font-weight:700;letter-spacing:-.01em;color:var(--paper);line-height:1.25;margin-bottom:3px}
+.pin-tip .tip-actor{font-size:12px;color:var(--muted);margin-bottom:11px;line-height:1.35}
+.pin-tip .tip-actor b{color:var(--paper);font-weight:600}
+.pin-tip .tip-metrics{display:grid;grid-template-columns:auto 1fr;gap:10px 12px;align-items:center;margin-bottom:11px}
+.pin-tip .tip-score{font-family:var(--mono);font-size:24px;font-weight:600;line-height:1;
+  color:var(--tip-accent, var(--accent));font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pin-tip .tip-score span{font-size:11px;color:var(--muted);font-weight:400}
+.pin-tip .tip-consensus{justify-self:end;text-align:right;font-size:12px;color:var(--muted);line-height:1.2}
+.pin-tip .tip-consensus b{color:var(--paper);font-weight:600;font-family:var(--mono)}
+.pin-tip .tip-consensus small{display:block;font-family:var(--mono);font-size:8px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+.pin-tip .tip-meter{position:relative;height:5px;border-radius:3px;overflow:hidden;
+  background:color-mix(in srgb,var(--line) 70%, transparent);grid-column:1 / -1;margin-top:2px}
+.pin-tip .tip-meter i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;
+  width:var(--sev,0%);background:var(--tip-accent, var(--accent))}
+.pin-tip .tip-rows{display:flex;flex-direction:column;gap:6px;
+  border-top:1px solid var(--line);padding-top:10px}
+.pin-tip .tip-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:11.5px}
+.pin-tip .tip-row .k{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);white-space:nowrap;flex:0 0 auto}
+.pin-tip .tip-row .v{color:var(--paper);text-align:right;font-size:11.5px;line-height:1.3}
+.pin-tip .tip-row .v.mono{font-family:var(--mono)}
+.pin-tip .tip-trend.up{color:var(--red)}
+.pin-tip .tip-trend.down{color:var(--green)}
+.pin-tip .tip-trend.flat{color:var(--muted)}
+.pin-tip .tip-hint{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);padding:8px 14px;border-top:1px solid var(--line);
+  display:flex;align-items:center;gap:6px}
+.pin-tip .tip-hint::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--tip-accent, var(--accent))}
+/* light glass softens — paper refracts less depth */
+:root[data-theme="light"] .pin-tip{
+  -webkit-backdrop-filter:blur(13px) saturate(120%);backdrop-filter:blur(13px) saturate(120%);
+  background:color-mix(in srgb, var(--panel) 88%, transparent)}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]) .pin-tip{
+    -webkit-backdrop-filter:blur(13px) saturate(120%);backdrop-filter:blur(13px) saturate(120%);
+    background:color-mix(in srgb, var(--panel) 88%, transparent)}
+}
+
+/* ---- globe hint — whisper-subtle affordance for gesture-only zoom. Fades in
+   on globe hover, out on leave. ---- */
+.globe-hint{position:absolute;right:2%;bottom:6px;z-index:6;
+  display:flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);
+  opacity:0;transform:translateY(4px);pointer-events:none;
+  transition:opacity .4s var(--ease), transform .4s var(--ease)}
+.globe-hint b{width:3px;height:3px;border-radius:50%;background:var(--line-bright);flex:0 0 auto}
+.globe-stage:hover ~ .globe-hint,.globe-hint.show{opacity:.5;transform:none}
+
+/* ============================================================
+   REDUCED MOTION — static globe frame; no spin/drift; fly-to snaps (globe.js).
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  #globe{opacity:1;transform:none}
+  .hero-atmos::before,.hero-atmos::after{animation:none}
+  .globe-stage,.pin,.pin-tip{transition:none!important}
+  .pin.landed.dropping .pin-disc,.pin.landed.pulsing .pin-pulse{animation:none!important}
+  .pin.landed .pin-disc{opacity:1}
+}
+
+/* ============================================================
+   MOBILE — globe becomes a low-opacity backdrop, then hidden ≤560px.
+   ============================================================ */
+@media (max-width:900px){
+  .hero-copy{max-width:none}
+  .globe-wrap{right:-20%}
+  .globe-stage{width:min(86vw,540px)}
+}
+@media (max-width:760px){
+  .hero{padding:34px 0 8px;min-height:auto}
+  .globe-wrap{top:8%;right:-28%;transform:none;opacity:.22}
+  .globe-stage{width:min(120vw,600px)}
+  /* backdrop globe on mobile — pins + hint + tooltip are desktop-only */
+  .globe-pins,.globe-hint,.pin-tip,.pin.landed{display:none}
+}
+@media (max-width:560px){
+  .globe-wrap{display:none}
+}

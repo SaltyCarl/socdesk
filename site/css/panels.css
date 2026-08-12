@@ -27,17 +27,26 @@
 .feed-h{display:flex;justify-content:space-between;gap:12px;padding:12px 20px;
   border-bottom:1px solid var(--line);color:var(--muted);font-size:10px;font-weight:800;
   letter-spacing:.11em;text-transform:uppercase}
-.row{display:grid;grid-template-columns:96px 1fr 84px;gap:18px;padding:15px 20px;
+/* RADAR .feed-row: a score-led list row. Leading column is the pipeline's
+   0-100 relevance score (mono tabular, coloured by severity band — never a
+   giant display numeral); the category rides beneath it as a faint mono label;
+   the headline is 14.5/500; the why-signals are mono, dot-separated facts. */
+.row{display:grid;grid-template-columns:90px 1fr auto;gap:16px;padding:14px 18px;
   border-bottom:1px solid var(--line);cursor:pointer;border-left:3px solid transparent;
   position:relative;transition:background .15s;content-visibility:auto;contain-intrinsic-size:auto 104px}
-/* priority column: the pipeline's 0-100 relevance score leads the row */
-.row .pri{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0}
-.pscore{font-family:var(--mono);font-size:19px;font-weight:600;line-height:1;
+.row .pri{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0}
+.pscore{font-family:var(--mono);font-size:17px;font-weight:600;line-height:1;
   font-variant-numeric:tabular-nums}
-.row .wq{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
-.wq span{border:1px solid var(--line);color:var(--muted);font-family:var(--mono);
-  font-size:9px;letter-spacing:.04em;padding:2px 6px;white-space:nowrap}
-.wq .grp{border-color:var(--line-bright);color:var(--paper)}
+/* the category rides in the leading column, wide enough for "VULNERABILITY";
+   ellipsis is the safety net so a long label can never collide with the headline */
+.row .pri .tag{border:none;padding:0;max-width:100%;font-family:var(--mono);font-size:9.5px;
+  font-weight:600;letter-spacing:.05em;color:var(--muted);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.row .wq{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:8px;
+  font-family:var(--mono);font-size:10px;color:var(--muted)}
+.wq span{white-space:nowrap}
+.wq span + span::before{content:'·';margin-right:7px;color:var(--line-bright)}
+.wq .grp{color:var(--paper);font-weight:600}
 .row:last-child{border-bottom:none}
 .row::after{content:'';position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;
   background:radial-gradient(320px 80px at var(--rx,50%) var(--ry,50%),rgba(232,225,207,.05),transparent 70%)}
@@ -49,8 +58,9 @@
 .row.reviewed .t{text-decoration:line-through;text-decoration-color:var(--line-bright)}
 .tag{align-self:start;justify-self:start;border:1px solid;font-size:9px;font-weight:800;
   letter-spacing:.09em;text-transform:uppercase;padding:5px 8px;white-space:nowrap}
-.row .src{font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
-.row .t{font-size:14px;font-weight:600;margin:5px 0 4px;line-height:1.35}
+.row .src{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted)}
+.row .t{font-size:14.5px;font-weight:500;margin:5px 0 4px;line-height:1.4}
 .row .s{color:var(--muted);font-size:12.5px;line-height:1.5;display:-webkit-box;
   -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .row .right{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
@@ -77,15 +87,42 @@
 .meta .v{font-size:13px;margin-top:5px;word-break:break-word}
 .actions{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
 
-/* ---------- verdict ---------- */
-.gauge-wrap{display:flex;align-items:center;gap:22px;margin-bottom:16px}
+/* ---------- verdict ----------
+   Gauge: the score sits INSIDE the ring, not as a flex sibling beside it (the
+   old hollow-ring bug). .gaugebox is sized to the ring; .gauge-num is
+   absolutely centred over it (RADAR .gauge-wrap). */
+.gauge-wrap{display:flex;align-items:center;gap:18px;margin-bottom:18px;flex-wrap:wrap}
+.gaugebox{position:relative;width:96px;height:96px;flex-shrink:0}
 .gauge{width:96px;height:96px;flex-shrink:0}
 .gauge circle{fill:none;stroke-width:6}
 .gauge .track{stroke:var(--line)}
 .gauge .arc{stroke-linecap:butt}
-.gauge-num{font-family:var(--mono);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
-.verdict-word{font-size:24px;font-weight:800;font-stretch:115%;letter-spacing:.02em;
-  text-transform:uppercase;line-height:1.1}
+.gauge-num{position:absolute;inset:0;display:grid;place-items:center;line-height:1;
+  font-family:var(--mono);font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
+.gauge-num small{font-size:12px;color:var(--muted);font-weight:500}
+/* ---------- verdict radar (Core) — the decided score graphic ----------
+   design/mockups/verdict-graphic-radar-round2.html §A "Core". Replaces the
+   score donut. The verdict tone (red/amber/green by severity) rides as `color`
+   on the .radar root (shipped tone-* classes) and the profile inherits it via
+   fill/stroke:currentColor; frame strokes stay warm-neutral. CSP-safe:
+   presentation attributes + these classes only, no inline styles. Matte — no
+   glow, no bloom. */
+.radar{width:180px;height:auto;flex:0 0 auto;max-width:60%}
+.r2-ring,.r2-spoke,.r2-tick{fill:none;stroke:var(--line-bright)}
+.r2-poly{stroke-linejoin:round}
+.r2-plate{fill:var(--panel);stroke:var(--line-bright);stroke-width:1}
+.r2-axlabel{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.03em;fill:var(--muted)}
+.r2-axsub{font-family:var(--mono);font-size:7px;fill:var(--muted);opacity:.75}
+.r2-corenum{font-family:var(--sans);font-weight:800;font-size:22px;letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums}
+.r2-coreunit{font-family:var(--mono);font-size:7.5px;fill:var(--muted)}
+/* the profile grows in from the plate centre once; reduced-motion lands it static */
+.r2-plot{transform-box:view-box;transform-origin:105px 100px;
+  animation:r2-grow var(--dur-draw,1100ms) var(--ease,ease) both}
+@keyframes r2-grow{from{transform:scale(.05);opacity:.25}to{transform:scale(1);opacity:1}}
+/* the verdict word is authored in caps ("ACTIVELY EXPLOITED"); no faux-widening
+   and no CSS uppercase — one display tier, Archivo at its normal width */
+.verdict-word{font-size:26px;font-weight:800;letter-spacing:-.01em;line-height:1.12}
 .vtags{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
 .vtag{border:1px solid;font-size:9px;font-weight:800;letter-spacing:.09em;
   text-transform:uppercase;padding:5px 9px}
@@ -104,40 +141,54 @@
 .ev-row .d{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;
   font-variant-numeric:tabular-nums}
 
-/* ---------- verdict console — the product's centre of gravity ---------- */
+/* ---------- verdict console — the product's centre of gravity ----------
+   Reads as the escalation card writ large: soft radius, hairline border, a
+   light shadow to lift it off the ground. The right column is the escalation
+   summary; a 3px accent LEFT rule marks it (accent as a rule, never a fill). */
 .vconsole{border:1px solid var(--line-bright);background:var(--panel);margin-top:22px;
-  position:relative}
+  border-radius:var(--r-3);overflow:hidden;position:relative;
+  box-shadow:0 18px 40px -30px var(--shadow)}
 .vc-head{display:flex;justify-content:space-between;align-items:center;gap:12px;
   padding:13px 24px;border-bottom:1px solid var(--line)}
 .vc-head .caps{letter-spacing:.14em}
-.vc-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-.vc-main{padding:24px;border-right:1px solid var(--line);min-width:0}
-.vc-ind{font-size:14px;word-break:break-all;margin-bottom:10px}
-.vc-basis{color:var(--muted);font-size:13px;max-width:56ch}
+/* the left column carries the gauge + basis (lighter now the duplicate Public
+   Data block is gone), the right the denser escalation summary */
+.vc-grid{display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr)}
+.vc-main{padding:24px;min-width:0}
+.vc-ind{font-family:var(--mono);font-size:14px;word-break:break-all;margin-bottom:10px}
+.vc-basis{color:var(--muted);font-size:13px;line-height:1.55;max-width:56ch}
 .vc-side{min-width:0}
 
-/* escalation docket — formatted slip, never raw markdown */
-.esc{background:var(--panel-soft)}
-.esc-h{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 24px;
+/* escalation docket — the sober work product, in the escalation-card language */
+.esc{background:var(--panel-soft);border-left:3px solid var(--accent)}
+.esc-h{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 22px;
   border-bottom:1px solid var(--line);flex-wrap:wrap}
-.esc-h .cap{font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.esc-h .cap{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--accent)}
 .esc-h .esc-acts{display:flex;gap:8px;flex-wrap:wrap}
-.docket{padding:14px 24px 18px;max-height:380px;overflow:auto}
+.docket{padding:16px 22px 18px;max-height:400px;overflow:auto}
 /* no text-transform inside the docket: the slip's text is the text an analyst
    copies — what renders must equal what ships into the ticket */
 .dk-title{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;
-  color:var(--paper);padding-bottom:9px;border-bottom:1px solid var(--line-bright);
-  word-break:break-all}
-.dk-row{display:grid;grid-template-columns:96px 1fr;gap:12px;padding:6px 0;
+  color:var(--paper);padding-bottom:11px;margin-bottom:4px;
+  border-bottom:1px solid var(--line-bright);word-break:break-all}
+.dk-row{display:grid;grid-template-columns:104px 1fr;gap:14px;padding:6px 0;
   border-bottom:1px solid var(--line);font-size:12px}
-.dk-row .l{font-size:10px;font-weight:800;letter-spacing:.08em;
+/* NO text-transform on the docket's labels: innerText renders exactly what the
+   Copy buttons ship into the ticket ("Type", "Suggested next steps"), and the
+   on-screen slip must equal the copied slip verbatim. Faint mono, not caps. */
+.dk-row .l{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.05em;
   color:var(--muted);padding-top:2px}
 .dk-row .v{font-family:var(--mono);font-size:11px;color:var(--paper);word-break:break-word}
-.dk-sec{font-size:10px;font-weight:800;letter-spacing:.12em;
-  color:var(--muted);margin:13px 0 5px}
-.dk-list{list-style:none}
-.dk-list li{font-size:12px;color:var(--paper);padding:4px 0 4px 16px;position:relative;line-height:1.5}
-.dk-list li::before{content:'—';position:absolute;left:0;color:var(--mark)}
+.dk-sec{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.06em;
+  color:var(--muted);margin:15px 0 7px}
+/* suggested next steps ride the escalation-card inner-list: bordered, radius 7,
+   1px dividers, subtle zebra */
+.dk-list{list-style:none;border:1px solid var(--line);border-radius:var(--r-list);overflow:hidden}
+.dk-list li{font-size:12px;color:var(--paper);padding:8px 12px;line-height:1.5;
+  border-bottom:1px solid var(--line)}
+.dk-list li:last-child{border-bottom:none}
+.dk-list li:nth-child(even){background:color-mix(in srgb,var(--panel) 55%,transparent)}
 .dk-foot{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:12px;line-height:1.6}
 
 /* lookup history */
@@ -239,7 +290,7 @@
 
 /* ---------- bookmarklet install card ---------- */
 .bmk{border:1px solid var(--line);background:var(--panel);margin-top:24px;padding:22px 24px}
-.bmk-h h3{font-size:17px;font-weight:800;font-stretch:112%;letter-spacing:.01em}
+.bmk-h h3{font-size:17px;font-weight:800;letter-spacing:-.01em}
 /* reads as a draggable object rather than a link: the seal colour and the grab
    cursor are the whole affordance for "pull me to your bookmarks bar" */
 .bmk-btn{border:1px solid var(--mark);color:var(--mark);background:var(--raised);
@@ -288,14 +339,18 @@
 .tscroll{overflow-x:auto}
 .tscroll .vtable{min-width:640px}
 
-/* actors & malware profiles */
-.agrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:24px}
-.acard{border:1px solid var(--line);background:var(--panel);text-align:left;
-  padding:0;transition:border-color .15s;display:flex;flex-direction:column}
-.acard:hover,.acard:focus-visible{border-color:var(--line-bright)}
+/* actors & malware profiles — each card is an escalation-card card: panel bg,
+   line-bright border, 10px radius, a leading 3px accent rule, mono kicker head,
+   name at 16/700, mono count rows; hover lifts border + panel-soft. */
+.agrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:24px}
+.acard{border:1px solid var(--line-bright);border-left:3px solid var(--accent);
+  border-radius:var(--r-3);background:var(--panel);text-align:left;padding:0;overflow:hidden;
+  transition:border-color .15s,background .15s,box-shadow .15s;display:flex;flex-direction:column;
+  box-shadow:0 12px 30px -26px var(--shadow)}
+.acard:hover,.acard:focus-visible{border-color:var(--accent-dim);background:var(--panel-soft)}
 .acard .ah{display:flex;justify-content:space-between;align-items:center;gap:10px;
-  padding:12px 18px;border-bottom:1px solid var(--line)}
-.acard .an{font-size:16px;font-weight:600;letter-spacing:-.01em;padding:14px 18px 4px}
+  padding:13px 18px;border-bottom:1px solid var(--line)}
+.acard .an{font-size:16px;font-weight:700;letter-spacing:-.01em;padding:14px 18px 4px}
 .acard .aa{font-family:var(--mono);font-size:10.5px;color:var(--muted);padding:0 18px 12px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acard .am{display:flex;gap:14px;padding:10px 18px;border-top:1px solid var(--line);
@@ -332,6 +387,7 @@
   .docket{padding:12px 16px 16px}
   .dk-row{grid-template-columns:78px 1fr}
   .gauge{width:72px;height:72px}
+  .radar{width:150px;max-width:100%}
   .verdict-word{font-size:19px}
   .trend-row{grid-template-columns:1fr auto;gap:6px}
   .trend-prod,.trend-jump{display:none}
@@ -369,13 +425,36 @@ a.rel-name:hover{color:var(--accent)}
 .live-partial{font-size:10.5px;color:var(--gold)}
 .live-note{color:var(--muted);font-size:13px;line-height:1.6;padding:16px 24px 20px;max-width:70ch}
 
-/* consensus tally — the VT-style gauge + N / M + the §2 headline. No verdict
-   word: SOCDesk counts what sources reported, it does not pronounce. */
-.tally{display:flex;align-items:center;gap:22px;padding:18px 24px 8px}
+/* consensus tally — the N / M + the §2 headline, then the range-gate companion.
+   No verdict word: SOCDesk counts what sources reported, it does not pronounce. */
+.tally{display:flex;flex-direction:column;gap:14px;padding:18px 24px 12px}
 .tally-body{min-width:0;display:flex;flex-direction:column;gap:8px}
 .tally-num{font-family:var(--mono);font-size:30px;font-weight:600;
   font-variant-numeric:tabular-nums;line-height:1}
 .tally-headline{color:var(--paper);font-size:14px;line-height:1.5;max-width:64ch}
+
+/* range-gate companion (§B Resolution B) — the count drawn as discrete blips,
+   sharing the radar's periwinkle scope frame + rim ticks. The per-source verdict
+   colour rides a class (never inline style); the benign/unknown source is shown
+   HOLLOW, present not hidden. Matte — no glow. */
+.comp{display:flex;flex-direction:column;gap:6px}
+.comp-svg{width:100%;height:auto;display:block;max-width:340px}
+.comp-scope{stroke:var(--accent);fill:none;opacity:.28;stroke-width:1}
+.comp-axis{stroke:var(--line-bright)}
+.comp-blip.mal{fill:var(--red)}
+.comp-blip.sus{fill:var(--gold)}
+.comp-blip.benign{fill:none;stroke:var(--green);stroke-width:1.6}
+.comp-blip.unknown{fill:none;stroke:var(--muted);stroke-width:1.6}
+.comp-halo{fill:none;stroke-width:1;opacity:.35}
+.comp-halo.mal{stroke:var(--red)}
+.comp-halo.sus{stroke:var(--gold)}
+.comp-blip,.comp-halo{transform-box:fill-box;transform-origin:center;
+  animation:comp-blip-in .4s var(--ease,ease) both}
+@keyframes comp-blip-in{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+.comp-gatelabels{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;margin-top:2px;max-width:340px}
+.comp-gatelabels span{font-family:var(--mono);font-size:8px;color:var(--muted);
+  text-align:center;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis}
+.comp-caption{font-size:11.5px;color:var(--muted);line-height:1.45;max-width:64ch}
 
 /* escalation docket rendered line-for-line so the on-screen summary equals the
    copied §4 text verbatim (not a <pre>). */
@@ -402,7 +481,11 @@ a.rel-name:hover{color:var(--accent)}
    on the dark console rather than a broken white block */
 .evcard-canvas{display:block;max-width:100%;height:auto;border:1px solid var(--line-bright)}
 
-@media (prefers-reduced-motion: reduce){.ping{animation:none;opacity:.7}}
+@media (prefers-reduced-motion: reduce){
+  .ping{animation:none;opacity:.7}
+  /* the radar profile + tally blips land on their final state, no draw-in */
+  .r2-plot,.comp-blip,.comp-halo{animation:none}
+}
 @media (max-width:640px){
   .tally,.src-block{padding-left:16px;padding-right:16px}
   .live-note,.evcard-h,.evcard-body{padding-left:16px;padding-right:16px}

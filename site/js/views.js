@@ -5,7 +5,7 @@ import { esc, safeUrl, rel, day, num, elapsed, nextPull, staleness,
          copyToButton } from "./data.js";
 import { state, toggleReviewed, toggleNotable, notableCount, watchHit,
          addWatch, removeWatch } from "./state.js";
-import { countUp, onEnter, reflow, trackPointer, tick, startTicker } from "./motion.js";
+import { countUp, onEnter, reflow, trackPointer, tick } from "./motion.js";
 import { attachRelated } from "./related.js";
 
 const $ = s => document.querySelector(s);
@@ -14,17 +14,9 @@ const $$ = s => [...document.querySelectorAll(s)];
 /* ---------------- chrome ---------------- */
 export function renderChrome(data) {
   const feed = data.feed, health = data.health;
-  const total = (feed?.items?.length ?? 0) + (data.cves?.cves?.length ?? 0)
-    + (data.actors?.profiles?.length ?? 0) + (data.malware?.profiles?.length ?? 0);
-
-  const gen = feed?.generated_at;
-  const d = gen ? new Date(gen) : null;
-  $("#mastEdition").textContent = d
-    ? `${gen.slice(0, 10)} · ${d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()}`
-    : "—";
-  countUp($("#mastCount"), total);
-  tick($("#mastRefreshed"), () => elapsed(gen));
-  tick($("#mastNext"), () => nextPull());
+  // The masthead edition/tracked-objects/ingest plate was cut with the
+  // broadsheet layout; liveness now lives entirely in the topbar (#liveCount +
+  // stale chips) and the stat band. No #mast* elements exist to write to.
 
   const ok = health?.sources?.filter(s => s.ok).length ?? 0;
   const all = health?.sources?.length ?? 0;
@@ -37,21 +29,7 @@ export function renderChrome(data) {
   $("#staleChips").innerHTML = staleness(data)
     .map(l => `<span class="stale-chip">${esc(l)}</span>`).join("");
 
-  // ticker from real data
-  const kev = (data.cves?.cves ?? []).filter(c => c.kev)
-    .sort((a, b) => (b.epss ?? 0) - (a.epss ?? 0)).slice(0, 2);
   const items = feed?.items ?? [];
-  const pick = cat => items.filter(i => i.category === cat).slice(0, 2);
-  const ticks = [
-    ...kev.map(c => ["NEW KEV", `${c.cve} · ${(c.products?.[0] || c.vendors?.[0] || "").slice(0, 40)}`, "tone-red"]),
-    ...pick("ransomware").map(i => ["RANSOMWARE", i.title.slice(0, 70), "tone-orange"]),
-    ...pick("vulnerability").map(i => ["VULNERABILITY", i.title.slice(0, 70), "tone-gold"]),
-    ...pick("apt").map(i => ["APT", i.title.slice(0, 70), "tone-accent"]),
-  ].filter(t => t[1]);
-  const html = ticks.map(t =>
-    `<span class="tick-item"><b class="${esc(t[2])}">${esc(t[0])}</b> · ${esc(t[1])}</span>`).join("");
-  $("#tickTrack").innerHTML = html + html;     // duplicated for the -50% loop
-  startTicker($("#tickTrack"));
 
   // stat band counts
   $$("#band button").forEach(b => {
@@ -68,6 +46,9 @@ export function renderChrome(data) {
  */
 export function initViews() {
   $$("nav [data-view]").forEach(b => b.onclick = () => showView(b.dataset.view));
+  // the default surface is the feed/triage home; stamp it so the feed-scoped
+  // chrome (search hero, stat band) paints on first load
+  showView("feed");
 }
 
 export function showView(name) {
@@ -75,6 +56,10 @@ export function showView(name) {
     s.classList.toggle("active", s.dataset.view === name));
   $$("nav [data-view]").forEach(b =>
     b.classList.toggle("on", b.dataset.view === name));
+  // the hero and stat band belong to the feed/triage home only —
+  // chrome.css keys their visibility off this attribute (no search re-render,
+  // no masthead, on every other surface)
+  document.body.dataset.view = name;
 }
 
 /* ---------------- feed: the work queue ---------------- */
@@ -255,7 +240,12 @@ function select(n) {
 export function bindKeys() {
   document.addEventListener("keydown", e => {
     const typing = ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName);
-    if (e.key === "/" && !typing) { e.preventDefault(); $("#q")?.focus(); return; }
+    // "/" focuses the omnibox from anywhere. The search is the triage-home
+    // hero and hidden on other surfaces, so route to the feed first — a hidden
+    // input cannot take focus — keeping the lookup-from-anywhere affordance.
+    if (e.key === "/" && !typing) {
+      e.preventDefault(); showView("feed"); $("#q")?.focus(); return;
+    }
     if (typing) return;
     const items = visible();
     if (e.key === "j") { e.preventDefault(); select(feedState.sel + 1); scrollSel(); }

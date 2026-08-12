@@ -250,11 +250,15 @@ export function renderVerdict(el, v, onDone) {
   const pivots = pivotsFor(v.type.toLowerCase(), v.q).map(([n, u]) =>
     `<a class="pivot" href="${safeUrl(u)}" target="_blank" rel="noopener noreferrer">${esc(n)} ↗</a>`
   ).join("");
-  const ev = v.evidence?.length ? `<div class="ev"><div class="l">Public data</div>${
-    v.evidence.map(([k, val]) =>
-      `<div class="ev-row"><span class="k">${esc(k)}</span><span class="d">${esc(val)}</span></div>`
-    ).join("")}</div>` : "";
-  const gauge = v.score != null ? gaugeSVG(v.score, v.tone) : "";
+  // The verdict RADAR (the decided graphic — design/mockups/
+  // verdict-graphic-radar-round2.html §A "Core") sits where the score donut
+  // used to. It is a filled 5-axis profile (KEV · EPSS · CVSS · ransomware ·
+  // recency) on a faceted hex plate carrying, as its bold centre number, the
+  // SAME score verdict.js already computes — the VISUAL changed, the scoring did
+  // not. Only a CVE carries the signals to plot; a router/miss keeps a clean
+  // word-only head. The Public-data evidence stays owned by the escalation
+  // summary on the right, so the left column reads clean: radar, indicator, basis.
+  const gaugeBlock = v.kind === "cve" ? radarSVG(v) : "";
 
   el.innerHTML = `
     <div class="vc-head">
@@ -263,9 +267,8 @@ export function renderVerdict(el, v, onDone) {
     </div>
     <div class="vc-grid">
       <div class="vc-main">
-        <div class="gauge-wrap">${gauge}
+        <div class="gauge-wrap">${gaugeBlock}
           <div>
-            ${v.score != null ? `<div class="gauge-num tone-${esc(v.tone)}">${esc(v.score)}<span class="sev-unknown">/100</span></div>` : ""}
             <div class="verdict-word tone-${esc(v.tone)}" id="vword"></div>
           </div>
         </div>
@@ -273,7 +276,7 @@ export function renderVerdict(el, v, onDone) {
         <p class="vc-basis">${esc(v.basis)}</p>
       </div>
       <div class="vc-side esc">
-        <div class="esc-h"><span class="cap">Escalation summary</span>
+        <div class="esc-h"><span class="cap">Intelligence summary</span>
           <span class="esc-acts">
             <button class="act" data-esc="md">Copy markdown</button>
             <button class="act" data-esc="txt">Copy text</button>
@@ -282,7 +285,6 @@ export function renderVerdict(el, v, onDone) {
         <div class="docket" id="escBody">${docketHTML(v)}</div>
       </div>
     </div>
-    ${ev}
     <div class="ev"><div class="l">Pivot to — discloses this indicator to that service</div></div>
     <div class="pivots">${pivots}</div>`;
 
@@ -292,6 +294,7 @@ export function renderVerdict(el, v, onDone) {
     if (mode === "dl") return download(`escalation-${v.q}.md`, text, "text/markdown");
     copyToButton(b, text, was);
   });
+  el.querySelectorAll(".r2-corenum.count").forEach(runCount);   // score count-up (RM → final)
   onDone?.(el, v);
 }
 
@@ -381,12 +384,121 @@ export function tallyDocketHTML(result, now = new Date()) {
     .join("");
 }
 
-function gaugeSVG(score, tone) {
-  const r = 42, c = 2 * Math.PI * r, off = c * (1 - Math.max(0, Math.min(100, score)) / 100);
-  return `<svg class="gauge" viewBox="0 0 96 96" aria-hidden="true">
-    <circle class="track" cx="48" cy="48" r="${r}"></circle>
-    <circle class="arc tone-${tone}" cx="48" cy="48" r="${r}" stroke="currentColor"
-      stroke-dasharray="${c}" stroke-dashoffset="${c}" data-off="${off}"
-      transform="rotate(-90 48 48)"></circle>
-  </svg>`;
+/* ================================================================== *
+ * Verdict RADAR — the decided score graphic (the "Core" treatment in
+ * design/mockups/verdict-graphic-radar-round2.html §A). A filled 5-axis profile
+ * on a faceted hex plate with a bold central number.
+ *
+ * CSP LAW (style-src 'self' blocks inline style="" — the mockup's technique
+ * does NOT carry over): every element is coloured by SVG PRESENTATION ATTRIBUTES
+ * (fill/stroke/opacity/…) and CSS CLASSES only. The reserved verdict tone
+ * (red/amber/green by severity) rides as `color` on the .radar root via the
+ * shipped `tone-*` classes, and the profile inherits it through
+ * fill/stroke="currentColor" — the same currentColor trick the old gauge used.
+ * Frame strokes (rings/spokes/ticks/plate) stay warm-neutral. No external
+ * requests. The grow-in draw and the centre count-up degrade to their final
+ * state under prefers-reduced-motion (CSS gate + runCount below).
+ * ================================================================== */
+const RAD = { cx: 105, cy: 100, R: 66, rings: 3, stroke: 1.8, dot: 3, fillOp: 0.18, plate: 26 };
+
+const polar = (cx, cy, r, deg) => {
+  const a = (deg - 90) * Math.PI / 180;
+  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+};
+
+const prefersReduced = () =>
+  typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** Reveal the true centre value by counting up to it; reduced-motion lands on
+ *  the final value instantly. Writes textContent only — no style, CSP-clean. */
+function runCount(node) {
+  const to = parseInt(node.dataset.to, 10);
+  if (!Number.isFinite(to)) return;
+  if (prefersReduced() || typeof requestAnimationFrame !== "function") {
+    node.textContent = String(to); return;
+  }
+  const dur = 750, t0 = performance.now();
+  node.textContent = "0";
+  const tick = now => {
+    const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+    node.textContent = String(Math.round(e * to));
+    if (p < 1) requestAnimationFrame(tick); else node.textContent = String(to);
+  };
+  requestAnimationFrame(tick);
+}
+
+/** The 5 fixed axes, built from the SAME CVE row the verdict is scored from.
+ *  KEV and RANSOM are yes/no (a rim diamond marks a confirmed one); EPSS/CVSS
+ *  scale 0–100; RECENCY decays from the publish date over ~2 years. Values are
+ *  read straight off public data — nothing is invented. */
+function cveAxes(row, score) {
+  const epssPct = score != null ? score
+    : (row.epss != null ? Math.round(row.epss * 100) : null);
+  const cvss = row.cvss != null ? Number(row.cvss) : null;
+  const pub = row.published_at ? Date.parse(row.published_at) : NaN;
+  const ageDays = Number.isFinite(pub) ? (Date.now() - pub) / 864e5 : null;
+  const recV = ageDays == null ? 45
+    : Math.max(0, Math.min(100, Math.round(100 * (1 - ageDays / 1095))));     // linear decay over ~3yr
+  const recRaw = ageDays == null ? "n/a"
+    : ageDays < 60 ? "recent" : ageDays < 180 ? "3mo"
+    : ageDays < 365 ? "this yr" : String(new Date(pub).getUTCFullYear());
+  return [
+    { k: "KEV",     v: row.kev ? 100 : 0,                       raw: row.kev ? "confirmed" : "none",       binary: !!row.kev },
+    { k: "EPSS",    v: epssPct != null ? epssPct : 0,           raw: epssPct != null ? epssPct + "%" : "—", binary: false },
+    { k: "CVSS",    v: cvss != null ? Math.round(cvss * 10) : 0, raw: cvss != null ? String(cvss) : "—",    binary: false },
+    { k: "RANSOM",  v: row.kev_ransomware ? 100 : 0,            raw: row.kev_ransomware ? "known" : "none", binary: !!row.kev_ransomware },
+    { k: "RECENCY", v: recV,                                    raw: recRaw,                               binary: false },
+  ];
+}
+
+function radarSVG(v) {
+  const { cx, cy, R } = RAD;
+  const A = cveAxes(v.row, v.score), N = A.length, step = 360 / N;
+  let g = "";
+
+  // concentric rings + rim bearing ticks (warm neutral, faint)
+  for (let i = 1; i <= RAD.rings; i++)
+    g += `<circle class="r2-ring" cx="${cx}" cy="${cy}" r="${(R * i / RAD.rings).toFixed(1)}" opacity="${(0.26 + 0.2 * i / RAD.rings).toFixed(2)}"/>`;
+  for (let d = 0; d < 360; d += 15) {
+    const [ox, oy] = polar(cx, cy, R, d), [ix, iy] = polar(cx, cy, R - (d % 45 === 0 ? 5 : 3), d);
+    g += `<line class="r2-tick" x1="${ox.toFixed(1)}" y1="${oy.toFixed(1)}" x2="${ix.toFixed(1)}" y2="${iy.toFixed(1)}" opacity="${d % 45 === 0 ? .5 : .3}"/>`;
+  }
+
+  // spokes + axis labels
+  A.forEach((s, i) => {
+    const [sx, sy] = polar(cx, cy, R, i * step);
+    g += `<line class="r2-spoke" x1="${cx}" y1="${cy}" x2="${sx.toFixed(1)}" y2="${sy.toFixed(1)}" opacity="0.4"/>`;
+    const [lx, ly] = polar(cx, cy, R + 15, i * step);
+    const anchor = lx < cx - 2 ? "end" : lx > cx + 2 ? "start" : "middle";
+    g += `<text class="r2-axlabel" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}">${esc(s.k)}</text>`;
+    g += `<text class="r2-axsub" x="${lx.toFixed(1)}" y="${(ly + 8).toFixed(1)}" text-anchor="${anchor}">${esc(s.raw)}</text>`;
+  });
+
+  // the data profile (tone via currentColor) — grouped so it grows in from centre
+  const pts = A.map((s, i) => polar(cx, cy, R * Math.max(0, Math.min(100, s.v)) / 100, i * step));
+  const dPoly = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ") + " Z";
+  let plot = `<path class="r2-poly" d="${dPoly}" fill="currentColor" fill-opacity="${RAD.fillOp}" stroke="currentColor" stroke-width="${RAD.stroke}"/>`;
+  A.forEach((s, i) => {
+    const [px, py] = pts[i];
+    plot += `<circle class="r2-vtx" cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${RAD.dot}" fill="currentColor"/>`;
+    if (s.binary) {                                    // a confirmed yes/no axis → a rim diamond
+      const [bx, by] = polar(cx, cy, R, i * step);
+      plot += `<rect class="r2-pip" x="${(bx - 3).toFixed(1)}" y="${(by - 3).toFixed(1)}" width="6" height="6" rx="1" fill="currentColor" transform="rotate(45 ${bx.toFixed(1)} ${by.toFixed(1)})"/>`;
+    }
+  });
+  g += `<g class="r2-plot">${plot}</g>`;
+
+  // faceted hex plate (never a ring gauge) + the score verdict.js already computed
+  const plate = [];
+  for (let k = 0; k < 6; k++) { const [hx, hy] = polar(cx, cy, RAD.plate, k * 60); plate.push(`${hx.toFixed(1)} ${hy.toFixed(1)}`); }
+  g += `<polygon class="r2-plate" points="${plate.join(" ")}"/>`;
+  if (v.score != null) {
+    g += `<text class="r2-corenum count" data-to="${esc(String(v.score))}" x="${cx}" y="${cy + 2}" text-anchor="middle" fill="currentColor">${esc(String(v.score))}</text>`;
+    g += `<text class="r2-coreunit" x="${cx}" y="${cy + 13}" text-anchor="middle">/100</text>`;
+  } else {
+    g += `<text class="r2-corenum" x="${cx}" y="${cy + 5}" text-anchor="middle" fill="currentColor">—</text>`;
+  }
+
+  const aria = `Verdict radar for ${v.q}: ${v.word}. ` + A.map(s => `${s.k} ${s.raw}`).join(", ") + ".";
+  return `<svg class="radar tone-${v.tone}" viewBox="-16 -8 244 214" role="img" aria-label="${esc(aria)}">${g}</svg>`;
 }

@@ -11,7 +11,22 @@
 // BUMP THIS on every change to the shell (html/css/js). The shell is cached
 // cache-first, so without a bump returning visitors keep the old UI after a
 // deploy — this masked two changes during development before it was caught.
-const VERSION = "socdesk-v11";  // v11: consensus-tally verdict model — /api/enrich
+const VERSION = "socdesk-v17";  // v17: interactive cobe globe in the home hero
+                                // (js/globe.js + js/vendor/cobe.js + css/globe.css)
+                                // v16: SD-monogram logo (topbar sdmark + favicon)
+                                // replaces the pixel coffee-mug. v15: hero H1 stacked + periwinkle OSINT, "Intelligence summary" label. v14: hero declutter — Live-wire ticker cut,
+                                // H1 → "IOC in. OSINT out." (lede removed), TRY
+                                // example chips dropped, disclosure collapsed to
+                                // one line (clear-analyst-state control kept)
+                                // v13: RADAR re-LAYOUT — masthead cut, search-hero
+                                // triage home, feed-scoped ticker/band, gauge value
+                                // centred in the ring, escalation-card language on
+                                // the console docket + feed rows + actor cards,
+                                // stronger-contrast pixel mug + unified favicon
+                                // v12: RADAR warm-espresso/warm-paper restyle —
+                                // dual-theme tokens (periwinkle accent), pixFrontal
+                                // topbar mug, Light/Dark/System toggle
+                                // v11: consensus-tally verdict model — /api/enrich
                                 // returns N/M + tone (no single-word verdict);
                                 // gauge + attributed breakdown + §4 escalation
                                 // v10: live /api/enrich wired into the verdict
@@ -30,9 +45,10 @@ const DATA = `${VERSION}-data`;
 const SHELL_ASSETS = [
   "./", "./index.html",
   "./css/tokens.css", "./css/base.css", "./css/chrome.css", "./css/panels.css",
+  "./css/globe.css",
   "./js/app.js", "./js/data.js", "./js/state.js", "./js/motion.js",
   "./js/verdict.js", "./js/views.js", "./js/bookmarklet.js", "./js/evidence.js",
-  "./js/related.js", "./js/enrich-client.js",
+  "./js/related.js", "./js/enrich-client.js", "./js/globe.js", "./js/vendor/cobe.js",
   "./js/toolbelt/tools.js", "./js/toolbelt/belt.js",
 ];
 

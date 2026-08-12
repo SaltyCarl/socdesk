@@ -34,15 +34,19 @@ test.describe("indicator verdicts", () => {
     // the verdict never rents the feed-detail rail
     await expect(page.locator("#rail #vword")).toHaveCount(0);
 
-    // gauge arc, drawn from the real EPSS percentage
-    const arc = page.locator("#console svg.gauge circle.arc");
-    await expect(arc).toHaveCount(1);
-    expect(Number(await arc.getAttribute("data-off"))).toBeGreaterThanOrEqual(0);
-    await expect(page.locator("#console .gauge-num"))
-      .toContainText(String(Math.round(c.epss * 100)));
+    // verdict radar (the decided graphic), built from the real CVE signals; its
+    // centre number is the score verdict.js computes (the EPSS percentage)
+    const radar = page.locator("#console svg.radar");
+    await expect(radar).toHaveCount(1);
+    await expect(radar.locator(".r2-poly")).toHaveCount(1);       // the 5-axis profile
+    await expect(page.locator("#console .r2-corenum"))
+      .toContainText(String(Math.round(c.epss * 100)), { timeout: 8000 });  // count-up settles here
 
-    await expect(page.locator("#console .ev .ev-row").first()).toBeVisible();
-    expect(await page.locator("#console .ev .ev-row").count()).toBeGreaterThanOrEqual(3);
+    // Public data now lives ONLY in the escalation docket (the duplicated
+    // full-width block was removed in the re-layout); it must still be
+    // substantive — Type/Assessment/Basis plus the CVE evidence rows.
+    await expect(page.locator("#escBody .dk-row").first()).toBeVisible();
+    expect(await page.locator("#escBody .dk-row").count()).toBeGreaterThanOrEqual(3);
 
     // the escalation summary is a FORMATTED docket, not raw markdown in a <pre>
     expect(await page.locator("#escBody pre").count()).toBe(0);
@@ -114,8 +118,8 @@ test.describe("indicator verdicts", () => {
     await expect(page.locator("#vword")).not.toHaveClass(/tone-green/);
     await expect(page.locator("#console")).not.toHaveText(/\b(CLEAN|SAFE|BENIGN|NO THREAT)\b/);
     await expect(page.locator("#console .vc-basis")).toContainText("Absence here is not clearance");
-    // no score means no gauge — a gauge would imply a measurement we do not have
-    await expect(page.locator("#console svg.gauge")).toHaveCount(0);
+    // no CVE signals means no radar — a scored graphic would imply a measurement we lack
+    await expect(page.locator("#console svg.radar")).toHaveCount(0);
   });
 
   test("an email routes to credential-exposure pivots including HIBP", async ({ page }) => {

@@ -1,82 +1,84 @@
-// motion.js — GSAP wiring, motion tokens, shared primitives.
-// GSAP arrives as classic-script globals. If the CDN failed or the reader
-// prefers reduced motion, `g` is null and every primitive below falls through
-// to its correct FINAL state — the page is never dependent on animation.
+// motion.js — CSP-safe motion primitives. No JS animation library.
+//
+// The animation library (and its three CDN <script> tags) has been removed: the
+// policy is `script-src 'self'`, so nothing external loads. Every primitive here
+// is native: requestAnimationFrame tweens, IntersectionObserver reveals, and
+// CSSOM writes (`element.style.setProperty` / `element.style.foo` — NEVER
+// `setAttribute('style', …)`, which `style-src 'self'` blocks; that is exactly
+// what killed the old library-driven Flip layout path). Each primitive degrades
+// to its correct FINAL state under `prefers-reduced-motion`, so the page never
+// depends on animation.
 export const motionOK = matchMedia("(prefers-reduced-motion: no-preference)").matches;
-export const g = (typeof gsap !== "undefined" && motionOK) ? gsap : null;
 
-export const DUR = { tap: .15, enter: .6, draw: 1.1 };   // mirrors css tokens
-export const EASE = "expo.out", EASE_INOUT = "power2.inOut";
-// No `<` or `>`: ScrambleText writes through innerHTML, so angle brackets are
-// parsed as markup mid-flight and surface as mangled entities ("-lt;").
-const SCRAM = "!-_\\/[]{}—=+*^?#·:;~";
+// Retained for parity with the CSS motion tokens; consumed by the helpers below.
+export const DUR = { tap: .15, enter: .6, draw: 1.1 };   // seconds
 
-if (g) {
-  const plugins = [
-    typeof ScrollTrigger !== "undefined" && ScrollTrigger,
-    typeof SplitText !== "undefined" && SplitText,
-    typeof ScrambleTextPlugin !== "undefined" && ScrambleTextPlugin,
-    typeof DrawSVGPlugin !== "undefined" && DrawSVGPlugin,
-    typeof MotionPathPlugin !== "undefined" && MotionPathPlugin,
-    // Flip is intentionally absent — see reflow() below.
-  ].filter(Boolean);
-  if (plugins.length) g.registerPlugin(...plugins);
-}
+const rafOK = typeof requestAnimationFrame === "function";
+const easeOutCubic = p => 1 - Math.pow(1 - p, 3);
 
-const hasScramble = () => !!(g && typeof ScrambleTextPlugin !== "undefined");
-
-/** Decode text into place. Falls back to plain assignment.
+/** Set text into place.
  *
- * The scramble is decorative; the RESOLVED text is not. A tween that is killed
- * mid-flight, re-fired over itself, or stalled by a starved ticker (a lookup
- * fired in a backgrounded tab, a dropped animation frame) must never strand
- * gibberish on screen — the masthead tagline shipped frozen on scramble glyphs
- * exactly this way. So the final text is guaranteed three ways: the newest
- * requested text wins (re-fire guard), it is written on the tween's own
- * completion or interruption, and a timeout backstops a scramble that never
- * ends. All of it degrades to a plain assignment when GSAP or scramble is
- * absent, and to nothing at all under prefers-reduced-motion (g is null). */
-export function decode(el, text, dur = .9) {
+ * The old library-driven scramble/decode effect is RETIRED — a decrypt-rain on display
+ * type is on the anti-slop reject list. This is now a plain, CSP-safe
+ * assignment kept under its original name so callers (the verdict word fill and
+ * the live-enrich re-fire) need no change. `_decodeTarget` still records the
+ * newest requested text so the newest write always wins on any settle. */
+export function decode(el, text) {
   if (!el) return null;
   const finalText = String(text);
-  el._decodeTarget = finalText;                       // newest intent wins on any settle
-  if (!hasScramble()) { el.textContent = finalText; return null; }
-  const settle = () => { el.textContent = el._decodeTarget; };
-  g.killTweensOf(el);                                 // a re-fire can't leave two scrambles fighting
-  const tw = g.to(el, {
-    duration: dur, ease: "none",
-    scrambleText: { text: finalText, chars: SCRAM, speed: .4 },
-    onComplete: settle, onInterrupt: settle,
-  });
-  // Backstop: if the tween has not landed the text within its own duration plus
-  // a margin (a stalled ticker never fires onComplete), force it.
-  setTimeout(() => { if (el.textContent !== el._decodeTarget) settle(); }, dur * 1000 + 400);
-  return tw;
+  el._decodeTarget = finalText;   // newest intent wins
+  el.textContent = finalText;
+  return null;
 }
 
-/** Count a numeral up once, expo-out, tabular. */
+/** Count a numeral up once, ease-out, tabular. Reduced motion / no rAF lands on
+ *  the final value instantly. Writes textContent only — no style, CSP-clean.
+ *  Mirrors the `runCount` pattern in verdict.js. */
 export function countUp(el, target, dur = DUR.draw) {
   if (!el) return;
+  const to = Number(target);
   const fmt = n => Math.round(n).toLocaleString("en-US");
-  if (!g) { el.textContent = fmt(target); return; }
-  const o = { n: 0 };
-  g.to(o, { n: target, duration: dur, ease: EASE,
-    onUpdate: () => { el.textContent = fmt(o.n); } });
+  if (!Number.isFinite(to)) { el.textContent = String(target); return; }
+  if (!motionOK || !rafOK) { el.textContent = fmt(to); return; }
+  const ms = dur * 1000, t0 = performance.now();
+  el.textContent = fmt(0);
+  const step = now => {
+    const p = Math.min(1, (now - t0) / ms);
+    el.textContent = fmt(easeOutCubic(p) * to);
+    if (p < 1) requestAnimationFrame(step); else el.textContent = fmt(to);
+  };
+  requestAnimationFrame(step);
 }
 
-/** Fire once when an element scrolls into view (or immediately without GSAP). */
+/** Fire `fn` once when `el` first scrolls into view.
+ *
+ * Replaces the old library scroll-trigger with a native IntersectionObserver:
+ * class-toggle or callback reveals with zero library. The `-15%` bottom
+ * root-margin ≈ the old "top 85%" trigger (fires as the element's top passes
+ * 85% of the viewport). Reduced
+ * motion / no IO → fire now, so the count-up simply lands on its final value. */
 export function onEnter(el, fn) {
   if (!el) return;
-  if (!g || typeof ScrollTrigger === "undefined") { fn(); return; }
-  ScrollTrigger.create({ trigger: el, start: "top 85%", once: true, onEnter: fn });
+  if (!motionOK || typeof IntersectionObserver !== "function") { fn(); return; }
+  const io = new IntersectionObserver((entries, obs) => {
+    for (const e of entries) if (e.isIntersecting) { obs.disconnect(); fn(); return; }
+  }, { rootMargin: "0px 0px -15% 0px", threshold: 0 });
+  io.observe(el);
 }
 
 /**
- * Vermilion seal-stroke framing a card (replaces the old conic sweep).
- * Semantic: the red stroke appears only while a malicious verdict is shown.
+ * Seal-stroke framing a card. Semantic: the stroke appears only while a
+ * malicious verdict (or the escalation console) is shown.
+ *
+ * Native CSS stroke-dashoffset draw — no draw-SVG library. `pathLength="100"`
+ * normalises the perimeter so the dasharray/offset are size- and
+ * theme-independent. All runtime writes are CSSOM property writes
+ * (`r.style.…`), never an inline `style` attribute, so the policy is honoured.
+ * Reduced motion → the rect is simply appended fully drawn (the global
+ * reduced-motion rule in base.css also flattens the transition as a backstop).
  */
 export function sealStroke(card, cssColor = "var(--mark)") {
-  if (!card || !g || typeof DrawSVGPlugin === "undefined") return;
+  if (!card) return;
   card.querySelector(":scope > .seal")?.remove();
   const ns = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(ns, "svg");
@@ -86,56 +88,36 @@ export function sealStroke(card, cssColor = "var(--mark)") {
   r.setAttribute("x", "1"); r.setAttribute("y", "1");
   r.setAttribute("width", "calc(100% - 2px)");
   r.setAttribute("height", "calc(100% - 2px)");
-  r.style.stroke = cssColor;
+  r.setAttribute("pathLength", "100");   // presentation attr, not `style` — CSP-safe
+  r.style.stroke = cssColor;             // CSSOM write — allowed under style-src 'self'
   svg.append(r); card.append(svg);
-  g.fromTo(r, { drawSVG: "0%" },
-    { drawSVG: "100%", duration: DUR.draw, ease: EASE_INOUT });
-}
-
-/** Marquee with real velocity: fast entry settling to cruise, slow on hover. */
-export function startTicker(track) {
-  if (!track) return;
-  if (!g) { track.classList.add("css-tick"); return; }
-  const loop = g.to(track, { xPercent: -50, duration: 46, ease: "none", repeat: -1 });
-  loop.timeScale(3);
-  g.to(loop, { timeScale: 1, duration: 1.6, ease: "power2.out" });
-  const view = track.parentElement;
-  view?.addEventListener("pointerenter", () => g.to(loop, { timeScale: .15, duration: .4 }));
-  view?.addEventListener("pointerleave", () => g.to(loop, { timeScale: 1, duration: .4 }));
-}
-
-/** One composed entrance per section: kicker decode -> slab -> rule wipe -> body. */
-export function sectionTimeline(sec) {
-  const head = sec?.querySelector(".sec-head");
-  if (!head) return null;
-  if (!g || typeof ScrollTrigger === "undefined") { head.classList.add("in"); return null; }
-  const kicker = head.querySelector(".sec-kicker");
-  const rule = head.querySelector(".rule");
-  const tl = g.timeline({ defaults: { ease: EASE },
-    scrollTrigger: { trigger: sec, start: "top 78%", once: true } });
-  if (kicker) tl.add(decode(kicker, kicker.textContent, .6));
-  tl.from(head.querySelector("h2"), { yPercent: 24, opacity: 0, duration: .55 }, "-=.35")
-    .from(head.querySelector(".sec-desc"), { opacity: 0, y: 12, duration: .4 }, "-=.3");
-  if (rule) tl.fromTo(rule, { scaleX: 0 }, { scaleX: 1, duration: .7, ease: EASE_INOUT }, "<");
-  return tl;
+  if (!motionOK || !rafOK) return;       // reduced motion: stroke stays fully drawn
+  r.style.strokeDasharray = "100";
+  r.style.strokeDashoffset = "100";
+  // Two frames so the browser records the hidden start value before we animate;
+  // end state is offset 0 (fully drawn) even if the transition never fires.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    r.style.transition = `stroke-dashoffset ${DUR.draw}s var(--ease-inout, ease-in-out)`;
+    r.style.strokeDashoffset = "0";
+  }));
 }
 
 /**
  * Reflow a list honestly when it filters — View Transition, or a plain render.
  *
- * GSAP's Flip plugin used to drive this and has been REMOVED deliberately: it
- * applies layout by calling setAttribute("style", …), which our shipped policy
- * (style-src 'self' — no 'unsafe-inline') blocks. The result in production was
- * a silently dead animation plus a securitypolicyviolation on every filter
- * click. Loosening the CSP for a decorative transition is not a trade we make;
- * the View Transition below reads the same and needs no inline style.
+ * The animation library's Flip plugin used to drive this and was REMOVED
+ * deliberately: it applies
+ * layout by calling `setAttribute("style", …)`, which our shipped policy
+ * (`style-src 'self'` — no 'unsafe-inline') blocks, producing a dead animation
+ * plus a securitypolicyviolation on every filter click. The View Transition
+ * below reads the same and needs no inline style.
  */
 export function reflow(render) {
   if (document.startViewTransition) { document.startViewTransition(render); return; }
   render();
 }
 
-/** Cursor-tracked bone wash on hoverable rows (flat, 5% — no glow). */
+/** Cursor-tracked wash on hoverable rows — CSSOM custom-property writes only. */
 export function trackPointer(container, rowSelector) {
   container?.addEventListener("pointermove", e => {
     const row = e.target.closest?.(rowSelector);

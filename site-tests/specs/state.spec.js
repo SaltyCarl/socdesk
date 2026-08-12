@@ -54,6 +54,7 @@ test.describe("analyst state", () => {
     await page.click("nav [data-view=vulns]");        // the watchlist lives there
     await page.fill("#wlInput", R.busiestVendor()[0]);
     await page.press("#wlInput", "Enter");
+    await page.click("nav [data-view=feed]");          // the omnibox is the triage-home hero
     await page.fill("#q", "8.8.8.8");
     await page.press("#q", "Enter");
     await expect(page.locator("#vword")).toHaveText("NOT IN CORPUS", { timeout: 8000 });

@@ -112,19 +112,51 @@ function notConsultedHTML(errors) {
     <div class="live-gaps mono">${esc(rows.join(" · "))}</div></div>`;
 }
 
-// The VT-style consensus gauge: a ring filled N/M, colored by tone. The final
-// offset is baked in (no animation dependency), so it is correct the instant it
-// paints. `stroke-dashoffset` is an SVG presentation attribute, not a style="",
-// so it is CSP-clean.
-function tallyGauge(flagged, consulted, cls) {
-  const frac = consulted > 0 ? flagged / consulted : 0;
-  const r = 42, c = 2 * Math.PI * r, off = c * (1 - frac);
-  return `<svg class="gauge" viewBox="0 0 96 96" aria-hidden="true">
-    <circle class="track" cx="48" cy="48" r="${r}"></circle>
-    <circle class="arc tone-${cls}" cx="48" cy="48" r="${r}" stroke="currentColor"
-      stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
-      transform="rotate(-90 48 48)"></circle>
-  </svg>`;
+// The RANGE-GATE COMPANION — the decided count-native tally graphic (§B,
+// Resolution B of design/mockups/verdict-graphic-radar-round2.html). A consensus
+// tally is a COUNT with a moving denominator, not a fixed-axis profile, so it is
+// drawn as discrete blips — one per consulted source along a periwinkle scope
+// baseline, lit by that source's verdict — never a gauge and never a
+// variable-sided polygon that would invent a magnitude. The benign/unknown
+// source is shown HOLLOW (present, not hidden); flagged sources are filled with
+// a soft range-gate halo. It shares the radar's periwinkle frame + rim ticks so
+// the CVE radar and the tally read as one instrument.
+//
+// CSP LAW (style-src 'self'): presentation attributes + CSS classes only — the
+// per-source verdict colour rides a class (.mal/.sus/.benign/.unknown), never an
+// inline style="". Blips fade in via CSS and land static under reduced-motion.
+const VCLASS = { malicious: "mal", suspicious: "sus", benign: "benign", unknown: "unknown" };
+const shortCode = name => esc(String(name).replace(/[^a-z0-9]/gi, "").slice(0, 4).toUpperCase());
+
+function companionStrip(scored) {
+  const N = scored.length;
+  const W = 300, y = 30;
+  const xOf = i => (N > 0 ? W * (i + 0.5) / N : W / 2);         // blip i aligns with gate column i
+  let g = "";
+  // periwinkle scope corner motif — the radar's frame language, in miniature
+  g += `<g class="comp-scope"><path d="M2 20 A18 18 0 0 1 20 2"/><path d="M2 30 A28 28 0 0 1 30 2"/></g>`;
+  // baseline + one range tick per source
+  if (N > 1)
+    g += `<line class="comp-axis" x1="${xOf(0).toFixed(1)}" y1="${y}" x2="${xOf(N - 1).toFixed(1)}" y2="${y}" opacity="0.7"/>`;
+  for (let i = 0; i < N; i++) {
+    const x = xOf(i).toFixed(1);
+    g += `<line class="comp-axis" x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + 4}" opacity="0.55"/>`;
+  }
+  // one blip per source — flagged filled + halo, benign/unknown hollow
+  scored.forEach((s, i) => {
+    const x = xOf(i).toFixed(1);
+    const cls = VCLASS[s.verdict] || "unknown";
+    if (s.verdict === "malicious" || s.verdict === "suspicious") {
+      g += `<circle class="comp-halo ${cls}" cx="${x}" cy="${y}" r="10"/>`;
+      g += `<circle class="comp-blip ${cls}" cx="${x}" cy="${y}" r="6.5"/>`;
+    } else {
+      g += `<circle class="comp-blip ${cls}" cx="${x}" cy="${y}" r="6"/>`;
+    }
+  });
+  const svg = `<svg class="comp-svg" viewBox="0 0 ${W} ${y + 14}" preserveAspectRatio="xMinYMid meet" role="img"
+    aria-label="Range-gate tally: ${esc(String(N))} consulted sources; flagged sources filled, benign shown hollow.">${g}</svg>`;
+  const labels = scored.map(s => `<span>${shortCode(s.name)}</span>`).join("");
+  return `<div class="comp">${svg}<div class="comp-gatelabels">${labels}</div></div>`;
 }
 
 function noteHTML(head, tone, body) {
@@ -163,6 +195,10 @@ async function renderResult(consoleEl, box, staticVerdict, result) {
   const headline = tallyHeadline(result.flagged, result.consulted);
   const checked = String(result.checked_at ?? "").replace("T", " ").slice(0, 16) + " UTC";
   const m = result.consulted;
+  // Blips are the SCORED sources only — context rows (e.g. ipinfo geolocation)
+  // are excluded from the tally, exactly as `consulted` counts them.
+  const scored = result.sources.filter(s => s.kind !== "context");
+  const hasHollow = scored.some(s => s.verdict === "benign" || s.verdict === "unknown");
 
   box.innerHTML = `
     <div class="vc-head">
@@ -170,12 +206,13 @@ async function renderResult(consoleEl, box, staticVerdict, result) {
       <span class="live-status mono">${esc(m)} consulted · ${esc(checked)}</span>
     </div>
     <div class="tally">
-      ${tallyGauge(result.flagged, result.consulted, cls)}
       <div class="tally-body">
         <div class="tally-num tone-${cls}">${esc(result.flagged)} / ${esc(result.consulted)}</div>
         <div class="tally-headline">${esc(headline)}</div>
         ${result.partial ? `<span class="live-partial mono">partial — one or more sources unavailable</span>` : ""}
       </div>
+      ${companionStrip(scored)}
+      ${hasHollow ? `<p class="comp-caption">Benign sources are shown hollow, not hidden — absence of a flag is not a clearance.</p>` : ""}
     </div>
     ${result.sources.map(sourceBlockHTML).join("")}
     ${notConsultedHTML(result.errors)}
@@ -212,6 +249,13 @@ async function renderResult(consoleEl, box, staticVerdict, result) {
     holder.innerHTML = `<div class="live-note">Evidence image unavailable in this browser —
       the source findings above carry every figure and its link.</div>`;
   }
+
+  // Hand the resolved composite to the hero globe (js/globe.js) so it can spring
+  // to the indicator's real geolocation (the ipinfo context row carries a
+  // "Coordinates" lat,lng fact). Fire-and-forget, non-throwing: the globe is
+  // optional and enrichment is dormant on the static tier, so absent geo simply
+  // means the globe stays ambient while this console still answers.
+  try { document.dispatchEvent(new CustomEvent("socdesk:enrich-result", { detail: result })); } catch { /* no globe */ }
 }
 
 /**

@@ -9,8 +9,8 @@
 //   * `#q=<indicator>` in the hash makes any lookup shareable and restores it
 //     on load.
 import { loadAll, detectType, refang, esc, num, copyText } from "./data.js";
-import { beginSession, pruneReviewed, clearAll, state } from "./state.js";
-import { g, decode, sealStroke, EASE, DUR } from "./motion.js";
+import { beginSession, pruneReviewed, clearAll, setTheme, state } from "./state.js";
+import { motionOK, decode, sealStroke } from "./motion.js";
 import { buildIndex, verdict, renderVerdict, splitIndicators, bulkRows,
          toCSV, toDefangedTxt, download } from "./verdict.js";
 import { initBookmarklet } from "./bookmarklet.js";
@@ -27,13 +27,36 @@ const $$ = s => [...document.querySelectorAll(s)];
 
 document.documentElement.classList.add("js");
 
+/* ---- theme: Light / Dark / System ----
+   Applied before the async boot so the first paint already carries the stored
+   preference (a strict CSP with no inline scripts means this is the earliest
+   possible point — module scripts are deferred). evidence.js reads the same
+   [data-theme], so the copied Copy card follows the UI. "System" clears the
+   attribute and lets @media(prefers-color-scheme) govern. */
+(function initTheme() {
+  const root = document.documentElement;
+  const apply = () => {
+    if (state.theme) root.dataset.theme = state.theme;
+    else delete root.dataset.theme;
+  };
+  apply();
+  const seg = document.getElementById("themeToggle");
+  if (!seg) return;
+  const sync = () => {
+    const active = state.theme || "system";
+    seg.querySelectorAll("button").forEach(b =>
+      b.classList.toggle("on", b.dataset.themeSet === active));
+  };
+  seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    setTheme(b.dataset.themeSet);
+    apply();
+    sync();
+  }));
+  sync();
+})();
+
 (async function boot() {
   beginSession();
-
-  // Masthead: full plate on the first visit only; a compact strip after —
-  // the fold belongs to data. `lastVisit` is the previous session's marker,
-  // so no extra storage key is needed.
-  if (state.lastVisit) $("#masthead").classList.add("compact");
 
   // Wired before the data fetch on purpose: the install card needs only the
   // DOM, and an anchor whose href is still unset drags as nothing. Leaving it
@@ -88,33 +111,44 @@ document.documentElement.classList.add("js");
     if (e.key === "Escape" && !consoleEl.hidden) clearConsole();
   });
 
-  function openConsole(reveal) {
+  function openConsole(reveal, instant = false) {
     consoleEl.hidden = false;
     document.body.classList.add("result");
     // Reveal is for lookups launched from deep inside a view (a CVE row, an
     // entity chip, the toolbelt) — pasting into the search never scrolls.
-    if (reveal) consoleEl.scrollIntoView({ behavior: g ? "smooth" : "auto", block: "nearest" });
+    // `instant` lands a deep-link / bookmarklet arrival directly on the verdict.
+    // It top-aligns (block:"start") and scrolls synchronously: the console is
+    // still empty here (content renders next), so anchoring its TOP — fixed by
+    // the hero above it — keeps it in view no matter how tall the verdict grows,
+    // whereas block:"nearest" would bottom-align it off-screen once it fills.
+    // NB "instant", not "auto": base.css sets html{scroll-behavior:smooth}, so
+    // "auto" would resolve to a smooth animation and the arrival would land only
+    // after it settled. "instant" forces the synchronous jump.
+    if (reveal) consoleEl.scrollIntoView(
+      (instant || !motionOK)
+        ? { behavior: "instant", block: "start" }
+        : { behavior: "smooth", block: "nearest" });
   }
 
   /**
    * One entry point for every lookup. `reveal` scrolls the console into view
    * for click-driven lookups only — paste + Enter never moves the page.
    */
-  function runLookup(raw, { reveal = false } = {}) {
+  function runLookup(raw, { reveal = false, instant = false } = {}) {
     const bulk = splitIndicators(raw);
-    if (bulk.length > 1) return runBulk(bulk, { reveal });
+    if (bulk.length > 1) return runBulk(bulk, { reveal, instant });
     const v = verdict(raw, idx);
     if (!v) return;
-    openConsole(reveal);
+    openConsole(reveal, instant);
     setHash(refang(raw));
     if (v.kind === "profile") return renderProfile(v.row);
     renderVerdict(consoleEl, v, (el, vv) => {
-      decode(el.querySelector("#vword"), vv.word, .7);
+      decode(el.querySelector("#vword"), vv.word);
+      // Legacy gauge arc: the current radar (verdict.js) draws its own centre
+      // count-up + grow-in, so `.arc` is typically absent. If a card still
+      // carries one, land it on its final stroke via a CSSOM write (CSP-safe).
       const arc = el.querySelector(".arc");
-      if (arc && g) requestAnimationFrame(() => requestAnimationFrame(() => {
-        g.to(arc, { strokeDashoffset: arc.dataset.off, duration: DUR.draw, ease: EASE });
-      }));
-      else if (arc) arc.style.strokeDashoffset = arc.dataset.off;
+      if (arc) arc.style.strokeDashoffset = arc.dataset.off;
       if (vv.tone === "red") sealStroke(el, "var(--mark)");
     });
     const t = detectType(refang(raw));
@@ -130,9 +164,9 @@ document.documentElement.classList.add("js");
     drawHistory();
   }
 
-  function runBulk(list, { reveal = false } = {}) {
+  function runBulk(list, { reveal = false, instant = false } = {}) {
     const rows = bulkRows(list, idx);
-    openConsole(reveal);
+    openConsole(reveal, instant);
     setHash(list.join(" "));
     consoleEl.innerHTML = `
       <div class="vc-head"><span class="caps tone-accent">Bulk lookup · ${num(rows.length)} indicators</span>
@@ -206,22 +240,10 @@ document.documentElement.classList.add("js");
     try { q = decodeURIComponent(m[1]); } catch { return; }
     qEl.value = q;
     qEl.dispatchEvent(new Event("input"));
-    runLookup(q, { reveal: true });
+    runLookup(q, { reveal: true, instant: true });
   }
   applyHash();
   addEventListener("hashchange", applyHash);
-
-  /* ---- try chips from real data ---- */
-  const topKev = (data.cves?.cves ?? []).filter(c => c.kev)
-    .sort((a, b) => (b.epss ?? 0) - (a.epss ?? 0))[0];
-  const samples = [topKev?.cve, "185.220.101.42", "volt typhoon"].filter(Boolean);
-  $("#exRow").insertAdjacentHTML("beforeend", samples.map(s =>
-    `<button class="ex-chip" data-q="${esc(s)}">${esc(s)}</button>`).join(""));
-  $$(".ex-chip").forEach(c => c.onclick = () => {
-    qEl.value = c.dataset.q;
-    qEl.dispatchEvent(new Event("input"));
-    runLookup(c.dataset.q);
-  });
 
   /* ---- lookup history ---- */
   function drawHistory() {
@@ -284,6 +306,4 @@ document.documentElement.classList.add("js");
     if (!navigator.onLine) dispatchEvent(new Event("offline"));
   }
 
-  /* ---- choreography ---- */
-  decode($("#tagline"), "TRACK · VERIFY · VERDICT · PIVOT — REFRESHED EVERY 30 MINUTES");
 })();
