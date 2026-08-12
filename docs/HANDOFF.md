@@ -453,6 +453,19 @@ visual language.
 - **Service worker masks your changes.** The shell is cached cache-first.
   **Bump `VERSION` in `site/sw.js` on every shell change** or you (and every
   returning visitor) will see the old UI. Masked three changes this session.
+- **A push to `main` does NOT auto-deploy `site/` changes.** The
+  `collect-and-deploy.yml` workflow only redeploys on its cron (`:11`/`:41`), a
+  manual `workflow_dispatch`, or a push whose paths match **`data/brief.json`**
+  (the `paths:` filter — the Framework's Tier-2 brief pushes, via a deploy key
+  that can retrigger). A normal push that changes the shell / JS / CSS / `sw.js`
+  just sits on `origin/main` until the next cron tick (≤30 min) or a manual run —
+  the edge keeps serving the old shell. **To ship a shell change now:**
+  `gh workflow run collect-and-deploy.yml -R SaltyCarl/socdesk`, then
+  `gh run watch <id> --exit-status` (the run also runs pytest + collectors before
+  the `wrangler pages deploy site` step, ~3 min). **Symptom of the trap:** a new
+  asset returning HTTP 200 at a fixed ~16.5 KB is the Cloudflare Pages
+  404-fallback page (the file isn't deployed yet), not the real file. Cost ~15 min
+  of "broken deploy" diagnosis before the `paths:` filter was spotted.
 - **CSP has no `unsafe-inline`** — a single `style=""` attribute or inline
   `<script>` breaks it. `csp.spec.js` catches it. Use classes or
   `el.style.setProperty()` (CSSOM writes are allowed).
