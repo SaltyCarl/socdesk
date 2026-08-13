@@ -88,13 +88,25 @@ function softLower(s: string): string {
   return /^[A-Z][a-z]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
 }
 
+/** The verb-led predicate for a source, WITHOUT the source name:
+ *  "catalogs known sample — family Cobalt Strike". Findings are stored
+ *  VERB-LESS (a bare predicate); the class verb — or "confirms" for a KEV
+ *  source — is supplied HERE, so the verb is applied in exactly one place.
+ *  Render this in an attributed ledger ROW, where the row already labels the
+ *  source (so re-printing the name would be redundant). */
+export function predicate(s: VerdictSource): string {
+  const finding = String(s.finding ?? '').trim();
+  if (!finding) return '— no finding reported';
+  const verb = s.kev ? 'confirms' : VERB_BY_CLASS[s.class];
+  return `${verb} ${softLower(finding)}`;
+}
+
 /** Phrase a source's finding with the SOURCE as the sentence subject:
  *  "MalwareBazaar catalogs known sample — family Cobalt Strike" — never
- *  "Confirmed sample — MalwareBazaar" (spec §3.1 grammatical rule). */
+ *  "Confirmed sample — MalwareBazaar" (spec §3.1 grammatical rule). Name-led:
+ *  use for the lead fact, the identity headline, and the plain-text ledger. */
 export function phraseFinding(s: VerdictSource): string {
-  const verb = s.kev ? 'confirms' : VERB_BY_CLASS[s.class];
-  const finding = String(s.finding ?? '').trim();
-  return finding ? `${s.name} ${verb} ${softLower(finding)}` : `${s.name} — no finding reported`;
+  return `${s.name} ${predicate(s)}`;
 }
 
 /** The human class tag for the ledger, e.g. "catalog/identity". */

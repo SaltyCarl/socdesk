@@ -48,6 +48,7 @@ export {
   isStale,
   leadFact,
   phraseFinding,
+  predicate,
   sourceClassFor,
   sourceRank,
   toneClass,

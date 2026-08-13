@@ -1,0 +1,562 @@
+/* ==========================================================================
+   GlobeHero — component CSS (co-located, bundled by Vite → static 'self' CSS,
+   strict-CSP safe). PORTED from site/css/globe.css and re-tokenised onto
+   src/index.css (warm-espresso / warm-paper, periwinkle accent).
+
+   Scope: every class is `sdh-*` (SOCDesk Hero) so it can't collide with the
+   shell, siblings, or Tailwind utilities. Tailwind owns the copy-column
+   LAYOUT (in GlobeHero.tsx); this file owns the globe-specific pieces Tailwind
+   can't express cleanly — pseudo-element pins, keyframes, and the per-frame
+   custom-property positioning that globe.js-style code writes via setProperty.
+
+   Runtime writes: --globe-grow (stage zoom), per-pin transform/opacity, --tx/
+   --ty (tooltip), --tip-accent/--sev, --pin/--d — all set via
+   element.style.setProperty in useGlobe.ts. No token is re-declared here.
+   ========================================================================== */
+
+.sdh-hero {
+  position: relative;
+  overflow: visible;
+  min-height: clamp(460px, 62vh, 680px);
+}
+
+/* ---- aurora / atmosphere — two low-contrast periwinkle blobs behind the
+   globe, heavy blur, slow drift (the ONE animated-but-cheap ambient layer;
+   there is no second GL loop). Retunes per theme via color-mix on --accent. */
+.sdh-atmos {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.sdh-atmos::before,
+.sdh-atmos::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.28;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 24%, transparent),
+    transparent 70%
+  );
+}
+.sdh-atmos::before {
+  width: 520px;
+  height: 520px;
+  top: -10%;
+  right: 4%;
+  animation: sdh-drift 42s var(--ease-brand-io) infinite alternate;
+}
+.sdh-atmos::after {
+  width: 380px;
+  height: 380px;
+  bottom: -14%;
+  left: 8%;
+  opacity: 0.18;
+  animation: sdh-drift 52s var(--ease-brand-io) infinite alternate-reverse;
+}
+@keyframes sdh-drift {
+  to {
+    transform: translate3d(4%, -3%, 0);
+  }
+}
+/* espresso shows the aurora a touch stronger than paper */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .sdh-atmos::before {
+    opacity: 0.45;
+  }
+  :root:not([data-theme]) .sdh-atmos::after {
+    opacity: 0.3;
+  }
+}
+[data-theme='dark'] .sdh-atmos::before {
+  opacity: 0.45;
+}
+[data-theme='dark'] .sdh-atmos::after {
+  opacity: 0.3;
+}
+
+/* ---- globe wrap — bleeds off the right edge; carries the centring. ---- */
+.sdh-wrap {
+  position: absolute;
+  top: 50%;
+  right: -6%;
+  z-index: 1;
+  transform: translateY(-50%);
+  transform-origin: 60% 50%;
+  will-change: transform;
+}
+/* the stage carries the GROWTH via a pure compositor transform; cobe's backing
+   store is a stable high-res render, so the dots stay crisp at every zoom. */
+.sdh-stage {
+  position: relative;
+  width: min(54vw, 660px);
+  aspect-ratio: 1;
+  cursor: grab;
+  touch-action: none;
+  transform: scale(var(--globe-grow, 1));
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.sdh-stage.is-dragging {
+  cursor: grabbing;
+}
+.sdh-globe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transform: scale(0.98);
+  transition:
+    opacity 0.8s var(--ease-brand) 0.15s,
+    transform 0.8s var(--ease-brand) 0.15s;
+}
+.sdh-globe.is-ready {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ---- projected pin overlay — sits over the canvas, never eats pointer
+   events (the canvas keeps drag/wheel). useGlobe writes each transform. ---- */
+.sdh-pins {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.sdh-pin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--d, 14px);
+  height: var(--d, 14px);
+  margin: calc(var(--d, 14px) / -2) 0 0 calc(var(--d, 14px) / -2);
+  border-radius: 50%;
+  transform: translate3d(-999px, -999px, 0);
+  will-change: transform, opacity;
+  transition:
+    width 0.18s var(--ease-brand),
+    height 0.18s var(--ease-brand);
+}
+/* matte disc: filled core + hairline ring, NO glow/bloom — reads as data */
+.sdh-pin::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--pin);
+  border: 1px solid color-mix(in srgb, var(--pin) 60%, var(--ink));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pin) 16%, transparent);
+}
+.sdh-pin::after {
+  content: '';
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--pin) 40%, var(--ink));
+}
+.sdh-pin.is-active {
+  z-index: 3;
+}
+.sdh-pin.is-active::before {
+  border-color: var(--pin);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pin) 26%, transparent);
+}
+/* verdict tones, sized by severity, NO glow. crit red / susp amber / low muted. */
+.sdh-crit {
+  --pin: var(--red);
+}
+.sdh-susp {
+  --pin: var(--gold);
+}
+.sdh-low {
+  --pin: var(--muted);
+}
+/* hairline CONCENTRIC periwinkle ring on critical pins (a 1px annulus, no glow) */
+.sdh-crit::before {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--pin) 16%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.sdh-crit.is-active::before {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--pin) 26%, transparent),
+    0 0 0 5px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* ---- landed fly-to pin: drops + pulses ONCE at the located coordinate.
+   Position is written on the outer element; the drop + pulse live on children
+   so the keyframes never fight the per-frame projection transform. ---- */
+.sdh-landed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  width: var(--d, 22px);
+  height: var(--d, 22px);
+  margin: calc(var(--d, 22px) / -2) 0 0 calc(var(--d, 22px) / -2);
+  transform: translate3d(-999px, -999px, 0);
+  opacity: 0;
+  pointer-events: none;
+  --pin: var(--accent);
+}
+.sdh-landed.is-shown {
+  opacity: 1;
+}
+/* the landed pin draws its own disc — it has no base ::before/::after */
+.sdh-pin-disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--pin);
+  border: 1px solid color-mix(in srgb, var(--pin) 62%, var(--ink));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pin) 18%, transparent);
+}
+.sdh-pin-disc::after {
+  content: '';
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--pin) 42%, var(--ink));
+}
+.sdh-pin-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--pin);
+  opacity: 0;
+  pointer-events: none;
+}
+@keyframes sdh-drop {
+  from {
+    transform: translateY(-12px) scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes sdh-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+  70% {
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+.sdh-landed.is-dropping .sdh-pin-disc {
+  animation: sdh-drop 0.5s var(--ease-brand) both;
+}
+.sdh-landed.is-pulsing .sdh-pin-pulse {
+  animation: sdh-pulse 0.9s var(--ease-brand) both;
+}
+
+/* ==========================================================================
+   PIN TOOLTIP — a glass analyst verdict card (content React-rendered; position
+   via setProperty). Uses the shared glass tokens; accent spine = --tip-accent.
+   ========================================================================== */
+.sdh-tip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  width: 300px;
+  max-width: 78vw;
+  padding: 0;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(-999px, -999px, 0) scale(0.98);
+  transform-origin: top left;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-bright);
+  border-top-color: color-mix(in srgb, var(--paper) 16%, var(--line-bright));
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  box-shadow:
+    inset 3px 0 0 var(--tip-accent, var(--accent)),
+    inset 0 1px 0 color-mix(in srgb, var(--paper) 8%, transparent),
+    0 22px 50px -18px var(--shadow);
+  contain: paint;
+  isolation: isolate;
+  overflow: hidden;
+  transition:
+    opacity 0.16s var(--ease-brand),
+    transform 0.16s var(--ease-brand);
+}
+.sdh-tip.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(var(--tx, 0), var(--ty, 0), 0) scale(1);
+}
+.sdh-tip-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.sdh-tip-type {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-on-accent);
+  background: var(--tip-accent, var(--accent));
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+.sdh-tip-ind {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--paper);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+.sdh-tip-body {
+  padding: 10px 14px 12px;
+}
+.sdh-tip-what {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--paper);
+  line-height: 1.25;
+  margin-bottom: 3px;
+}
+.sdh-tip-actor {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 11px;
+  line-height: 1.35;
+}
+.sdh-tip-metrics {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 12px;
+  align-items: center;
+  margin-bottom: 11px;
+}
+.sdh-tip-score {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--tip-accent, var(--accent));
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.sdh-tip-score span {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.sdh-tip-consensus {
+  justify-self: end;
+  text-align: right;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.2;
+}
+.sdh-tip-consensus b {
+  color: var(--paper);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+.sdh-tip-consensus small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.sdh-tip-meter {
+  position: relative;
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--line) 70%, transparent);
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+.sdh-tip-meter i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  width: var(--sev, 0%);
+  background: var(--tip-accent, var(--accent));
+}
+.sdh-tip-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.sdh-tip-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11.5px;
+}
+.sdh-tip-row .sdh-k {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.sdh-tip-row .sdh-v {
+  color: var(--paper);
+  text-align: right;
+  font-size: 11.5px;
+  line-height: 1.3;
+  font-family: var(--font-mono);
+}
+.sdh-trend-up {
+  color: var(--red);
+}
+.sdh-trend-down {
+  color: var(--green);
+}
+.sdh-trend-flat {
+  color: var(--muted);
+}
+.sdh-tip-hint {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sdh-tip-hint::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tip-accent, var(--accent));
+}
+
+/* ---- globe hint — whisper-subtle affordance for gesture zoom; fades in on
+   globe hover. ---- */
+.sdh-hint {
+  position: absolute;
+  right: 2%;
+  bottom: 6px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition:
+    opacity 0.4s var(--ease-brand),
+    transform 0.4s var(--ease-brand);
+}
+.sdh-stage:hover ~ .sdh-hint {
+  opacity: 0.5;
+  transform: none;
+}
+
+/* ==========================================================================
+   REDUCED MOTION — static globe frame; no spin/drift; fly-to snaps (useGlobe).
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .sdh-globe {
+    opacity: 1;
+    transform: none;
+  }
+  .sdh-atmos::before,
+  .sdh-atmos::after {
+    animation: none;
+  }
+  .sdh-stage,
+  .sdh-pin,
+  .sdh-tip {
+    transition: none !important;
+  }
+  .sdh-landed.is-dropping .sdh-pin-disc,
+  .sdh-landed.is-pulsing .sdh-pin-pulse {
+    animation: none !important;
+  }
+  .sdh-pin-disc {
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   RESPONSIVE — globe becomes a low-opacity backdrop, then hidden on narrow.
+   ========================================================================== */
+@media (max-width: 900px) {
+  .sdh-wrap {
+    right: -20%;
+  }
+  .sdh-stage {
+    width: min(86vw, 520px);
+  }
+}
+@media (max-width: 760px) {
+  .sdh-hero {
+    min-height: auto;
+  }
+  .sdh-wrap {
+    top: 8%;
+    right: -28%;
+    transform: none;
+    opacity: 0.22;
+  }
+  .sdh-stage {
+    width: min(120vw, 600px);
+  }
+  /* backdrop globe on mobile — pins + hint + tooltip are desktop-only */
+  .sdh-pins,
+  .sdh-hint,
+  .sdh-tip,
+  .sdh-landed {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .sdh-wrap {
+    display: none;
+  }
+}

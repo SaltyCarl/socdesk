@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Local data snapshots for dev/QA only — the authoritative copies live in
+# ../data/state/; the build/deploy pipeline stages them into the output.
+/public/data/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

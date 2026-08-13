@@ -15,6 +15,7 @@ import {
   isStale,
   leadFact,
   phraseFinding,
+  predicate,
   sourceClassFor,
   sourceRank,
   toneClass,
@@ -166,6 +167,25 @@ describe('phraseFinding (source-subject-first, spec §3.1 grammatical rule)', ()
   });
   it('does not lowercase acronyms or identifiers', () => {
     expect(phraseFinding(src({ name: 'GreyNoise', class: 'behavioral', finding: 'RIOT known-good service' }))).toContain('RIOT');
+  });
+});
+
+describe('predicate (verb-led, name-less — the ledger-row primitive)', () => {
+  it('supplies the class verb WITHOUT the source name (findings are verb-less)', () => {
+    const s = src({ name: 'MalwareBazaar', class: 'catalog', verdict: 'malicious', finding: '3 samples · family Cobalt Strike' });
+    expect(predicate(s)).toBe('catalogs 3 samples · family Cobalt Strike');
+    expect(predicate(s).startsWith('MalwareBazaar')).toBe(false);
+  });
+  it('uses "confirms" for a KEV source', () => {
+    expect(predicate(src({ class: 'catalog', kev: true, finding: 'listing in CISA KEV' }))).toBe('confirms listing in CISA KEV');
+  });
+  it('is the verb-less half of phraseFinding — the verb appears exactly once', () => {
+    const s = src({ name: 'MalwareBazaar', class: 'catalog', finding: '3 samples · family Cobalt Strike' });
+    expect(phraseFinding(s)).toBe(`${s.name} ${predicate(s)}`);
+    expect(phraseFinding(s).match(/catalogs/g)).toHaveLength(1); // no doubled verb
+  });
+  it('reports an honest absence for an empty finding', () => {
+    expect(predicate(src({ finding: '' }))).toBe('— no finding reported');
   });
 });
 
