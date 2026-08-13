@@ -1,0 +1,80 @@
+@import "tailwindcss";
+@import "../../shared/tokens.css";
+
+/* ================================================================== *
+ * SOCDesk — browser-extension stylesheet.
+ *
+ * Mirrors web/src/index.css: the design-system TOKENS (self-hosted
+ * @font-face, the theme tri-state :root blocks, and the Tailwind @theme
+ * scale) live in shared/tokens.css (imported above) so the web app and
+ * the extension share ONE token source with no drift. This file keeps
+ * only what the extension surfaces need: the shared-source Tailwind
+ * globs, elevation utilities, and a small base layer.
+ * ================================================================== */
+
+/* ------------------------------------------------------------------ *
+ * Tailwind v4 auto-detects source files inside this project, but the
+ * shared card/UI .tsx live OUTSIDE extension/ (in ../../shared). Point
+ * the scanner at them explicitly, or their utilities go missing from the
+ * compiled CSS. .ts-only dirs (verdict lib, card logic) carry no classes,
+ * so ui/ + verdict-cards/ are the only globs needed.
+ * ------------------------------------------------------------------ */
+@source "../../shared/ui";
+@source "../../shared/verdict-cards";
+
+/* Dark-mode variant — matches an explicitly-dark scope. Colour tokens
+   already switch through the tri-state blocks in shared/tokens.css, so
+   `dark:` is only needed for the rare STRUCTURAL difference. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ================================================================== *
+ * ELEVATION — 4-step scale, tinted by the per-theme --shadow ink.
+ * Registered as first-class utilities: shadow-e0 … shadow-e3 (the
+ * shared Card component uses shadow-e1/e2).
+ * ================================================================== */
+@utility shadow-e0 { box-shadow: none; }
+@utility shadow-e1 { box-shadow: 0 1px 2px -1px var(--shadow); }
+@utility shadow-e2 {
+  box-shadow: 0 6px 16px -8px var(--shadow), 0 2px 6px -4px var(--shadow);
+}
+@utility shadow-e3 {
+  box-shadow: 0 18px 40px -14px var(--shadow), 0 6px 14px -8px var(--shadow);
+}
+
+/* ================================================================== *
+ * BASE
+ * ================================================================== */
+@layer base {
+  html, body {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  body {
+    margin: 0;
+    /* Toolbar popups size to content; give a comfortable analyst width. */
+    width: 390px;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+/* Global reduced-motion kill switch (CSS animations/transitions only;
+   the JS motion layer gates itself separately via matchMedia). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

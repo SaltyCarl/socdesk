@@ -1,0 +1,10 @@
+# Extension build (architecture A: the extension has its OWN Vite build +
+# node_modules, mirroring web/). Neither is committed.
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor / OS
+.DS_Store
+*.sw?
