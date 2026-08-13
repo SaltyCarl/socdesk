@@ -3,6 +3,7 @@ import { cx } from '../../lib/cx'
 import type { Cve } from './types'
 import { day, humanize, num, pct } from './format'
 import { SeverityBadge, KevBadge } from './Badges'
+import { CountUp } from './CountUp'
 import { EmptyState } from './states'
 
 /**
@@ -189,13 +190,22 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
       {/* stat strip */}
       <div className="flex flex-wrap gap-x-6 gap-y-1 font-mono text-micro uppercase tracking-label text-faint">
         <span>
-          <b className="text-paper">{num(cves.length)}</b> tracked
+          <b className="text-paper">
+            <CountUp value={cves.length} />
+          </b>{' '}
+          tracked
         </span>
         <span>
-          <b className="text-verdict-red">{num(kevCount)}</b> on CISA KEV
+          <b className="text-verdict-red">
+            <CountUp value={kevCount} />
+          </b>{' '}
+          on CISA KEV
         </span>
         <span>
-          <b className="text-paper">{num(epssCount)}</b> with EPSS
+          <b className="text-paper">
+            <CountUp value={epssCount} />
+          </b>{' '}
+          with EPSS
         </span>
       </div>
 

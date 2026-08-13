@@ -1,6 +1,7 @@
 import { cx } from '../../lib/cx'
 import type { HealthPayload } from './types'
-import { num, rel } from './format'
+import { rel } from './format'
+import { CountUp } from './CountUp'
 import { EmptyState } from './states'
 
 /**
@@ -93,7 +94,7 @@ export function HealthView({ health }: { health: HealthPayload }) {
                 s.ok ? 'text-paper' : 'text-verdict-red',
               )}
             >
-              {num(s.items)}
+              <CountUp value={s.items} />
             </div>
             <div className="font-mono text-micro uppercase tracking-label text-faint">
               Last OK · {s.last_success_at ? rel(s.last_success_at) : 'NEVER'}

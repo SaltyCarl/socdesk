@@ -12,6 +12,7 @@ import {
 } from './relations'
 import type { RelationsPayload } from './types'
 import { MonoTag } from './Badges'
+import { CountUp } from './CountUp'
 import { EmptyState } from './states'
 
 /**
@@ -321,7 +322,8 @@ export function ActorsView({
           className="h-9 w-full max-w-sm rounded-md border border-line bg-field px-3 font-mono text-base text-paper outline-offset-2 placeholder:text-faint focus-visible:outline-2 focus-visible:outline-accent"
         />
         <span className="ml-auto font-mono text-micro uppercase tracking-label text-faint">
-          {num(filtered.length)} of {num(profiles.length)} profiles
+          <CountUp value={filtered.length} /> of <CountUp value={profiles.length} />{' '}
+          profiles
         </span>
       </div>
 

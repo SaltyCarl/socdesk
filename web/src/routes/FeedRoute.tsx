@@ -3,7 +3,8 @@ import { ViewHeader } from '../components/views/ViewFrame'
 import { AsyncGate, SkeletonRows } from '../components/views/states'
 import { FeedView } from '../components/views/FeedView'
 import { useStateData } from '../components/views/useStateData'
-import { num, rel } from '../components/views/format'
+import { rel } from '../components/views/format'
+import { CountUp } from '../components/views/CountUp'
 import type { FeedPayload } from '../components/views/types'
 
 /**
@@ -24,7 +25,8 @@ export function FeedRoute() {
         aside={
           status === 'ready' && data ? (
             <MicroLabel tone="faint">
-              {num(items.length)} items · updated {rel(data.generated_at)}
+              <CountUp value={items.length} /> items · updated{' '}
+              {rel(data.generated_at)}
             </MicroLabel>
           ) : null
         }

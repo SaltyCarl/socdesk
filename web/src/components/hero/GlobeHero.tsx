@@ -118,23 +118,23 @@ export function GlobeHero({
 
       {/* copy column — sits above the globe */}
       <div className="relative z-[2] flex max-w-xl flex-col items-start gap-5">
-        <MicroLabel tone="accent" tick>
+        <MicroLabel tone="accent" tick className="sdh-enter sdh-enter-1">
           {kicker}
         </MicroLabel>
-        <h1 className="font-display text-display font-extrabold tracking-display text-paper">
+        <h1 className="sdh-enter sdh-enter-2 font-display text-display font-extrabold tracking-display text-paper">
           {title ?? (
             <>
               Threats, <span className="text-accent">located.</span>
             </>
           )}
         </h1>
-        <p className="max-w-lg text-md text-muted">
+        <p className="sdh-enter sdh-enter-3 max-w-lg text-md text-muted">
           {subtitle ??
             'Every enriched indicator lands on the globe — verdict-toned, sized by severity, attributed in a glance. Drag to spin, scroll to zoom.'}
         </p>
 
         {demo && (
-          <div className="mt-1 flex w-full max-w-md flex-col gap-3">
+          <div className="sdh-enter sdh-enter-4 mt-1 flex w-full max-w-md flex-col gap-3">
             <input
               ref={inputRef}
               type="text"
