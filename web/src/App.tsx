@@ -1,9 +1,16 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { Shell, type ContainerSize } from './components/shell'
 import { GlobeHero } from './components/hero'
 import { Lookup } from './routes/Lookup'
 import { DataDeskRoute } from './routes/DataDeskRoute'
 import { Gallery } from './routes/Gallery'
+
+// TEMPORARY three.js hero A/B preview (route: /globe3). Lazy so `three` is
+// code-split into its own chunk — Overview/Lookup/Desk/Gallery stay lean and
+// only /globe3 loads it. Not shown in the nav; remove after the A/B decision.
+const GlobeHero3 = lazy(() =>
+  import('./components/hero/GlobeHero3').then((m) => ({ default: m.GlobeHero3 })),
+)
 
 /**
  * App router — a tiny pathname read (no router dependency) drives a small
@@ -45,6 +52,16 @@ const ROUTES: Route[] = [
   { path: '/lookup', label: 'Lookup', size: 'default', el: <Lookup /> },
   { path: '/desk', label: 'Desk', size: 'default', el: <DataDeskRoute /> },
   { path: '/gallery', label: 'Gallery', size: 'default', el: <Gallery /> },
+  {
+    path: '/globe3',
+    label: 'Globe3',
+    size: 'wide',
+    el: (
+      <Suspense fallback={null}>
+        <GlobeHero3 />
+      </Suspense>
+    ),
+  },
 ]
 
 function useRoute(): string {
@@ -63,7 +80,9 @@ function App() {
   const active =
     ROUTES.find((r) => r.path !== '/' && norm.endsWith(r.path)) ?? ROUTES[0]
 
-  const items = ROUTES.map((r) => ({
+  // /globe3 is a temporary A/B preview — keep it out of the nav so the Overview
+  // chrome is undisturbed (reach it directly at /globe3).
+  const items = ROUTES.filter((r) => r.path !== '/globe3').map((r) => ({
     label: r.label,
     href: r.path,
     active: r.path === active.path,
