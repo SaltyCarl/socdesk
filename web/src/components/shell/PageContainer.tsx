@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { cx } from '../../lib/cx'
+import { cx } from '@socdesk/shared/lib/cx'
 
 /**
  * PageContainer — the shared content column. Centered, gutter-padded, with

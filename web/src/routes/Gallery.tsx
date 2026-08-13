@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from 'react'
-import { cx } from '../lib/cx'
-import { enter, enterStagger } from '../lib/motion'
+import { cx } from '@socdesk/shared/lib/cx'
+import { enter, enterStagger } from '@socdesk/shared/lib/motion'
 import {
   Button,
   Card,

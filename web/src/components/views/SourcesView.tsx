@@ -1,4 +1,4 @@
-import { cx } from '../../lib/cx'
+import { cx } from '@socdesk/shared/lib/cx'
 import type { RegistrySource, RegistryPayload } from './types'
 import { num, safeUrl } from './format'
 import { EmptyState } from './states'

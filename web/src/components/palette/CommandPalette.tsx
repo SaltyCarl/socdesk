@@ -7,8 +7,8 @@ import {
   type ReactNode,
 } from 'react'
 import { animate } from 'motion'
-import { cx } from '../../lib/cx'
-import { DUR, EASE, prefersReducedMotion } from '../../lib/motion'
+import { cx } from '@socdesk/shared/lib/cx'
+import { DUR, EASE, prefersReducedMotion } from '@socdesk/shared/lib/motion'
 import { Chip, MicroLabel } from '../ui'
 import type { CommandItem, CommandKind } from './types'
 import { INDICATOR_LABEL, classifyIndicator } from './classify'

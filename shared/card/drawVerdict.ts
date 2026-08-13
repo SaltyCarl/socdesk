@@ -19,8 +19,8 @@
 // the verify caveat is baked in; and there is NO branding and NO recommendation
 // on the artifact — it rides inside the analyst's own email.
 
-import type { Band, VerdictData, VerdictSource } from '../../lib/verdict'
-import { CAVEAT, assessmentLine, dualUseNote, hashHeadline, isStale, predicate } from '../../lib/verdict'
+import type { Band, VerdictData, VerdictSource } from '../verdict'
+import { CAVEAT, assessmentLine, dualUseNote, hashHeadline, isStale, predicate } from '../verdict'
 import { detectTheme, MONO, SANS, mix, THEMES, type CanvasTheme, type Palette } from './palette'
 import { WORLD, coordLabel, geoModel, project, type GeoModel } from './geo'
 import {

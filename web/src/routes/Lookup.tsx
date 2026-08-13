@@ -6,14 +6,14 @@
 // integration — the T1/T2 lookup loop lands here once the omnibox is wired in.
 
 import { useState, type ReactNode } from 'react'
-import { cx } from '../lib/cx'
+import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../components/ui'
 import {
   AnalystVerdict,
   CardCanvasPreview,
   EscalationCard,
   STUBS,
-} from '../components/verdict'
+} from '@socdesk/shared/verdict-cards'
 
 function Label({ children }: { children: ReactNode }) {
   return (

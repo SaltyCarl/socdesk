@@ -22,7 +22,7 @@
 
 import { useRef } from 'react'
 import type { KeyboardEvent, FormEvent, ReactNode, RefObject } from 'react'
-import { cx } from '../../lib/cx'
+import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../ui'
 import { useGlobe, type GlobeApi } from './useGlobe'
 import { PINS, type Pin } from './pins'

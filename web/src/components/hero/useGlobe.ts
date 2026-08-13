@@ -28,7 +28,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import createGlobe from './vendor/cobe'
 import type { CobeState, CobeOptions, Globe } from './vendor/cobe'
-import { resolveTheme, onSystemThemeChange } from '../../lib/theme'
+import { resolveTheme, onSystemThemeChange } from '@socdesk/shared/lib/theme'
 import { globePalette, type GlobePalette } from './palette'
 import {
   PINS,

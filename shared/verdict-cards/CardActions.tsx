@@ -12,12 +12,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { animate } from 'motion'
-import type { VerdictData } from '../../lib/verdict'
+import type { VerdictData } from '../verdict'
 import { Button } from '../ui'
-import { DUR, EASE, prefersReducedMotion } from '../../lib/motion'
+import { DUR, EASE, prefersReducedMotion } from '../lib/motion'
 import { copyCard, copyText } from './copy'
-import { renderVerdictCanvas } from './drawVerdict'
-import type { CanvasTheme } from './palette'
+import { renderVerdictCanvas } from '../card/drawVerdict'
+import type { CanvasTheme } from '../card/palette'
 
 /* ---------- transient button status (immediate, in-place) ---------------- */
 

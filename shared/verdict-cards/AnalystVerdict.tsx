@@ -4,10 +4,10 @@
 // a hero; at most an inline sparkline in a multi-row list). Same doctrine, same
 // reserved colours; just tighter and information-first.
 
-import type { VerdictData } from '../../lib/verdict'
-import { hashHeadline, leadFact } from '../../lib/verdict'
+import type { VerdictData } from '../verdict'
+import { hashHeadline, leadFact } from '../verdict'
 import { Chip, MicroLabel, Panel } from '../ui'
-import { cveLead, isBannerLed } from './model'
+import { cveLead, isBannerLed } from '../card/model'
 import { ContextList, IndicatorLine, SourceLedger, TallyHeadline } from './ui'
 
 export function AnalystVerdict({ data }: { data: VerdictData }) {

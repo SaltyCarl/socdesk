@@ -20,12 +20,12 @@ export {
   RecencyTag,
 } from './ui'
 
-export { renderVerdictCanvas } from './drawVerdict'
-export type { DrawOptions } from './drawVerdict'
+export { renderVerdictCanvas } from '../card/drawVerdict'
+export type { DrawOptions } from '../card/drawVerdict'
 export { copyCard, copyText } from './copy'
 export type { CopyCardResult } from './copy'
-export { detectTheme } from './palette'
-export type { CanvasTheme } from './palette'
+export { detectTheme } from '../card/palette'
+export type { CanvasTheme } from '../card/palette'
 
 export { STUBS } from './stubs'
 export type { Stub } from './stubs'

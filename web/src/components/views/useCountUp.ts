@@ -13,7 +13,7 @@
 // the extension does not use this.
 
 import { useEffect, useRef, useState } from 'react'
-import { prefersReducedMotion } from '../../lib/motion'
+import { prefersReducedMotion } from '@socdesk/shared/lib/motion'
 
 export interface CountUpOptions {
   /** Total tween time in ms (spec: ~600–900). */

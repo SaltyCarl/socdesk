@@ -14,7 +14,7 @@
  * so the lit edge and the rim agree. Knob: `diffuse` (higher = deeper shading).
  */
 
-import type { EffectiveTheme } from '../../lib/theme'
+import type { EffectiveTheme } from '@socdesk/shared/lib/theme'
 
 export interface GlobePalette {
   base: [number, number, number]

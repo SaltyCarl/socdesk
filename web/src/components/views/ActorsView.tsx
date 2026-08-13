@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import { cx } from '../../lib/cx'
+import { cx } from '@socdesk/shared/lib/cx'
 import type { KindedProfile, Profile } from './types'
 import { num } from './format'
 import {

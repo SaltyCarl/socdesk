@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactElement } from 'react'
-import { cx } from '../../lib/cx'
+import { cx } from '@socdesk/shared/lib/cx'
 import {
   applyThemePref,
   getThemePref,
   onSystemThemeChange,
   type ThemePref,
-} from '../../lib/theme'
+} from '@socdesk/shared/lib/theme'
 
 /**
  * ThemeToggle — a Light / Dark / System segmented control. Writing

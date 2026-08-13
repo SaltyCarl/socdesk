@@ -7,8 +7,8 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { animate } from 'motion'
-import { cx } from '../../lib/cx'
-import { DUR, EASE, prefersReducedMotion } from '../../lib/motion'
+import { cx } from '@socdesk/shared/lib/cx'
+import { DUR, EASE, prefersReducedMotion } from '@socdesk/shared/lib/motion'
 import type { NavItem } from '../ui'
 
 /**

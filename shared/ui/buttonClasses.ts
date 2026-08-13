@@ -1,4 +1,4 @@
-import { cx } from '../../lib/cx'
+import { cx } from '../lib/cx'
 
 /**
  * Button skin — kept in its own module so the component file exports only

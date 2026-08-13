@@ -1,4 +1,4 @@
-import { cx } from '../../lib/cx'
+import { cx } from '@socdesk/shared/lib/cx'
 import { num } from './format'
 import { useCountUp } from './useCountUp'
 

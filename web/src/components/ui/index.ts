@@ -1,15 +1,26 @@
-/** SOCDesk UI primitives — barrel export. */
-export { Button } from './Button'
-export type { ButtonProps } from './Button'
-export { buttonClasses } from './buttonClasses'
-export type { ButtonSize, ButtonVariant } from './buttonClasses'
-export { Card, CardBody, CardHeader, Panel } from './Card'
-export type { SurfacePadding } from './Card'
-export { Chip } from './Chip'
-export type { ChipVariant } from './Chip'
-export { Divider } from './Divider'
-export { MicroLabel } from './MicroLabel'
-export type { MicroLabelTone } from './MicroLabel'
+/** SOCDesk UI barrel.
+ *  Primitives are sourced from @socdesk/shared/ui (the framework-agnostic
+ *  layer both the web app and the extension consume); the app chrome
+ *  (Topbar / AppShell / ThemeToggle / NavItem) stays web-local. */
+export {
+  Button,
+  buttonClasses,
+  Card,
+  CardBody,
+  CardHeader,
+  Panel,
+  Chip,
+  Divider,
+  MicroLabel,
+} from '@socdesk/shared/ui'
+export type {
+  ButtonProps,
+  ButtonSize,
+  ButtonVariant,
+  SurfacePadding,
+  ChipVariant,
+  MicroLabelTone,
+} from '@socdesk/shared/ui'
 export { ThemeToggle } from './ThemeToggle'
 export { AppShell, Topbar } from './Topbar'
 export type { NavItem } from './Topbar'

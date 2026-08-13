@@ -12,9 +12,9 @@
 // — is supplied by doctrine.predicate()/phraseFinding(), so it prints exactly
 // once, source-subject-first, wherever a source speaks.
 
-import type { EnrichResponse } from '../../lib/verdict'
-import type { VerdictData, VerdictSource } from '../../lib/verdict'
-import { consensus, deriveBand, isIdentityType, mapResponse } from '../../lib/verdict'
+import type { EnrichResponse } from '../verdict'
+import type { VerdictData, VerdictSource } from '../verdict'
+import { consensus, deriveBand, isIdentityType, mapResponse } from '../verdict'
 
 const CHECKED_AT = '2026-08-12T14:22:00.000Z'
 

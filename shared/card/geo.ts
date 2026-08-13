@@ -9,7 +9,7 @@
 // looking coordinate we do not actually hold — with only a country code we place
 // the pin at the country centroid and label the readout "country-level".
 
-import type { FactRow } from '../../lib/verdict'
+import type { FactRow } from '../verdict'
 
 export interface FlagDef {
   /** 'h' = bands stacked top→bottom, 'v' = bands left→right. */

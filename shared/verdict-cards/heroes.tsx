@@ -12,11 +12,11 @@
 // appear only where they carry verdict meaning. No inline styles (CSP).
 
 import type { ReactNode } from 'react'
-import type { VerdictData } from '../../lib/verdict'
-import { cx } from '../../lib/cx'
+import type { VerdictData } from '../verdict'
+import { cx } from '../lib/cx'
 import { Chip, MicroLabel } from '../ui'
-import { WORLD, coordLabel, geoModel, project, type FlagDef, type GeoModel } from './geo'
-import { cveModel, domainModel, hashModel, urlModel } from './model'
+import { WORLD, coordLabel, geoModel, project, type FlagDef, type GeoModel } from '../card/geo'
+import { cveModel, domainModel, hashModel, urlModel } from '../card/model'
 
 /* ---------- shared scaffolding ------------------------------------------- */
 

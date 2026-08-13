@@ -8,14 +8,14 @@
 // leads with the tally-as-coverage headline + the segmented gauge, then the hero.
 // All wording/banding comes from the verdict-lib doctrine.
 
-import type { VerdictData } from '../../lib/verdict'
-import { dualUseNote, graywareLabel, hashHeadline, leadFact } from '../../lib/verdict'
+import type { VerdictData } from '../verdict'
+import { dualUseNote, graywareLabel, hashHeadline, leadFact } from '../verdict'
 import { MicroLabel } from '../ui'
-import { cveLead, isBannerLed } from './model'
+import { cveLead, isBannerLed } from '../card/model'
 import { Hero } from './heroes'
 import { CardActions } from './CardActions'
 import { Caveat, ContextList, IndicatorLine, SegGauge, SourceLedger, TallyHeadline } from './ui'
-import type { CanvasTheme } from './palette'
+import type { CanvasTheme } from '../card/palette'
 
 function queriedStamp(iso: string): string {
   const d = new Date(iso)

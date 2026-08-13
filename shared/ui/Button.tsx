@@ -1,5 +1,5 @@
 import { forwardRef, useRef, type ButtonHTMLAttributes } from 'react'
-import { usePressScale } from '../../lib/motion'
+import { usePressScale } from '../lib/motion'
 import {
   buttonClasses,
   type ButtonSize,

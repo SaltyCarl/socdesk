@@ -1,4 +1,4 @@
-import { cx } from '../../lib/cx'
+import { cx } from '@socdesk/shared/lib/cx'
 import type { HealthPayload } from './types'
 import { rel } from './format'
 import { CountUp } from './CountUp'

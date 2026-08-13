@@ -1,7 +1,7 @@
 import type { CommandItem } from './types'
 import { classifyIndicator } from './classify'
 import { clearRecents, pushRecent } from './recents'
-import { applyThemePref, resolveTheme } from '../../lib/theme'
+import { applyThemePref, resolveTheme } from '@socdesk/shared/lib/theme'
 
 /**
  * Static command registries + the side-effecting verbs the palette can

@@ -16,6 +16,22 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Shared TS/TSX source (consumed as source, no separate build). The
+       @socdesk/shared/* modules live outside src/; paths resolve relative
+       to this tsconfig (no baseUrl — deprecated in TS 6).
+       react / react-dom / motion are pinned to web's node_modules so those
+       bare imports type-check from shared files, which have no node_modules
+       on their own filesystem walk-up. Vite resolves the runtime copies via
+       resolve.dedupe (vite.config.ts). */
+    "paths": {
+      "@socdesk/shared/*": ["../shared/*"],
+      "react": ["./node_modules/@types/react"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"],
+      "react/jsx-dev-runtime": ["./node_modules/@types/react/jsx-dev-runtime"],
+      "react-dom": ["./node_modules/@types/react-dom"],
+      "motion": ["./node_modules/motion"]
+    },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

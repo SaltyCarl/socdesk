@@ -1,4 +1,4 @@
-import { cx } from '../../lib/cx'
+import { cx } from '../lib/cx'
 
 /**
  * Divider — a single hairline in the room-neutral line colour. The whole

@@ -1,6 +1,6 @@
 import { useRef } from 'react'
-import { cx } from '../../lib/cx'
-import { usePressScale } from '../../lib/motion'
+import { cx } from '@socdesk/shared/lib/cx'
+import { usePressScale } from '@socdesk/shared/lib/motion'
 
 /**
  * Omnibox — the topbar lookup entry. A search-field-shaped button that

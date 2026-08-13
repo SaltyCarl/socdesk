@@ -10,11 +10,11 @@
 // is periwinkle (product); everything else is room-neutral. All classes are
 // static Tailwind strings (CSP: no inline styles).
 
-import type { Band, SourceClass, SourceVerdict, VerdictData, VerdictSource } from '../../lib/verdict'
-import { CAVEAT, classTag, coverageHeadline, isStale, predicate } from '../../lib/verdict'
-import { cx } from '../../lib/cx'
+import type { Band, SourceClass, SourceVerdict, VerdictData, VerdictSource } from '../verdict'
+import { CAVEAT, classTag, coverageHeadline, isStale, predicate } from '../verdict'
+import { cx } from '../lib/cx'
 import { Chip, MicroLabel, type ChipVariant } from '../ui'
-import { gaugeCaption, gaugeSegments } from './model'
+import { gaugeCaption, gaugeSegments } from '../card/model'
 
 const TYPE_LABEL: Record<VerdictData['type'], string> = {
   ipv4: 'IPv4',

@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { cx } from '../../lib/cx'
+import { cx } from '@socdesk/shared/lib/cx'
 import type { FeedItem } from './types'
 import { rel, safeUrl } from './format'
 import { ScoreBadge, MonoTag } from './Badges'

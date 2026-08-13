@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { cx } from '../../lib/cx'
+import { cx } from '../lib/cx'
 
 /**
  * MicroLabel — the shared micro-label token. Mono, ≥11px floor, wide

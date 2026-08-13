@@ -10,9 +10,9 @@
 // the clipboard silently rejected the write), so the UI can tell the analyst
 // whether the image is really on the clipboard or was downloaded instead.
 
-import type { VerdictData } from '../../lib/verdict'
-import { composeEscalation } from '../../lib/verdict'
-import { renderVerdictCanvas, type DrawOptions } from './drawVerdict'
+import type { VerdictData } from '../verdict'
+import { composeEscalation } from '../verdict'
+import { renderVerdictCanvas, type DrawOptions } from '../card/drawVerdict'
 
 export type CopyCardResult = 'copied' | 'downloaded' | 'failed'
 

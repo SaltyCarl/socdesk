@@ -5,8 +5,8 @@
 // pulls the type-specific fields the heroes render (family, registration age,
 // KEV/CVSS, …) out of the attributed source facts.
 
-import type { FactRow, SourceVerdict, VerdictData } from '../../lib/verdict'
-import { isAdverse, phraseFinding } from '../../lib/verdict'
+import type { FactRow, SourceVerdict, VerdictData } from '../verdict'
+import { isAdverse, phraseFinding } from '../verdict'
 import { geoModel, type GeoModel } from './geo'
 
 /** Case-insensitive fact lookup for a source's [label, value] rows. */

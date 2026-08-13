@@ -38,6 +38,10 @@ export interface FetchLike {
 export interface FetchEnrichOptions {
   timeoutMs?: number;
   fetchImpl?: FetchLike;
+  /** Origin to prefix the request with, for a cross-origin caller (the
+   *  browser extension passes its configured origin here). Default '' keeps
+   *  the same-origin `/api/enrich` request the web app relies on. */
+  baseUrl?: string;
 }
 
 /** True when a type is enrichable via /api/enrich. */
@@ -59,10 +63,10 @@ function looksLikeResponse(body: unknown): body is EnrichResponse {
 export async function fetchEnrich(
   type: string,
   q: string,
-  { timeoutMs = FETCH_TIMEOUT_MS, fetchImpl }: FetchEnrichOptions = {},
+  { timeoutMs = FETCH_TIMEOUT_MS, fetchImpl, baseUrl = '' }: FetchEnrichOptions = {},
 ): Promise<EnrichOutcome> {
   const f: FetchLike = fetchImpl ?? ((url, init) => fetch(url, init));
-  const url = `/api/enrich?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`;
+  const url = `${baseUrl}/api/enrich?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
