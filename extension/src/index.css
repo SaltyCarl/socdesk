@@ -48,6 +48,9 @@
   html, body {
     background: var(--ink);
     color: var(--paper);
+    /* The shared SdMonogram's accent bars read var(--sd-bar); point it at the
+       themed periwinkle accent so the mark tracks light/dark like the app. */
+    --sd-bar: var(--accent);
   }
   body {
     margin: 0;

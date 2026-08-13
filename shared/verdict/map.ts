@@ -48,6 +48,28 @@ function normalizeVerdict(v: unknown): SourceVerdict {
   return (VERDICTS.has(s) ? s : 'unknown') as SourceVerdict;
 }
 
+/** Normalize a LIVE source headline to the verb-less finding contract, so the
+ *  doctrine class verb (doctrine.predicate) applies exactly ONCE and never
+ *  doubles.
+ *
+ *  The stub findings are authored verb-less on purpose ("12 / 94 engines flag
+ *  this indicator"); the live server, however, appends its OWN verdict word to
+ *  the engine-ratio headline ("1/91 engines flag this AS MALICIOUS"). Prefixed
+ *  by the score-class verb, that renders the doubled, verdict-restating
+ *  "VirusTotal reports 1/91 engines flag this as malicious" — two reporting
+ *  verbs plus a verdict word SOCDesk must not emit (VERDICT-LANGUAGE §3.1; the
+ *  verdict already rides s.verdict → the dot + gauge colour).
+ *
+ *  Rewrite the "flag(s) this as <verdict>" clause to a bare past-tense predicate
+ *  ("flagged this"), which the class verb then governs cleanly:
+ *  "VirusTotal reports 1/91 engines flagged this." Stub headlines (no "as
+ *  <verdict>" tail) are untouched. */
+function normalizeFinding(headline: string): string {
+  return headline
+    .replace(/\bflags?\s+this\s+as\s+(?:malicious|suspicious|benign)\b/i, 'flagged this')
+    .trim();
+}
+
 const RECENCY_KEY = /last|seen|scanned|reported|analys|first/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
 
@@ -75,7 +97,7 @@ function mapSource(row: RawSource): VerdictSource {
     name: row.name,
     verdict: normalizeVerdict(row.verdict),
     class: sourceClassFor(row.name),
-    finding: row.headline ?? '',
+    finding: normalizeFinding(row.headline ?? ''),
     recency: pickRecency(row),
     url: row.url ?? '',
     facts: row.facts,
