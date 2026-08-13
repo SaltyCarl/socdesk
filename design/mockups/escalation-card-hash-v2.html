@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOCDesk — Escalation card · Hash v2 (craft pass)</title>
+<style>
+/* real brand faces, self-hosted */
+@font-face{font-family:'Archivo';src:url('../../site/fonts/archivo-100_900.woff2') format('woff2');font-weight:100 900;font-stretch:75% 125%;font-display:swap}
+@font-face{font-family:'IBM Plex Mono';src:url('../../site/fonts/ibmplexmono-400.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'IBM Plex Mono';src:url('../../site/fonts/ibmplexmono-600.woff2') format('woff2');font-weight:600;font-display:swap}
+
+:root{
+  --display:'Archivo','Segoe UI',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  /* warm paper (client surface) */
+  --bg:#100C08; --matte:#E9DAC0;
+  --card:#FBF4E6; --panel:#F4E9D2; --field:#FDF8EE;
+  --border:#E0CEAB; --border2:#CFB98F; --hair:#EADBBE;
+  --text:#241A0F; --dim:#6A5638; --faint:#9A835C;
+  --accent:#4A4FD0; --accent-soft:#EDEEFB;
+  --red:#C22B42; --red-soft:#F7DEE2; --amber:#9A6400; --amber-soft:#F5E7C6; --green:#1E9E57;
+  /* 4/8 spacing scale */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
+  /* concentric radii */
+  --r-lg:12px; --r-md:8px; --r-sm:4px;
+  /* coarse type scale */
+  --t-hero:25px; --t-lead:14px; --t-body:12.5px; --t-sm:11px; --t-xs:9.5px; --t-micro:8.5px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:#E9DFCC;font-family:var(--display);line-height:1.5;padding:40px clamp(20px,5vw,56px) 90px;
+  font-variant-numeric:tabular-nums;
+  background-image:linear-gradient(rgba(124,138,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(124,138,255,.045) 1px,transparent 1px);background-size:44px 44px}
+.wrap{max-width:1000px;margin:0 auto}
+.kicker{font-family:var(--mono);font-size:var(--t-sm);font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#7C8AFF;margin-bottom:var(--s3)}
+h1{font-size:28px;font-weight:800;font-stretch:112%;letter-spacing:-.02em;margin-bottom:var(--s2)}
+.lede{color:#B7A488;font-size:var(--t-lead);max-width:74ch;margin-bottom:var(--s6)}
+.lede b{color:#E9DFCC;font-weight:600}
+.row{display:flex;gap:var(--s6);align-items:flex-start;flex-wrap:wrap}
+.matte{background:var(--matte);border-radius:var(--r-lg);padding:var(--s6);flex:0 0 auto}
+.side{flex:1;min-width:260px}
+.side h2{font-family:var(--mono);font-size:var(--t-xs);font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#877253;margin:var(--s2) 0 var(--s3);padding-bottom:var(--s2);border-bottom:1px solid #34281B}
+
+/* shared label token — ALL micro-labels use this (consistency) */
+.lbl{font-family:var(--mono);font-size:var(--t-micro);font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+
+/* ===== the card ===== */
+.card{width:420px;max-width:100%;background:var(--card);border:1px solid var(--border2);border-radius:var(--r-lg);overflow:hidden;
+  box-shadow:0 26px 60px -30px rgba(60,40,14,.75)}
+.accent{height:3px;background:linear-gradient(90deg,var(--accent),#6E74E0)}
+.in{padding:var(--s4);color:var(--text)}
+.head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:var(--s3)}
+.ts{font-family:var(--mono);font-size:var(--t-micro);color:var(--faint)}
+.hash{font-family:var(--mono);font-size:var(--t-body);color:var(--text);word-break:break-all;line-height:1.5}
+.typepill{display:inline-block;font-family:var(--mono);font-size:var(--t-micro);color:var(--dim);border:1px solid var(--border2);border-radius:var(--r-sm);padding:2px 6px;margin-top:var(--s1)}
+.lead{font-family:var(--display);font-size:var(--t-lead);font-weight:600;color:var(--text);line-height:1.45;margin:var(--s3) 0}
+.lead .subj{color:var(--accent);font-weight:700}
+
+/* HERO — identity */
+.hero{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);padding:var(--s3);margin-bottom:var(--s3)}
+.hero .lbl{display:block;margin-bottom:var(--s3)}
+.htop{display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s3)}
+.glyph{width:44px;height:44px;flex:0 0 auto;border-radius:var(--r-md);background:var(--accent-soft);border:1px solid #cdd0f4;display:grid;place-items:center;color:var(--accent)}
+.glyph svg{width:24px;height:24px}
+.hname{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.family{font-family:var(--display);font-size:var(--t-hero);font-weight:800;font-stretch:110%;letter-spacing:-.015em;color:var(--text);line-height:1}
+.clsrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:var(--t-micro);font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:var(--r-sm);padding:3px 7px;white-space:nowrap}
+.chip.sev-mal{background:var(--red-soft);color:var(--red)}
+.chip.sev-pua{background:var(--amber-soft);color:var(--amber)}
+.chip.catalog{background:var(--accent-soft);color:var(--accent);border:1px solid #cdd0f4}
+.chip.catalog svg{width:8px;height:8px}
+/* aliases */
+.aka{font-size:var(--t-sm);color:var(--dim);margin-bottom:var(--s3);line-height:1.5}
+.aka .k{font-family:var(--mono);font-size:var(--t-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-right:6px}
+.aka code{font-family:var(--mono);font-size:var(--t-sm);color:var(--text);background:var(--field);border:1px solid var(--hair);border-radius:var(--r-sm);padding:1px 5px}
+/* fact chips — systematized 4-col */
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s2);margin-bottom:var(--s3)}
+.fact{background:var(--field);border:1px solid var(--hair);border-radius:var(--r-sm);padding:var(--s2) 9px}
+.fact .k{display:block;font-family:var(--mono);font-size:7.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:3px}
+.fact .v{font-family:var(--mono);font-size:var(--t-sm);color:var(--text);font-weight:600}
+/* duration bar timeline — NOT a slider */
+.tl-cap-top{display:flex;justify-content:space-between;margin-bottom:6px}
+.tl-bar{position:relative;height:16px;border-radius:var(--r-sm);background:var(--field);border:1px solid var(--hair);overflow:hidden}
+.tl-span{position:absolute;inset:0 3% 0 2%;background:color-mix(in srgb,var(--accent) 20%, var(--field));border-radius:3px}
+.tl-tick{position:absolute;top:3px;bottom:3px;width:1px;background:color-mix(in srgb,var(--accent) 26%, transparent)}
+.tl-mid{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--mono);font-size:var(--t-micro);color:var(--dim);font-weight:600}
+.tl-ends{display:flex;justify-content:space-between;font-family:var(--mono);font-size:var(--t-micro);color:var(--faint);margin-top:5px}
+/* prevalence */
+.prev{display:flex;align-items:center;gap:var(--s2);margin-top:var(--s3)}
+.prev .bars{display:flex;gap:2px}
+.prev .bars i{width:4px;height:11px;border-radius:1px;background:color-mix(in srgb,var(--accent) 55%, transparent)}
+.prev .bars i.off{background:var(--hair)}
+.prev .txt{font-family:var(--mono);font-size:var(--t-micro);color:var(--dim)}
+.prev .txt b{color:var(--text);font-weight:600}
+
+/* ledger — left-aligned two-column grid */
+.ledger{list-style:none;border-top:1px solid var(--border);padding-top:var(--s3)}
+.ledger li{display:grid;grid-template-columns:132px 1fr;align-items:baseline;gap:var(--s3);padding:6px 0;border-bottom:1px solid var(--hair)}
+.ledger li:last-child{border-bottom:none}
+.ledger .s{font-family:var(--display);font-weight:700;font-size:var(--t-body);color:var(--text);display:flex;align-items:center;gap:5px}
+.ledger .s .catalog{padding:1px 4px}
+.ledger .f{font-family:var(--mono);font-size:var(--t-sm);color:var(--dim);line-height:1.45}
+.foot{margin-top:var(--s3);font-family:var(--mono);font-size:var(--t-micro);color:var(--faint)}
+.caveat{margin-top:var(--s2);font-size:var(--t-xs);color:var(--dim);line-height:1.5;border-left:2px solid var(--border2);padding-left:10px;font-family:var(--display)}
+
+/* grayware variant strip */
+.variant{background:var(--card);border:1px solid var(--border2);border-radius:var(--r-md);padding:var(--s3);margin-top:var(--s3);width:420px;max-width:100%}
+.variant .htop{margin-bottom:0}
+.variant .family{font-size:19px}
+
+.note{margin-top:var(--s6);background:#17110B;border:1px solid #34281B;border-left:3px solid #7C8AFF;border-radius:var(--r-md);padding:var(--s4) var(--s5);font-size:var(--t-body);color:#B7A488;line-height:1.6;max-width:78ch}
+.note b{color:#E9DFCC;font-weight:600}
+.note .g{color:var(--amber);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">SOCDesk · escalation card · hash · v2 (craft pass)</p>
+  <h1>Hash card v2 — brand faces, red-for-verdict-only, duration bar, new fields</h1>
+  <p class="lede">Same identity thesis, elevated: <b>Archivo + IBM Plex Mono</b> (real brand faces, not OS defaults), red/amber/green <b>reserved for verdict severity only</b> (glyph &amp; timeline now periwinkle), a custom <b>C2-node glyph</b>, a <b>duration bar</b> that can't be mistaken for a slider, a <b>left-aligned ledger</b>, a 4/8 grid + coarse type scale + concentric radii — and the highest-value new fields folded in: <b>aliases, signer, prevalence, finished first→last timeline</b>, and the <b>PUA/grayware honesty state</b>.</p>
+
+  <div class="row">
+    <div class="matte">
+      <div class="card">
+        <div class="accent"></div>
+        <div class="in">
+          <div class="head"><span class="lbl">Indicator reputation</span><span class="ts">Generated 2026-08-12 14:22 UTC</span></div>
+          <div class="hash">7f9c2a4e1b8d3c6f0a5e2d9b4c7a1f8e6d3b0c9a2e5f8d1b4c7a0e3f6d9b2c5a8</div>
+          <span class="typepill">SHA-256</span>
+
+          <p class="lead"><span class="subj">MalwareBazaar catalogs</span> this file as a known malware sample.</p>
+
+          <div class="hero">
+            <span class="lbl">Malware identity</span>
+            <div class="htop">
+              <span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="12" y1="12" x2="5.5" y2="6"/><line x1="12" y1="12" x2="18.5" y2="7"/><line x1="12" y1="12" x2="12" y2="19.5"/><circle cx="12" cy="12" r="2.8" fill="currentColor" stroke="none"/><circle cx="5.5" cy="6" r="2"/><circle cx="18.5" cy="7" r="2"/><circle cx="12" cy="19.5" r="2"/></svg></span>
+              <div class="hname">
+                <span class="family">Cobalt Strike</span>
+                <span class="clsrow">
+                  <span class="chip sev-mal">Command &amp; control</span>
+                  <span class="chip catalog"><svg viewBox="0 0 12 12"><rect x="3" y="3" width="6" height="6" transform="rotate(45 6 6)" fill="#4A4FD0"/></svg>Catalog</span>
+                </span>
+              </div>
+            </div>
+            <p class="aka"><span class="k">Seen as</span><code>invoice_2026.exe</code> · <code>svchost32.exe</code> · <code>update.dll</code></p>
+            <div class="facts">
+              <div class="fact"><span class="k">Type</span><span class="v">PE · EXE</span></div>
+              <div class="fact"><span class="k">Size</span><span class="v">248 KB</span></div>
+              <div class="fact"><span class="k">Signed</span><span class="v">No</span></div>
+              <div class="fact"><span class="k">Detect</span><span class="v">58/72</span></div>
+            </div>
+            <div class="tl-cap-top"><span class="lbl">Observed in the wild</span></div>
+            <div class="tl-bar">
+              <div class="tl-span"></div>
+              <div class="tl-tick" style="left:24%"></div><div class="tl-tick" style="left:46%"></div><div class="tl-tick" style="left:68%"></div>
+              <div class="tl-mid">~17 months circulating</div>
+            </div>
+            <div class="tl-ends"><span>First seen 2024-03-12</span><span>Last seen 3 days ago</span></div>
+            <div class="prev">
+              <span class="bars"><i></i><i></i><i></i><i></i><i class="off"></i></span>
+              <span class="txt"><b>Widely circulated</b> — 4,200+ submissions, 380 sources</span>
+            </div>
+          </div>
+
+          <ul class="ledger">
+            <li><span class="s">MalwareBazaar <span class="chip catalog catalog">CAT</span></span><span class="f">labels this Cobalt Strike · delivery: email attachment</span></li>
+            <li><span class="s">VirusTotal</span><span class="f">58 of 72 engines flag this file</span></li>
+            <li><span class="s">ThreatFox <span class="chip catalog catalog">CAT</span></span><span class="f">links to known command-and-control infrastructure</span></li>
+            <li><span class="s">Hybrid Analysis</span><span class="f">observed: process injection, network beaconing</span></li>
+          </ul>
+
+          <div class="foot">File hash · checked 2026-08-12 14:22 UTC</div>
+          <div class="caveat">Based on third-party analysis gathered at the time shown; it may be incomplete or out of date and has not been independently confirmed. Shared for your awareness — please confirm before acting on it.</div>
+        </div>
+      </div>
+
+      <!-- grayware/PUA honesty variant -->
+      <div class="variant">
+        <span class="lbl" style="display:block;margin-bottom:10px">The PUA / grayware honesty state — visually distinct, never dressed as malware</span>
+        <div class="htop">
+          <span class="glyph" style="background:var(--amber-soft);border-color:#e6cf9a;color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+          <div class="hname">
+            <span class="family">DriverBooster</span>
+            <span class="clsrow"><span class="chip sev-pua">Grayware · PUA</span><span class="chip catalog"><svg viewBox="0 0 12 12"><rect x="3" y="3" width="6" height="6" transform="rotate(45 6 6)" fill="#4A4FD0"/></svg>VT class</span></span>
+          </div>
+        </div>
+        <p class="aka" style="margin:10px 0 0"><span class="k">Note</span>VirusTotal classifies this as <b style="color:var(--amber)">potentially-unwanted (bundleware)</b>, not confirmed malware — 22 of 71 engines, mostly PUA labels. Flagged ≠ malicious.</p>
+      </div>
+    </div>
+
+    <div class="side">
+      <h2>What changed vs v1</h2>
+      <div class="note" style="margin-top:0">
+        <b>Craft (the AAA gaps, closed):</b> real brand faces (Archivo 800 hero + IBM Plex Mono figures w/ tabular-nums) · red/amber/green <b>verdict-only</b> — glyph &amp; timeline now periwinkle · custom <b>C2-node glyph</b> (not a stock "sun") · <b>duration bar</b> with the label on the span (not a slider) · <b>left-aligned two-column ledger</b> · 4/8 spacing grid · ~6-step type scale · 3 concentric radii · one shared label token.<br><br>
+        <b>New fields (from the enrichment inventory):</b> <b>aliases</b> ("seen as" — masquerading tell) · <b>signer</b> status · <b>prevalence</b> band · <b>first→last timeline</b> (recency) · and the <span class="g">PUA / grayware honesty state</span> below the card — the biggest credibility win, keeping a flagged adware bundle visually separate from Emotet.<br><br>
+        <b>Held to policy:</b> no SOCDesk branding on the artifact (declined the AAA reviewer's "add a branded footer" — it breaks the no-branding rule); neutral timestamp provenance only. Per-engine VT results link out, not reproduced (ToS).
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

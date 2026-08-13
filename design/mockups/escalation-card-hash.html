@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOCDesk — Escalation card · Hash (malware-identity hero)</title>
+<style>
+:root{
+  --sans:'Segoe UI',system-ui,-apple-system,sans-serif;
+  --mono:'Cascadia Mono','SF Mono',Consolas,ui-monospace,monospace;
+  --bg:#100C08; --matte:#ECDDC2;
+  --card:#FBF4E6; --panel2:#F0E2C9; --field:#FDF8EE;
+  --border:#DFC9A2; --border2:#CDB183; --border3:#B8975F;
+  --text:#2C2013; --dim:#6A5638; --faint:#98835D;
+  --accent:#4A4FD0; --accent2:#6E74E0;
+  --red:#C22B42; --amber:#9A6400; --green:#1E9E57;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:#E9DFCC;font-family:var(--sans);line-height:1.5;padding:40px clamp(20px,5vw,56px) 90px;
+  background-image:linear-gradient(rgba(124,138,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(124,138,255,.045) 1px,transparent 1px);background-size:44px 44px}
+.wrap{max-width:900px;margin:0 auto}
+.kicker{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#7C8AFF;margin-bottom:10px}
+h1{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-bottom:8px}
+.lede{color:#B7A488;font-size:14.5px;max-width:72ch;margin-bottom:30px}
+.lede b{color:#E9DFCC;font-weight:600}
+.matte{background:var(--matte);border:1px dashed var(--border3);border-radius:16px;padding:26px;display:flex;justify-content:center}
+
+/* the card */
+.card{width:100%;max-width:460px;background:var(--card);border:1px solid var(--border2);border-radius:13px;overflow:hidden;
+  box-shadow:0 26px 60px -30px rgba(70,46,16,.7)}
+.accent{height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.in{padding:16px 18px 16px;color:var(--text)}
+.head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+.head .h1{font-family:var(--sans);font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.head .ts{font-family:var(--mono);font-size:8.5px;color:var(--faint)}
+.ind{margin-bottom:12px}
+.ind .hash{font-family:var(--mono);font-size:12.5px;color:var(--text);word-break:break-all;line-height:1.5}
+.ind .type{display:inline-block;font-family:var(--mono);font-size:9px;color:var(--dim);border:1px solid var(--border2);border-radius:4px;padding:1px 6px;margin-top:4px}
+.lead{font-size:14px;font-weight:600;color:var(--text);line-height:1.4;margin-bottom:14px}
+.lead .cat{color:var(--accent);font-weight:700}
+
+/* ===== MALWARE-IDENTITY HERO ===== */
+.hero{background:color-mix(in srgb,var(--accent) 6%, var(--card));border:1px solid color-mix(in srgb,var(--accent) 24%, var(--border2));
+  border-radius:11px;padding:14px 15px;margin-bottom:14px}
+.hero .lbl{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:11px}
+.hero-top{display:flex;align-items:center;gap:13px;margin-bottom:14px}
+.glyph{width:46px;height:46px;flex:0 0 auto;border-radius:11px;background:color-mix(in srgb,var(--red) 12%, var(--card));
+  border:1px solid color-mix(in srgb,var(--red) 30%, transparent);display:grid;place-items:center}
+.glyph svg{width:26px;height:26px;color:var(--red)}
+.hero-name{min-width:0;flex:1}
+.family{font-size:25px;font-weight:800;letter-spacing:-.01em;color:var(--text);line-height:1}
+.ttype{font-size:11.5px;color:var(--dim);margin-top:3px}
+.catchip{align-self:flex-start;display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--accent);background:color-mix(in srgb,var(--accent) 10%, transparent);border:1px solid color-mix(in srgb,var(--accent) 30%, transparent);border-radius:5px;padding:4px 7px;white-space:nowrap}
+.catchip svg{width:9px;height:9px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.fact{background:var(--field);border:1px solid var(--border);border-radius:7px;padding:7px 9px}
+.fact .fk{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:3px}
+.fact .fv{font-family:var(--mono);font-size:11px;color:var(--text);font-weight:600}
+/* first-seen timeline (the rich visual) */
+.tl-lbl{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:8px;display:block}
+.tl{position:relative;height:22px;margin:0 4px}
+.tl-track{position:absolute;top:9px;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--red),color-mix(in srgb,var(--red) 30%, var(--border2)))}
+.tl-first{position:absolute;top:4px;left:0;width:12px;height:12px;border-radius:50%;background:var(--red);border:2px solid var(--card)}
+.tl-now{position:absolute;top:6px;right:0;width:8px;height:8px;border-radius:50%;background:var(--border3)}
+.tl-cap{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8.5px;color:var(--dim);margin-top:5px}
+.tl-cap .mid{color:var(--text);font-weight:600}
+
+/* sources ledger */
+.ledger{list-style:none;border-top:1px solid var(--border);padding-top:10px}
+.ledger li{display:flex;align-items:baseline;gap:9px;font-size:12px;padding:6px 0;border-bottom:1px solid #EEE1C6}
+.ledger li:last-child{border-bottom:none}
+.ledger .s{font-weight:700;color:var(--text);min-width:104px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ledger .cl{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 34%, transparent);border-radius:3px;padding:0 4px}
+.ledger .f{color:var(--dim);margin-left:auto;text-align:right;font-family:var(--mono);font-size:10px}
+.foot{margin-top:11px;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+.caveat{margin-top:8px;font-size:10px;color:var(--dim);line-height:1.5;border-left:2px solid var(--border3);padding-left:10px}
+.note{margin-top:26px;background:#17110B;border:1px solid #34281B;border-left:3px solid #7C8AFF;border-radius:10px;padding:15px 18px;font-size:12.5px;color:#B7A488;line-height:1.6}
+.note b{color:#E9DFCC;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">SOCDesk · escalation card · hash</p>
+  <h1>Hash card — the hero is <span style="color:#7C8AFF">identity</span>, not geography</h1>
+  <p class="lede">A hash has no location — it has an <b>identity</b>. So where the IP card leads with a map, the hash card leads with <b>what the file is</b>: the malware family as the centrepiece, an attributed catalog fact, the file facts, and a <b>first-seen timeline</b> as the rich visual. Same v3 skeleton, a type-appropriate hero. (Client-facing warm-paper render.)</p>
+
+  <div class="matte">
+    <div class="card">
+      <div class="accent"></div>
+      <div class="in">
+        <div class="head"><span class="h1">Indicator reputation</span><span class="ts">Generated 2026-08-12 14:22 UTC</span></div>
+        <div class="ind">
+          <div class="hash">7f9c2a4e1b8d3c6f0a5e2d9b4c7a1f8e6d3b0c9a2e5f8d1b4c7a0e3f6d9b2c5a8</div>
+          <span class="type">SHA-256</span>
+        </div>
+
+        <p class="lead"><span class="cat">MalwareBazaar catalogs</span> this file as a known malware sample.</p>
+
+        <div class="hero">
+          <span class="lbl">Malware identity</span>
+          <div class="hero-top">
+            <span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg></span>
+            <div class="hero-name">
+              <div class="family">Cobalt Strike</div>
+              <div class="ttype">Command-and-control framework · post-exploitation beacon</div>
+            </div>
+            <span class="catchip"><svg viewBox="0 0 12 12"><rect x="3" y="3" width="6" height="6" transform="rotate(45 6 6)" fill="#4A4FD0"/></svg>Catalog</span>
+          </div>
+          <div class="facts">
+            <div class="fact"><span class="fk">File type</span><span class="fv">Windows PE · EXE</span></div>
+            <div class="fact"><span class="fk">Size</span><span class="fv">248 KB</span></div>
+            <div class="fact"><span class="fk">Detections</span><span class="fv">58 / 72</span></div>
+          </div>
+          <span class="tl-lbl">Observed in the wild</span>
+          <div class="tl">
+            <div class="tl-track"></div>
+            <div class="tl-first"></div>
+            <div class="tl-now"></div>
+          </div>
+          <div class="tl-cap"><span>First seen 2024-03-12</span><span class="mid">~17 months circulating</span><span>now</span></div>
+        </div>
+
+        <ul class="ledger">
+          <li><span class="s">MalwareBazaar <span class="cl">catalog</span></span><span class="f">catalogs this sample · family Cobalt Strike</span></li>
+          <li><span class="s">VirusTotal</span><span class="f">58 of 72 engines detect this file</span></li>
+          <li><span class="s">ThreatFox <span class="cl">catalog</span></span><span class="f">linked to known C2 infrastructure</span></li>
+          <li><span class="s">Hybrid Analysis</span><span class="f">observed: process injection, network beaconing</span></li>
+        </ul>
+
+        <div class="foot">File hash · checked 2026-08-12 14:22 UTC</div>
+        <div class="caveat">Based on third-party analysis gathered at the time shown; it may be incomplete or out of date and has not been independently confirmed. Shared for your awareness — please confirm before acting on it.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note"><b>Why identity, not a tally.</b> A hash in MalwareBazaar is a near-deterministic <b>fact</b>, not six sources voting — so the card asserts it (source-subject-first: "MalwareBazaar catalogs…"), makes the <b>family the hero</b>, and shows VT's engine ratio as a supporting fact rather than the headline. The <b>first-seen timeline</b> is the rich visual that replaces the map — honest (it's just dates) and instantly graspable ("this has been circulating 17 months"). For an <b>unknown</b> file (no catalog hit), the hero degrades gracefully: "No catalog lists this file — VirusTotal: 3 of 72 engines flag it," and the family panel becomes "Unclassified."</div>
+
+</div>
+</body>
+</html>
