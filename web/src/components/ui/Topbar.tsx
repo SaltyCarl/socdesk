@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
+import { SdMonogram } from '@socdesk/shared/ui'
 import { ThemeToggle } from './ThemeToggle'
 
 /**
@@ -21,12 +22,7 @@ function Wordmark() {
       href="/"
       className="group inline-flex items-center gap-2.5 outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent"
     >
-      <span
-        aria-hidden="true"
-        className="inline-flex size-6 items-center justify-center rounded-sm bg-accent font-mono text-micro font-semibold text-ink-on-accent"
-      >
-        SD
-      </span>
+      <SdMonogram className="h-6 w-auto text-paper" />
       <span className="font-display text-base font-extrabold tracking-tight text-paper">
         SOCDESK
       </span>

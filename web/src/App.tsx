@@ -28,7 +28,20 @@ interface Route {
 }
 
 const ROUTES: Route[] = [
-  { path: '/', label: 'Overview', size: 'wide', el: <GlobeHero /> },
+  {
+    path: '/',
+    label: 'Overview',
+    size: 'wide',
+    el: (
+      <GlobeHero
+        title={
+          <>
+            IOC in. <span className="text-accent">OSINT</span> out.
+          </>
+        }
+      />
+    ),
+  },
   { path: '/lookup', label: 'Lookup', size: 'default', el: <Lookup /> },
   { path: '/desk', label: 'Desk', size: 'default', el: <DataDeskRoute /> },
   { path: '/gallery', label: 'Gallery', size: 'default', el: <Gallery /> },
