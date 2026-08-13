@@ -6,7 +6,12 @@
  * families — the JS side has no build-time access to `@theme` values.
  *
  * The halo is KILLED in both themes (glowColor === the page ink) — anti-slop:
- * a matte instrument, no over-bloom.
+ * a matte instrument, no over-bloom. NEVER revive glowColor.
+ *
+ * MOVE 3 (soft terminator / key light): `diffuse` is pushed a touch so the dot
+ * field falls off toward the shaded limb — honest volume, read as lit from one
+ * side. Pair it with the fresnel rim's key-light bias (globe.css .sdh-limb mask)
+ * so the lit edge and the rim agree. Knob: `diffuse` (higher = deeper shading).
  */
 
 import type { EffectiveTheme } from '../../lib/theme'
@@ -32,7 +37,7 @@ export function globePalette(theme: EffectiveTheme): GlobePalette {
       dark: 1,
       mapBrightness: 6.4,
       mapBaseBrightness: 0,
-      diffuse: 1.25,
+      diffuse: 1.6, // MOVE 3 — deeper limb falloff (was 1.25)
       opacity: 0.95,
     }
   }
@@ -48,7 +53,7 @@ export function globePalette(theme: EffectiveTheme): GlobePalette {
     dark: 0.5,
     mapBrightness: 5.6,
     mapBaseBrightness: 0.3,
-    diffuse: 1.3,
+    diffuse: 1.55, // MOVE 3 — deeper limb falloff (was 1.3)
     opacity: 0.72,
   }
 }

@@ -20,13 +20,12 @@
   min-height: clamp(460px, 62vh, 680px);
 }
 
-/* ---- ambient depth behind the globe: a restrained, matte instrument
-   atmosphere (NOT bloom/halo/frosted-glass). Three CSS-only layers, periwinkle
-   only, concentrated on the globe side and faded over the copy:
-     1. a fixed, very faint periwinkle DOT-GRID (the instrument's ground);
-     2. two slow-drifting, low-opacity periwinkle LIGHTS that "breathe";
-     3. a radial MASK that fades the whole layer to nothing over the copy.
-   There is no second GL loop — this stays pure CSS (spec §2). */
+/* ---- ambient GROUND: a fixed, very faint periwinkle DOT-GRID — the matte
+   instrument reference frame (NOT bloom). Masked to concentrate on the globe
+   side and fade to nothing over the copy so text stays on clean espresso. The
+   drifting "breathing lights" are GONE (they described the panel, not the
+   sphere); the sphere's own light is now the fresnel limb (.sdh-limb) + the
+   terminator (cobe diffuse). Pure CSS — no second GL loop (spec §2). */
 .sdh-atmos {
   position: absolute;
   inset: 0;
@@ -46,72 +45,6 @@
     transparent 74%
   );
   mask-image: radial-gradient(132% 108% at 80% 46%, #000 33%, transparent 74%);
-}
-.sdh-atmos::before,
-.sdh-atmos::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-}
-.sdh-atmos::before {
-  width: 640px;
-  height: 640px;
-  top: -12%;
-  right: 0%;
-  filter: blur(96px);
-  opacity: 0.32;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--accent) 22%, transparent),
-    transparent 66%
-  );
-  animation: sdh-drift-a 48s var(--ease-brand-io) infinite alternate;
-}
-.sdh-atmos::after {
-  width: 460px;
-  height: 460px;
-  bottom: -8%;
-  right: 15%;
-  filter: blur(104px);
-  opacity: 0.2;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--accent) 18%, transparent),
-    transparent 68%
-  );
-  animation: sdh-drift-b 62s var(--ease-brand-io) infinite alternate;
-}
-@keyframes sdh-drift-a {
-  from {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  to {
-    transform: translate3d(-3%, 3%, 0) scale(1.06);
-  }
-}
-@keyframes sdh-drift-b {
-  from {
-    transform: translate3d(0, 0, 0) scale(1.05);
-  }
-  to {
-    transform: translate3d(3%, -2%, 0) scale(1);
-  }
-}
-/* espresso carries the periwinkle light a touch stronger than paper */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .sdh-atmos::before {
-    opacity: 0.5;
-  }
-  :root:not([data-theme]) .sdh-atmos::after {
-    opacity: 0.34;
-  }
-}
-[data-theme='dark'] .sdh-atmos::before {
-  opacity: 0.5;
-}
-[data-theme='dark'] .sdh-atmos::after {
-  opacity: 0.34;
 }
 
 /* ==========================================================================
@@ -169,6 +102,8 @@
   cursor: grabbing;
 }
 .sdh-globe {
+  position: relative;
+  z-index: 2; /* stage layers: limb(1) < canvas(2) < arcs(3) < pins(4) < landed(5) */
   display: block;
   width: 100%;
   height: 100%;
@@ -183,11 +118,73 @@
   transform: scale(1);
 }
 
+/* ---- FRESNEL LIMB (MOVE 2) — a thin periwinkle rim that HUGS the sphere
+   silhouette (fresnel, NOT bloom). A radial-gradient ring BEHIND the canvas,
+   concentrated AT the disc edge with sharp falloff BOTH inward and outward
+   (transparent well before the box edge — the annulus test). The linear MASK
+   biases the rim toward the key-light side (upper-left), agreeing with the
+   terminator shading (cobe diffuse, MOVE 3). No blur(); cobe's glowColor stays
+   == page ink (the killed bloom). Scales with the sphere (inside .sdh-stage). */
+.sdh-limb {
+  position: absolute;
+  inset: 6%; /* 88% box centred on the sphere; disc edge ≈ 91% of this radius */
+  z-index: 1; /* behind the canvas */
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle closest-side,
+    transparent 0 87%,
+    color-mix(in srgb, var(--accent) 60%, transparent) 91%,
+    color-mix(in srgb, var(--accent) 26%, transparent) 93.5%,
+    transparent 96%
+  );
+  opacity: 0.24;
+  -webkit-mask-image: linear-gradient(135deg, #000 28%, rgba(0, 0, 0, 0.45) 100%);
+  mask-image: linear-gradient(135deg, #000 28%, rgba(0, 0, 0, 0.45) 100%);
+}
+[data-theme='dark'] .sdh-limb {
+  opacity: 0.3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .sdh-limb {
+    opacity: 0.3;
+  }
+}
+
+/* ---- ATTACK ARCS (MOVE 1) — an SVG overlay INSIDE .sdh-stage so it inherits
+   the --globe-grow zoom + fly-to. Paths are built + drawn-on per-frame in
+   useGlobe (setAttribute('d') for geometry + z-occlusion gaps; setProperty for
+   stroke-dashoffset draw-on + opacity). Periwinkle ONLY — verdict tone appears
+   solely on the landed endpoint disc. non-scaling-stroke keeps beams a crisp
+   ~1px at any zoom; pathLength=1 (set in JSX) normalises the draw-on. ---- */
+.sdh-arcs {
+  position: absolute;
+  inset: 0;
+  z-index: 3; /* over the canvas, under the pins */
+  width: 100%;
+  height: 100%;
+  overflow: visible; /* raised apexes may exceed the disc */
+  pointer-events: none;
+}
+.sdh-arc {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-dasharray: 1; /* + pathLength=1 → one dash spans the whole path */
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+}
+.sdh-arc-scored {
+  stroke-width: 1.5;
+}
+
 /* ---- projected pin overlay — sits over the canvas, never eats pointer
    events (the canvas keeps drag/wheel). useGlobe writes each transform. ---- */
 .sdh-pins {
   position: absolute;
   inset: 0;
+  z-index: 4; /* over the arcs, under the landed endpoint */
   pointer-events: none;
   overflow: visible;
 }
@@ -568,9 +565,10 @@
     opacity: 1;
     transform: none;
   }
-  .sdh-atmos::before,
-  .sdh-atmos::after {
-    animation: none;
+  /* arcs + parallax are motion → gone; the static honest frame keeps the
+     fresnel rim + terminator (they are not motion) and the dot-grid ground. */
+  .sdh-arcs {
+    display: none;
   }
   /* entrance reveal → instant + no transform (fully visible, no rise) */
   .sdh-enter {

@@ -39,10 +39,15 @@ import {
   ambientDiameter,
   landedDiameter,
   tierInk,
+  slerp,
+  arcAngle,
+  ARC_NODES,
+  HOME_VEC,
   type Projected,
   type Tier,
   type Pin,
   type FlyTarget,
+  type Vec3,
 } from './pins'
 
 /* -- tunables (mirrored from the vanilla globe) -- */
@@ -54,6 +59,16 @@ const FLY_ZOOM = 1.42
 const SS = 1.2 // backing-store oversample (crisp compositor zoom)
 const DPR_CAP = 2
 const SIDE_CAP = 1200 // bound the backing store per side
+
+/* -- attack-arc tunables (MOVE 1) — SPARSE, slow cadence (anti-firehose) -- */
+const ARC_SAMPLES = 32 // slerp samples per arc
+const ARC_ZCUT = 0.02 // occlusion: hide samples on the back hemisphere
+const MAX_AMBIENT = 4 // ≤4 ambient arcs alive at once
+const SCORED = MAX_AMBIENT // pool index of the single scored fly-to beam
+const AMBIENT_SPAWN_MIN = 4.6 // seconds between ambient spawns (+ jitter)
+const AMBIENT_SPAWN_JITTER = 3.0
+/* -- pointer parallax (MOVE 4) -- */
+const PAR_MAX = 0.06 // radians (~3.4°) max cursor-ward tilt
 
 /* -- critically-damped spring (hand-rolled, on our own loop) -- */
 interface Spring {
@@ -111,6 +126,36 @@ function newAnim(): Anim {
   }
 }
 
+/* -- attack arc (MOVE 1). Endpoints are unit vectors; each frame we slerp
+   source→target, lift the mid-arc off the sphere (alt·sin(πt)), project with
+   the SAME project() the pins use, and z-occlude the back hemisphere. Draw-on
+   is a normalized stroke-dashoffset. Lifecycle: draw → hold → fade. -- */
+interface Arc {
+  active: boolean
+  scored: boolean
+  a: Vec3
+  b: Vec3
+  omega: number
+  sinOmega: number
+  alt: number
+  progress: number // 0..1 draw-on
+  phase: 0 | 1 | 2 // draw / hold / fade
+  age: number // seconds in the current phase
+  opacity: number
+  peak: number
+  drawDur: number
+  holdDur: number
+  fadeDur: number
+}
+function newArc(): Arc {
+  return {
+    active: false, scored: false,
+    a: [0, 0, 1], b: [0, 0, 1], omega: 0, sinOmega: 0, alt: 0,
+    progress: 0, phase: 0, age: 0, opacity: 0, peak: 0.5,
+    drawDur: 1.3, holdDur: 1.0, fadeDur: 1.1,
+  }
+}
+
 /* -- live-enrich result shape (dormant on the static tier) -- */
 interface EnrichSource {
   kind?: string
@@ -152,6 +197,8 @@ export interface UseGlobeResult {
   pinsRef: RefObject<HTMLDivElement | null>
   landedRef: RefObject<HTMLDivElement | null>
   tipRef: RefObject<HTMLDivElement | null>
+  /** the SVG overlay holding the attack-arc <path> pool (inside the stage). */
+  arcsRef: RefObject<SVGSVGElement | null>
   /** the currently-hovered pin (drives the React-rendered tooltip content). */
   activePin: Pin | null
   api: GlobeApi
@@ -167,6 +214,7 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
   const pinsRef = useRef<HTMLDivElement | null>(null)
   const landedRef = useRef<HTMLDivElement | null>(null)
   const tipRef = useRef<HTMLDivElement | null>(null)
+  const arcsRef = useRef<SVGSVGElement | null>(null)
 
   const [activePin, setActivePin] = useState<Pin | null>(null)
 
@@ -202,6 +250,18 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
     }
     const proj: Projected[] = PINS.map(() => ({ x: -1, y: -1, z: -1 }))
     const _o: Projected = { x: 0, y: 0, z: 0 }
+
+    // arc pool (MOVE 1): [0..MAX_AMBIENT-1] ambient + [SCORED] the fly-to beam
+    const arcs: Arc[] = Array.from({ length: MAX_AMBIENT + 1 }, newArc)
+    const _oa: Projected = { x: 0, y: 0, z: 0 } // arc projection scratch
+    const _av: Vec3 = [0, 0, 1] // slerp scratch
+    const _lv: Vec3 = [0, 0, 1] // lifted-point scratch
+    let nextSpawn = 0 // ambient cadence clock (set on build)
+    let lastLandedVec: Vec3 | null = null // scored-beam origin = prior landing
+
+    // pointer parallax (MOVE 4): damped micro-offset added to phi/theta at render
+    let parPhi = 0
+    let parTheta = 0
 
     let globe: Globe | null = null
     let running = false
@@ -240,14 +300,14 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
     }
 
     /* ---------- projection: ambient pins ---------- */
-    function projectPins(): void {
+    function projectPins(phi: number, theta: number): void {
       const w = canvas!.clientWidth
       const h = canvas!.clientHeight
       if (!w) return
       const dim = anim.flying ? 0.1 : 1
       const els = pinEls()
       for (let i = 0; i < PINS.length; i++) {
-        project(PINS[i].r, anim.phi, anim.theta, w, h, _o)
+        project(PINS[i].r, phi, theta, w, h, _o)
         proj[i].x = _o.x
         proj[i].y = _o.y
         proj[i].z = _o.z
@@ -268,11 +328,11 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
 
     /* ---------- projection: landed fly-to pin ---------- */
     let landedDepth = -1
-    function projectLanded(): void {
+    function projectLanded(phi: number, theta: number): void {
       const el = landedRef.current
       const landed = anim.landed
       if (!el || !landed) return
-      project(landed.r, anim.phi, anim.theta, canvas!.clientWidth, canvas!.clientHeight, _o)
+      project(landed.r, phi, theta, canvas!.clientWidth, canvas!.clientHeight, _o)
       if (_o.z > -0.02) {
         const s = 0.9 + Math.max(0, _o.z) * 0.1
         el.style.setProperty(
@@ -282,6 +342,142 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
       }
       // stash depth for the fly-to beat timing
       landedDepth = _o.z
+    }
+
+    /* ---------- great-circle attack arcs (MOVE 1) ---------- */
+    const arcEls = () => (arcsRef.current?.children ?? []) as HTMLCollection
+
+    /** advance every live arc's draw → hold → fade lifecycle. */
+    function stepArcs(dt: number): void {
+      for (let i = 0; i < arcs.length; i++) {
+        const arc = arcs[i]
+        if (!arc.active) continue
+        arc.age += dt
+        if (arc.phase === 0) {
+          arc.progress = Math.min(1, arc.age / arc.drawDur)
+          if (arc.age >= arc.drawDur) {
+            arc.phase = 1
+            arc.age = 0
+            arc.progress = 1
+          }
+        } else if (arc.phase === 1) {
+          if (arc.age >= arc.holdDur) {
+            arc.phase = 2
+            arc.age = 0
+          }
+        } else {
+          const k = Math.min(1, arc.age / arc.fadeDur)
+          arc.opacity = arc.peak * (1 - k)
+          if (k >= 1) {
+            arc.active = false
+            arc.opacity = 0
+          }
+        }
+      }
+    }
+
+    /** spawn ONE sparse ambient arc between two earned (crit/susp) nodes. */
+    function spawnAmbientArc(): boolean {
+      let slot = -1
+      for (let i = 0; i < MAX_AMBIENT; i++)
+        if (!arcs[i].active) {
+          slot = i
+          break
+        }
+      if (slot < 0) return false
+      const n = ARC_NODES.length
+      if (n < 2) return false
+      let a: Vec3 | null = null
+      let b: Vec3 | null = null
+      let omega = 0
+      for (let tries = 0; tries < 8; tries++) {
+        const ia = (Math.random() * n) | 0
+        let ib = (Math.random() * n) | 0
+        if (ib === ia) ib = (ib + 1) % n
+        const ang = arcAngle(ARC_NODES[ia], ARC_NODES[ib])
+        if (ang > 0.45 && ang < 2.5) {
+          a = ARC_NODES[ia]
+          b = ARC_NODES[ib]
+          omega = ang
+          break
+        }
+      }
+      if (!a || !b) return false
+      const arc = arcs[slot]
+      arc.active = true
+      arc.scored = false
+      arc.a = a
+      arc.b = b
+      arc.omega = omega
+      arc.sinOmega = Math.sin(omega)
+      arc.alt = 0.06 + Math.random() * 0.06
+      arc.progress = 0
+      arc.phase = 0
+      arc.age = 0
+      arc.peak = 0.5
+      arc.opacity = 0.5
+      arc.drawDur = 1.2 + Math.random() * 0.5
+      arc.holdDur = 0.9 + Math.random() * 0.6
+      arc.fadeDur = 1.0 + Math.random() * 0.5
+      return true
+    }
+
+    /** slow cadence: at most one ambient arc *drawing* at a time, ≤MAX alive,
+     *  never during the fly-to (the single cinematic beat owns the moment). */
+    function maybeSpawnAmbient(now: number): void {
+      if (anim.flying || now < nextSpawn) return
+      let alive = 0
+      let drawing = false
+      for (let i = 0; i < MAX_AMBIENT; i++) {
+        if (arcs[i].active) {
+          alive++
+          if (arcs[i].phase === 0) drawing = true
+        }
+      }
+      if (alive >= MAX_AMBIENT || drawing) return
+      const ok = spawnAmbientArc()
+      nextSpawn =
+        now +
+        (ok ? AMBIENT_SPAWN_MIN + Math.random() * AMBIENT_SPAWN_JITTER : 1.5) * 1000
+    }
+
+    /** build each arc's <path> d (z-occluded to the front hemisphere) + write
+     *  the draw-on (stroke-dashoffset) + opacity — all CSP-safe attribute/CSSOM
+     *  writes, never a style= attribute. */
+    function renderArcs(phi: number, theta: number): void {
+      const els = arcEls()
+      for (let i = 0; i < arcs.length; i++) {
+        const el = els[i] as SVGPathElement | undefined
+        if (!el) continue
+        const arc = arcs[i]
+        if (!arc.active) {
+          el.style.setProperty('opacity', '0')
+          continue
+        }
+        let d = ''
+        let pen = false
+        for (let k = 0; k < ARC_SAMPLES; k++) {
+          const t = k / (ARC_SAMPLES - 1)
+          slerp(arc.a, arc.b, t, arc.omega, arc.sinOmega, _av)
+          const lift = 1 + arc.alt * Math.sin(Math.PI * t)
+          _lv[0] = _av[0] * lift
+          _lv[1] = _av[1] * lift
+          _lv[2] = _av[2] * lift
+          project(_lv, phi, theta, 1000, 1000, _oa)
+          if (_oa.z > ARC_ZCUT) {
+            // front hemisphere → draw; back → lift the pen (never through earth)
+            d += (pen ? 'L' : 'M') + _oa.x.toFixed(1) + ' ' + _oa.y.toFixed(1) + ' '
+            pen = true
+          } else {
+            pen = false
+          }
+        }
+        el.setAttribute('d', d)
+        // ambient arcs yield during the fly-to; the scored beam stays bright
+        const flyDim = !arc.scored && anim.flying ? 0.1 : 1
+        el.style.setProperty('stroke-dashoffset', (1 - arc.progress).toFixed(4))
+        el.style.setProperty('opacity', (arc.opacity * flyDim).toFixed(3))
+      }
     }
 
     /* ---------- hover hit-test + tooltip ---------- */
@@ -353,8 +549,9 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
        so a theme recolour needs no destroy/rebuild. `width` is the backing-store
        size (clientWidth × cobeDpr) — 0.6.3's convention (see build()). */
     function onRender(state: CobeState): void {
-      let dt = anim.lastT ? (performance.now() - anim.lastT) / 1000 : 0.0167
-      anim.lastT = performance.now()
+      const now = performance.now()
+      let dt = anim.lastT ? (now - anim.lastT) / 1000 : 0.0167
+      anim.lastT = now
       if (dt > 0.05) dt = 0.05
 
       if (anim.flying) {
@@ -367,7 +564,7 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
         anim.gz = anim.flyGz.x
         applyGrow()
         if (!anim.flyBackMode && !anim.landedShown) {
-          projectLanded()
+          projectLanded(anim.phi, anim.theta)
           if (anim.landed && landedDepth > 0.82) beat()
         }
         if (settled(anim.flyPhi) && settled(anim.flyTheta) && settled(anim.flyGz, 0.004, 0.05)) {
@@ -394,10 +591,40 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
         stepZoom(dt)
       }
 
+      // pointer parallax (MOVE 4) — subliminal cursor-ward tilt on the ambient
+      // globe; off during drag/fly and under reduced motion (damps back to 0).
+      let ptX = 0
+      let ptY = 0
+      if (
+        !reduced() &&
+        anim.hovering &&
+        anim.cursor &&
+        !anim.dragging &&
+        !anim.flying &&
+        anim.activeId < 0 && // hold still while inspecting a pin
+        canvas!.clientWidth
+      ) {
+        ptX = anim.cursor.x / canvas!.clientWidth - 0.5
+        ptY = anim.cursor.y / canvas!.clientHeight - 0.5
+      }
+      const kPar = 1 - Math.exp(-dt * 5)
+      parPhi += (ptX * PAR_MAX - parPhi) * kPar
+      parTheta += (-ptY * PAR_MAX - parTheta) * kPar
+      const rPhi = anim.phi + parPhi
+      const rTheta = Math.max(-1.45, Math.min(1.45, anim.theta + parTheta))
+
+      // arcs (MOVE 1) — advance lifecycles + sparse ambient cadence. Gated on
+      // !reduced so an off-loop renderOnce() under reduced motion can't spawn or
+      // advance arcs (the static honest frame has none; .sdh-arcs is display:none).
+      if (!reduced()) {
+        stepArcs(dt)
+        maybeSpawnAmbient(now)
+      }
+
       const p = paletteRef.current
       const w = canvas!.clientWidth * cobeDpr
-      state.phi = anim.phi
-      state.theta = anim.theta
+      state.phi = rPhi
+      state.theta = rTheta
       state.width = w
       state.height = w
       state.baseColor = p.base
@@ -409,8 +636,9 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
       state.mapBaseBrightness = p.mapBaseBrightness
       state.opacity = p.opacity
 
-      projectPins()
-      projectLanded()
+      projectPins(rPhi, rTheta)
+      projectLanded(rPhi, rTheta)
+      renderArcs(rPhi, rTheta)
       updateActive()
     }
 
@@ -418,8 +646,8 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
     function renderOnce(): void {
       if (globe) globe.render()
       else {
-        projectPins()
-        projectLanded()
+        projectPins(anim.phi, anim.theta)
+        projectLanded(anim.phi, anim.theta)
         updateActive()
       }
     }
@@ -476,6 +704,7 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
       }
       // cobe's constructor auto-starts its self-scheduled loop.
       running = true
+      nextSpawn = performance.now() + 1800 // let the globe settle before arcs
       requestAnimationFrame(() => canvas!.classList.add('is-ready'))
       if (reduced()) {
         stopLoop()
@@ -540,6 +769,31 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
       anim.flyGz.x = anim.gz
       anim.flyGz.v = 0
       anim.flyGz.t = FLY_ZOOM
+      // scored incoming beam (MOVE 1): neutral origin → target. PERIWINKLE only —
+      // the verdict tone lives solely on the landed endpoint disc. Draws on over
+      // ~the spring settle, rises off the surface at its apex, then fades, leaving
+      // the dropped pin. (Reduced motion returns above, so no beam there.)
+      {
+        const src: Vec3 = lastLandedVec ?? HOME_VEC
+        const tvec: Vec3 = [t.r[0], t.r[1], t.r[2]]
+        const sc = arcs[SCORED]
+        sc.active = true
+        sc.scored = true
+        sc.a = src
+        sc.b = tvec
+        sc.omega = arcAngle(src, tvec)
+        sc.sinOmega = Math.sin(sc.omega)
+        sc.alt = 0.28 // dramatic apex
+        sc.progress = 0
+        sc.phase = 0
+        sc.age = 0
+        sc.peak = 0.9
+        sc.opacity = 0.9
+        sc.drawDur = 0.9 // ~in sync with the critically-damped spring
+        sc.holdDur = 0.6
+        sc.fadeDur = 0.8
+        lastLandedVec = tvec
+      }
       anim.flying = true
       anim.flyBackMode = false
       anim.spinSuspended = true
@@ -634,7 +888,7 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
           y: ((e.clientY - rect.top) / rect.height) * canvas!.clientHeight,
         }
         if (!running) {
-          projectPins()
+          projectPins(anim.phi, anim.theta)
           updateActive()
         }
       }
@@ -801,6 +1055,7 @@ export function useGlobe(apiRef?: RefObject<GlobeApi | null>): UseGlobeResult {
     pinsRef,
     landedRef,
     tipRef,
+    arcsRef,
     activePin,
     api: apiRefStable.current,
   }

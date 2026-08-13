@@ -209,3 +209,52 @@ export function tierInk(tier: Tier): string {
       ? 'var(--gold)'
       : 'var(--muted)'
 }
+
+/* ============================================================
+   GREAT-CIRCLE ARC MATH — the attack-arc geometry (MOVE 1). Pure vectors so
+   useGlobe can slerp source→target on the unit sphere, lift the mid-arc off the
+   surface (Bézier-ish altitude via sin(πt)), and project each sample with the
+   same project()/unitVec math the pins use — so arcs inherit the exact rotation,
+   fly-to and --globe-grow zoom the globe has.
+   ============================================================ */
+export type Vec3 = [number, number, number]
+
+/** angle (radians) of the great circle between two unit vectors. */
+export function arcAngle(a: Vec3, b: Vec3): number {
+  const d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+  return Math.acos(Math.max(-1, Math.min(1, d)))
+}
+
+/** spherical-linear interpolation along the great circle a→b at t∈[0,1].
+ *  `omega`/`sinOmega` are precomputed once per arc (from arcAngle). Returns a
+ *  unit-ish vector; scale it by an altitude factor to lift it off the sphere. */
+export function slerp(
+  a: Vec3,
+  b: Vec3,
+  t: number,
+  omega: number,
+  sinOmega: number,
+  out: Vec3,
+): void {
+  if (sinOmega < 1e-4) {
+    out[0] = a[0]
+    out[1] = a[1]
+    out[2] = a[2]
+    return
+  }
+  const s0 = Math.sin((1 - t) * omega) / sinOmega
+  const s1 = Math.sin(t * omega) / sinOmega
+  out[0] = a[0] * s0 + b[0] * s1
+  out[1] = a[1] * s0 + b[1] * s1
+  out[2] = a[2] * s0 + b[2] * s1
+}
+
+/** ambient-arc endpoints — the crit/susp pins' unit vectors (real metro coords).
+ *  Ambient arcs route only between these earned nodes, never `low` decoration. */
+export const ARC_NODES: readonly Vec3[] = PINS.filter((p) => p.tier !== 'low').map(
+  (p) => p.r,
+)
+
+/** neutral origin for the scored incoming beam when there's no prior landing —
+ *  a mid-Atlantic "home sensor" (kept off any real actor node). */
+export const HOME_VEC: Vec3 = unitVec(30, -40)

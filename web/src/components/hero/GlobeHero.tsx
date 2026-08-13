@@ -164,7 +164,23 @@ export function GlobeHero({
       {/* globe — decorative visual; the data lives in the copy + tooltip */}
       <div className="sdh-wrap" aria-hidden="true">
         <div ref={g.stageRef} className="sdh-stage">
+          {/* fresnel rim — behind the canvas (MOVE 2) */}
+          <div className="sdh-limb" />
           <canvas ref={g.canvasRef} className="sdh-globe" />
+          {/* great-circle attack arcs — SVG pool: 4 ambient + 1 scored (MOVE 1).
+             Geometry (d), draw-on (stroke-dashoffset) + opacity written per-frame
+             in useGlobe; pathLength=1 normalises the draw-on. */}
+          <svg
+            ref={g.arcsRef}
+            className="sdh-arcs"
+            viewBox="0 0 1000 1000"
+            preserveAspectRatio="none"
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <path key={i} className="sdh-arc" pathLength={1} />
+            ))}
+            <path className="sdh-arc sdh-arc-scored" pathLength={1} />
+          </svg>
           <div ref={g.pinsRef} className="sdh-pins">
             {PINS.map((p) => (
               <div key={p.id} className={cx('sdh-pin', `sdh-${p.tier}`)} />
