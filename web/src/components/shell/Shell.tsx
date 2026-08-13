@@ -4,13 +4,16 @@ import { CommandPalette } from '../palette/CommandPalette'
 import { useCommandPalette } from '../palette/useCommandPalette'
 import type { CommandItem } from '../palette/types'
 import { Omnibox } from './Omnibox'
+import { MobileNav } from './MobileNav'
 import { PageContainer, type ContainerSize } from './PageContainer'
 
 /**
  * Shell — the refined app frame. A superset of the shipped `AppShell`
  * (which cannot host the palette itself): it composes the consumed
- * `Topbar` (with the Omnibox wired into its right slot ahead of the theme
- * toggle), a `PageContainer` main column, and the command palette.
+ * `Topbar` (with the Omnibox + the mobile hamburger menu wired into its
+ * right slot ahead of the theme toggle), a `PageContainer` main column,
+ * and the command palette. `MobileNav` only appears below `md`, where
+ * Topbar's inline nav links hide.
  *
  * Drop-in swap: in App.tsx, replace `<AppShell items={items}>…</AppShell>`
  * with `<Shell items={items}>…</Shell>` — the `items` prop is identical.
@@ -29,7 +32,15 @@ export function Shell({ items, children, views, containerSize = 'default' }: She
 
   return (
     <div className="min-h-svh bg-ink text-paper">
-      <Topbar items={items} right={<Omnibox onOpen={palette.open} />} />
+      <Topbar
+        items={items}
+        right={
+          <>
+            <Omnibox onOpen={palette.open} />
+            <MobileNav items={items} />
+          </>
+        }
+      />
       <PageContainer size={containerSize}>{children}</PageContainer>
       <CommandPalette open={palette.isOpen} onClose={palette.close} views={views} />
     </div>

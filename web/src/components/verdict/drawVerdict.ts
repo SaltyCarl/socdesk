@@ -27,10 +27,13 @@ import {
   cveLead,
   cveModel,
   gaugeCaption,
+  domainAgeLevel,
+  domainModel,
   gaugeSegments,
   hashModel,
   isBannerLed,
   type CveModel,
+  type DomainModel,
   type HashModel,
 } from './model'
 
@@ -67,6 +70,7 @@ function bandInk(T: Palette, band: Band): string {
 
 type Hero =
   | { kind: 'geo'; geo: GeoModel; note: string }
+  | { kind: 'domain'; dm: DomainModel }
   | { kind: 'identity'; hash: HashModel }
   | { kind: 'cve'; cve: CveModel }
   | { kind: 'facts'; label: string; rows: Array<[string, string]> }
@@ -88,10 +92,14 @@ interface CardModel {
   queried: string
 }
 
-function heroFor(data: VerdictData): Hero {
+function heroFor(data: VerdictData, now: Date): Hero {
   if (data.type === 'cve') return { kind: 'cve', cve: cveModel(data) }
   if (data.identityLed) return { kind: 'identity', hash: hashModel(data) }
-  if (data.type === 'ipv4' || data.type === 'domain') {
+  // Domain leads with the registration-age tell (spec §3.3), NOT the geo map —
+  // the newly-registered date is the signal; resolved geo is a secondary line.
+  // (Mirrors the web DomainHero so the two registers agree for one indicator.)
+  if (data.type === 'domain') return { kind: 'domain', dm: domainModel(data, now) }
+  if (data.type === 'ipv4') {
     const geo = geoModel(data.context, data.sources)
     if (geo) return { kind: 'geo', geo, note: dualUseNote(data.sources) ?? '' }
   }
@@ -126,7 +134,7 @@ function cardModel(data: VerdictData, now: Date): CardModel {
     segments: gaugeSegments(data),
     caption: gaugeCaption(data),
     dualUse: dualUseNote(data.sources),
-    hero: heroFor(data),
+    hero: heroFor(data, now),
     sources: data.sources.map((s) => ({
       name: s.name,
       verdict: s.verdict,
@@ -429,6 +437,8 @@ function paintHero(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, draw
   switch (m.hero.kind) {
     case 'geo':
       return paintGeo(ctx, m.hero.geo, T, draw, y, inner)
+    case 'domain':
+      return paintDomain(ctx, m.hero.dm, T, draw, y, inner)
     case 'identity':
       return paintIdentity(ctx, m.hero.hash, T, draw, y, inner)
     case 'cve':
@@ -612,6 +622,111 @@ function paintFlag(ctx: CanvasRenderingContext2D, T: Palette, draw: boolean, x: 
   ctx.lineWidth = 1
   roundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, 3)
   ctx.stroke()
+}
+
+/** Domain registration-age hero — mirrors the web DomainHero (spec §3.3): the
+ *  age + newly-registered state lead; registered date / registrar / resolved geo
+ *  are the supporting facts. Geo is demoted to a secondary line (never a hero,
+ *  never a verdict tone). */
+function paintDomain(ctx: CanvasRenderingContext2D, dm: DomainModel, T: Palette, draw: boolean, y: number, inner: number): number {
+  const ipad = 12
+  const factH = 34
+  const h = ipad + 12 + 8 + 26 + 16 + 10 + (factH * 2 + 8) + ipad
+  heroPanel(ctx, T, draw, y, inner, h)
+
+  const ageInk = dm.newlyRegistered ? T.vAmber : T.text
+  let gy = y + ipad
+  if (draw) {
+    ctx.textAlign = 'left'
+    ctx.font = `700 9px ${SANS}`
+    ctx.fillStyle = T.textFaint
+    ctx.fillText('REGISTRATION AGE — THE NEWLY-REGISTERED TELL', PAD + ipad, gy + 8)
+  }
+  gy += 12 + 8
+
+  if (draw) {
+    ctx.font = `800 20px ${SANS}`
+    ctx.fillStyle = ageInk
+    ctx.textAlign = 'left'
+    ctx.fillText(dm.ageLabel, PAD + ipad, gy + 16)
+    if (dm.newlyRegistered) {
+      const chip = 'NEWLY REGISTERED'
+      ctx.font = `700 8px ${MONO}`
+      const cw = ctx.measureText(chip).width + 14
+      const cx = W - PAD - ipad - cw
+      ctx.fillStyle = mix(T.vAmber, T.panel, 0.16)
+      roundRect(ctx, cx, gy + 2, cw, 16, 4)
+      ctx.fill()
+      ctx.fillStyle = T.vAmber
+      ctx.textAlign = 'center'
+      ctx.fillText(chip, cx + cw / 2, gy + 13)
+      ctx.textAlign = 'left'
+    }
+  }
+  gy += 26
+
+  // discrete maturity meter — younger → older (amber when newly registered)
+  if (draw) {
+    const barW = 16
+    const barH = 10
+    const gap = 4
+    const level = domainAgeLevel(dm.ageDays)
+    for (let i = 0; i < 5; i++) {
+      const bx = PAD + ipad + i * (barW + gap)
+      const on = i < level
+      ctx.fillStyle = on ? (dm.newlyRegistered ? T.vAmber : T.accent) : mix(T.border2, T.panel, 0.6)
+      roundRect(ctx, bx, gy, barW, barH, 3)
+      ctx.fill()
+    }
+    ctx.font = `400 8.5px ${MONO}`
+    ctx.fillStyle = T.textFaint
+    ctx.textAlign = 'right'
+    ctx.fillText('younger → older', W - PAD - ipad, gy + 8)
+    ctx.textAlign = 'left'
+  }
+  gy += 16 + 10
+
+  // supporting facts (2×2): registered · registrar · resolves-to · hosting
+  const resolved = dm.resolved
+    ? [dm.resolved.countryName, dm.resolved.city].filter(Boolean).join(' · ') || '—'
+    : '—'
+  const hosting = dm.resolved
+    ? [dm.resolved.asn, dm.resolved.org].filter(Boolean).join(' · ') || '—'
+    : '—'
+  const facts: Array<[string, string]> = [
+    ['REGISTERED', dm.registered],
+    ['REGISTRAR', dm.registrar],
+    ['RESOLVES TO', resolved],
+    ['HOSTING', hosting],
+  ]
+  const gap2 = 8
+  const fw = (inner - ipad * 2 - gap2) / 2
+  const mc = measurer()
+  if (draw) {
+    facts.forEach(([k, v], i) => {
+      const col = i % 2
+      const row = Math.floor(i / 2)
+      const fx = PAD + ipad + col * (fw + gap2)
+      const fyy = gy + row * (factH + 8)
+      ctx.fillStyle = T.field
+      ctx.strokeStyle = mix(T.accent, T.border, 0.18)
+      ctx.lineWidth = 1
+      roundRect(ctx, fx, fyy, fw, factH, 4)
+      ctx.fill()
+      ctx.stroke()
+      ctx.font = `700 7.5px ${MONO}`
+      ctx.fillStyle = T.textFaint
+      ctx.textAlign = 'left'
+      ctx.fillText(k, fx + 8, fyy + 12)
+      ctx.font = `600 10.5px ${MONO}`
+      ctx.fillStyle = T.text
+      const vv = wrap(mc, v, `600 10.5px ${MONO}`, fw - 16)[0] ?? v
+      ctx.fillText(vv, fx + 8, fyy + 26)
+    })
+  }
+  gy += factH * 2 + 8
+
+  return y + h + 12
 }
 
 function paintIdentity(ctx: CanvasRenderingContext2D, hash: HashModel, T: Palette, draw: boolean, y: number, inner: number): number {

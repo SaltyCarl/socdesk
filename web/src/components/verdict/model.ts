@@ -150,18 +150,32 @@ export interface DomainModel {
   resolved: GeoModel | null
 }
 
-function daysSince(iso: string): number {
+function daysSince(iso: string, now: Date): number {
   const t = Date.parse(iso)
   if (!Number.isFinite(t)) return NaN
-  return Math.max(0, Math.round((Date.now() - t) / 864e5))
+  return Math.max(0, Math.round((now.getTime() - t) / 864e5))
 }
 
-export function domainModel(data: VerdictData): DomainModel {
+/** Domain-age maturity bucket (0–5) for the discrete meter. Shared thresholds
+ *  so the web DomainHero and the copy-card canvas read the same tell. */
+export function domainAgeLevel(ageDays: number): number {
+  if (!Number.isFinite(ageDays)) return 0
+  if (ageDays <= 30) return 1
+  if (ageDays <= 90) return 2
+  if (ageDays <= 365) return 3
+  if (ageDays <= 1095) return 4
+  return 5
+}
+
+/** `now` is injected so the canvas can render byte-deterministically for a fixed
+ *  render clock; the web hero calls it with the default (live) clock. When the
+ *  WHOIS row carries an explicit age, no clock is read at all. */
+export function domainModel(data: VerdictData, now: Date = new Date()): DomainModel {
   const whois = data.context.find((c) => /whois|registr/i.test(c.name)) ?? data.context[0]
   const fm = factMap(whois?.facts)
   const registered = pick(fm, 'registered', 'created', 'registration date')
   const explicitAge = parseInt(pick(fm, 'age', 'age (days)').replace(/[^\d]/g, ''), 10)
-  const ageDays = Number.isFinite(explicitAge) && explicitAge > 0 ? explicitAge : daysSince(registered)
+  const ageDays = Number.isFinite(explicitAge) && explicitAge > 0 ? explicitAge : daysSince(registered, now)
   const ageLabel = !Number.isFinite(ageDays)
     ? 'Registration age unknown'
     : ageDays < 45
