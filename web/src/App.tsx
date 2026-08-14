@@ -3,6 +3,7 @@ import { Shell, type ContainerSize } from './components/shell'
 import { Overview } from './routes/Overview'
 import { Lookup } from './routes/Lookup'
 import { DataDeskRoute } from './routes/DataDeskRoute'
+import { ActorProfileRoute } from './routes/ActorProfileRoute'
 import { Gallery } from './routes/Gallery'
 
 /**
@@ -44,6 +45,7 @@ const ROUTES: Route[] = [
   },
   { path: '/lookup', label: 'Lookup', size: 'default', el: <Lookup /> },
   { path: '/desk', label: 'Desk', size: 'default', el: <DataDeskRoute /> },
+  { path: '/actor', label: 'Profiles', size: 'default', el: <ActorProfileRoute /> },
   { path: '/gallery', label: 'Gallery', size: 'default', el: <Gallery /> },
 ]
 

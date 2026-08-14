@@ -1,6 +1,6 @@
 import { cx } from '@socdesk/shared/lib/cx'
 import { num } from '../views/format'
-import { BoardPanel, DeskLink, SourceStamp, PanelEmpty } from './board-ui'
+import { ActorLink, BoardPanel, DeskLink, SourceStamp, PanelEmpty } from './board-ui'
 import { barWidthClass } from './widths'
 import type { RansomSummary } from './aggregations'
 
@@ -19,9 +19,12 @@ const TOP_N = 8
 function GroupRow({ name, claims, max }: { name: string; claims: number; max: number }) {
   return (
     <div className="flex items-center gap-4 py-2">
-      <span className="w-40 shrink-0 truncate font-mono text-base font-semibold text-paper">
+      <ActorLink
+        name={name}
+        className="w-40 shrink-0 truncate font-mono text-base font-semibold text-paper hover:text-accent hover:underline"
+      >
         {name}
-      </span>
+      </ActorLink>
       <span className="h-2 flex-1 overflow-hidden rounded-full bg-panel-soft">
         <span
           className={cx('block h-full rounded-full bg-accent', barWidthClass(claims / max))}

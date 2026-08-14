@@ -30,8 +30,12 @@ export interface RansomSummary {
  * victim claims", with the count in `why` ("5 claims in window") or the title
  * ("posted N victim claims"); a singular "a new victim claim" is 1. Counting
  * ITEMS would badly undercount, so we parse the real claim tally per post.
+ *
+ * Exported so the actor-profile selectors (views/profiles.ts) sum a single
+ * group's claims with the EXACT same parser the board uses — the two surfaces
+ * can never disagree on a group's tally.
  */
-function claimCount(it: FeedItem): number {
+export function claimCount(it: FeedItem): number {
   const why = (it.why ?? []).join(' ')
   let m = why.match(/(\d+)\s+claims?/i)
   if (m) return Number(m[1])

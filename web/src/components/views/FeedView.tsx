@@ -10,6 +10,7 @@ import type { FeedItem } from './types'
 import { rel, safeUrl } from './format'
 import { ScoreBadge, MonoTag } from './Badges'
 import { EmptyState } from './states'
+import { navigate } from '../palette/commands'
 
 /**
  * The feed IS the work queue: score-sorted by default so the highest-relevance
@@ -24,6 +25,23 @@ const STEP = 100
 const REVIEWED_KEY = 'socdesk-reviewed'
 
 type Sort = 'priority' | 'newest'
+
+/**
+ * Analyst LENSES — curated groupings laid over the collector's raw categories.
+ * A lens can OR several categories (e.g. "Named actors" spans apt + campaign),
+ * so the bar reads as triage intent rather than the pipeline's taxonomy. "All"
+ * is the implicit no-filter lens, always rendered first; any lens whose live
+ * count is 0 is omitted so the bar degrades honestly.
+ */
+type Lens = { key: string; label: string; categories: readonly string[] }
+
+const LENSES: readonly Lens[] = [
+  { key: 'ransomware', label: 'Ransomware', categories: ['ransomware'] },
+  { key: 'actors', label: 'Named actors', categories: ['apt', 'campaign'] },
+  { key: 'vulnerabilities', label: 'Vulnerabilities', categories: ['vulnerability'] },
+  { key: 'reports', label: 'Reports', categories: ['report'] },
+  { key: 'malware', label: 'Malware', categories: ['malware'] },
+]
 
 function loadReviewed(): Set<string> {
   try {
@@ -103,6 +121,37 @@ function FilterChip({
   )
 }
 
+/**
+ * An entity actor rendered as a deep-link into its /actor profile. A real
+ * crawlable `<a href>` (modifier-click / middle-click open a new tab), but a
+ * plain left-click is intercepted into the SPA's pushState navigation — the
+ * same click-intercept the board's DeskLink uses. `stopPropagation` keeps the
+ * click off the enclosing row's select handler, mirroring the title link.
+ * The profile route consumes `/actor#g=<lowercased-name>`.
+ */
+function ActorLink({ name }: { name: string }) {
+  const href = `/actor#g=${name.toLowerCase()}`
+  return (
+    <a
+      href={href}
+      onClick={(e) => {
+        e.stopPropagation()
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+        e.preventDefault()
+        navigate(href)
+      }}
+      className={cx(
+        'inline-flex items-center rounded-sm border px-1.5 py-0.5 font-mono text-micro font-semibold',
+        'border-[var(--edge-accent)] bg-[var(--tint-accent)] text-accent',
+        'underline-offset-2 transition-colors duration-150 ease-brand hover:underline',
+        'outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent',
+      )}
+    >
+      {name}
+    </a>
+  )
+}
+
 /* ---------------- the row ---------------- */
 
 function Row({
@@ -123,6 +172,7 @@ function Row({
   const href = safeUrl(item.url)
   const why = (item.why ?? []).slice(0, 3)
   const extraWhy = (item.why?.length ?? 0) - why.length
+  const actors = item.entities?.actors ?? []
 
   return (
     <div
@@ -169,6 +219,16 @@ function Row({
           </span>
         )}
         <p className="line-clamp-2 text-xs text-muted">{item.summary}</p>
+        {actors.length > 0 && (
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-micro uppercase tracking-label text-faint">
+              actors
+            </span>
+            {actors.map((name) => (
+              <ActorLink key={name} name={name} />
+            ))}
+          </div>
+        )}
         {(why.length > 0 || extraWhy > 0) && (
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
             <span className="font-mono text-micro uppercase tracking-label text-faint">
@@ -231,21 +291,26 @@ export function FeedView({ items }: { items: FeedItem[] }) {
   const [sel, setSel] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
 
-  const categories = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const it of items) counts.set(it.category, (counts.get(it.category) ?? 0) + 1)
-    return [
-      { key: 'all', count: items.length },
-      ...[...counts.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .map(([key, count]) => ({ key, count })),
-    ]
+  const lenses = useMemo(() => {
+    const catCounts = new Map<string, number>()
+    for (const it of items)
+      catCounts.set(it.category, (catCounts.get(it.category) ?? 0) + 1)
+    const active = LENSES.map((l) => ({
+      key: l.key,
+      label: l.label,
+      count: l.categories.reduce((sum, c) => sum + (catCounts.get(c) ?? 0), 0),
+    })).filter((l) => l.count > 0)
+    return [{ key: 'all', label: 'All', count: items.length }, ...active]
   }, [items])
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
+    const allowed =
+      filter === 'all'
+        ? null
+        : (LENSES.find((l) => l.key === filter)?.categories ?? null)
     const hit = items.filter((it) => {
-      if (filter !== 'all' && it.category !== filter) return false
+      if (allowed && !allowed.includes(it.category)) return false
       if (!q) return true
       const hay = (
         it.title +
@@ -340,14 +405,14 @@ export function FeedView({ items }: { items: FeedItem[] }) {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {categories.map((c) => (
+          {lenses.map((l) => (
             <FilterChip
-              key={c.key}
-              active={filter === c.key}
-              label={c.key}
-              count={c.count}
+              key={l.key}
+              active={filter === l.key}
+              label={l.label}
+              count={l.count}
               onClick={() => {
-                setFilter(c.key)
+                setFilter(l.key)
                 setLimit(INIT)
               }}
             />
@@ -371,7 +436,7 @@ export function FeedView({ items }: { items: FeedItem[] }) {
       {visible.length === 0 ? (
         <EmptyState title="No reports match this filter">
           {query.trim() || filter !== 'all'
-            ? 'Loosen the search or switch back to the “all” category — the collected reports are still here, just filtered out.'
+            ? 'Loosen the search or switch back to the “All” lens — the collected reports are still here, just filtered out.'
             : 'Nothing has been collected into the feed yet. The pipeline publishes on a schedule; the queue fills on the next successful pull.'}
         </EmptyState>
       ) : (

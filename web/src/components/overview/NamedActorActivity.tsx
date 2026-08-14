@@ -1,6 +1,7 @@
+import { Fragment } from 'react'
 import { rel, safeUrl } from '../views/format'
 import { MonoTag } from '../views/Badges'
-import { BoardPanel, DeskLink, PanelEmpty } from './board-ui'
+import { ActorLink, BoardPanel, DeskLink, PanelEmpty } from './board-ui'
 import type { ActorReport } from './aggregations'
 
 /**
@@ -21,7 +22,14 @@ function ActorRow({ report }: { report: ActorReport }) {
       <div className="flex items-center gap-2">
         <MonoTag tone="faint">{report.category}</MonoTag>
         <span className="truncate font-mono text-xs font-semibold text-paper">
-          {report.actors.join(' · ')}
+          {report.actors.map((a, i) => (
+            <Fragment key={a}>
+              {i > 0 && <span className="text-faint"> · </span>}
+              <ActorLink name={a} className="hover:text-accent hover:underline">
+                {a}
+              </ActorLink>
+            </Fragment>
+          ))}
         </span>
       </div>
       {href ? (

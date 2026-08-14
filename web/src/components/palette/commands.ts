@@ -39,6 +39,14 @@ export const DEFAULT_VIEWS: CommandItem[] = [
     keywords: ['feed', 'vulnerabilities', 'actors', 'health', 'sources', 'triage'],
   },
   {
+    id: 'view:actor',
+    kind: 'view',
+    label: 'Threat profiles',
+    hint: '/actor',
+    href: '/actor',
+    keywords: ['actor', 'ransomware', 'group', 'apt', 'malware', 'profile', 'adversary', 'attack'],
+  },
+  {
     id: 'view:gallery',
     kind: 'view',
     label: 'Design gallery',

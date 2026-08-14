@@ -61,6 +61,46 @@ export function DeskLink({
   )
 }
 
+/* ---------------- SPA deep-link into /actor#g=<slug> ---------------- */
+
+/**
+ * A real `<a href="/actor#g=<slug>">` to an entity's profile — crawlable and
+ * ⌘/middle-clickable into a new tab, but a plain left-click is intercepted into
+ * the app's pushState navigation (same contract as DeskLink). `name` is
+ * lowercased to the address slug (matching feed entities + relations casing);
+ * appearance is caller-controlled via `className` (hover treatment included, so
+ * the same link works as a leaderboard row, an actor tag, or a card).
+ */
+export function ActorLink({
+  name,
+  className,
+  children,
+}: {
+  name: string
+  className?: string
+  children?: ReactNode
+}) {
+  const slug = name.trim().toLowerCase()
+  const href = `/actor#g=${encodeURIComponent(slug)}`
+  return (
+    <a
+      href={href}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+        e.preventDefault()
+        navigate(href)
+      }}
+      className={cx(
+        'underline-offset-2 outline-offset-2 transition-colors duration-150 ease-brand',
+        'focus-visible:outline-2 focus-visible:outline-accent',
+        className,
+      )}
+    >
+      {children ?? name}
+    </a>
+  )
+}
+
 /* ---------------- panel frame ---------------- */
 
 /**
