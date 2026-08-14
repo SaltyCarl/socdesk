@@ -54,6 +54,14 @@ export const DEFAULT_VIEWS: CommandItem[] = [
     href: '/gallery',
     keywords: ['tokens', 'primitives', 'components', 'design system', 'style'],
   },
+  {
+    id: 'view:privacy',
+    kind: 'view',
+    label: 'Privacy',
+    hint: '/privacy',
+    href: '/privacy',
+    keywords: ['privacy', 'disclosure', 'data', 'tracking', 'cookies', 'policy', 'legal'],
+  },
 ]
 
 export const DEFAULT_ACTIONS: CommandItem[] = [

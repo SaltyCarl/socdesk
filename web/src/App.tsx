@@ -5,6 +5,7 @@ import { Lookup } from './routes/Lookup'
 import { DataDeskRoute } from './routes/DataDeskRoute'
 import { ActorProfileRoute } from './routes/ActorProfileRoute'
 import { Gallery } from './routes/Gallery'
+import { Privacy } from './routes/Privacy'
 
 /**
  * App router — a tiny pathname read (no router dependency) drives a small
@@ -26,6 +27,9 @@ interface Route {
   label: string
   size: ContainerSize
   el: ReactNode
+  /** Show as a primary top-nav tab. Routable-but-hidden pages (e.g. the
+   *  disclosure page, reached from the footer + palette) set this false. */
+  nav?: boolean
 }
 
 const ROUTES: Route[] = [
@@ -47,6 +51,7 @@ const ROUTES: Route[] = [
   { path: '/desk', label: 'Desk', size: 'default', el: <DataDeskRoute /> },
   { path: '/actor', label: 'Profiles', size: 'default', el: <ActorProfileRoute /> },
   { path: '/gallery', label: 'Gallery', size: 'default', el: <Gallery /> },
+  { path: '/privacy', label: 'Privacy', size: 'default', el: <Privacy />, nav: false },
 ]
 
 function useRoute(): string {
@@ -65,7 +70,7 @@ function App() {
   const active =
     ROUTES.find((r) => r.path !== '/' && norm.endsWith(r.path)) ?? ROUTES[0]
 
-  const items = ROUTES.map((r) => ({
+  const items = ROUTES.filter((r) => r.nav !== false).map((r) => ({
     label: r.label,
     href: r.path,
     active: r.path === active.path,

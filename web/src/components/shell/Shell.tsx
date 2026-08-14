@@ -31,7 +31,7 @@ export function Shell({ items, children, views, containerSize = 'default' }: She
   const palette = useCommandPalette()
 
   return (
-    <div className="min-h-svh bg-ink text-paper">
+    <div className="flex min-h-svh flex-col bg-ink text-paper">
       <Topbar
         items={items}
         right={
@@ -41,8 +41,34 @@ export function Shell({ items, children, views, containerSize = 'default' }: She
           </>
         }
       />
-      <PageContainer size={containerSize}>{children}</PageContainer>
+      <PageContainer size={containerSize} className="flex-1">
+        {children}
+      </PageContainer>
+      <SiteFooter />
       <CommandPalette open={palette.isOpen} onClose={palette.close} views={views} />
     </div>
+  )
+}
+
+/**
+ * Recessive site footer — a single hairline over a quiet attribution line and
+ * the disclosure link (the app's only legal surface). Kept in the shell so it
+ * appears on every route.
+ */
+function SiteFooter() {
+  return (
+    <footer className="border-t border-line">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-xs text-faint">
+          SOCDesk — a non-commercial personal portfolio project.
+        </span>
+        <a
+          href="/privacy"
+          className="font-mono text-micro font-semibold uppercase tracking-label text-faint outline-offset-2 transition-colors duration-150 ease-brand hover:text-paper focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          Privacy
+        </a>
+      </div>
+    </footer>
   )
 }
