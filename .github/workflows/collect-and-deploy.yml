@@ -54,6 +54,22 @@ jobs:
         # The Framework's brief.json pushes use a deploy key, so they DO
         # trigger this workflow. That asymmetry is intentional.
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web/ (Vite)
+        # Runs AFTER the collectors so run_pipeline's dual-write to
+        # web/public/data/state is fresh; Vite copies it into web/dist/data/state,
+        # along with web/public/_headers + _redirects. The strict CSP + the SPA
+        # deep-link fallback ship with the build output.
+        run: |
+          npm --prefix web ci
+          npm --prefix web run build
+
       # Direct upload, deliberately not the Cloudflare Git integration.
       # Git-integration builds are capped at 500/month on the free plan and
       # this workflow deploys ~1,440 times a month; direct uploads are not
@@ -77,6 +93,10 @@ jobs:
           # CF_PRODUCTION_BRANCH under Settings -> Secrets and variables ->
           # Actions -> Variables to whatever the dashboard reports and re-run.
           # No CLI, no API call.
+          # Deploys web/dist (the Vite build) — the React app supersedes the
+          # legacy vanilla site/. Pages Functions are read from the repo-root
+          # functions/ dir (project-root-relative, not deploy-dir-relative), so
+          # /api/enrich still co-deploys. VALIDATE this on a preview branch first.
           command: >-
-            pages deploy site --project-name=socdesk
+            pages deploy web/dist --project-name=socdesk
             --branch=${{ vars.CF_PRODUCTION_BRANCH || 'main' }}

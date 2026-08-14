@@ -1,0 +1,5 @@
+# SPA fallback for the client-side path router (/lookup, /desk, /actor, /gallery).
+# Cloudflare Pages matches Functions (/api/*) and static assets BEFORE this
+# catch-all, so /api/enrich and /assets/* are unaffected; only unmatched paths
+# fall through to index.html, where the in-app router resolves the deep link.
+/*    /index.html    200
