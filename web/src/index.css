@@ -53,6 +53,10 @@
   html, body {
     background: var(--ink);
     color: var(--paper);
+    /* The hero globe bleeds off the right edge by design; clip (not hidden, so
+       the sticky topbar keeps working) so the bleed never spawns a document
+       horizontal scrollbar. */
+    overflow-x: clip;
   }
   body {
     margin: 0;

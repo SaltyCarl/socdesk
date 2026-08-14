@@ -1,25 +1,31 @@
 /**
- * useGlobe3 — the three.js hero globe (A/B candidate alongside the cobe globe).
+ * useGlobe3 — the three.js hero globe engine.
  *
- * WHY three.js: cobe renders an OPAQUE sphere, so light mode is a persistent
- * dark-orb-on-cream bug. Real material control fixes it: the sphere BODY is a
- * transparent ShaderMaterial (near-invisible on espresso, warm-greige on cream)
- * with a view-anchored fresnel RIM; a colour-write-off depth OCCLUDER gives the
- * dots + arcs FREE back-hemisphere occlusion via the depth buffer.
+ * WHY three.js: real material control fixes light mode — the sphere BODY is a
+ * transparent ShaderMaterial (near-invisible on slate, warm-greige on cool
+ * light) with a view-anchored fresnel RIM; a colour-write-off depth OCCLUDER
+ * gives the dots + pins FREE back-hemisphere occlusion via the depth buffer.
  *
- * Ported from the cobe build: critically-damped spring FLY-TO (stepSpring drives
- * globe rotation + a real camera dolly), sparse great-circle ARCS (periwinkle;
- * verdict tone ONLY on the scored endpoint), verdict landed marker that rises +
- * pulses once, pointer PARALLAX, and the same gating (IntersectionObserver +
- * visibilitychange + DPR cap + reduced-motion static frame + dispose on unmount).
+ * Engine (preserved): critically-damped spring FLY-TO (stepSpring drives globe
+ * rotation + a compositor zoom), pointer PARALLAX, a verdict landed marker that
+ * rises + pulses once, and the gating (IntersectionObserver + visibilitychange
+ * + DPR cap + reduced-motion static frame + dispose on unmount). Rotation is the
+ * exact M(phi,theta) the dot-sample uses, so unitVec-placed pins align.
  *
- * Rotation matches cobe EXACTLY: the globe group's matrix is cobe's M(phi,theta)
- * so flyTargets()/unitVec() carry over and the dots align with the landmask.
+ * DATA (honest): the pins are REAL, sourced points injected by the caller
+ * (heroLayers.ts) — the reported-IP scatter (abuse.ch) + ransomware-by-victim-
+ * country (ransomware.live). Both periwinkle (a single shader uniform). The
+ * fabricated mock PINS + the mock GEO fly-to table + the ambient "attack arcs"
+ * (which implied attack traffic) are GONE — no invented intel, no asserted flows.
+ *
+ * ENRICH LANDING: the engine listens for `socdesk:enrich-result`, lands on the
+ * live result's REAL coordinates, and reveals the real sourced verdict card
+ * (verdict tone drives the marker + card accent). No geo → no landing.
  *
  * CSP: three core + hand-wired GLSL (compile ≠ eval). No R3F/drei, no loaders/
- * workers, no external assets (landmask is a bundled data: URI). Tooltip stays
- * the DOM .sdh-tip, re-driven by Vector3.project(camera). Every DOM write is
- * setProperty/classList — zero style= attributes in JSX.
+ * workers, no external assets (landmask is a bundled data: URI). The tooltip
+ * stays the DOM .sdh-tip, re-driven by Vector3.project(camera); every DOM write
+ * is setProperty/classList — zero style= attributes in JSX.
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -32,12 +38,10 @@ import {
   BufferGeometry,
   Float32BufferAttribute,
   Points,
-  Line,
   Mesh,
   SphereGeometry,
   RingGeometry,
   ShaderMaterial,
-  LineBasicMaterial,
   MeshBasicMaterial,
   Raycaster,
   Vector2,
@@ -47,22 +51,15 @@ import {
 } from 'three'
 import { resolveTheme, onSystemThemeChange } from '@socdesk/shared/lib/theme'
 import { buildLandPositions, tierColor3 } from './globe3'
+import { unitVec, flyTargets, type Tier, type FlyTarget, type Vec3 } from './pins'
 import {
-  PINS,
-  GEO,
-  unitVec,
-  flyTargets,
-  ambientDiameter,
-  slerp,
-  arcAngle,
-  ARC_NODES,
-  HOME_VEC,
-  tierInk,
-  type Tier,
-  type Pin,
-  type FlyTarget,
-  type Vec3,
-} from './pins'
+  parseCoords,
+  buildEnrichCard,
+  type HeroPin,
+  type EnrichCard,
+  type EnrichApiResult,
+} from './heroLayers'
+import type { HeroCard } from './TipCard'
 
 /* -- rotation / camera / spring tunables (ported) -- */
 const THETA = 0.18
@@ -70,26 +67,17 @@ const OMEGA = 7.2
 const ZMIN = 1.0
 const ZMAX = 1.6
 const FLY_ZOOM = 1.42
-// camera distance — sphere ≈ 0.78 of the canvas so it never clips the frame at
-// rest. Zoom is a compositor CSS scale on the stage (cobe's --globe-grow), NOT a
-// camera dolly, so the sphere renders at a stable size and can't hit the canvas
-// rectangle at any zoom; the growth bleeds off the right edge (like cobe).
 const BASE_Z = 3.3
 const FOV = 45
 const DPR_CAP = 2
 const OVERSAMPLE = 1.5 // backing-store oversample → crisp under the CSS zoom
 const PAR_MAX = 0.06 // pointer parallax (radians)
 
-/* -- arc tunables (ported: SPARSE, slow cadence) -- */
-const ARC_SAMPLES = 40
-const MAX_AMBIENT = 4
-const SCORED = MAX_AMBIENT
-const AMBIENT_SPAWN_MIN = 4.6
-const AMBIENT_SPAWN_JITTER = 3.0
-
 /* -- look knobs -- */
-const DOT_SIZE = 5.6 // base dot point-size — fuller continents (denser sample too)
+const DOT_SIZE = 5.6
 const LIGHT_DIR: [number, number, number] = [-0.5, 0.55, 0.78] // view-space key light
+const PIN_LIFT = 1.012 // pins/marker sit just above the surface
+const HOVER_GRACE_MS = 130 // hover→card bridge (lets the pointer reach the card)
 
 /* -- critically-damped spring (ported verbatim) -- */
 interface Spring {
@@ -123,7 +111,7 @@ interface Anim {
   lastX: number
   hovering: boolean
   cursorNDC: { x: number; y: number } | null
-  activeId: number
+  hoverIdx: number
   flying: boolean
   flyBackMode: boolean
   spinSuspended: boolean
@@ -139,38 +127,14 @@ function newAnim(): Anim {
   return {
     phi: 0, targetPhi: 0, theta: THETA,
     gz: 1, gzTarget: 1, spinFactor: 1, lastT: 0,
-    dragging: false, lastX: 0, hovering: false, cursorNDC: null, activeId: -1,
+    dragging: false, lastX: 0, hovering: false, cursorNDC: null, hoverIdx: -1,
     flying: false, flyBackMode: false, spinSuspended: false, landedShown: false,
     landed: null, parPhi: 0, parTheta: 0,
     flyPhi: newSpring(), flyTheta: newSpring(), flyGz: newSpring(),
   }
 }
 
-interface Arc3 {
-  active: boolean
-  scored: boolean
-  a: Vec3
-  b: Vec3
-  omega: number
-  sinOmega: number
-  alt: number
-  progress: number
-  phase: 0 | 1 | 2
-  age: number
-  peak: number
-  drawDur: number
-  holdDur: number
-  fadeDur: number
-}
-function newArc3(): Arc3 {
-  return {
-    active: false, scored: false, a: [0, 0, 1], b: [0, 0, 1],
-    omega: 0, sinOmega: 0, alt: 0, progress: 0, phase: 0, age: 0,
-    peak: 0.5, drawDur: 1.3, holdDur: 1.0, fadeDur: 1.1,
-  }
-}
-
-/* -- per-theme look (mirrors index.css token families; numeric for three) -- */
+/* -- per-theme look (mirrors tokens.css families; numeric for three) -- */
 interface Theme3 {
   dot: [number, number, number]
   dotShade: [number, number, number]
@@ -184,8 +148,6 @@ interface Theme3 {
 function theme3(dark: boolean): Theme3 {
   return dark
     ? {
-        // DARK — bright periwinkle land on near-invisible espresso body; a brighter
-        // shaded floor so continents stay legible across the whole sphere.
         dot: [0.57, 0.62, 1.0],
         dotShade: [0.34, 0.37, 0.66],
         pin: [0.62, 0.66, 1.0],
@@ -196,9 +158,6 @@ function theme3(dark: boolean): Theme3 {
         rimPower: 3.0,
       }
     : {
-        // ⭐ light mode is the whole point: greige body + periwinkle dots, NOT a dark orb.
-        // Land dots deepened/saturated to pop hard on the greige, and bodyAlpha cut so
-        // the ocean recedes and the continents DEFINE the sphere (less "flat ball").
         dot: [0.16, 0.18, 0.72],
         dotShade: [0.29, 0.3, 0.5],
         pin: [0.17, 0.19, 0.7],
@@ -210,32 +169,30 @@ function theme3(dark: boolean): Theme3 {
       }
 }
 
-/* -- live-enrich result → fly target (dormant on the static tier) -- */
-interface EnrichSource {
-  kind?: string
-  facts?: Array<[string, string]>
-}
-interface EnrichResult {
-  tone?: string
-  flagged?: number
-  consulted?: number
-  sources?: EnrichSource[]
-}
-function geoFromResult(result: EnrichResult | undefined): FlyTarget | null {
-  if (!result || !Array.isArray(result.sources)) return null
-  const ctx = result.sources.find((s) => s && s.kind === 'context')
-  if (!ctx || !Array.isArray(ctx.facts)) return null
-  const co = ctx.facts.find((f) => Array.isArray(f) && /coordinates/i.test(f[0]))
-  if (!co) return null
-  const m = String(co[1]).match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/)
-  if (!m) return null
-  const tier: Tier =
-    result.tone === 'red' ? 'crit' : result.tone === 'amber' ? 'susp' : 'low'
-  const ratio = result.consulted ? (result.flagged ?? 0) / result.consulted : 0
-  return { r: unitVec(parseFloat(m[1]), parseFloat(m[2])), tier, sev: Math.round(ratio * 100) }
+/** verdict tone → the tooltip accent custom-property. Periwinkle for the
+ *  reported layers; verdict red/amber/green ONLY for the real enrich tally. */
+function accentFor(card: HeroCard): string {
+  if (card.kind !== 'enrich') return 'var(--accent)'
+  return card.tone === 'red'
+    ? 'var(--red)'
+    : card.tone === 'amber'
+      ? 'var(--gold)'
+      : card.tone === 'green'
+        ? 'var(--green)'
+        : 'var(--muted)'
 }
 
-/* -- GLSL (ShaderMaterial injects projection/modelView/normalMatrix + position/normal) -- */
+/** live-enrich result → fly target (real coords + real tone). null = no geo. */
+function targetFromResult(result: EnrichApiResult | undefined): FlyTarget | null {
+  const co = parseCoords(result)
+  if (!co) return null
+  const tier: Tier =
+    result?.tone === 'red' ? 'crit' : result?.tone === 'amber' ? 'susp' : 'low'
+  const ratio = result?.consulted ? (result.flagged ?? 0) / result.consulted : 0
+  return { r: unitVec(co.lat, co.lng), tier, sev: Math.round(ratio * 100) }
+}
+
+/* -- GLSL (ShaderMaterial injects projection/modelView/normalMatrix + attrs) -- */
 const DOT_VERT = `
   uniform float uSize; uniform float uPix; uniform vec3 uLightDir;
   varying float vShade;
@@ -322,8 +279,9 @@ const MARK_FRAG = `
   }`
 
 export interface GlobeApi {
+  /** Programmatic land on real coordinates (verdict tone optional). */
   flyToLatLng(lat: number, lng: number, opts?: { tier?: Tier; sev?: number }): void
-  flyToIndicator(raw: string): boolean
+  /** Return home (also fired by Escape). */
   flyBack(): void
 }
 export interface UseGlobe3Result {
@@ -331,25 +289,31 @@ export interface UseGlobe3Result {
   stageRef: RefObject<HTMLDivElement | null>
   canvasRef: RefObject<HTMLCanvasElement | null>
   tipRef: RefObject<HTMLDivElement | null>
-  activePin: Pin | null
+  activeCard: HeroCard | null
   api: GlobeApi
 }
 
-export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result {
+export function useGlobe3(
+  pins: HeroPin[],
+  apiRef?: RefObject<GlobeApi | null>,
+): UseGlobe3Result {
   const rootRef = useRef<HTMLElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const tipRef = useRef<HTMLDivElement | null>(null)
-  const [activePin, setActivePin] = useState<Pin | null>(null)
+  const [activeCard, setActiveCard] = useState<HeroCard | null>(null)
+
+  // Latest pins, read by the engine effect (which mounts once). A dedicated
+  // effect below rebuilds the pin geometry whenever this changes.
+  const pinsRef = useRef<HeroPin[]>(pins)
+  const rebuildRef = useRef<(() => void) | null>(null)
 
   const apiHolder = useRef<GlobeApi>({
     flyToLatLng: () => {},
-    flyToIndicator: () => false,
     flyBack: () => {},
   })
   const apiRefStable = useRef<GlobeApi>({
     flyToLatLng: (...a) => apiHolder.current.flyToLatLng(...a),
-    flyToIndicator: (...a) => apiHolder.current.flyToIndicator(...a),
     flyBack: (...a) => apiHolder.current.flyBack(...a),
   })
 
@@ -359,6 +323,12 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       if (apiRef) apiRef.current = null
     }
   }, [apiRef])
+
+  // Rebuild the pin buffer when the (async-loaded) data changes.
+  useEffect(() => {
+    pinsRef.current = pins
+    rebuildRef.current?.()
+  }, [pins])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -379,7 +349,7 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       return
     }
     const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP)
-    const pr = Math.min(dpr * OVERSAMPLE, 2.4) // oversample so the CSS zoom stays crisp
+    const pr = Math.min(dpr * OVERSAMPLE, 2.4)
     renderer.setPixelRatio(pr)
     renderer.setClearColor(0x000000, 0)
     let size = stage.clientWidth || 1
@@ -412,7 +382,7 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
     const bodyMesh = new Mesh(new SphereGeometry(0.99, 64, 48), bodyMat)
     scene.add(bodyMesh)
 
-    // depth-only occluder → dots/arcs behind the sphere are culled for FREE
+    // depth-only occluder → dots/pins behind the sphere are culled for FREE
     const occluder = new Mesh(
       new SphereGeometry(0.98, 48, 32),
       new MeshBasicMaterial({ colorWrite: false }),
@@ -443,19 +413,9 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       renderOnce()
     })
 
-    /* ---------- pins (Points; periwinkle; Raycaster hit-test) ---------- */
-    const pinPos = new Float32Array(PINS.length * 3)
-    const pinSize = new Float32Array(PINS.length)
-    for (let i = 0; i < PINS.length; i++) {
-      const r = PINS[i].r
-      pinPos[i * 3] = r[0] * 1.012
-      pinPos[i * 3 + 1] = r[1] * 1.012
-      pinPos[i * 3 + 2] = r[2] * 1.012
-      pinSize[i] = ambientDiameter(PINS[i].sev)
-    }
-    const pinGeo = new BufferGeometry()
-    pinGeo.setAttribute('position', new Float32BufferAttribute(pinPos, 3))
-    pinGeo.setAttribute('aSize', new Float32BufferAttribute(pinSize, 1))
+    /* ---------- pins (Points; periwinkle; Raycaster hit-test) ----------
+       The pin buffer is REBUILT from the injected data whenever it changes
+       (data streams in from the state snapshots after mount). */
     const pinMat = new ShaderMaterial({
       vertexShader: PIN_VERT,
       fragmentShader: PIN_FRAG,
@@ -467,31 +427,26 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
         uLightDir: { value: new Vector3(...LIGHT_DIR).normalize() },
       },
     })
-    const pinsPoints = new Points(pinGeo, pinMat)
+    function buildPinGeo(list: HeroPin[]): BufferGeometry {
+      const g = new BufferGeometry()
+      const pos = new Float32Array(list.length * 3)
+      const sz = new Float32Array(list.length)
+      for (let i = 0; i < list.length; i++) {
+        const r = list[i].r
+        pos[i * 3] = r[0] * PIN_LIFT
+        pos[i * 3 + 1] = r[1] * PIN_LIFT
+        pos[i * 3 + 2] = r[2] * PIN_LIFT
+        sz[i] = list[i].sizePx
+      }
+      g.setAttribute('position', new Float32BufferAttribute(pos, 3))
+      g.setAttribute('aSize', new Float32BufferAttribute(sz, 1))
+      return g
+    }
+    let currentPins: HeroPin[] = pinsRef.current
+    const pinsPoints = new Points(buildPinGeo(currentPins), pinMat)
     pinsPoints.frustumCulled = false
     globeGroup.add(pinsPoints)
-    const pinPosAttr = pinGeo.getAttribute('position')
-
-    /* ---------- arcs (Lines; occlusion FREE via depth) ---------- */
-    const arcs: Arc3[] = Array.from({ length: MAX_AMBIENT + 1 }, newArc3)
-    const arcLines: Line[] = []
-    for (let i = 0; i < arcs.length; i++) {
-      const g = new BufferGeometry()
-      g.setAttribute('position', new Float32BufferAttribute(new Float32Array(ARC_SAMPLES * 3), 3))
-      g.setDrawRange(0, 0)
-      const mat = new LineBasicMaterial({
-        color: 0x7c8aff,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-      })
-      const line = new Line(g, mat)
-      line.frustumCulled = false
-      globeGroup.add(line)
-      arcLines.push(line)
-    }
-    let nextSpawn = 0
-    let lastLandedVec: Vec3 | null = null
+    let pinPosAttr = pinsPoints.geometry.getAttribute('position')
 
     /* ---------- landed marker (verdict) + pulse ring ---------- */
     const markGeo = new BufferGeometry()
@@ -519,7 +474,11 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
     globeGroup.add(pulse)
     const landAnim = { active: false, rise: 0, pulse: 0, target: [0, 0, 1] as Vec3, size: 24 }
 
-    /* ---------- rotation matrix = cobe's M(phi,theta) ---------- */
+    // The pending / active enrich card (sticky; revealed on landing).
+    let pendingEnrich: EnrichCard | null = null
+    let enrichCard: EnrichCard | null = null
+
+    /* ---------- rotation matrix = M(phi,theta) ---------- */
     const m4 = new Matrix4()
     function applyRotation(phi: number, theta: number): void {
       const cp = Math.cos(phi), sp = Math.sin(phi)
@@ -533,20 +492,50 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       globeGroup.quaternion.setFromRotationMatrix(m4)
     }
 
-    /* ---------- tooltip (DOM, projected) ---------- */
+    /* ---------- tooltip / active-card model ---------- */
     const _v = new Vector3()
     const _pw = new Vector3()
     const raycaster = new Raycaster()
     if (raycaster.params.Points) raycaster.params.Points.threshold = 0.03
     const _ndc = new Vector2()
+    let cardHover = false // pointer is over the card (freeze + keep it up)
+    let clearTimer = 0
+    let lastCard: HeroCard | null = null
 
     function pinWorld(idx: number, out: Vector3): void {
       out.fromBufferAttribute(pinPosAttr, idx).applyMatrix4(pinsPoints.matrixWorld)
     }
-    function positionTip(idx: number): void {
+    /** current active card = the sticky enrich card, else the hovered pin. */
+    function currentCard(): HeroCard | null {
+      if (enrichCard) return enrichCard
+      if (anim.hoverIdx >= 0) return currentPins[anim.hoverIdx] ?? null
+      return null
+    }
+    function renderActiveCard(): void {
+      const target = currentCard()
+      if (target === lastCard) {
+        if (target) positionTip()
+        return
+      }
+      lastCard = target
       const tip = tipRef.current
-      if (!tip) return
-      pinWorld(idx, _pw)
+      if (target) tip?.style.setProperty('--tip-accent', accentFor(target))
+      setActiveCard(target)
+      if (target) positionTip()
+    }
+    function positionTip(): void {
+      const tip = tipRef.current
+      const target = lastCard
+      if (!tip || !target) return
+      if (cardHover) return // frozen while the pointer inspects the card
+      if (target.kind === 'enrich') {
+        if (!anim.landed) return
+        const r = anim.landed.r
+        _pw.set(r[0] * PIN_LIFT, r[1] * PIN_LIFT, r[2] * PIN_LIFT).applyMatrix4(globeGroup.matrixWorld)
+      } else {
+        if (anim.hoverIdx < 0) return
+        pinWorld(anim.hoverIdx, _pw)
+      }
       _v.copy(_pw).project(camera)
       const rect = canvas!.getBoundingClientRect()
       const sx = rect.left + (_v.x * 0.5 + 0.5) * rect.width
@@ -563,23 +552,34 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       tip.style.setProperty('--tx', tx.toFixed(1) + 'px')
       tip.style.setProperty('--ty', ty.toFixed(1) + 'px')
     }
-    function setActive(id: number): void {
-      if (id !== anim.activeId) {
-        anim.activeId = id
-        if (id >= 0) {
-          const tip = tipRef.current
-          tip?.style.setProperty('--tip-accent', tierInk(PINS[id].tier))
-          tip?.style.setProperty('--sev', PINS[id].sev + '%')
-          setActivePin(PINS[id])
-        } else {
-          setActivePin(null)
-        }
+    function clearHover(): void {
+      if (anim.hoverIdx !== -1) {
+        anim.hoverIdx = -1
+        renderActiveCard()
       }
-      if (anim.activeId >= 0) positionTip(anim.activeId)
+    }
+    function scheduleClear(): void {
+      if (clearTimer || cardHover || anim.hoverIdx < 0) return
+      clearTimer = window.setTimeout(() => {
+        clearTimer = 0
+        if (!cardHover) clearHover()
+      }, HOVER_GRACE_MS)
+    }
+    function cancelClear(): void {
+      if (clearTimer) {
+        clearTimeout(clearTimer)
+        clearTimer = 0
+      }
     }
     function hitTest(): void {
-      if (!anim.cursorNDC || anim.dragging || anim.flying) {
-        setActive(-1)
+      if (enrichCard || cardHover) return // enrich landed / inspecting card → hover off
+      if (anim.dragging || anim.flying) {
+        cancelClear()
+        clearHover()
+        return
+      }
+      if (!anim.cursorNDC) {
+        scheduleClear() // pointer left the stage → grace (may be heading to the card)
         return
       }
       _ndc.set(anim.cursorNDC.x, anim.cursorNDC.y)
@@ -595,10 +595,34 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
           break
         }
       }
-      setActive(best)
+      if (best >= 0) {
+        cancelClear()
+        if (best !== anim.hoverIdx) {
+          anim.hoverIdx = best
+          renderActiveCard()
+        } else {
+          positionTip()
+        }
+      } else {
+        scheduleClear() // on the globe but off any pin → grace, then clear
+      }
     }
 
-    /* ---------- landed beat (rise + pulse once) ---------- */
+    /* ---------- rebuild the pin buffer on data change ---------- */
+    function rebuildPins(): void {
+      cancelClear()
+      anim.hoverIdx = -1
+      currentPins = pinsRef.current
+      const g = buildPinGeo(currentPins)
+      pinsPoints.geometry.dispose()
+      pinsPoints.geometry = g
+      pinPosAttr = g.getAttribute('position')
+      renderActiveCard() // drops a stale hover card (enrich card, if any, survives)
+      if (!running) renderOnce()
+    }
+    rebuildRef.current = rebuildPins
+
+    /* ---------- landed beat (rise + pulse once; reveal the enrich card) ---------- */
     function beat(): void {
       if (!anim.landed) return
       anim.landedShown = true
@@ -611,13 +635,18 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       const col = tierColor3(anim.landed.tier, dark)
       ;(markMat.uniforms.uColor.value as number[]) = col
       pulseMat.color.setRGB(col[0], col[1], col[2])
-      markPoint.geometry.getAttribute('position').setXYZ(0, r[0] * 1.012, r[1] * 1.012, r[2] * 1.012)
+      markPoint.geometry.getAttribute('position').setXYZ(0, r[0] * PIN_LIFT, r[1] * PIN_LIFT, r[2] * PIN_LIFT)
       markPoint.geometry.getAttribute('position').needsUpdate = true
       markPoint.visible = true
-      // pulse ring flat on the surface at the target
       pulse.position.set(r[0] * 1.008, r[1] * 1.008, r[2] * 1.008)
       pulse.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(r[0], r[1], r[2]).normalize())
       pulse.visible = !reduced()
+      // reveal the real sourced verdict card at the landed point
+      if (pendingEnrich) {
+        enrichCard = pendingEnrich
+        pendingEnrich = null
+        renderActiveCard()
+      }
     }
     function clearLanded(): void {
       landAnim.active = false
@@ -626,6 +655,11 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       markPoint.visible = false
       pulse.visible = false
       markMat.uniforms.uAlpha.value = 0
+      pendingEnrich = null
+      if (enrichCard) {
+        enrichCard = null
+        renderActiveCard()
+      }
     }
     function stepLanded(dt: number): void {
       if (!landAnim.active) return
@@ -641,121 +675,7 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       }
     }
 
-    /* ---------- arcs: build / step / spawn / draw-on ---------- */
-    function buildArcGeometry(arc: Arc3, line: Line): void {
-      const attr = line.geometry.getAttribute('position')
-      const av: Vec3 = [0, 0, 1]
-      for (let k = 0; k < ARC_SAMPLES; k++) {
-        const t = k / (ARC_SAMPLES - 1)
-        slerp(arc.a, arc.b, t, arc.omega, arc.sinOmega, av)
-        const lift = 1 + arc.alt * Math.sin(Math.PI * t)
-        attr.setXYZ(k, av[0] * lift, av[1] * lift, av[2] * lift)
-      }
-      attr.needsUpdate = true
-      line.geometry.setDrawRange(0, 0)
-    }
-    function spawnAmbientArc(): boolean {
-      let slot = -1
-      for (let i = 0; i < MAX_AMBIENT; i++)
-        if (!arcs[i].active) {
-          slot = i
-          break
-        }
-      if (slot < 0) return false
-      const n = ARC_NODES.length
-      if (n < 2) return false
-      let a: Vec3 | null = null
-      let b: Vec3 | null = null
-      let omega = 0
-      for (let tries = 0; tries < 8; tries++) {
-        const ia = (Math.random() * n) | 0
-        let ib = (Math.random() * n) | 0
-        if (ib === ia) ib = (ib + 1) % n
-        const ang = arcAngle(ARC_NODES[ia], ARC_NODES[ib])
-        if (ang > 0.45 && ang < 2.5) {
-          a = ARC_NODES[ia]
-          b = ARC_NODES[ib]
-          omega = ang
-          break
-        }
-      }
-      if (!a || !b) return false
-      const arc = arcs[slot]
-      arc.active = true
-      arc.scored = false
-      arc.a = a
-      arc.b = b
-      arc.omega = omega
-      arc.sinOmega = Math.sin(omega)
-      arc.alt = 0.06 + Math.random() * 0.06
-      arc.progress = 0
-      arc.phase = 0
-      arc.age = 0
-      arc.peak = 0.5
-      arc.drawDur = 1.2 + Math.random() * 0.5
-      arc.holdDur = 0.9 + Math.random() * 0.6
-      arc.fadeDur = 1.0 + Math.random() * 0.5
-      buildArcGeometry(arc, arcLines[slot])
-      return true
-    }
-    function maybeSpawnAmbient(now: number): void {
-      if (anim.flying || now < nextSpawn) return
-      let alive = 0
-      let drawing = false
-      for (let i = 0; i < MAX_AMBIENT; i++) {
-        if (arcs[i].active) {
-          alive++
-          if (arcs[i].phase === 0) drawing = true
-        }
-      }
-      if (alive >= MAX_AMBIENT || drawing) return
-      const ok = spawnAmbientArc()
-      nextSpawn = now + (ok ? AMBIENT_SPAWN_MIN + Math.random() * AMBIENT_SPAWN_JITTER : 1.5) * 1000
-    }
-    function stepArcs(dt: number): void {
-      for (let i = 0; i < arcs.length; i++) {
-        const arc = arcs[i]
-        const line = arcLines[i]
-        const mat = line.material as LineBasicMaterial
-        if (!arc.active) {
-          mat.opacity = 0
-          continue
-        }
-        arc.age += dt
-        if (arc.phase === 0) {
-          arc.progress = Math.min(1, arc.age / arc.drawDur)
-          if (arc.age >= arc.drawDur) {
-            arc.phase = 1
-            arc.age = 0
-            arc.progress = 1
-          }
-        } else if (arc.phase === 1) {
-          if (arc.age >= arc.holdDur) {
-            arc.phase = 2
-            arc.age = 0
-          }
-        }
-        let op = arc.peak
-        if (arc.phase === 2) {
-          const k = Math.min(1, arc.age / arc.fadeDur)
-          op = arc.peak * (1 - k)
-          if (k >= 1) {
-            arc.active = false
-            op = 0
-          }
-        }
-        const count = Math.max(0, Math.floor(arc.progress * ARC_SAMPLES))
-        line.geometry.setDrawRange(0, count)
-        const flyDim = !arc.scored && anim.flying ? 0.1 : 1
-        mat.opacity = op * flyDim
-      }
-    }
-
     /* ---------- render one composed frame ---------- */
-    // Zoom is a compositor CSS scale on the stage (cobe's --globe-grow), NOT a
-    // camera dolly — the camera stays fixed at BASE_Z so the sphere renders at a
-    // stable ~0.78 of the canvas and never clips the canvas rectangle; the scaled
-    // stage bleeds off the right edge (overflow-visible), like the cobe hero.
     function applyGrow(): void {
       stage!.style.setProperty('--globe-grow', anim.gz.toFixed(4))
     }
@@ -787,7 +707,6 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
         stepSpring(anim.flyGz, dt, OMEGA)
         anim.gz = anim.flyGz.x
         if (!anim.flyBackMode && !anim.landedShown && anim.landed) {
-          // fire the beat as the point swings near front-centre
           const r = anim.landed.r
           const fz = -Math.sin(anim.phi) * Math.cos(anim.theta) * r[0] + Math.sin(anim.theta) * r[1] + Math.cos(anim.phi) * Math.cos(anim.theta) * r[2]
           if (fz > 0.82) beat()
@@ -806,7 +725,7 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       } else {
         let ts = 1
         if (anim.dragging || anim.spinSuspended) ts = 0
-        else if (anim.activeId >= 0) ts = 0
+        else if (anim.hoverIdx >= 0) ts = 0
         else if (anim.hovering) ts = 0.3
         anim.spinFactor += (ts - anim.spinFactor) * (1 - Math.exp(-dt * 7))
         if (!anim.dragging) anim.targetPhi += 0.0035 * (dt * 60) * anim.spinFactor
@@ -819,7 +738,7 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       // pointer parallax — off during drag/fly and while inspecting a pin
       let ptX = 0
       let ptY = 0
-      if (anim.hovering && anim.cursorNDC && !anim.dragging && !anim.flying && anim.activeId < 0) {
+      if (anim.hovering && anim.cursorNDC && !anim.dragging && !anim.flying && anim.hoverIdx < 0 && !enrichCard) {
         ptX = anim.cursorNDC.x * 0.5
         ptY = anim.cursorNDC.y * 0.5
       }
@@ -827,11 +746,10 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       anim.parPhi += (ptX * PAR_MAX - anim.parPhi) * kPar
       anim.parTheta += (ptY * PAR_MAX - anim.parTheta) * kPar
 
-      stepArcs(dt)
-      maybeSpawnAmbient(now)
       stepLanded(dt)
       composeAndRender()
       hitTest()
+      positionTip()
 
       if (running) raf = requestAnimationFrame(frame)
     }
@@ -845,7 +763,6 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       if (running) return
       running = true
       anim.lastT = 0
-      nextSpawn = performance.now() + 1800
       raf = requestAnimationFrame(frame)
     }
     function stopLoop(): void {
@@ -856,7 +773,8 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
 
     /* ---------- fly-to (ported spring physics) ---------- */
     function flyToTarget(tt: FlyTarget): void {
-      setActive(-1)
+      cancelClear()
+      clearHover()
       const { phi: phiT0, theta: thetaT } = flyTargets(tt.r)
       let phiT = phiT0
       while (phiT - anim.phi > Math.PI) phiT -= 2 * Math.PI
@@ -874,6 +792,7 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
         anim.spinSuspended = true
         beat()
         renderOnce()
+        positionTip() // place the card after the rotation is applied (no rAF here)
         return
       }
       anim.flyPhi.x = anim.phi
@@ -885,28 +804,6 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       anim.flyGz.x = anim.gz
       anim.flyGz.v = 0
       anim.flyGz.t = FLY_ZOOM
-      // scored incoming beam — periwinkle; verdict only on the endpoint disc
-      {
-        const src: Vec3 = lastLandedVec ?? HOME_VEC
-        const tvec: Vec3 = [tt.r[0], tt.r[1], tt.r[2]]
-        const sc = arcs[SCORED]
-        sc.active = true
-        sc.scored = true
-        sc.a = src
-        sc.b = tvec
-        sc.omega = arcAngle(src, tvec)
-        sc.sinOmega = Math.sin(sc.omega)
-        sc.alt = 0.3
-        sc.progress = 0
-        sc.phase = 0
-        sc.age = 0
-        sc.peak = 0.9
-        sc.drawDur = 0.9
-        sc.holdDur = 0.6
-        sc.fadeDur = 0.8
-        buildArcGeometry(sc, arcLines[SCORED])
-        lastLandedVec = tvec
-      }
       anim.flying = true
       anim.flyBackMode = false
       anim.spinSuspended = true
@@ -939,16 +836,6 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       anim.spinSuspended = true
       startLoop()
     }
-    function flyToIndicator(raw: string): boolean {
-      const v = String(raw || '').trim()
-      if (!v) return false
-      const rec = GEO[v]
-      if (rec) {
-        flyToTarget(rec)
-        return true
-      }
-      return false
-    }
     function flyToLatLng(lat: number, lng: number, opts: { tier?: Tier; sev?: number } = {}): void {
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
       flyToTarget({
@@ -957,7 +844,7 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
         sev: Number.isFinite(opts.sev) ? (opts.sev as number) : 70,
       })
     }
-    apiHolder.current = { flyToLatLng, flyToIndicator, flyBack }
+    apiHolder.current = { flyToLatLng, flyBack }
 
     /* ---------- input ---------- */
     function ndcFromEvent(e: PointerEvent): void {
@@ -1002,6 +889,7 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       if (!running) {
         hitTest()
         renderOnce()
+        positionTip()
       }
     }
     function onStageUp(e: PointerEvent): void {
@@ -1019,10 +907,23 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       anim.hovering = false
       anim.cursorNDC = null
       if (!running) {
-        setActive(-1)
+        hitTest()
         renderOnce()
       }
     })
+
+    // interactive tooltip — keep the card up while the pointer inspects it
+    const tipEl = tipRef.current
+    function onTipEnter(): void {
+      cardHover = true
+      cancelClear()
+    }
+    function onTipLeave(): void {
+      cardHover = false
+      if (!enrichCard) scheduleClear()
+    }
+    tipEl?.addEventListener('pointerenter', onTipEnter)
+    tipEl?.addEventListener('pointerleave', onTipLeave)
 
     function onCanvasDown(e: PointerEvent): void {
       if (reduced()) return
@@ -1057,8 +958,11 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
 
     function onEnrich(e: Event): void {
       try {
-        const gg = geoFromResult((e as CustomEvent).detail as EnrichResult)
-        if (gg) flyToTarget(gg)
+        const detail = (e as CustomEvent).detail as EnrichApiResult
+        const target = targetFromResult(detail)
+        if (!target) return // no geolocation → no fabricated landing
+        pendingEnrich = buildEnrichCard(detail)
+        flyToTarget(target)
       } catch {
         /* no-op */
       }
@@ -1135,12 +1039,16 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
     /* ---------- teardown ---------- */
     return () => {
       disposed = true
+      rebuildRef.current = null
+      cancelClear()
       stopLoop()
       stage.removeEventListener('wheel', onWheel)
       stage.removeEventListener('pointerdown', onStageDown)
       stage.removeEventListener('pointermove', onStageMove)
       stage.removeEventListener('pointerup', onStageUp)
       stage.removeEventListener('pointercancel', onStageUp)
+      tipEl?.removeEventListener('pointerenter', onTipEnter)
+      tipEl?.removeEventListener('pointerleave', onTipLeave)
       canvas.removeEventListener('pointerdown', onCanvasDown)
       window.removeEventListener('pointermove', onWinMove)
       window.removeEventListener('pointerup', endDrag)
@@ -1156,7 +1064,7 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       // dispose GL resources
       dots?.geometry.dispose()
       dotMat.dispose()
-      pinGeo.dispose()
+      pinsPoints.geometry.dispose()
       pinMat.dispose()
       bodyMesh.geometry.dispose()
       bodyMat.dispose()
@@ -1166,10 +1074,6 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
       markMat.dispose()
       pulse.geometry.dispose()
       pulseMat.dispose()
-      for (const line of arcLines) {
-        line.geometry.dispose()
-        ;(line.material as LineBasicMaterial).dispose()
-      }
       renderer.dispose()
       renderer.forceContextLoss()
     }
@@ -1180,7 +1084,7 @@ export function useGlobe3(apiRef?: RefObject<GlobeApi | null>): UseGlobe3Result 
     stageRef,
     canvasRef,
     tipRef,
-    activePin,
+    activeCard,
     api: apiRefStable.current,
   }
 }

@@ -264,8 +264,10 @@ function parseSectors(summary: string, grouped: boolean): string[] {
 
 /** Parse the ISO-3166 country from a SINGLE claim summary ("Country: IT.").
  *  The literal "?" the source uses for unknown fails the `[A-Za-z]{2,3}` shape
- *  and is naturally excluded — no special-casing needed. */
-function parseCountry(summary: string): string | undefined {
+ *  and is naturally excluded — no special-casing needed. Exported so the hero
+ *  globe's claimed-victim-country layer parses claims with the EXACT same rule
+ *  the profile system does (no drift between the two surfaces). */
+export function parseCountry(summary: string): string | undefined {
   const m = (summary ?? '').match(/Country:\s*([A-Za-z]{2,3})\b/)
   return m ? m[1].toUpperCase() : undefined
 }

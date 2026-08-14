@@ -118,215 +118,25 @@
   transform: scale(1);
 }
 
-/* ---- FRESNEL LIMB (MOVE 2) — a thin periwinkle rim that HUGS the sphere
-   silhouette (fresnel, NOT bloom). A radial-gradient ring BEHIND the canvas,
-   concentrated AT the disc edge with sharp falloff BOTH inward and outward
-   (transparent well before the box edge — the annulus test). The linear MASK
-   biases the rim toward the key-light side (upper-left), agreeing with the
-   terminator shading (cobe diffuse, MOVE 3). No blur(); cobe's glowColor stays
-   == page ink (the killed bloom). Scales with the sphere (inside .sdh-stage). */
-.sdh-limb {
-  position: absolute;
-  inset: 6%; /* 88% box centred on the sphere; disc edge ≈ 91% of this radius */
-  z-index: 1; /* behind the canvas */
-  border-radius: 50%;
-  pointer-events: none;
-  background: radial-gradient(
-    circle closest-side,
-    transparent 0 87%,
-    color-mix(in srgb, var(--accent) 60%, transparent) 91%,
-    color-mix(in srgb, var(--accent) 26%, transparent) 93.5%,
-    transparent 96%
-  );
-  opacity: 0.24;
-  -webkit-mask-image: linear-gradient(135deg, #000 28%, rgba(0, 0, 0, 0.45) 100%);
-  mask-image: linear-gradient(135deg, #000 28%, rgba(0, 0, 0, 0.45) 100%);
-}
-[data-theme='dark'] .sdh-limb {
-  opacity: 0.3;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .sdh-limb {
-    opacity: 0.3;
-  }
-}
+/* ---- FRESNEL LIMB: now drawn in WebGL. The three.js body ShaderMaterial
+   renders the fresnel rim + terminator directly (see useGlobe3 BODY_FRAG), so
+   the old CSS radial-gradient limb overlay (a cobe-era workaround) is gone. ---- */
 
-/* ---- ATTACK ARCS (MOVE 1) — an SVG overlay INSIDE .sdh-stage so it inherits
-   the --globe-grow zoom + fly-to. Paths are built + drawn-on per-frame in
-   useGlobe (setAttribute('d') for geometry + z-occlusion gaps; setProperty for
-   stroke-dashoffset draw-on + opacity). Periwinkle ONLY — verdict tone appears
-   solely on the landed endpoint disc. non-scaling-stroke keeps beams a crisp
-   ~1px at any zoom; pathLength=1 (set in JSX) normalises the draw-on. ---- */
-.sdh-arcs {
-  position: absolute;
-  inset: 0;
-  z-index: 3; /* over the canvas, under the pins */
-  width: 100%;
-  height: 100%;
-  overflow: visible; /* raised apexes may exceed the disc */
-  pointer-events: none;
-}
-.sdh-arc {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 1.2;
-  stroke-linecap: round;
-  stroke-dasharray: 1; /* + pathLength=1 → one dash spans the whole path */
-  vector-effect: non-scaling-stroke;
-  opacity: 0;
-}
-.sdh-arc-scored {
-  stroke-width: 1.5;
-}
+/* ---- ATTACK ARCS: REMOVED. The ambient periwinkle "attack arcs" implied
+   real attack traffic flowing between points — a fabricated narrative. Dropped
+   entirely (JS + CSS). The globe asserts only what it can source: reported-IP
+   scatter, ransomware-by-victim-country, and the live enrich landing. ---- */
 
-/* ---- projected pin overlay — sits over the canvas, never eats pointer
-   events (the canvas keeps drag/wheel). useGlobe writes each transform. ---- */
-.sdh-pins {
-  position: absolute;
-  inset: 0;
-  z-index: 4; /* over the arcs, under the landed endpoint */
-  pointer-events: none;
-  overflow: visible;
-}
-.sdh-pin {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: var(--d, 14px);
-  height: var(--d, 14px);
-  margin: calc(var(--d, 14px) / -2) 0 0 calc(var(--d, 14px) / -2);
-  border-radius: 50%;
-  transform: translate3d(-999px, -999px, 0);
-  will-change: transform, opacity;
-  transition:
-    width 0.18s var(--ease-brand),
-    height 0.18s var(--ease-brand);
-}
-/* matte disc: filled core + hairline ring, NO glow/bloom — reads as data */
-.sdh-pin::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: var(--pin);
-  border: 1px solid color-mix(in srgb, var(--pin) 60%, var(--ink));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pin) 16%, transparent);
-}
-.sdh-pin::after {
-  content: '';
-  position: absolute;
-  inset: 30%;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--pin) 40%, var(--ink));
-}
-.sdh-pin.is-active {
-  z-index: 3;
-}
-.sdh-pin.is-active::before {
-  border-color: var(--pin);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pin) 26%, transparent);
-}
-/* verdict tones, sized by severity, NO glow. crit red / susp amber / low muted. */
-.sdh-crit {
-  --pin: var(--red);
-}
-.sdh-susp {
-  --pin: var(--gold);
-}
-.sdh-low {
-  --pin: var(--muted);
-}
-/* hairline CONCENTRIC periwinkle ring on critical pins (a 1px annulus, no glow) */
-.sdh-crit::before {
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--pin) 16%, transparent),
-    0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent);
-}
-.sdh-crit.is-active::before {
-  box-shadow:
-    0 0 0 4px color-mix(in srgb, var(--pin) 26%, transparent),
-    0 0 0 5px color-mix(in srgb, var(--accent) 55%, transparent);
-}
-
-/* ---- landed fly-to pin: drops + pulses ONCE at the located coordinate.
-   Position is written on the outer element; the drop + pulse live on children
-   so the keyframes never fight the per-frame projection transform. ---- */
-.sdh-landed {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 5;
-  width: var(--d, 22px);
-  height: var(--d, 22px);
-  margin: calc(var(--d, 22px) / -2) 0 0 calc(var(--d, 22px) / -2);
-  transform: translate3d(-999px, -999px, 0);
-  opacity: 0;
-  pointer-events: none;
-  --pin: var(--accent);
-}
-.sdh-landed.is-shown {
-  opacity: 1;
-}
-/* the landed pin draws its own disc — it has no base ::before/::after */
-.sdh-pin-disc {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: var(--pin);
-  border: 1px solid color-mix(in srgb, var(--pin) 62%, var(--ink));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pin) 18%, transparent);
-}
-.sdh-pin-disc::after {
-  content: '';
-  position: absolute;
-  inset: 30%;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--pin) 42%, var(--ink));
-}
-.sdh-pin-pulse {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 1.5px solid var(--pin);
-  opacity: 0;
-  pointer-events: none;
-}
-@keyframes sdh-drop {
-  from {
-    transform: translateY(-12px) scale(0.5);
-    opacity: 0;
-  }
-  60% {
-    opacity: 1;
-  }
-  to {
-    transform: none;
-    opacity: 1;
-  }
-}
-@keyframes sdh-pulse {
-  0% {
-    transform: scale(1);
-    opacity: 0.65;
-  }
-  70% {
-    opacity: 0;
-  }
-  100% {
-    transform: scale(2.8);
-    opacity: 0;
-  }
-}
-.sdh-landed.is-dropping .sdh-pin-disc {
-  animation: sdh-drop 0.5s var(--ease-brand) both;
-}
-.sdh-landed.is-pulsing .sdh-pin-pulse {
-  animation: sdh-pulse 0.9s var(--ease-brand) both;
-}
+/* ---- PINS + LANDED MARKER: now drawn in WebGL. The three.js engine renders
+   the reported-IP + ransomware-country pins (one periwinkle Points buffer) and
+   the enrich landed marker + pulse ring directly, with FREE depth-buffer
+   back-face occlusion. The old projected DOM-overlay pin/landed elements (a
+   cobe-era workaround) are gone. ---- */
 
 /* ==========================================================================
-   PIN TOOLTIP — a glass analyst verdict card (content React-rendered; position
-   via setProperty). Uses the shared glass tokens; accent spine = --tip-accent.
+   CARD TOOLTIP — the slate briefing card (content React-rendered by TipCard;
+   position via setProperty). Glass surface; the accent spine = --tip-accent
+   (periwinkle for the reported layers, the real verdict tone for enrich).
    ========================================================================== */
 .sdh-tip {
   position: fixed;
@@ -361,19 +171,33 @@
 .sdh-tip.is-visible {
   opacity: 1;
   visibility: visible;
+  /* interactive: the card carries real links (IP lookup, actor profiles, the
+     enrich verify pivot). useGlobe3 keeps it up while the pointer inspects it
+     (pointerenter/leave + a short hover-grace bridge). */
+  pointer-events: auto;
   transform: translate3d(var(--tx, 0), var(--ty, 0), 0) scale(1);
 }
-.sdh-tip-head {
+/* ---- CARD — the slate briefing card. Archivo for LABELS + prose; IBM Plex
+   Mono for DATA VALUES only (IPs, counts, ports, dates). Periwinkle is the
+   product tone (--tip-accent = --accent) for the reported layers; the enrich
+   card's --tip-accent is the REAL verdict tone (red/amber/green). No terminal
+   chrome, no fabricated hint — every card ends in a real action + attribution. */
+.sdh-card {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 14px 8px;
-  border-bottom: 1px solid var(--line);
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 15px 12px;
 }
-.sdh-tip-type {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 600;
+.sdh-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sdh-card-badge {
+  align-self: flex-start;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-on-accent);
@@ -382,151 +206,194 @@
   border-radius: var(--radius-sm);
   white-space: nowrap;
 }
-.sdh-tip-ind {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--paper);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  letter-spacing: -0.01em;
-}
-.sdh-tip-body {
-  padding: 10px 14px 12px;
-}
-.sdh-tip-what {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--paper);
-  line-height: 1.25;
-  margin-bottom: 3px;
-}
-.sdh-tip-actor {
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 11px;
-  line-height: 1.35;
-}
-.sdh-tip-metrics {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px 12px;
-  align-items: center;
-  margin-bottom: 11px;
-}
-.sdh-tip-score {
-  font-family: var(--font-mono);
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1;
+/* verdict badge — reads on ANY tone (tint + tone text), unlike a solid fill */
+.sdh-card-badge-verdict {
   color: var(--tip-accent, var(--accent));
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  background: color-mix(in srgb, var(--tip-accent, var(--accent)) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tip-accent, var(--accent)) 42%, transparent);
 }
-.sdh-tip-score span {
-  font-size: 11px;
-  color: var(--muted);
-  font-weight: 400;
-}
-.sdh-tip-consensus {
-  justify-self: end;
-  text-align: right;
-  font-size: 12px;
-  color: var(--muted);
+.sdh-card-id {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--paper);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
   line-height: 1.2;
 }
-.sdh-tip-consensus b {
+.sdh-card-place {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
   color: var(--paper);
-  font-weight: 600;
-  font-family: var(--font-mono);
+  line-height: 1.15;
 }
-.sdh-tip-consensus small {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-top: 3px;
-}
-.sdh-tip-meter {
-  position: relative;
-  height: 5px;
-  border-radius: 3px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--line) 70%, transparent);
-  grid-column: 1 / -1;
-  margin-top: 2px;
-}
-.sdh-tip-meter i {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  border-radius: 3px;
-  width: var(--sev, 0%);
-  background: var(--tip-accent, var(--accent));
-}
-.sdh-tip-rows {
+.sdh-card-rows {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-top: 1px solid var(--line);
-  padding-top: 10px;
 }
-.sdh-tip-row {
+.sdh-card-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
-  font-size: 11.5px;
+  gap: 14px;
 }
-.sdh-tip-row .sdh-k {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.11em;
+.sdh-k {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
   white-space: nowrap;
   flex: 0 0 auto;
 }
-.sdh-tip-row .sdh-v {
+.sdh-v {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
   color: var(--paper);
   text-align: right;
-  font-size: 11.5px;
   line-height: 1.3;
-  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
 }
-.sdh-trend-up {
-  color: var(--red);
+/* textual values (malware family, source, location) stay in the sans voice —
+   mono is reserved for the true data values (IP, port, dates, counts). */
+.sdh-v-text {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
 }
-.sdh-trend-down {
-  color: var(--green);
-}
-.sdh-trend-flat {
+.sdh-v-unit {
   color: var(--muted);
+  font-weight: 400;
 }
-.sdh-tip-hint {
+
+/* enrich — the live source-consensus tally (real severity → tone-coloured) */
+.sdh-card-tally {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.sdh-card-tally-num {
   font-family: var(--font-mono);
-  font-size: 8.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--tip-accent, var(--accent));
+}
+.sdh-card-tally-label {
+  font-family: var(--font-sans);
+  font-size: 11px;
   color: var(--muted);
-  padding: 8px 14px;
+  line-height: 1.25;
+}
+
+/* enrich — each source's OWN one-line finding (attributed, never laundered) */
+.sdh-card-findings {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
   border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.sdh-card-finding {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sdh-card-finding-text {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--paper);
+  line-height: 1.3;
+}
+
+/* ransomware — the top attributed groups, each a real profile deep-link */
+.sdh-card-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.sdh-card-grouplist {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sdh-card-group {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: color 0.12s var(--ease-brand);
+}
+.sdh-card-group-name {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--paper);
+  text-transform: capitalize;
+}
+.sdh-card-group:hover .sdh-card-group-name {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sdh-card-group:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* honest framing line — the caveat that keeps the card truthful */
+.sdh-card-note {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+  margin: 0;
+}
+.sdh-card-foot {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 10px;
 }
-.sdh-tip-hint::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--tip-accent, var(--accent));
+.sdh-card-src {
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.sdh-card-action {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.12s var(--ease-brand);
+}
+.sdh-card-action:hover {
+  color: var(--accent-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sdh-card-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ---- globe hint — whisper-subtle affordance for gesture zoom; fades in on
@@ -558,33 +425,22 @@
 }
 
 /* ==========================================================================
-   REDUCED MOTION — static globe frame; no spin/drift; fly-to snaps (useGlobe).
+   REDUCED MOTION — static globe frame; no spin/drift; fly-to snaps (useGlobe3
+   gates the loop + snaps the landing in JS; the WebGL marker rise/pulse are
+   skipped there too).
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
   .sdh-globe {
     opacity: 1;
     transform: none;
   }
-  /* arcs + parallax are motion → gone; the static honest frame keeps the
-     fresnel rim + terminator (they are not motion) and the dot-grid ground. */
-  .sdh-arcs {
-    display: none;
-  }
   /* entrance reveal → instant + no transform (fully visible, no rise) */
   .sdh-enter {
     animation: none;
   }
   .sdh-stage,
-  .sdh-pin,
   .sdh-tip {
     transition: none !important;
-  }
-  .sdh-landed.is-dropping .sdh-pin-disc,
-  .sdh-landed.is-pulsing .sdh-pin-pulse {
-    animation: none !important;
-  }
-  .sdh-pin-disc {
-    opacity: 1;
   }
 }
 
@@ -612,11 +468,9 @@
   .sdh-stage {
     width: min(120vw, 600px);
   }
-  /* backdrop globe on mobile — pins + hint + tooltip are desktop-only */
-  .sdh-pins,
+  /* backdrop globe on mobile — hint + tooltip are desktop-only */
   .sdh-hint,
-  .sdh-tip,
-  .sdh-landed {
+  .sdh-tip {
     display: none;
   }
 }

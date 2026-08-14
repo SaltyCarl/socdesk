@@ -1,68 +1,42 @@
 /**
- * GlobeHero3 — the three.js hero (A/B candidate; NOT wired into the Overview
- * route). Same shell as GlobeHero (copy column + demo omnibox + DOM glass
- * tooltip) but the globe is a real 3D dot-sphere with proper light-mode material
- * (see useGlobe3). Pins, arcs and the landed marker are three.js objects; only
- * the tooltip stays DOM (.sdh-tip), re-driven by Vector3.project(camera).
+ * GlobeHero3 — the three.js hero as a SELF-CONTAINED section (A/B candidate;
+ * NOT wired into the Overview route, which composes GlobeStage3 + its own copy
+ * column). Same engine (useGlobe3), same real data layers (useHeroPins), same
+ * redesigned card (TipCard), and the same live-enrich omnibox seam (runEnrich →
+ * socdesk:enrich-result → the globe lands the real result).
  *
  * CSP: zero inline styles in JSX; runtime writes go through setProperty in
  * useGlobe3. Styling = Tailwind + the bundled ./globe.css.
  */
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import type { KeyboardEvent, FormEvent, ReactNode, RefObject } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../ui'
 import { useGlobe3, type GlobeApi } from './useGlobe3'
-import { type Pin } from './pins'
+import { useHeroPins } from './useHeroPins'
+import { TipCard } from './TipCard'
+import { runEnrich, type EnrichStatus } from './enrichFly'
 import './globe.css'
 
-const DEMO_INDICATORS = ['185.220.101.34', '45.146.164.110', '8.8.8.8']
+const DEMO_INDICATORS = ['185.220.101.34', '1.1.1.1', '8.8.8.8']
 
 const CHIP_CLS =
   'rounded-md border border-line bg-panel px-2.5 py-1 font-mono text-xs text-muted transition-colors duration-150 ease-brand hover:border-line-bright hover:text-paper focus-visible:outline-2 focus-visible:outline-accent'
 
-/** Analyst verdict tooltip content (position + show state owned by useGlobe3). */
-function TipContent({ pin }: { pin: Pin }) {
-  return (
-    <>
-      <div className="sdh-tip-head">
-        <span className="sdh-tip-type">{pin.type}</span>
-        <span className="sdh-tip-ind">{pin.ind}</span>
-      </div>
-      <div className="sdh-tip-body">
-        <div className="sdh-tip-what">{pin.what}</div>
-        <div className="sdh-tip-actor">{pin.actor}</div>
-        <div className="sdh-tip-metrics">
-          <div className="sdh-tip-score">
-            {pin.sev}
-            <span>/100</span>
-          </div>
-          <div className="sdh-tip-consensus">
-            <b>{pin.consensus}</b> sources<small>consensus flag</small>
-          </div>
-          <div className="sdh-tip-meter">
-            <i />
-          </div>
-        </div>
-        <div className="sdh-tip-rows">
-          <div className="sdh-tip-row">
-            <span className="sdh-k">Last seen</span>
-            <span className="sdh-v">{pin.seen}</span>
-          </div>
-          <div className="sdh-tip-row">
-            <span className="sdh-k">Trend</span>
-            <span className={cx('sdh-v', `sdh-trend-${pin.trend.d}`)}>{pin.trend.t}</span>
-          </div>
-          <div className="sdh-tip-row">
-            <span className="sdh-k">Geo / ASN</span>
-            <span className="sdh-v">{pin.geo}</span>
-          </div>
-        </div>
-      </div>
-      <div className="sdh-tip-hint">Enter to open verdict</div>
-    </>
-  )
+function statusLine(s: EnrichStatus): string | null {
+  switch (s.state) {
+    case 'checking':
+      return `Checking ${s.indicator}…`
+    case 'unsupported':
+      return `${s.indicator} isn't an enrichable indicator (IP, domain, URL, or hash).`
+    case 'no-geo':
+      return `Enriched ${s.indicator} — no geolocation to plot (context only).`
+    case 'error':
+      return `Lookup unavailable: ${s.reason}.`
+    default:
+      return null
+  }
 }
 
 export interface GlobeHero3Props {
@@ -82,22 +56,43 @@ export function GlobeHero3({
   apiRef,
   className,
 }: GlobeHero3Props) {
-  const g = useGlobe3(apiRef)
+  const { pins } = useHeroPins()
+  const g = useGlobe3(pins, apiRef)
   const inputRef = useRef<HTMLInputElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  const [status, setStatus] = useState<EnrichStatus>({ state: 'idle' })
+
+  const enrich = (value: string) => {
+    const v = value.trim()
+    if (!v) return
+    abortRef.current?.abort()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setStatus({ state: 'checking', indicator: v })
+    void runEnrich(v, ctrl.signal).then((s) => {
+      if (!ctrl.signal.aborted) setStatus(s)
+    })
+  }
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      g.api.flyToIndicator(e.currentTarget.value)
+      enrich(e.currentTarget.value)
     }
   }
   const onInput = (e: FormEvent<HTMLInputElement>) => {
-    if (e.currentTarget.value.trim() === '') g.api.flyBack()
+    if (e.currentTarget.value.trim() === '') {
+      abortRef.current?.abort()
+      setStatus({ state: 'idle' })
+      g.api.flyBack()
+    }
   }
   const flyDemo = (v: string) => {
-    g.api.flyToIndicator(v)
+    enrich(v)
     if (inputRef.current) inputRef.current.value = v
   }
+
+  const line = statusLine(status)
 
   return (
     <section ref={g.rootRef} className={cx('sdh-hero relative py-16', className)}>
@@ -116,7 +111,7 @@ export function GlobeHero3({
         </h1>
         <p className="sdh-enter sdh-enter-3 max-w-lg text-md text-muted">
           {subtitle ??
-            'A real 3D dot-sphere — proper light-mode material, depth-buffer occlusion, and the same spring fly-to. Drag to spin, scroll to zoom.'}
+            'Reported malicious IPs and ransomware victim-countries, plotted from real sources. Look up any indicator to land it live. Drag to spin, scroll to zoom.'}
         </p>
 
         {demo && (
@@ -127,15 +122,20 @@ export function GlobeHero3({
               inputMode="text"
               autoComplete="off"
               spellCheck={false}
-              aria-label="Fly the globe to an indicator"
-              placeholder="Try an IP — 185.220.101.34"
+              aria-label="Look up an indicator and land it on the globe"
+              placeholder="Enrich an IP / domain / hash — 185.220.101.34"
               onKeyDown={onKeyDown}
               onInput={onInput}
               className="w-full rounded-md border border-line bg-field px-3 py-2 font-mono text-base text-paper outline-offset-2 placeholder:text-faint focus-visible:outline-2 focus-visible:outline-accent"
             />
+            {line && (
+              <p className="font-mono text-xs text-muted" role="status">
+                {line}
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-micro uppercase tracking-[0.14em] text-faint">
-                Recent
+                Try
               </span>
               {DEMO_INDICATORS.map((v) => (
                 <button key={v} type="button" onClick={() => flyDemo(v)} className={CHIP_CLS}>
@@ -156,11 +156,11 @@ export function GlobeHero3({
 
       <div
         ref={g.tipRef}
-        className={cx('sdh-tip', g.activePin && 'is-visible')}
+        className={cx('sdh-tip', g.activeCard && 'is-visible')}
         role="tooltip"
-        aria-hidden={g.activePin ? 'false' : 'true'}
+        aria-hidden={g.activeCard ? 'false' : 'true'}
       >
-        {g.activePin && <TipContent pin={g.activePin} />}
+        {g.activeCard && <TipCard card={g.activeCard} />}
       </div>
     </section>
   )
