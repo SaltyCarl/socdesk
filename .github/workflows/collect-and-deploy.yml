@@ -31,7 +31,16 @@ jobs:
       - run: python -m pytest tests/ -q
 
       - name: Run collectors
-        run: python run_pipeline.py    # all sources are keyless/public
+        # ThreatFox needs the free abuse.ch Auth-Key; every other collector is
+        # keyless/public. IPINFO_TOKEN geolocates the threat IPs at city level
+        # (only IPs new since the last run are looked up — see the committed
+        # data/state/geo_cache.json — so this stays inside the free quota);
+        # without it the pipeline falls back to country-centroid placement. Both
+        # are repo secrets, never committed.
+        env:
+          ABUSECH_API_KEY: ${{ secrets.ABUSECH_API_KEY }}
+          IPINFO_TOKEN: ${{ secrets.IPINFO_TOKEN }}
+        run: python run_pipeline.py
 
       - name: Commit state snapshots
         run: |

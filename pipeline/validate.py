@@ -14,6 +14,7 @@ SCHEMA_FOR = {
     "actors.json": "actors.schema.json",
     "malware.json": "actors.schema.json",
     "relations.json": "relations.schema.json",
+    "threat_ips.json": "threat_ips.schema.json",
 }
 
 

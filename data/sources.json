@@ -12,6 +12,8 @@
   {"name": "Shodan", "kind": "reference", "url": "https://www.shodan.io", "coverage": "Host exposure and service banners — pivot link"},
   {"name": "Ransomware.live", "kind": "collector", "slug": "ransomwarelive", "url": "https://ransomware.live", "coverage": "Ransomware group activity (group level; victim names not republished)", "enabled": true},
   {"name": "MITRE ATT&CK", "kind": "collector", "slug": "attack", "url": "https://attack.mitre.org", "coverage": "Adversary groups, software, techniques", "enabled": true},
+  {"name": "abuse.ch Feodo Tracker", "kind": "collector", "slug": "feodotracker", "url": "https://feodotracker.abuse.ch", "coverage": "Botnet C2 IP blocklist — geolocated threat surface (threat_ips.json)", "enabled": true},
+  {"name": "abuse.ch ThreatFox (C2 IPs)", "kind": "collector", "slug": "threatfox", "url": "https://threatfox.abuse.ch", "coverage": "ip:port C2 IOCs with malware attribution — geolocated threat surface (threat_ips.json)", "enabled": true},
   {"name": "Vendor & researcher RSS pool", "kind": "collector", "slug": "rss", "url": "https://github.com", "coverage": "Talos, Unit 42, DFIR Report, MSTIC, GTIG, SANS ISC, BleepingComputer, THN, Securelist", "enabled": true},
   {"name": "CISA Advisories", "kind": "reference", "url": "https://www.cisa.gov/news-events/cybersecurity-advisories", "coverage": "US government advisories and alerts"},
   {"name": "Cisco Talos", "kind": "reference", "url": "https://blog.talosintelligence.com", "coverage": "Threat research and reversing"},

@@ -28,8 +28,9 @@ right pivots. See [ANALYST-GUIDE.md](ANALYST-GUIDE.md).
 
 ## Collected and republished
 
-These six feed the pipeline. All are keyless public endpoints — the repository
-holds no secrets.
+These feed the pipeline. All are public endpoints and **the repository holds no
+secrets** — the one credential in play (the abuse.ch Auth-Key used by ThreatFox)
+is a GitHub Actions secret injected at run time, never committed.
 
 ### CISA Known Exploited Vulnerabilities (KEV)
 
@@ -113,6 +114,26 @@ Four or more claims from the same group collapse into a single digest row
 (`pipeline/relevance.py:98`); without that, victim-claim stubs dominate the
 feed.
 
+### abuse.ch Feodo Tracker + ThreatFox (C2 / blocklist IPs)
+
+| | |
+|---|---|
+| Provides | Botnet C2 and payload-delivery IPs. Feodo Tracker: `ip_address`, `port`, `country` (ISO-2), `malware`, `first_seen`, `last_online`. ThreatFox `ip:port` IOCs: ip, port, `malware`/`malware_printable`, `confidence_level`, `first_seen`, tags |
+| Endpoint | `collectors/feodotracker.py` (keyless JSON blocklist) and `collectors/threatfox.py` (POST `get_iocs`, needs the free Auth-Key in `ABUSECH_API_KEY`) |
+| Terms | These are **indicators published expressly to be blocked** — the opposite posture to the MalwareBazaar/ThreatFox *corpus* reuse withheld under R4. Feodo Tracker's blocklist exists to be loaded into firewalls; the IP is the redistributable datum. SOCDesk is non-commercial, satisfying abuse.ch's not-for-profit free-access condition. abuse.ch is attributed in the payload, the README, and the footer |
+| Cadence | Every pipeline run. ThreatFox skips gracefully when `ABUSECH_API_KEY` is absent (local dev), so the pipeline still produces Feodo-only output |
+| Published as | `threat_ips.json` — `{generated_at, schema_version, attribution, ips[]}` where each row is `{ip, country, lat, lng, source, malware, port, first_seen, last_seen, geo_precision}`. De-duplicated by IP (sources merged), ranked most-recent-first, capped at 300 for the globe. Assembled in `pipeline/threat_ips.py`; bounded by `schemas/threat_ips.schema.json` |
+| Geolocation | `pipeline/geo.py` — **IPinfo** (`IPINFO_TOKEN`) resolves each IP to city-level lat/lng/country (`geo_precision: "city"`); results are written to a persistent per-IP cache (`data/state/geo_cache.json`) so only IPs new since the last run cost a lookup and the twice-hourly pipeline stays inside IPinfo's free tier. When the token is absent or a lookup fails, it falls back to the country centroid (`data/geo/country_centroids.json`, public domain) plus a **deterministic per-IP jitter** seeded from the IP (`geo_precision: "country"`), so shared-country IPs scatter and coordinates stay stable across runs. IP geolocation is approximate and reflects hosting/registrar, **not** operator location |
+| Finding | Distinct from R4: R4 governs the reputation *corpus* (hashes, lookups). A curated block list of C2 IPs is redistribution-intended intel. An IP that cannot be placed (no IPinfo result and no source country) is **dropped**, never given a fabricated coordinate |
+
+The geo cache is committed alongside the state snapshots and pruned each run to
+the IPs currently on a list, so it stays bounded. ThreatFox returns no
+geolocation of its own; with a token it is placed by IPinfo like any other IP,
+and without one its rows fall into `dropped_no_geo` while Feodo Tracker (which
+carries `country`) still populates the globe via the centroid fallback.
+IPinfo's free tier requires attribution, carried in the payload `attribution`
+string, the README, and the site footer.
+
 ### Vendor and researcher RSS pool
 
 | | |
@@ -183,10 +204,11 @@ fleet measures internet background radiation, and a binary listed/not-listed
 verdict over recycled cloud IPs would mislead. A deep link is the most it will
 ever get.
 
-Four sources are queued but not built — abuse.ch FeodoTracker, C2IntelFeeds,
-PhishTank, and APTnotes. Each is one collector module, one fixture, and one
-registry row; each needs its own terms review first. See
-[BACKLOG.md](../BACKLOG.md).
+abuse.ch Feodo Tracker (and ThreatFox `ip:port` IOCs) have now landed as the
+geolocated `threat_ips.json` surface — see the subsection above. Three sources
+remain queued but not built — C2IntelFeeds, PhishTank, and APTnotes. Each is one
+collector module, one fixture, and one registry row; each needs its own terms
+review first. See [BACKLOG.md](../BACKLOG.md).
 
 ---
 

@@ -198,6 +198,12 @@ its origin, and the Source Registry on the site documents the full set.
 - CISA KEV data is U.S. Government work in the public domain. NVD data is a
   work of the U.S. Government; embedded CVE® records are provided by MITRE.
 - Ransomware group activity via Ransomware.live, published at group level only.
+- Botnet C2 / blocklist IPs via abuse.ch Feodo Tracker and ThreatFox,
+  republished as blockable indicators with abuse.ch attribution (these are
+  indicators published expressly to be blocked, unlike the withheld reputation
+  corpora). Geolocation is by IPinfo (https://ipinfo.io) at city level, cached
+  per IP, with a public-domain country-centroid fallback. It is approximate and
+  reflects hosting/registrar, not operator location.
 - Headlines and summaries are excerpted with attribution and link to the
   original publishers; full text is never reproduced.
 

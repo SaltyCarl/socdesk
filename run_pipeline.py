@@ -13,6 +13,7 @@ from pipeline.publish import build_site_data
 from pipeline.validate import gate
 
 BRIEF_SRC = Path("data/brief.json")
+GEO_CACHE_NAME = "geo_cache.json"    # IP -> {lat,lng,country,city,precision}
 
 
 def _history(state_dir, cve_rows, feed_count, now):
@@ -47,8 +48,9 @@ def _attack_is_fresh(state, now):
     return gen >= iso(now - timedelta(days=attack.CACHE_DAYS))
 
 
-def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path):
+def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None):
     out_dir, state_dir = Path(out_dir), Path(state_dir)
+    web_dir = Path(web_dir) if web_dir else None
     state = _load_state(state_dir)
 
     modules = list(COLLECTORS)
@@ -60,7 +62,15 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path):
     cve_rows = build_cve_rows(results, prior_cves, now)
     health.append(enrich_epss(fetch, cve_rows, now))
 
-    payloads = build_site_data(results, cve_rows, health, state, now)
+    # Persistent IP->geo cache (committed with the state snapshots): only IPs
+    # new since the last run hit IPinfo, keeping the twice-hourly pipeline
+    # inside the free quota. build_site_data mutates it in place.
+    geo_cache = state.get(GEO_CACHE_NAME, {})
+    if not isinstance(geo_cache, dict):
+        geo_cache = {}
+
+    payloads = build_site_data(results, cve_rows, health, state, now,
+                               fetch=fetch, geo_cache=geo_cache)
     sources = json.loads(Path(sources_path).read_text(encoding="utf-8"))
     payloads["sources.json"] = dict(sources, generated_at=iso(now))
 
@@ -78,10 +88,21 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path):
 
     out_dir.mkdir(parents=True, exist_ok=True)
     state_dir.mkdir(parents=True, exist_ok=True)
+    if web_dir:                                # dual-write: the web app's data
+        web_dir.mkdir(parents=True, exist_ok=True)   # dir (gitignored, rebuilt)
     for name, payload in published.items():
         blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
         (out_dir / name).write_text(blob, encoding="utf-8")
         (state_dir / name).write_text(blob, encoding="utf-8")
+        if web_dir:
+            (web_dir / name).write_text(blob, encoding="utf-8")
+
+    # Persist the geo cache next to the state snapshots (sorted for stable
+    # diffs). CI's `git add data/state` commits it, so the next run reuses it.
+    (state_dir / GEO_CACHE_NAME).write_text(
+        json.dumps(geo_cache, ensure_ascii=False, sort_keys=True,
+                   separators=(",", ":")),
+        encoding="utf-8")
 
     hdir = state_dir / "history"               # snapshot series lives in git
     hdir.mkdir(parents=True, exist_ok=True)
@@ -104,5 +125,6 @@ if __name__ == "__main__":
     from pipeline.http import http_fetch
     _, problems = run(fetch=http_fetch, now=datetime.now(timezone.utc),
                       out_dir="site/data", state_dir="data/state",
-                      schemas_dir="schemas", sources_path="data/sources.json")
+                      schemas_dir="schemas", sources_path="data/sources.json",
+                      web_dir="web/public/data/state")
     sys.exit(0)   # upstream problems are health data, never a CI failure

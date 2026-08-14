@@ -1,8 +1,10 @@
+import os
 from datetime import timedelta
 
 from collectors.base import iso
 from pipeline.relations import build_relations
 from pipeline.relevance import apply_scores, group_repetitive
+from pipeline.threat_ips import build_threat_ips
 
 FEED_DAYS = 30
 SCHEMA_VERSION = 1
@@ -33,11 +35,16 @@ def merge_feed(prior_items, new_items, days, now):
     return sorted(kept, key=lambda i: i["published_at"], reverse=True)
 
 
-def build_site_data(results, cve_rows, health, prior, now):
+def build_site_data(results, cve_rows, health, prior, now, fetch=None,
+                    geo_cache=None):
     """Assemble published payloads.
 
     No IOC corpus is published (see COMPLIANCE.md): reputation data is reached
-    by user-clicked deep links at render time, not mirrored here.
+    by user-clicked deep links at render time, not mirrored here. The one
+    reputation-adjacent payload is ``threat_ips.json`` — abuse.ch C2/blocklist
+    IPs, which are indicators published expressly to be blocked. ``fetch`` and
+    ``geo_cache`` are threaded through only so those IPs can be geolocated via
+    IPinfo with a persistent cache.
     """
     ok = {r.source: r for r in results if r.ok}
 
@@ -72,6 +79,17 @@ def build_site_data(results, cve_rows, health, prior, now):
         for name in ("actors.json", "malware.json"):
             if name in prior:
                 payloads[name] = dict(prior[name], generated_at=iso(now))
+
+    # Geolocated threat surface (abuse.ch C2/blocklist IPs). Fresh data wins; a
+    # transient upstream failure keeps last-known-good rather than blanking the
+    # globe; the very first run with neither publishes the empty envelope.
+    threat_ips = build_threat_ips(ok, now, fetch=fetch, cache=geo_cache,
+                                  token=os.environ.get("IPINFO_TOKEN"))
+    if threat_ips["total_before_cap"] > 0 or "threat_ips.json" not in prior:
+        payloads["threat_ips.json"] = _envelope(now, **threat_ips)
+    else:
+        payloads["threat_ips.json"] = dict(prior["threat_ips.json"],
+                                           generated_at=iso(now))
 
     # Relationship index: derived from the published feed + ATT&CK + CVE table,
     # so every evidence id resolves against payloads shipped alongside it.
