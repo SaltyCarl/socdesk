@@ -1,14 +1,14 @@
 import { cx } from '@socdesk/shared/lib/cx'
 import type { HealthPayload } from '../views/types'
 import { rel } from '../views/format'
-import { DeskLink, SourceStamp } from './board-ui'
+import { DeskLink } from './board-ui'
 
 /**
- * Freshness strip — "verify our plumbing". Is the batch actually current, and
- * did every collector run? N/N online, the most-recent ingest time, and any
- * collector error printed VERBATIM (a degraded source is never hidden behind a
- * green light). Green/amber/red here is OPERATIONAL meaning — online vs degraded
- * vs down — not a threat verdict, so the reserved hues are earned.
+ * Collector status — did today's batch actually run? N/N online, the most-recent
+ * ingest time, and any collector error printed VERBATIM (a degraded source is
+ * never hidden behind a green light). Green/amber/red here is OPERATIONAL meaning
+ * — online vs degraded vs down — not a threat verdict, so the reserved hues are
+ * earned. The Health desk link beside it carries provenance, so no source stamp.
  */
 
 function lastIngest(health: HealthPayload): string {
@@ -59,8 +59,7 @@ export function FreshnessStrip({ health }: { health: HealthPayload }) {
         </span>
       )}
 
-      <span className="ml-auto flex items-center gap-4">
-        <SourceStamp file="health.json" />
+      <span className="ml-auto">
         <DeskLink tab="health">Health</DeskLink>
       </span>
     </section>

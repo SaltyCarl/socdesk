@@ -1,88 +1,87 @@
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { MicroLabel } from '../ui'
-import { useStateData } from '../views/useStateData'
+import { useStateData, type AsyncStatus } from '../views/useStateData'
 import { AsyncGate, Skeleton, SkeletonRows } from '../views/states'
 import { day, rel } from '../views/format'
-import type {
-  CvePayload,
-  FeedPayload,
-  HealthPayload,
-  TrendsPayload,
-} from '../views/types'
-import { SinceYesterday } from './SinceYesterday'
-import { TopOfQueue } from './TopOfQueue'
-import { NewToKev } from './NewToKev'
-import { ExploitedNotSevere } from './ExploitedNotSevere'
+import type { CvePayload, FeedPayload, HealthPayload, TrendsPayload } from '../views/types'
+import { OverviewStats } from './OverviewStats'
+import { RansomwareActivity } from './RansomwareActivity'
+import { NamedActorActivity } from './NamedActorActivity'
+import { PatchPriority } from './PatchPriority'
 import { FreshnessStrip } from './FreshnessStrip'
+import { aggregateRansomware, namedActorReports } from './aggregations'
 import { useInView } from './useInView'
 
 /**
- * The start-of-shift situational board that fills the Overview below the globe.
- * Ordered to walk a shift open in one scroll: what changed → what's hot & why →
- * the judgment we bring → verify our plumbing.
+ * Daily threat summary — the board below the globe. It answers four DIFFERENT
+ * questions rather than three cuts of the same CVE table:
+ *   who is hitting people   → Ransomware activity (leak-site victim claims)
+ *   who is being reported on → Named-actor activity (APT / campaign)
+ *   what to patch first      → Patch priority (KEV / EPSS)
+ *   did collection run       → Collector status
+ * plus a mixed stat strip on top. Each panel ranks its OWN lane — the feed's
+ * category-capped score makes a single global "top" list an all-CVE artifact.
  *
- * HONESTY is a feature here, not a disclaimer: the section is framed as a
- * daily-batch read (not "live"), every figure names its source file, and every
- * panel degrades to a truthful empty rather than inventing a row. No fake
- * live-attack map, geo heatmap, or synthesized threat gauge — this tool runs no
- * sensors and says so.
+ * HONESTY holds: framed as a once-daily summary (not live), every panel degrades
+ * to a truthful empty, and sources cite the upstream authority. No fabricated
+ * live-attack map, geo heatmap, or synthesized threat gauge.
  *
  * PERF: trends (826 B), feed (293 KB) and health (540 B) fetch on mount; the
  * heavy cves.json (~5 MB) is DEFERRED behind an IntersectionObserver so the
- * landing paints without pulling the catalog until the analyst scrolls toward
- * the panel that needs it.
+ * landing paints before the catalog is pulled.
  */
 
-/* ---------------- deferred cves panel ---------------- */
+/* ---------------- deferred patch-priority panel (heavy cves fetch) ---------------- */
 
-function ExploitedSkeleton() {
+function PatchSkeleton() {
   return (
-    <div className="flex min-h-[18rem] flex-col gap-4 rounded-lg border border-[var(--edge-accent)] bg-raised p-5 shadow-e1">
+    <div className="flex h-full min-h-[18rem] flex-col gap-4 rounded-lg border border-line bg-panel p-5">
       <Skeleton className="h-4 w-40" />
-      <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
-        <SkeletonRows rows={4} className="flex-1" />
-        <SkeletonRows rows={4} className="flex-1" />
-      </div>
+      <SkeletonRows rows={6} />
     </div>
   )
 }
 
-function ExploitedLoader() {
+function PatchLoader() {
   const { status, data, error } = useStateData<CvePayload>('cves')
   return (
     <AsyncGate
       status={status}
       label="the vulnerability catalog"
       detail={error}
-      skeleton={<ExploitedSkeleton />}
+      skeleton={<PatchSkeleton />}
     >
-      <ExploitedNotSevere cves={data?.cves ?? []} />
+      <PatchPriority cves={data?.cves ?? []} />
     </AsyncGate>
   )
 }
 
 /** Gates the ~5 MB cves.json fetch until this slot nears the viewport. */
-function DeferredExploited() {
+function DeferredPatch() {
   const { ref, inView } = useInView<HTMLDivElement>()
-  return <div ref={ref}>{inView ? <ExploitedLoader /> : <ExploitedSkeleton />}</div>
+  return (
+    <div ref={ref} className="h-full">
+      {inView ? <PatchLoader /> : <PatchSkeleton />}
+    </div>
+  )
 }
 
-/* ---------------- section header (the honesty frame) ---------------- */
+/* ---------------- header (de-LARPed, honest frame) ---------------- */
 
 function BoardHeader({ generatedAt }: { generatedAt?: string }) {
   return (
     <header className="flex flex-col gap-3 border-t border-line pt-8 sm:flex-row sm:items-end sm:justify-between">
       <div className="flex flex-col gap-2">
         <MicroLabel tone="accent" tick>
-          Start of shift
+          Daily summary
         </MicroLabel>
         <h2 className="font-display text-xl font-extrabold tracking-tight text-paper">
-          Situational board
+          Daily threat summary
         </h2>
         <p className="max-w-2xl text-base text-muted">
-          Where a shift opens: what changed overnight, what&rsquo;s hot and why,
-          the calls we bring, and whether the plumbing ran. A daily-batch read —
-          not a live feed.
+          A once-daily summary — what changed in the last 24 hours, active
+          ransomware and named-actor reporting, and what to patch first. Updated
+          once per day, not a live feed.
         </p>
       </div>
       {generatedAt && (
@@ -94,7 +93,13 @@ function BoardHeader({ generatedAt }: { generatedAt?: string }) {
   )
 }
 
-/* ---------------- a thin gate for the strip/tile panels ---------------- */
+/* ---------------- gate helper + status combiner ---------------- */
+
+function combine(a: AsyncStatus, b: AsyncStatus): AsyncStatus {
+  if (a === 'error' || b === 'error') return 'error'
+  if (a === 'ready' && b === 'ready') return 'ready'
+  return 'loading'
+}
 
 function Gate({
   status,
@@ -103,7 +108,7 @@ function Gate({
   skeleton,
   children,
 }: {
-  status: 'loading' | 'ready' | 'error'
+  status: AsyncStatus
   label: string
   detail: string | null
   skeleton: ReactNode
@@ -123,54 +128,55 @@ export function SituationalBoard() {
   const feed = useStateData<FeedPayload>('feed')
   const health = useStateData<HealthPayload>('health')
 
+  const items = useMemo(() => feed.data?.items ?? [], [feed.data])
+  const ransom = useMemo(() => aggregateRansomware(items), [items])
+  const actorReports = useMemo(() => namedActorReports(items), [items])
+
   const generatedAt =
     trends.data?.generated_at ?? feed.data?.generated_at ?? health.data?.generated_at
 
   return (
-    <section aria-label="Start-of-shift situational board" className="mt-6 flex flex-col gap-5">
+    <section aria-label="Daily threat summary" className="mt-6 flex flex-col gap-5">
       <BoardHeader generatedAt={generatedAt} />
 
-      {/* 1 · what changed */}
+      {/* mixed stat strip (vuln + ransomware + volume) */}
       <Gate
-        status={trends.status}
-        label="the trend snapshot"
-        detail={trends.error}
+        status={combine(trends.status, feed.status)}
+        label="the daily totals"
+        detail={trends.error ?? feed.error}
         skeleton={<Skeleton className="h-20 w-full rounded-lg" />}
       >
-        <SinceYesterday trends={trends.data ?? {}} />
+        <OverviewStats trends={trends.data ?? {}} ransom={ransom} />
       </Gate>
 
-      {/* 2 · what's hot   +   4 · newly exploited */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Gate
-            status={feed.status}
-            label="the feed"
-            detail={feed.error}
-            skeleton={<Skeleton className="h-80 w-full rounded-lg" />}
-          >
-            <TopOfQueue items={feed.data?.items ?? []} />
-          </Gate>
-        </div>
-        <div className="lg:col-span-1">
-          <Gate
-            status={trends.status}
-            label="the trend snapshot"
-            detail={trends.error}
-            skeleton={<Skeleton className="h-80 w-full rounded-lg" />}
-          >
-            <NewToKev entries={trends.data?.new_kev ?? []} />
-          </Gate>
-        </div>
+      {/* flagship — who's hitting people right now */}
+      <Gate
+        status={feed.status}
+        label="ransomware activity"
+        detail={feed.error}
+        skeleton={<Skeleton className="h-72 w-full rounded-lg" />}
+      >
+        <RansomwareActivity summary={ransom} />
+      </Gate>
+
+      {/* who's being reported on   +   what to patch first */}
+      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-2">
+        <Gate
+          status={feed.status}
+          label="named-actor reporting"
+          detail={feed.error}
+          skeleton={<Skeleton className="h-80 w-full rounded-lg" />}
+        >
+          <NamedActorActivity reports={actorReports} />
+        </Gate>
+
+        <DeferredPatch />
       </div>
 
-      {/* 3 · the judgment we bring (deferred heavy fetch) */}
-      <DeferredExploited />
-
-      {/* 5 · verify our plumbing */}
+      {/* did collection run */}
       <Gate
         status={health.status}
-        label="collector health"
+        label="collector status"
         detail={health.error}
         skeleton={<Skeleton className="h-12 w-full rounded-lg" />}
       >

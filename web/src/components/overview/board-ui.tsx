@@ -4,18 +4,21 @@ import { MicroLabel } from '../ui'
 import { navigate } from '../palette/commands'
 
 /**
- * Shared chrome for the situational-board panels: a titled panel frame, the
- * source-attribution stamp (every number names its collector — honesty is part
- * of the value), and an SPA deep-link into the data desk.
+ * Shared chrome for the daily-summary panels: a titled panel frame, an
+ * upstream-authority stamp, and an SPA deep-link into the data desk.
  */
 
 /* ---------------- source attribution stamp ---------------- */
 
-/** "via feed.json" — the honest provenance line every panel carries. */
-export function SourceStamp({ file }: { file: string }) {
+/**
+ * Cite the upstream AUTHORITY, not the internal filename — "NVD · EPSS · KEV",
+ * "ransomware.live". A filename stamp is faux-transparency; the authority is
+ * what an analyst actually needs to weigh the number.
+ */
+export function SourceStamp({ label }: { label: string }) {
   return (
     <MicroLabel tone="faint" className="whitespace-nowrap">
-      via {file}
+      {label}
     </MicroLabel>
   )
 }
@@ -64,7 +67,7 @@ export function DeskLink({
  * The board's panel shell — a recessive work surface with a titled header, an
  * optional right-aligned aside (source stamp / deep-link), and a scroll-reveal
  * hook (`sd-reveal`, static under reduced motion). `accent` promotes it to the
- * lifted, accent-spined treatment reserved for the differentiating panel.
+ * lifted, accent-spined treatment reserved for the flagship panel.
  */
 export function BoardPanel({
   eyebrow,
