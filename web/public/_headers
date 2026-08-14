@@ -9,6 +9,10 @@
 /index.html
   Cache-Control: no-cache
 
+/sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+
 /data/*
   Cache-Control: no-cache
   X-Content-Type-Options: nosniff
