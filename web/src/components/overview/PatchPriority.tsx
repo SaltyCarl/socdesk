@@ -18,7 +18,7 @@ function affected(c: Cve): string {
 
 function CveRow({ c }: { c: Cve }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-line py-2.5 first:pt-0 last:border-0 last:pb-0">
+    <div className="flex items-center justify-between gap-3 border-b border-line py-3 first:pt-0 last:border-0 last:pb-0">
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="font-mono text-xs font-semibold text-paper">{c.cve}</span>
         <span className="truncate text-micro text-muted">{affected(c)}</span>

@@ -39,7 +39,7 @@ export function FreshnessStrip({ health }: { health: HealthPayload }) {
   ]
 
   return (
-    <section className="sd-reveal flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-line bg-panel px-5 py-3">
+    <section className="sd-reveal flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line pt-3">
       <span className="inline-flex items-center gap-2">
         <span aria-hidden="true" className={cx('inline-block size-2 rounded-full', dot)} />
         <span className="font-mono text-micro font-semibold uppercase tracking-label text-paper">

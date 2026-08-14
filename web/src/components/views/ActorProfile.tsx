@@ -4,7 +4,7 @@ import { MicroLabel } from '../ui'
 import { MonoTag } from './Badges'
 import { rel, safeUrl, num } from './format'
 import { PIVOTABLE, provenance, techniqueUrl } from './relations'
-import { ActorLink } from '../overview/board-ui'
+import { ActorLink, BoardPanel } from '../overview/board-ui'
 import type { ProfileResult } from './profiles'
 
 /**
@@ -98,9 +98,11 @@ function AliasChips({ aliases }: { aliases: string[] }) {
 function MitreFingerprintPanel({
   fingerprint,
   slugSet,
+  ransomware,
 }: {
   fingerprint: NonNullable<ProfileResult['fingerprint']>
   slugSet: Set<string>
+  ransomware?: ProfileResult['ransomware']
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -138,6 +140,51 @@ function MitreFingerprintPanel({
             ))}
           </div>
         </div>
+      )}
+
+      {/* A group that carries BOTH an ATT&CK fingerprint AND live leak-site
+          activity (e.g. Clop) still surfaces the sectors/countries it is
+          currently hitting — the same data profileFor computes for the
+          fingerprint-less path. Ghost tags: informational, not a verdict.
+          Honest-empty per field when the source attributed none. */}
+      {ransomware && (
+        <>
+          <div className="flex flex-col gap-2">
+            <SectionLabel>Leak-site target sectors</SectionLabel>
+            {ransomware.sectors.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {ransomware.sectors.map((s) => (
+                  <MonoTag key={s} tone="ghost">
+                    {s}
+                  </MonoTag>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted">No sector attributed by the source.</p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <SectionLabel>Leak-site target countries</SectionLabel>
+            {ransomware.countries.length ? (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  {ransomware.countries.map((c) => (
+                    <MonoTag key={c} tone="ghost">
+                      {c}
+                    </MonoTag>
+                  ))}
+                </div>
+                <p className="text-micro text-faint">
+                  Partial — rolled-up digest claims omit country, so more countries may be
+                  affected.
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-muted">No country attributed by the source.</p>
+            )}
+          </div>
+        </>
       )}
     </div>
   )
@@ -384,46 +431,52 @@ export function ActorProfile({
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+      {/* items-start keeps each column content-height, so the panels inherit
+          BoardPanel's h-full harmlessly (a stretched column would force two
+          full-height panels to overlap). */}
+      <div className="grid gap-5 lg:grid-cols-[1fr_340px] lg:items-start">
         <div className="flex flex-col gap-5">
           {/* fingerprint */}
-          <section className="flex flex-col gap-4 rounded-lg border border-line bg-panel p-5">
-            <SectionLabel accent>Fingerprint</SectionLabel>
+          <BoardPanel eyebrow="Fingerprint">
             {fingerprint ? (
-              <MitreFingerprintPanel fingerprint={fingerprint} slugSet={slugSet} />
+              <MitreFingerprintPanel
+                fingerprint={fingerprint}
+                slugSet={slugSet}
+                ransomware={ransomware}
+              />
             ) : (
               <ActivityFingerprintPanel ransomware={ransomware} apt={isApt} />
             )}
-          </section>
+          </BoardPanel>
 
           {/* recent activity */}
-          <section className="flex flex-col gap-4 rounded-lg border border-line bg-panel p-5">
-            <SectionLabel accent>Recent activity</SectionLabel>
-            {ransomware ? (
-              <RansomwareClaims ransomware={ransomware} />
-            ) : reporting.length ? (
-              <ReportingList reporting={reporting} />
-            ) : (
-              <p className="text-xs text-muted">
-                No leak-site claims or reporting name this entity in the current window.
-              </p>
-            )}
-            {/* When a group has BOTH claims and reporting, surface the reporting too. */}
-            {ransomware && reporting.length > 0 && (
-              <div className="flex flex-col gap-3 border-t border-line pt-4">
-                <SectionLabel>Also in reporting</SectionLabel>
+          <BoardPanel eyebrow="Recent activity">
+            <div className="flex flex-col gap-4">
+              {ransomware ? (
+                <RansomwareClaims ransomware={ransomware} />
+              ) : reporting.length ? (
                 <ReportingList reporting={reporting} />
-              </div>
-            )}
-          </section>
+              ) : (
+                <p className="text-xs text-muted">
+                  No leak-site claims or reporting name this entity in the current window.
+                </p>
+              )}
+              {/* When a group has BOTH claims and reporting, surface the reporting too. */}
+              {ransomware && reporting.length > 0 && (
+                <div className="flex flex-col gap-3 border-t border-line pt-4">
+                  <SectionLabel>Also in reporting</SectionLabel>
+                  <ReportingList reporting={reporting} />
+                </div>
+              )}
+            </div>
+          </BoardPanel>
         </div>
 
         {/* related */}
         <div className="lg:sticky lg:top-20 lg:self-start">
-          <section className="flex flex-col gap-4 rounded-lg border border-line bg-panel p-5">
-            <SectionLabel accent>Related entities</SectionLabel>
+          <BoardPanel eyebrow="Related entities">
             <RelatedPanel related={profile.related} />
-          </section>
+          </BoardPanel>
         </div>
       </div>
     </div>

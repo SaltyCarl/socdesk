@@ -1,97 +1,452 @@
-import {
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import type { FeedItem } from './types'
-import { rel, safeUrl } from './format'
-import { ScoreBadge, MonoTag } from './Badges'
+import { rel, safeUrl, num, pct } from './format'
+import { KevBadge, DataChip, ClaimsChip } from './Badges'
 import { EmptyState } from './states'
-import { navigate } from '../palette/commands'
+import { claimCount } from '../overview/aggregations'
+import { ActorLink } from '../overview/board-ui'
 
 /**
- * The feed IS the work queue: score-sorted by default so the highest-relevance
- * reports lead, with the pipeline's `why` rationale printed on every row so the
- * ranking is explainable, never a black box. Priority (0–100 score, recency
- * tie-break) is the default order; Newest is the explicit chronological
- * alternative.
+ * The feed is a BRIEFING, not a console. "The Brief" (approved Direction 1):
+ * a dated masthead, ONE featured lead story with real emphasis, then the rest
+ * organised into clean, category-grouped sections (Vulnerabilities · Ransomware
+ * · Named actors · Malware · Reports) — each with a periwinkle line-glyph, a
+ * live count, a "View all →", and scannable item rows.
+ *
+ * Two modes, one lens bar:
+ *   • ALL + no search  → the full briefing (featured lead + every section).
+ *   • a lens selected, OR an active search  → that scope as a flat, ranked list
+ *     (a section's "View all →" just selects its lens). Search + honest empties
+ *     are preserved in both.
+ *
+ * Every signal chip (KEV / EPSS / CVSS / N claims) is PARSED from the pipeline's
+ * real `why` rationale — nothing is fabricated. Sources are attributed to the
+ * upstream authority (CISA KEV, ransomware.live, or the outlet named in the
+ * item's "[Outlet]" title prefix). Any empty scope states why.
  */
 
-const INIT = 25
-const STEP = 100
-const REVIEWED_KEY = 'socdesk-reviewed'
+const INIT = 30
+const STEP = 60
+const SECTION_ROWS = 5
 
-type Sort = 'priority' | 'newest'
-
-/**
- * Analyst LENSES — curated groupings laid over the collector's raw categories.
- * A lens can OR several categories (e.g. "Named actors" spans apt + campaign),
- * so the bar reads as triage intent rather than the pipeline's taxonomy. "All"
- * is the implicit no-filter lens, always rendered first; any lens whose live
- * count is 0 is omitted so the bar degrades honestly.
- */
-type Lens = { key: string; label: string; categories: readonly string[] }
+/* ---------------- lenses (curated groupings over raw categories) ---------- *
+ * A lens can OR several categories ("Named actors" spans apt + campaign). The
+ * ORDER here drives BOTH the lens bar and the briefing's section order (the
+ * mockup's reading priority: exploited vulns → active ransomware → named actors
+ * → malware → the long tail of reports). Each lens carries the periwinkle
+ * line-glyph its section header wears. */
+type GlyphName = 'vuln' | 'ransom' | 'actor' | 'campaign' | 'report' | 'bug'
+type Lens = { key: string; label: string; categories: readonly string[]; glyph: GlyphName }
 
 const LENSES: readonly Lens[] = [
-  { key: 'ransomware', label: 'Ransomware', categories: ['ransomware'] },
-  { key: 'actors', label: 'Named actors', categories: ['apt', 'campaign'] },
-  { key: 'vulnerabilities', label: 'Vulnerabilities', categories: ['vulnerability'] },
-  { key: 'reports', label: 'Reports', categories: ['report'] },
-  { key: 'malware', label: 'Malware', categories: ['malware'] },
+  { key: 'vulnerabilities', label: 'Vulnerabilities', categories: ['vulnerability'], glyph: 'vuln' },
+  { key: 'ransomware', label: 'Ransomware', categories: ['ransomware'], glyph: 'ransom' },
+  { key: 'actors', label: 'Named actors', categories: ['apt', 'campaign'], glyph: 'actor' },
+  { key: 'malware', label: 'Malware', categories: ['malware'], glyph: 'bug' },
+  { key: 'reports', label: 'Reports', categories: ['report'], glyph: 'report' },
 ]
 
-function loadReviewed(): Set<string> {
-  try {
-    const raw = localStorage.getItem(REVIEWED_KEY)
-    return new Set<string>(raw ? (JSON.parse(raw) as string[]) : [])
-  } catch {
-    return new Set<string>()
-  }
+/** Per-category display identity for the lead eyebrow + the report-row glyph. */
+const CAT_META: Record<string, { label: string; glyph: GlyphName }> = {
+  vulnerability: { label: 'Vulnerability', glyph: 'vuln' },
+  ransomware: { label: 'Ransomware', glyph: 'ransom' },
+  apt: { label: 'Threat actor', glyph: 'actor' },
+  campaign: { label: 'Campaign', glyph: 'campaign' },
+  report: { label: 'Report', glyph: 'report' },
+  malware: { label: 'Malware', glyph: 'bug' },
 }
-function saveReviewed(set: Set<string>): void {
-  try {
-    localStorage.setItem(REVIEWED_KEY, JSON.stringify([...set]))
-  } catch {
-    /* best-effort */
-  }
+const catMeta = (cat: string) => CAT_META[cat] ?? { label: cat, glyph: 'report' as const }
+
+/* ---------------- real-data helpers (pure) -------------------------------- */
+
+const OUTLET_RE = /^\s*\[([^\]]+)\]\s*/
+
+/** Structured signals parsed out of the pipeline's `why` rationale — the only
+ *  place these facts live in feed.json (there are no raw epss/cvss/kev fields).
+ *  `claims` is populated only for leak-site posts, so a non-ransomware row never
+ *  shows a spurious "1 claim". */
+interface Signals {
+  kev: boolean
+  epss: number | null
+  cvss: number | null
+  claims: number | null
 }
 
-const byTimeDesc = (a: FeedItem, b: FeedItem): number =>
-  String(b.published_at ?? '').localeCompare(String(a.published_at ?? ''))
+function signalsFor(item: FeedItem): Signals {
+  let kev = false
+  let epss: number | null = null
+  let cvss: number | null = null
+  for (const w of item.why ?? []) {
+    if (/KEV-listed/i.test(w)) kev = true
+    const e = w.match(/EPSS\s+(\d+(?:\.\d+)?)\s*%/i)
+    if (e) epss = Number(e[1]) / 100
+    const c = w.match(/CVSS\s+(\d+(?:\.\d+)?)/i)
+    if (c) cvss = Number(c[1])
+  }
+  const claims = item.source === 'ransomwarelive' ? claimCount(item) : null
+  return { kev, epss, cvss, claims }
+}
 
-/* ---------------- small internal controls ---------------- */
+/** Attribute the upstream AUTHORITY, not the internal collector name. */
+function sourceLabel(item: FeedItem): string {
+  if (item.source === 'kev') return 'CISA KEV'
+  if (item.source === 'ransomwarelive') return 'ransomware.live'
+  if (item.source === 'rss') {
+    const m = (item.title ?? '').match(OUTLET_RE)
+    return m ? m[1] : 'RSS'
+  }
+  return item.source
+}
 
-function SegButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
+/** Drop redundant chrome from the raw title — the "[Outlet]" prefix (the source
+ *  chip carries it) and, for KEV rows, the "KEV: CVE-… — " lead-in (the KEV
+ *  badge + the mono CVE id already carry it). Nothing is invented. */
+function cleanTitle(item: FeedItem): string {
+  let t = (item.title ?? '').replace(OUTLET_RE, '')
+  if (item.source === 'kev') {
+    t = t.replace(/^KEV:\s*/i, '')
+    const cve = item.entities?.cves?.[0]
+    if (cve) {
+      const esc = cve.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      t = t.replace(new RegExp(`^${esc}\\s*[—–-]\\s*`, 'i'), '')
+    }
+  }
+  return t.trim()
+}
+
+/** The mono id shown in a row's left rail: a CVE for a vulnerability, the primary
+ *  actor for a ransomware / actor row, else null (a category glyph stands in). */
+function railActorName(item: FeedItem): string | null {
+  if (item.category === 'ransomware' || item.category === 'apt' || item.category === 'campaign') {
+    return item.entities?.actors?.[0] ?? null
+  }
+  return null
+}
+function cveId(item: FeedItem): string | null {
+  return item.category === 'vulnerability' ? (item.entities?.cves?.[0] ?? null) : null
+}
+
+/** One decorated + pre-keyed item, so the priority sort keys are computed once. */
+interface Ranked {
+  item: FeedItem
+  sig: Signals
+  key: number[]
+}
+
+/** Priority key: the pipeline's 0–100 score dominates; ties break on KEV, then
+ *  higher EPSS, higher CVSS, then recency — so at equal score the actively-
+ *  exploited, most-likely-exploited CVE leads (reproduces the intended lead). */
+function keyOf(item: FeedItem, sig: Signals): number[] {
+  return [
+    item.score ?? -1,
+    sig.kev ? 1 : 0,
+    sig.epss ?? -1,
+    sig.cvss ?? -1,
+    Date.parse(item.published_at ?? '') || 0,
+  ]
+}
+function cmpDesc(a: Ranked, b: Ranked): number {
+  for (let i = 0; i < a.key.length; i++) {
+    if (b.key[i] !== a.key[i]) return b.key[i] - a.key[i]
+  }
+  return 0
+}
+
+function haystack(item: FeedItem): string {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cx(
-        'inline-flex h-8 items-center px-3 font-mono text-micro font-semibold uppercase tracking-label transition-colors duration-150 ease-brand',
-        'outline-offset-[-2px] focus-visible:outline-2 focus-visible:outline-accent',
-        active
-          ? 'text-paper shadow-[inset_0_-2px_0_var(--accent)]'
-          : 'text-muted hover:text-paper',
-      )}
-    >
-      {children}
-    </button>
+    item.title +
+    ' ' +
+    item.summary +
+    ' ' +
+    Object.values(item.entities ?? {})
+      .flat()
+      .join(' ')
+  ).toLowerCase()
+}
+
+/** Long-form briefing date from the snapshot's generated_at (falls back to the
+ *  newest collected_at on the items). */
+function briefingDate(iso?: string): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+/* ---------------- periwinkle line-glyphs (UI, not severity) --------------- */
+
+function Glyph({ name, className }: { name: GlyphName; className?: string }) {
+  const common = {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.6,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+    className: cx('shrink-0', className),
+  }
+  switch (name) {
+    case 'vuln':
+      return (
+        <svg {...common}>
+          <path d="M12 3.5 5 6v5.2c0 5 3 8.6 7 9.8 4-1.2 7-4.8 7-9.8V6l-7-2.5Z" />
+          <path d="M12 7.6v5.2" />
+          <circle cx="12" cy="16.4" r="1" className="fill-current" stroke="none" />
+        </svg>
+      )
+    case 'ransom':
+      return (
+        <svg {...common}>
+          <rect x="5" y="11" width="14" height="9" rx="2" />
+          <path d="M8 11V8a4 4 0 0 1 7.4-2.1" />
+        </svg>
+      )
+    case 'actor':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="6.6" />
+          <path d="M12 2v3.4M12 18.6V22M2 12h3.4M18.6 12H22" />
+          <circle cx="12" cy="12" r="1.3" className="fill-current" stroke="none" />
+        </svg>
+      )
+    case 'campaign':
+      return (
+        <svg {...common}>
+          <path d="M3 10.4v3.2h3.5l5.7 3.5V6.9l-5.7 3.5H3Z" />
+          <path d="M15.4 9.2a4.7 4.7 0 0 1 0 5.6" />
+          <path d="M18 6.5a8.6 8.6 0 0 1 0 11" />
+        </svg>
+      )
+    case 'bug':
+      return (
+        <svg {...common}>
+          <path d="M8 9a4 4 0 0 1 8 0v3a4 4 0 0 1-8 0V9Z" />
+          <path d="M9.2 6.4 7.8 5M14.8 6.4 16.2 5M4 11h3M17 11h3M4.6 15.8 7 15M19.4 15.8 17 15M12 13v7.5" />
+        </svg>
+      )
+    case 'report':
+    default:
+      return (
+        <svg {...common}>
+          <path d="M7 2.8h6.3L18 7.6v13.1a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5V3.3a.5.5 0 0 1 .5-.5Z" />
+          <path d="M13.3 2.8v4.3a.5.5 0 0 0 .5.5H18" />
+          <path d="M9 12.3h6M9 15.6h6M9 9h2.4" />
+        </svg>
+      )
+  }
+}
+
+/* ---------------- signal-chip cluster (shared by lead + rows) ------------- */
+
+function SignalChips({ sig, className }: { sig: Signals; className?: string }) {
+  const has = sig.kev || sig.epss != null || sig.cvss != null || sig.claims != null
+  if (!has) return null
+  return (
+    <div className={cx('flex flex-wrap items-center gap-1.5', className)}>
+      {sig.kev && <KevBadge />}
+      {sig.epss != null && <DataChip label="EPSS" value={pct(sig.epss)} />}
+      {sig.cvss != null && <DataChip label="CVSS" value={String(sig.cvss)} />}
+      {sig.claims != null && <ClaimsChip count={sig.claims} />}
+    </div>
   )
 }
 
-function FilterChip({
+const ACTOR_CHIP =
+  'inline-flex items-center rounded-sm border border-[var(--edge-accent)] bg-[var(--tint-accent)] px-1.5 py-0.5 font-mono text-micro font-semibold text-accent hover:underline'
+
+/* ---------------- the featured lead --------------------------------------- */
+
+function Lead({ item, sig }: { item: FeedItem; sig: Signals }) {
+  const href = safeUrl(item.url)
+  const meta = catMeta(item.category)
+  const actors = item.entities?.actors ?? []
+  const title = cleanTitle(item)
+
+  return (
+    <article className="sd-reveal border-b border-line pb-9">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="inline-flex items-center gap-2 text-xs font-semibold text-accent">
+          <Glyph name={meta.glyph} className="size-4" />
+          {meta.label}
+        </span>
+        {sig.kev && <KevBadge />}
+      </div>
+
+      <h2 className="mt-4 max-w-4xl font-display text-xl font-extrabold tracking-display text-paper sm:text-2xl">
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline-offset-4 transition-colors duration-150 ease-brand hover:text-accent hover:underline"
+          >
+            {title}
+          </a>
+        ) : (
+          title
+        )}
+      </h2>
+
+      {item.summary && (
+        <p className="mt-3 max-w-2xl text-md text-muted">{item.summary}</p>
+      )}
+
+      <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <SignalChips sig={{ ...sig, kev: false }} />
+        <span className="text-sm font-semibold text-paper">{sourceLabel(item)}</span>
+        <span aria-hidden="true" className="text-line-strong">
+          ·
+        </span>
+        <span className="font-mono text-xs tabular-nums text-faint">
+          {rel(item.published_at)}
+        </span>
+      </div>
+
+      {actors.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          {actors.map((name) => (
+            <ActorLink key={name} name={name} className={ACTOR_CHIP}>
+              {name}
+            </ActorLink>
+          ))}
+        </div>
+      )}
+    </article>
+  )
+}
+
+/* ---------------- one scannable row --------------------------------------- */
+
+function Row({ item, sig }: { item: FeedItem; sig: Signals }) {
+  const href = safeUrl(item.url)
+  const cve = cveId(item)
+  const actor = railActorName(item)
+  const actors = item.entities?.actors ?? []
+  // The primary actor is already the left-rail link; don't repeat it as a chip.
+  const extraActors = actor ? actors.filter((a) => a !== actor) : actors
+  const title = cleanTitle(item)
+
+  return (
+    <article className="grid gap-x-5 gap-y-2 border-b border-line py-4 last:border-0 sm:grid-cols-[7.5rem_minmax(0,1fr)_14rem] sm:items-start">
+      {/* left rail — CVE id, primary actor link, or a category glyph */}
+      {cve ? (
+        <span className="font-mono text-xs font-semibold tabular-nums text-accent-dim sm:pt-0.5">
+          {cve}
+        </span>
+      ) : actor ? (
+        <ActorLink
+          name={actor}
+          className="break-words font-mono text-xs font-semibold text-accent-dim hover:text-accent hover:underline sm:pt-0.5"
+        >
+          {actor}
+        </ActorLink>
+      ) : (
+        <span className="hidden size-8 items-center justify-center rounded-md border border-line bg-panel-soft sm:flex">
+          <Glyph name={catMeta(item.category).glyph} className="size-4 text-accent" />
+        </span>
+      )}
+
+      {/* the report */}
+      <div className="min-w-0">
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-base font-semibold text-paper underline-offset-2 transition-colors duration-150 ease-brand hover:text-accent hover:underline"
+          >
+            {title}
+          </a>
+        ) : (
+          <span className="text-base font-semibold text-paper">{title}</span>
+        )}
+        {item.summary && (
+          <p className="mt-1 line-clamp-2 text-xs text-muted">{item.summary}</p>
+        )}
+        {extraActors.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {extraActors.map((name) => (
+              <ActorLink key={name} name={name} className={ACTOR_CHIP}>
+                {name}
+              </ActorLink>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* signal + attribution */}
+      <div className="flex flex-col gap-1.5 sm:items-end">
+        <SignalChips sig={sig} className="sm:justify-end" />
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-paper">{sourceLabel(item)}</span>
+          <span className="font-mono text-micro tabular-nums text-faint">
+            {rel(item.published_at)}
+          </span>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+/* ---------------- section (briefing) -------------------------------------- */
+
+function Section({
+  lens,
+  rows,
+  total,
+  onViewAll,
+}: {
+  lens: Lens
+  rows: Ranked[]
+  total: number
+  onViewAll: () => void
+}) {
+  return (
+    <section className="sd-reveal flex flex-col gap-2">
+      <header className="flex items-center justify-between gap-4 border-b border-line-bright pb-3">
+        <div className="flex items-center gap-2.5">
+          <Glyph name={lens.glyph} className="size-5 text-accent" />
+          <h3 className="font-display text-md font-bold tracking-tight text-paper">
+            {lens.label}
+          </h3>
+          <span className="font-mono text-xs tabular-nums text-faint">{num(total)}</span>
+        </div>
+        {total > 0 && (
+          <button
+            type="button"
+            onClick={onViewAll}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-accent underline-offset-2 transition-colors duration-150 ease-brand hover:text-accent-dim hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            View all
+            <span aria-hidden="true">→</span>
+          </button>
+        )}
+      </header>
+      {rows.length === 0 ? (
+        <p className="py-3 text-xs text-muted" role="status">
+          No {lens.label.toLowerCase()} in this window.
+        </p>
+      ) : (
+        <div className="flex flex-col">
+          {rows.map(({ item, sig }) => (
+            <Row key={item.id} item={item} sig={sig} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/* ---------------- small controls ------------------------------------------ */
+
+function LensChip({
   active,
   label,
   count,
@@ -108,7 +463,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cx(
-        'inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-micro font-semibold uppercase tracking-label transition-colors duration-150 ease-brand',
+        'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ease-brand',
         'outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent',
         active
           ? 'border-[var(--edge-accent)] bg-[var(--tint-accent)] text-accent'
@@ -116,354 +471,200 @@ function FilterChip({
       )}
     >
       {label}
-      <b className="font-semibold tabular-nums">{count}</b>
+      <span className="font-mono tabular-nums">{num(count)}</span>
     </button>
   )
 }
 
-/**
- * An entity actor rendered as a deep-link into its /actor profile. A real
- * crawlable `<a href>` (modifier-click / middle-click open a new tab), but a
- * plain left-click is intercepted into the SPA's pushState navigation — the
- * same click-intercept the board's DeskLink uses. `stopPropagation` keeps the
- * click off the enclosing row's select handler, mirroring the title link.
- * The profile route consumes `/actor#g=<lowercased-name>`.
- */
-function ActorLink({ name }: { name: string }) {
-  const href = `/actor#g=${name.toLowerCase()}`
-  return (
-    <a
-      href={href}
-      onClick={(e) => {
-        e.stopPropagation()
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
-        e.preventDefault()
-        navigate(href)
-      }}
-      className={cx(
-        'inline-flex items-center rounded-sm border px-1.5 py-0.5 font-mono text-micro font-semibold',
-        'border-[var(--edge-accent)] bg-[var(--tint-accent)] text-accent',
-        'underline-offset-2 transition-colors duration-150 ease-brand hover:underline',
-        'outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent',
-      )}
-    >
-      {name}
-    </a>
-  )
-}
+/* ---------------- the view ------------------------------------------------ */
 
-/* ---------------- the row ---------------- */
-
-function Row({
-  item,
-  index,
-  selected,
-  reviewed,
-  onSelect,
-  onToggleReviewed,
+export function FeedView({
+  items,
+  generatedAt,
 }: {
-  item: FeedItem
-  index: number
-  selected: boolean
-  reviewed: boolean
-  onSelect: () => void
-  onToggleReviewed: () => void
+  items: FeedItem[]
+  generatedAt?: string
 }) {
-  const href = safeUrl(item.url)
-  const why = (item.why ?? []).slice(0, 3)
-  const extraWhy = (item.why?.length ?? 0) - why.length
-  const actors = item.entities?.actors ?? []
-
-  return (
-    <div
-      data-idx={index}
-      data-row
-      onClick={onSelect}
-      className={cx(
-        'sd-reveal group grid grid-cols-[auto_1fr_auto] gap-4 rounded-lg border bg-panel px-4 py-3 transition-colors duration-150 ease-brand',
-        selected
-          ? 'border-[var(--edge-accent)]'
-          : 'border-line hover:border-line-bright',
-        reviewed && 'opacity-60',
-      )}
-    >
-      {/* priority + category */}
-      <div className="flex flex-col items-start gap-1.5">
-        <ScoreBadge score={item.score} />
-        <MonoTag tone="faint">{item.category}</MonoTag>
-      </div>
-
-      {/* the report */}
-      <div className="min-w-0 flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-micro uppercase tracking-label text-faint">
-            {item.source}
-          </span>
-          {item.grouped ? (
-            <MonoTag tone="accent">digest · {item.grouped}</MonoTag>
-          ) : null}
-        </div>
-        {href ? (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="text-base font-semibold text-paper underline-offset-2 hover:text-accent hover:underline"
-          >
-            {item.title}
-          </a>
-        ) : (
-          <span className="text-base font-semibold text-paper">
-            {item.title}
-          </span>
-        )}
-        <p className="line-clamp-2 text-xs text-muted">{item.summary}</p>
-        {actors.length > 0 && (
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-            <span className="font-mono text-micro uppercase tracking-label text-faint">
-              actors
-            </span>
-            {actors.map((name) => (
-              <ActorLink key={name} name={name} />
-            ))}
-          </div>
-        )}
-        {(why.length > 0 || extraWhy > 0) && (
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-            <span className="font-mono text-micro uppercase tracking-label text-faint">
-              why
-            </span>
-            {why.map((w) => (
-              <span
-                key={w}
-                className="rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-muted"
-              >
-                {w}
-              </span>
-            ))}
-            {extraWhy > 0 && (
-              <span className="font-mono text-micro text-faint">
-                +{extraWhy}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* meta + triage action */}
-      <div className="flex flex-col items-end justify-between gap-2">
-        <span className="whitespace-nowrap font-mono text-micro text-faint">
-          {rel(item.published_at)}
-        </span>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleReviewed()
-          }}
-          aria-pressed={reviewed}
-          title={reviewed ? 'Reviewed — click to unmark' : 'Mark reviewed'}
-          className={cx(
-            'inline-flex size-7 items-center justify-center rounded-md border transition-colors duration-150 ease-brand',
-            'outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent',
-            reviewed
-              ? 'border-[var(--edge-accent)] bg-[var(--tint-accent)] text-accent'
-              : 'border-line text-faint opacity-0 hover:border-line-bright hover:text-paper focus-visible:opacity-100 group-hover:opacity-100',
-          )}
-        >
-          ✓
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/* ---------------- the view ---------------- */
-
-export function FeedView({ items }: { items: FeedItem[] }) {
   const [filter, setFilter] = useState('all')
-  const [sort, setSort] = useState<Sort>('priority')
   const [limit, setLimit] = useState(INIT)
   const [rawQuery, setRawQuery] = useState('')
   const query = useDeferredValue(rawQuery)
-  const [reviewed, setReviewed] = useState<Set<string>>(loadReviewed)
-  const [sel, setSel] = useState(0)
-  const listRef = useRef<HTMLDivElement>(null)
+  const q = query.trim().toLowerCase()
 
-  const lenses = useMemo(() => {
-    const catCounts = new Map<string, number>()
-    for (const it of items)
-      catCounts.set(it.category, (catCounts.get(it.category) ?? 0) + 1)
-    const active = LENSES.map((l) => ({
-      key: l.key,
-      label: l.label,
-      count: l.categories.reduce((sum, c) => sum + (catCounts.get(c) ?? 0), 0),
-    })).filter((l) => l.count > 0)
-    return [{ key: 'all', label: 'All', count: items.length }, ...active]
+  // Decorate + priority-sort once; every downstream slice reuses this order.
+  const ranked = useMemo<Ranked[]>(() => {
+    return items
+      .map((item) => {
+        const sig = signalsFor(item)
+        return { item, sig, key: keyOf(item, sig) }
+      })
+      .sort(cmpDesc)
   }, [items])
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
+  // Lens bar: "All" first, then any lens with a live count (0-count lenses drop
+  // out so the bar degrades honestly).
+  const lenses = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const it of items) counts.set(it.category, (counts.get(it.category) ?? 0) + 1)
+    const active = LENSES.map((l) => ({
+      lens: l,
+      count: l.categories.reduce((s, c) => s + (counts.get(c) ?? 0), 0),
+    })).filter((l) => l.count > 0)
+    return { all: items.length, active }
+  }, [items])
+
+  const showBriefing = filter === 'all' && !q
+
+  // Featured lead = the single highest-priority item (only shown in briefing).
+  const lead = ranked[0] ?? null
+
+  // Briefing sections — top rows per lens, the lead excluded from its own list.
+  const sections = useMemo(() => {
+    const leadId = lead?.item.id
+    return LENSES.map((lens) => {
+      const inLens = ranked.filter(({ item }) => lens.categories.includes(item.category))
+      const rows = inLens.filter(({ item }) => item.id !== leadId).slice(0, SECTION_ROWS)
+      return { lens, rows, total: inLens.length }
+    }).filter((s) => s.total > 0)
+  }, [ranked, lead])
+
+  // List mode — a flat, ranked slice for a selected lens and/or an active search.
+  const listItems = useMemo(() => {
     const allowed =
-      filter === 'all'
-        ? null
-        : (LENSES.find((l) => l.key === filter)?.categories ?? null)
-    const hit = items.filter((it) => {
-      if (allowed && !allowed.includes(it.category)) return false
-      if (!q) return true
-      const hay = (
-        it.title +
-        ' ' +
-        it.summary +
-        ' ' +
-        Object.values(it.entities ?? {})
-          .flat()
-          .join(' ')
-      ).toLowerCase()
-      return hay.includes(q)
-    })
-    return [...hit].sort(
-      sort === 'newest'
-        ? byTimeDesc
-        : (a, b) => (b.score ?? -1) - (a.score ?? -1) || byTimeDesc(a, b),
+      filter === 'all' ? null : (LENSES.find((l) => l.key === filter)?.categories ?? null)
+    return ranked.filter(
+      ({ item }) =>
+        (!allowed || allowed.includes(item.category)) && (!q || haystack(item).includes(q)),
     )
-  }, [items, filter, query, sort])
+  }, [ranked, filter, q])
 
-  const shown = visible.slice(0, limit)
+  const shown = listItems.slice(0, limit)
+  const lensLabel = LENSES.find((l) => l.key === filter)?.label ?? 'All'
 
-  // Reset selection when the query/filter/sort changes the result set.
-  useEffect(() => {
-    setSel(0)
-  }, [filter, query, sort])
-
-  const toggleReviewed = (id: string) => {
-    setReviewed((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      saveReviewed(next)
-      return next
-    })
+  const selectLens = (key: string) => {
+    setFilter(key)
+    setLimit(INIT)
   }
 
-  // j/k to move, r to review, Enter to open — the analyst keyboard triage loop.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const tag = document.activeElement?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
-      if (!shown.length) return
-      if (e.key === 'j') {
-        e.preventDefault()
-        setSel((s) => Math.min(s + 1, shown.length - 1))
-      } else if (e.key === 'k') {
-        e.preventDefault()
-        setSel((s) => Math.max(s - 1, 0))
-      } else if (e.key === 'r') {
-        const it = shown[sel]
-        if (it) toggleReviewed(it.id)
-      } else if (e.key === 'Enter') {
-        const url = safeUrl(shown[sel]?.url)
-        if (url) window.open(url, '_blank', 'noopener,noreferrer')
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [shown, sel])
-
-  // Keep the selected row in view.
-  useEffect(() => {
-    listRef.current
-      ?.querySelector(`[data-idx="${sel}"]`)
-      ?.scrollIntoView({ block: 'nearest' })
-  }, [sel])
+  const dateStr = briefingDate(generatedAt ?? items[0]?.collected_at)
 
   return (
-    <div className="flex flex-col gap-5">
-      {/* controls */}
+    <div className="flex flex-col gap-8">
+      {/* controls: search + lens bar */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            type="search"
-            value={rawQuery}
-            onChange={(e) => {
-              setRawQuery(e.target.value)
-              setLimit(INIT)
-            }}
-            placeholder="Filter the queue — title, summary, entity…"
-            aria-label="Filter feed"
-            className="h-9 w-full max-w-md rounded-md border border-line bg-field px-3 font-mono text-base text-paper outline-offset-2 placeholder:text-faint focus-visible:outline-2 focus-visible:outline-accent"
-          />
-          <div className="ml-auto flex items-center gap-1 rounded-md border border-line bg-panel px-1">
-            <SegButton active={sort === 'priority'} onClick={() => setSort('priority')}>
-              Priority
-            </SegButton>
-            <SegButton active={sort === 'newest'} onClick={() => setSort('newest')}>
-              Newest
-            </SegButton>
-          </div>
-        </div>
-
+        <input
+          type="search"
+          value={rawQuery}
+          onChange={(e) => {
+            setRawQuery(e.target.value)
+            setLimit(INIT)
+          }}
+          placeholder="Search reports, CVEs, actors, vendors…"
+          aria-label="Search the briefing"
+          className="h-10 w-full max-w-md rounded-md border border-line bg-field px-3.5 text-base text-paper outline-offset-2 placeholder:text-faint focus-visible:outline-2 focus-visible:outline-accent"
+        />
         <div className="flex flex-wrap gap-2">
-          {lenses.map((l) => (
-            <FilterChip
-              key={l.key}
-              active={filter === l.key}
-              label={l.label}
-              count={l.count}
-              onClick={() => {
-                setFilter(l.key)
-                setLimit(INIT)
-              }}
+          <LensChip
+            active={filter === 'all'}
+            label="All"
+            count={lenses.all}
+            onClick={() => selectLens('all')}
+          />
+          {lenses.active.map(({ lens, count }) => (
+            <LensChip
+              key={lens.key}
+              active={filter === lens.key}
+              label={lens.label}
+              count={count}
+              onClick={() => selectLens(lens.key)}
             />
           ))}
         </div>
       </div>
 
-      {/* result meter */}
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-micro uppercase tracking-label text-faint">
-          {visible.length === 0
-            ? 'No results'
-            : `Showing ${shown.length} of ${visible.length}`}
-        </span>
-        <span className="font-mono text-micro text-faint">
-          j / k move · r review · ⏎ open
-        </span>
-      </div>
-
-      {/* the queue */}
-      {visible.length === 0 ? (
-        <EmptyState title="No reports match this filter">
-          {query.trim() || filter !== 'all'
-            ? 'Loosen the search or switch back to the “All” lens — the collected reports are still here, just filtered out.'
-            : 'Nothing has been collected into the feed yet. The pipeline publishes on a schedule; the queue fills on the next successful pull.'}
+      {/* body */}
+      {items.length === 0 ? (
+        <EmptyState title="Nothing has been collected yet">
+          The pipeline publishes on a schedule; the briefing fills on the next
+          successful pull. Everything else on the desk still works.
         </EmptyState>
-      ) : (
-        <>
-          <div ref={listRef} className="flex flex-col gap-2">
-            {shown.map((it, i) => (
-              <Row
-                key={it.id}
-                item={it}
-                index={i}
-                selected={i === sel}
-                reviewed={reviewed.has(it.id)}
-                onSelect={() => setSel(i)}
-                onToggleReviewed={() => toggleReviewed(it.id)}
+      ) : showBriefing ? (
+        <div className="flex flex-col gap-10">
+          {/* dated masthead */}
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line pb-6">
+            <p className="font-display text-md font-bold tracking-tight text-paper">
+              {dateStr ?? 'Latest briefing'}
+            </p>
+            <p className="font-mono text-xs tabular-nums text-faint">
+              {num(items.length)} reports tracked
+            </p>
+          </div>
+
+          {lead && <Lead item={lead.item} sig={lead.sig} />}
+
+          <div className="flex flex-col gap-10">
+            {sections.map(({ lens, rows, total }) => (
+              <Section
+                key={lens.key}
+                lens={lens}
+                rows={rows}
+                total={total}
+                onViewAll={() => selectLens(lens.key)}
               />
             ))}
           </div>
-          {visible.length > limit && (
+        </div>
+      ) : listItems.length === 0 ? (
+        <EmptyState title="No reports match this view">
+          {q
+            ? `Nothing in ${filter === 'all' ? 'the briefing' : lensLabel} matches “${query.trim()}”. Clear the search or switch lens — the collected reports are still here, just filtered out.`
+            : `No ${lensLabel.toLowerCase()} in this window. Switch back to the “All” lens for the full briefing.`}
+        </EmptyState>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-4 border-b border-line pb-4">
+            <div className="flex items-center gap-2.5">
+              {filter !== 'all' && (
+                <Glyph
+                  name={LENSES.find((l) => l.key === filter)?.glyph ?? 'report'}
+                  className="size-5 text-accent"
+                />
+              )}
+              <h3 className="font-display text-md font-bold tracking-tight text-paper">
+                {filter === 'all' ? 'Search results' : lensLabel}
+              </h3>
+              <span className="font-mono text-xs tabular-nums text-faint">
+                {num(listItems.length)}
+              </span>
+            </div>
+            {filter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => selectLens('all')}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-accent underline-offset-2 transition-colors duration-150 ease-brand hover:text-accent-dim hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                <span aria-hidden="true">←</span>
+                Back to briefing
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-col">
+            {shown.map(({ item, sig }) => (
+              <Row key={item.id} item={item} sig={sig} />
+            ))}
+          </div>
+
+          {listItems.length > limit && (
             <button
               type="button"
               onClick={() => setLimit((n) => n + STEP)}
-              className="mx-auto rounded-md border border-line bg-panel px-4 py-2 font-mono text-xs text-muted transition-colors duration-150 ease-brand hover:border-line-bright hover:text-paper focus-visible:outline-2 focus-visible:outline-accent"
+              className="mx-auto rounded-md border border-line bg-panel px-4 py-2 text-xs font-semibold text-muted transition-colors duration-150 ease-brand hover:border-line-bright hover:text-paper focus-visible:outline-2 focus-visible:outline-accent"
             >
-              Load more — {visible.length - shown.length} remaining
+              Load more — {num(listItems.length - shown.length)} remaining
             </button>
           )}
-        </>
+        </div>
       )}
     </div>
   )

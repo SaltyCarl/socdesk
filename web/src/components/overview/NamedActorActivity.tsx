@@ -18,9 +18,9 @@ import type { ActorReport } from './aggregations'
 function ActorRow({ report }: { report: ActorReport }) {
   const href = safeUrl(report.url)
   return (
-    <div className="flex flex-col gap-1 border-b border-line py-3 first:pt-0 last:border-0 last:pb-0">
+    <div className="flex flex-col gap-1 border-b border-line py-4 first:pt-0 last:border-0 last:pb-0">
       <div className="flex items-center gap-2">
-        <MonoTag tone="faint">{report.category}</MonoTag>
+        <MonoTag tone="ghost">{report.category}</MonoTag>
         <span className="truncate font-mono text-xs font-semibold text-paper">
           {report.actors.map((a, i) => (
             <Fragment key={a}>

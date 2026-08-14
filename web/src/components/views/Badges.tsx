@@ -116,6 +116,38 @@ export function EpssMeter({ epss }: { epss?: number | null }) {
   )
 }
 
+/* ---------------- compact signal chips (the feed briefing row) ----------
+ * The mockup's scannable signal pills. A DATA chip carries an Archivo label +
+ * an IBM-Plex-Mono VALUE (mono is for the number only, never the label chrome),
+ * in room ink — a fact, not a verdict (KevBadge above owns the reserved red for
+ * actively-exploited). A CLAIMS chip is periwinkle/neutral on purpose: a
+ * leak-site victim-claim tally is a VOLUME count, not a severity, so it must
+ * never borrow amber/gold. */
+
+/** EPSS / CVSS style pill: sans label, mono value, neutral ink. */
+export function DataChip({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-line-bright bg-panel-soft px-2 py-0.5 text-micro font-semibold leading-none">
+      <span className="text-faint">{label}</span>
+      <span className="font-mono tabular-nums text-paper">{value}</span>
+    </span>
+  )
+}
+
+/** Ransomware victim-claim tally — PERIWINKLE (a volume fact), never a verdict
+ *  hue. The mono value + sans "claims" mirror the DataChip split. */
+export function ClaimsChip({ count }: { count: number }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-[var(--edge-accent)] bg-[var(--tint-accent)] px-2 py-0.5 text-micro font-semibold leading-none text-accent"
+      title="Leak-site victim claims — a volume count, not a severity"
+    >
+      <span className="font-mono tabular-nums">{count}</span>
+      <span>{count === 1 ? 'claim' : 'claims'}</span>
+    </span>
+  )
+}
+
 /* ---------------- generic mono tag ----------------
  * A neutral, non-verdict label for source names, categories, ATT&CK ids —
  * facts that carry no severity, so they stay in room ink. */
@@ -126,7 +158,7 @@ export function MonoTag({
   className,
 }: {
   children: ReactNode
-  tone?: 'muted' | 'accent' | 'faint'
+  tone?: 'muted' | 'accent' | 'faint' | 'ghost'
   className?: string
 }) {
   const ink =
@@ -134,6 +166,11 @@ export function MonoTag({
       ? 'border-[var(--edge-accent)] bg-[var(--tint-accent)] text-accent'
       : tone === 'faint'
         ? 'border-line bg-panel text-faint'
-        : 'border-line bg-panel-soft text-muted'
+        : // `ghost` — a hairline outline, NO fill: for purely-informational tags
+          // (category labels, outlet names) that should read as a caption, not a
+          // filled chip. Recessive by design.
+          tone === 'ghost'
+          ? 'border-line text-muted'
+          : 'border-line bg-panel-soft text-muted'
   return <span className={cx(BADGE_BASE, ink, className)}>{children}</span>
 }

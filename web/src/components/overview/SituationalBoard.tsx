@@ -135,19 +135,24 @@ export function SituationalBoard() {
   const generatedAt =
     trends.data?.generated_at ?? feed.data?.generated_at ?? health.data?.generated_at
 
+  // Rhythm by SPACE, not rules: three blocks separated by a wide gap-8 seam, each
+  // block cohering its own panels at gap-4. The flagship sits alone in the middle
+  // block so it reads as the centrepiece; intro+stats lead, the secondary lane
+  // (reporting · patch · collector) trails.
   return (
-    <section aria-label="Daily threat summary" className="mt-6 flex flex-col gap-5">
-      <BoardHeader generatedAt={generatedAt} />
-
-      {/* mixed stat strip (vuln + ransomware + volume) */}
-      <Gate
-        status={combine(trends.status, feed.status)}
-        label="the daily totals"
-        detail={trends.error ?? feed.error}
-        skeleton={<Skeleton className="h-20 w-full rounded-lg" />}
-      >
-        <OverviewStats trends={trends.data ?? {}} ransom={ransom} />
-      </Gate>
+    <section aria-label="Daily threat summary" className="mt-6 flex flex-col gap-8">
+      {/* intro + mixed stat strip (vuln + ransomware + volume) */}
+      <div className="flex flex-col gap-4">
+        <BoardHeader generatedAt={generatedAt} />
+        <Gate
+          status={combine(trends.status, feed.status)}
+          label="the daily totals"
+          detail={trends.error ?? feed.error}
+          skeleton={<Skeleton className="h-20 w-full rounded-lg" />}
+        >
+          <OverviewStats trends={trends.data ?? {}} ransom={ransom} />
+        </Gate>
+      </div>
 
       {/* flagship — who's hitting people right now */}
       <Gate
@@ -159,29 +164,30 @@ export function SituationalBoard() {
         <RansomwareActivity summary={ransom} />
       </Gate>
 
-      {/* who's being reported on   +   what to patch first */}
-      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-2">
+      {/* secondary lane: who's reported on · what to patch · did collection run */}
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
+          <Gate
+            status={feed.status}
+            label="named-actor reporting"
+            detail={feed.error}
+            skeleton={<Skeleton className="h-80 w-full rounded-lg" />}
+          >
+            <NamedActorActivity reports={actorReports} />
+          </Gate>
+
+          <DeferredPatch />
+        </div>
+
         <Gate
-          status={feed.status}
-          label="named-actor reporting"
-          detail={feed.error}
-          skeleton={<Skeleton className="h-80 w-full rounded-lg" />}
+          status={health.status}
+          label="collector status"
+          detail={health.error}
+          skeleton={<Skeleton className="h-12 w-full rounded-lg" />}
         >
-          <NamedActorActivity reports={actorReports} />
+          <FreshnessStrip health={health.data ?? { sources: [] }} />
         </Gate>
-
-        <DeferredPatch />
       </div>
-
-      {/* did collection run */}
-      <Gate
-        status={health.status}
-        label="collector status"
-        detail={health.error}
-        skeleton={<Skeleton className="h-12 w-full rounded-lg" />}
-      >
-        <FreshnessStrip health={health.data ?? { sources: [] }} />
-      </Gate>
     </section>
   )
 }

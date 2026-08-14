@@ -119,7 +119,7 @@ export function BoardPanel({
   children,
 }: {
   eyebrow: string
-  title: ReactNode
+  title?: ReactNode
   aside?: ReactNode
   footer?: ReactNode
   accent?: boolean
@@ -130,8 +130,11 @@ export function BoardPanel({
     <section
       className={cx(
         'sd-reveal flex h-full flex-col gap-4 rounded-lg border p-5',
+        // Rank by SIZE + shadow, not colour: the flagship lifts to e1 at rest and
+        // e2 on hover (mirrors Card's `interactive`), never e3 — e2/e3 are for
+        // overlays only (index.css). Non-flagship stays a flat recessive surface.
         accent
-          ? 'border-[var(--edge-accent)] bg-raised shadow-e1'
+          ? 'border-[var(--edge-accent)] bg-raised shadow-e1 transition-shadow duration-150 ease-brand hover:shadow-e2'
           : 'border-line bg-panel',
         className,
       )}
@@ -141,9 +144,16 @@ export function BoardPanel({
           <MicroLabel tone={accent ? 'accent' : 'muted'} tick={accent}>
             {eyebrow}
           </MicroLabel>
-          <h3 className="font-display text-md font-bold tracking-tight text-paper">
-            {title}
-          </h3>
+          {title != null && (
+            <h3
+              className={cx(
+                'font-display tracking-tight text-paper',
+                accent ? 'text-lg font-extrabold' : 'text-md font-bold',
+              )}
+            >
+              {title}
+            </h3>
+          )}
         </div>
         {aside && <div className="shrink-0 pt-0.5">{aside}</div>}
       </header>

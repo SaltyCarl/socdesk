@@ -8,8 +8,9 @@ import { CountUp } from '../components/views/CountUp'
 import type { FeedPayload } from '../components/views/types'
 
 /**
- * /feed — the score-sorted work queue. Fetches the committed feed snapshot,
- * hands the items to FeedView, and gates on loading/error with an honest
+ * /feed — "The Brief". Fetches the committed feed snapshot and hands the items
+ * to FeedView, which presents them as a dated briefing (one featured lead, then
+ * category-grouped sections), and gates on loading/error with an honest
  * skeleton + fallback.
  */
 export function FeedRoute() {
@@ -19,13 +20,13 @@ export function FeedRoute() {
   return (
     <div className="flex flex-col gap-6">
       <ViewHeader
-        eyebrow="Work queue"
+        eyebrow="Security briefing"
         title="Feed"
-        intro="Every collected report, ranked by the pipeline's 0–100 relevance score. The why-rationale rides each row, so the order explains itself. Triage from the keyboard: j / k to move, r to review, ⏎ to open."
+        intro="The day's security intelligence, organized: one lead story, then vulnerabilities, ransomware, named actors and reports — each ranked by the pipeline's relevance score, every source attributed."
         aside={
           status === 'ready' && data ? (
             <MicroLabel tone="faint">
-              <CountUp value={items.length} /> items · updated{' '}
+              <CountUp value={items.length} /> reports · updated{' '}
               {rel(data.generated_at)}
             </MicroLabel>
           ) : null
@@ -37,7 +38,7 @@ export function FeedRoute() {
         detail={error}
         skeleton={<SkeletonRows rows={8} />}
       >
-        <FeedView items={items} />
+        <FeedView items={items} generatedAt={data?.generated_at} />
       </AsyncGate>
     </div>
   )

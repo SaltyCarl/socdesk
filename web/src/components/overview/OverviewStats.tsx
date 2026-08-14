@@ -2,6 +2,7 @@ import { cx } from '@socdesk/shared/lib/cx'
 import type { TrendsPayload } from '../views/types'
 import { day, num } from '../views/format'
 import { CountUp } from '../views/CountUp'
+import { Divider } from '../ui'
 import { Sparkline } from './Sparkline'
 import type { RansomSummary } from './aggregations'
 
@@ -46,7 +47,7 @@ function Stat({
   // cell-width line beneath. In a 4-up grid the number-beside-label layout
   // starves the label into 2–3 wrapped lines; stacking gives it the whole cell.
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-1 flex-col gap-1">
       <div className="flex items-baseline gap-2">
         <span className="font-display text-2xl font-extrabold tabular-nums text-paper">
           <CountUp value={value} />
@@ -73,13 +74,17 @@ export function OverviewStats({
 
   return (
     <section className="sd-reveal flex flex-col gap-5 rounded-lg border border-line bg-panel px-5 py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-      {/* Four mixed counters on a deterministic grid — 2×2 on phones, one row on
-          sm+ — so the fourth stat can never orphan onto its own line (a flex-wrap
-          artifact). The divider comes from the grid gap, not vertical rules. */}
-      <div className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-4 lg:flex-1">
+      {/* Four mixed counters: a deterministic 2×2 grid on phones (so the fourth
+          stat can never orphan — a flex-wrap artifact), collapsing to one even
+          flex row on sm+ with hairline vertical rules BETWEEN the cells. The
+          dividers are display:none on the phone grid, so they take no cell. */}
+      <div className="grid grid-cols-2 gap-x-8 gap-y-4 sm:flex sm:items-stretch sm:gap-6 lg:flex-1">
         <Stat value={t.feed_count ?? 0} delta={t.feed_delta} label="tracked reports" />
+        <Divider orientation="vertical" className="hidden sm:block" />
         <Stat value={t.kev_count ?? 0} delta={t.kev_delta} label="on CISA KEV" severe />
+        <Divider orientation="vertical" className="hidden sm:block" />
         <Stat value={ransom.totalClaims} label="ransomware claims" />
+        <Divider orientation="vertical" className="hidden sm:block" />
         <Stat value={ransom.groupCount} label="active groups" />
       </div>
 
