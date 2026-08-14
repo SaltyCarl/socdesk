@@ -1,6 +1,6 @@
 /* ================================================================== *
  * SOCDesk — SHARED design-system tokens (AAA craft bar: Linear / Stripe
- * / Vercel restraint). Warm-espresso DARK + warm-paper LIGHT, one
+ * / Vercel restraint). Cool-slate DARK + cool off-white LIGHT, one
  * periwinkle accent, verdict red/amber/green reserved for meaning.
  *
  * Extracted from web/src/index.css so BOTH the web app and the browser
@@ -8,9 +8,13 @@
  * elevation utilities, motion keyframes, base layer) stay in the app's
  * own index.css and @import this file after `@import "tailwindcss"`.
  *
- * SOURCE OF TRUTH for the hexes: site/css/tokens.css ("RADAR") and the
- * THEMES object in site/js/evidence.js. These must never drift from the
- * live site + the byte-identical Copy-card PNG palette.
+ * SOURCE OF TRUTH for the web app + extension hexes: THIS file. As of
+ * 2026-08-14 the web app moved to a COOL-SLATE palette (the old warm
+ * espresso ground + cool periwinkle accent read muddy/clashing). The
+ * legacy vanilla site/ (site/css/tokens.css "RADAR" + THEMES in
+ * site/js/evidence.js) and the Copy-card PNG (drawVerdict) still carry
+ * the WARM palette — a follow-up retune, intentionally divergent until
+ * site/ is superseded by web/.
  *
  * ROLE SPLIT — keep the walls up:
  *   warm neutrals  → the room     (--ink / --panel* / --raised / --field
@@ -82,14 +86,14 @@
 /* ---- A · LIGHT — warm paper (default paint) ---------------------- */
 :root,
 [data-theme="light"] {
-  --ink: #F2E6D0;  --panel: #FBF4E6;  --panel-soft: #F0E2C9;
-  --raised: #FDF8EE;  --field: #FDF8EE;
-  --line: #DFC9A2;  --line-bright: #CDB183;  --line-strong: #B8975F;
-  --paper: #2C2013;  --muted: #6A5638;  --faint: #98835D;
+  --ink: #EDF1F6;  --panel: #F8FAFC;  --panel-soft: #E8EDF3;
+  --raised: #FFFFFF;  --field: #FFFFFF;
+  --line: #D6DCE5;  --line-bright: #C2CAD6;  --line-strong: #A2AEBE;
+  --paper: #131A24;  --muted: #55606F;  --faint: #8996A6;
   --accent: #4A4FD0;  --accent-dim: #6E74E0;  --ink-on-accent: #F1F2FF;
   --red: #D33A50;  --gold: #B4740C;  --green: #1E9E57;
   --orange: #C0661A;  --blue: #396C8E;  --purple: #7A50AE;
-  --shadow: rgba(70, 46, 16, 0.16);  --glow: rgba(154, 107, 50, 0.10);
+  --shadow: rgba(20, 30, 50, 0.14);  --glow: rgba(74, 79, 208, 0.08);
   /* glass (softer on paper — less depth to refract) */
   --glass-bg: color-mix(in srgb, var(--panel) 80%, transparent);
   --glass-blur: 12px;  --glass-sat: 120%;
@@ -98,14 +102,14 @@
 /* ---- B · DARK via OS preference — espresso ----------------------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --ink: #15100A;  --panel: #1E1710;  --panel-soft: #2A2015;
-    --raised: #241A10;  --field: #120D07;
-    --line: #34281B;  --line-bright: #473721;  --line-strong: #5E4829;
-    --paper: #F1E8D8;  --muted: #B7A488;  --faint: #877253;
+    --ink: #0E121A;  --panel: #161C27;  --panel-soft: #212936;
+    --raised: #1B2230;  --field: #0A0E15;
+    --line: #29323F;  --line-bright: #3A4557;  --line-strong: #4E5C72;
+    --paper: #E9EDF4;  --muted: #98A3B4;  --faint: #697486;
     --accent: #7C8AFF;  --accent-dim: #ADB6FF;  --ink-on-accent: #0C1030;
     --red: #F5566B;  --gold: #F2A81E;  --green: #4FC97A;
     --orange: #EE9A4E;  --blue: #6FA8C8;  --purple: #C4A5E4;
-    --shadow: rgba(0, 0, 0, 0.5);  --glow: rgba(201, 146, 79, 0.06);
+    --shadow: rgba(0, 0, 0, 0.5);  --glow: rgba(124, 138, 255, 0.05);
     --glass-bg: color-mix(in srgb, var(--panel) 72%, transparent);
     --glass-blur: 14px;  --glass-sat: 140%;
   }
@@ -113,14 +117,14 @@
 
 /* ---- C · DARK via explicit toggle — beats light :root above ------ */
 [data-theme="dark"] {
-  --ink: #15100A;  --panel: #1E1710;  --panel-soft: #2A2015;
-  --raised: #241A10;  --field: #120D07;
-  --line: #34281B;  --line-bright: #473721;  --line-strong: #5E4829;
-  --paper: #F1E8D8;  --muted: #B7A488;  --faint: #877253;
+  --ink: #0E121A;  --panel: #161C27;  --panel-soft: #212936;
+  --raised: #1B2230;  --field: #0A0E15;
+  --line: #29323F;  --line-bright: #3A4557;  --line-strong: #4E5C72;
+  --paper: #E9EDF4;  --muted: #98A3B4;  --faint: #697486;
   --accent: #7C8AFF;  --accent-dim: #ADB6FF;  --ink-on-accent: #0C1030;
   --red: #F5566B;  --gold: #F2A81E;  --green: #4FC97A;
   --orange: #EE9A4E;  --blue: #6FA8C8;  --purple: #C4A5E4;
-  --shadow: rgba(0, 0, 0, 0.5);  --glow: rgba(201, 146, 79, 0.06);
+  --shadow: rgba(0, 0, 0, 0.5);  --glow: rgba(124, 138, 255, 0.05);
   --glass-bg: color-mix(in srgb, var(--panel) 72%, transparent);
   --glass-blur: 14px;  --glass-sat: 140%;
 }
