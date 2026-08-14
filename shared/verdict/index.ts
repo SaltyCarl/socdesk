@@ -57,5 +57,5 @@ export {
 export type { EnrichResponse, RawSource } from './map';
 export { mapResponse } from './map';
 
-export type { EnrichOutcome, FetchEnrichOptions, FetchLike } from './client';
-export { fetchEnrich, FETCH_TIMEOUT_MS, isEnrichable } from './client';
+export type { EnrichOutcome, EnrichRawOutcome, FetchEnrichOptions, FetchLike } from './client';
+export { fetchEnrich, fetchEnrichRaw, FETCH_TIMEOUT_MS, isEnrichable } from './client';

@@ -1,6 +1,6 @@
 // Lookup.tsx — the LIVE escalation-card surface (the product's north star:
 // "IOC in → OSINT out"). An analyst types (or deep-links via `#q=`) one
-// indicator; it is refanged, type-detected, and resolved:
+// indicator; `useLookup` refangs, type-detects, and resolves it:
 //
 //   * enrichable (ip / domain / url / md5 / sha1 / sha256) → /api/enrich, mapped
 //     into the shared VerdictData and rendered as the real EscalationCard + its
@@ -9,16 +9,16 @@
 //     the same VerdictData (authoritative single-source, not enriched).
 //   * anything else → an honest inline message (never a fabricated verdict).
 //
-// fetchEnrich never throws and tags every outcome (ok / declined / unavailable),
-// so each state degrades honestly. /api/enrich is a Cloudflare Pages Function —
-// there is no local Function, so the enrichable path reads "unavailable" in
+// The resolver (useLookup) and the honest non-ok renderings (LookupStatus) are
+// shared with the landing inline card, so both surfaces resolve identically and
+// word every degraded state the same. /api/enrich is a Cloudflare Pages Function
+// — there is no local Function, so the enrichable path reads "unavailable" in
 // local preview; that is the CORRECT honest state, not a bug.
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
-import { resolveTheme, onSystemThemeChange, type EffectiveTheme } from '@socdesk/shared/lib/theme'
-import { detectType, isEnrichable, refang } from '@socdesk/shared/indicators'
-import { fetchEnrich, type EnrichOutcome, type VerdictData } from '@socdesk/shared/verdict'
+import { refang } from '@socdesk/shared/indicators'
+import type { VerdictData } from '@socdesk/shared/verdict'
 import {
   AnalystVerdict,
   CardCanvasPreview,
@@ -26,10 +26,11 @@ import {
   STUBS,
 } from '@socdesk/shared/verdict-cards'
 import { Button, MicroLabel } from '../components/ui'
-import { useStateData } from '../components/views/useStateData'
-import type { CvePayload } from '../components/views/types'
 import { lookupHash } from '../components/palette/commands'
-import { cveToVerdict, readLookupQuery } from './lookupModel'
+import { useEffectiveTheme, type EffectiveTheme } from '../components/lookup/useEffectiveTheme'
+import { useLookup } from '../components/lookup/useLookup'
+import { LookupStatus } from '../components/lookup/LookupStates'
+import { readLookupQuery } from './lookupModel'
 
 /** A few worked examples — a Tor exit IP, a young phishing domain, a real KEV
  *  CVE (resolves offline from the catalog), a benign IP. Clicking one submits
@@ -45,27 +46,6 @@ function Label({ children }: { children: ReactNode }) {
       {children}
     </MicroLabel>
   )
-}
-
-/* ---------- theme: keep the copy-card PNG in step with the app ----------- */
-
-/** The effective ('light'|'dark') theme, reactive to the toggle (a data-theme
- *  mutation) and to the OS preference while pref==='system'. Threaded into the
- *  card components so the deterministic copy-card PNG re-renders in the app's
- *  CURRENT theme rather than a stale mount-time sample. */
-function useEffectiveTheme(): EffectiveTheme {
-  const [theme, setTheme] = useState<EffectiveTheme>(() => resolveTheme())
-  useEffect(() => {
-    const update = () => setTheme(resolveTheme())
-    const obs = new MutationObserver(update)
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-    const off = onSystemThemeChange(update)
-    return () => {
-      obs.disconnect()
-      off()
-    }
-  }, [])
-  return theme
 }
 
 /* ---------- the shared card layout (client + copy-card + console) --------- */
@@ -94,117 +74,6 @@ function CardTriptych({ data, theme }: { data: VerdictData; theme?: EffectiveThe
       </div>
     </div>
   )
-}
-
-/* ---------- honest inline states ----------------------------------------- */
-
-function Checking({ indicator }: { indicator: string }) {
-  return (
-    <div
-      className="flex items-center gap-3 rounded-lg border border-line bg-panel p-5"
-      role="status"
-      aria-live="polite"
-    >
-      <span
-        aria-hidden="true"
-        className="size-4 shrink-0 rounded-full border-2 border-line-bright border-t-accent motion-safe:animate-spin"
-      />
-      <span className="break-all font-mono text-xs text-muted">Checking {indicator}…</span>
-    </div>
-  )
-}
-
-function Notice({
-  tone = 'muted',
-  eyebrow,
-  title,
-  children,
-}: {
-  tone?: 'muted' | 'amber'
-  eyebrow: string
-  title: string
-  children: ReactNode
-}) {
-  return (
-    <div
-      className={cx(
-        'flex flex-col gap-2 rounded-lg border bg-panel p-5',
-        tone === 'amber' ? 'border-[var(--edge-gold)]' : 'border-line',
-      )}
-      role="status"
-    >
-      <MicroLabel tone={tone === 'amber' ? 'faint' : 'faint'}>{eyebrow}</MicroLabel>
-      <p
-        className={cx(
-          'font-display text-base font-bold leading-snug',
-          tone === 'amber' ? 'text-verdict-amber' : 'text-paper',
-        )}
-      >
-        {title}
-      </p>
-      <p className="text-xs leading-relaxed text-muted">{children}</p>
-    </div>
-  )
-}
-
-/* ---------- the two live resolvers --------------------------------------- */
-
-/** Enrichable indicators — a same-origin /api/enrich round-trip, tagged. */
-function EnrichResult({ indicator, type, theme }: { indicator: string; type: string; theme?: EffectiveTheme }) {
-  const [outcome, setOutcome] = useState<EnrichOutcome | null>(null)
-
-  useEffect(() => {
-    let live = true
-    setOutcome(null)
-    void fetchEnrich(type, indicator).then((o) => {
-      if (live) setOutcome(o)
-    })
-    return () => {
-      live = false
-    }
-  }, [indicator, type])
-
-  if (!outcome) return <Checking indicator={indicator} />
-  if (outcome.status === 'ok') return <CardTriptych data={outcome.data} theme={theme} />
-  if (outcome.status === 'declined') {
-    return (
-      <Notice tone="amber" eyebrow="Indicator declined" title="The enrichment endpoint declined this indicator">
-        {outcome.reason}
-      </Notice>
-    )
-  }
-  return (
-    <Notice eyebrow="Lookup unavailable" title="Live lookup is unavailable">
-      {outcome.reason}. The enrichment endpoint is a Cloudflare Pages Function — it answers on the
-      deployed site, not in local preview. Nothing is fabricated when it can&rsquo;t be reached.
-    </Notice>
-  )
-}
-
-/** CVE — authoritative single-source, resolved from the committed catalog. */
-function CveResult({ indicator, theme }: { indicator: string; theme?: EffectiveTheme }) {
-  const { status, data, error } = useStateData<CvePayload>('cves')
-
-  if (status === 'loading') return <Checking indicator={indicator} />
-  if (status === 'error') {
-    return (
-      <Notice eyebrow="Catalog unavailable" title="The vulnerability catalog could not be loaded">
-        {error ?? 'fetch failed'}.
-      </Notice>
-    )
-  }
-
-  const id = indicator.toUpperCase()
-  const cve = (data?.cves ?? []).find((c) => c.cve.toUpperCase() === id)
-  if (!cve) {
-    return (
-      <Notice eyebrow="Not in snapshot" title={`${indicator} is not in the current KEV/EPSS snapshot`}>
-        This CVE isn&rsquo;t in the committed catalog. It may be newer than the last snapshot, below
-        the tracked risk threshold, or a mistyped id.
-      </Notice>
-    )
-  }
-  return <CardTriptych data={cveToVerdict(cve, data?.generated_at)} theme={theme} />
 }
 
 /* ---------- the idle examples gallery ------------------------------------ */
@@ -261,6 +130,7 @@ export function Lookup() {
   const [text, setText] = useState<string>(readLookupQuery)
   const inputRef = useRef<HTMLInputElement>(null)
   const theme = useEffectiveTheme()
+  const state = useLookup(query)
 
   useEffect(() => {
     // hashchange covers a raw hash edit / same-route resubmit; popstate covers a
@@ -296,30 +166,6 @@ export function Lookup() {
     setText(v)
     runLookup(v)
     inputRef.current?.focus()
-  }
-
-  const indicator = query ? refang(query) : ''
-  const type = indicator ? detectType(indicator) : ''
-
-  let result: ReactNode = null
-  if (indicator) {
-    if (type === 'cve') result = <CveResult indicator={indicator} theme={theme} />
-    else if (isEnrichable(type)) result = <EnrichResult key={indicator} indicator={indicator} type={type} theme={theme} />
-    else if (type === 'email') {
-      result = (
-        <Notice eyebrow="Unsupported type" title="Email addresses aren't enriched here">
-          The live lookup covers IPs, domains, URLs, file hashes and CVEs. An email address carries
-          no third-party reputation to attribute.
-        </Notice>
-      )
-    } else {
-      result = (
-        <Notice eyebrow="Unrecognised" title={`"${indicator}" isn't a recognised indicator type`}>
-          Enter an IPv4 address, a domain, a URL, an MD5 / SHA-1 / SHA-256 hash, or a CVE id
-          (CVE-YYYY-NNNN). Defanged input (evil[.]com, hxxp://) is accepted.
-        </Notice>
-      )
-    }
   }
 
   return (
@@ -367,7 +213,13 @@ export function Lookup() {
         </div>
       </form>
 
-      {indicator ? result : <ExamplesGallery theme={theme} />}
+      {state.kind === 'idle' ? (
+        <ExamplesGallery theme={theme} />
+      ) : state.kind === 'ok' ? (
+        <CardTriptych data={state.data} theme={theme} />
+      ) : (
+        <LookupStatus state={state} />
+      )}
     </div>
   )
 }

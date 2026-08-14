@@ -27,6 +27,17 @@ export type EnrichOutcome =
   | { status: 'declined'; reason: string }
   | { status: 'unavailable'; reason: string };
 
+/** Like {@link EnrichOutcome}, but the ok arm also carries the RAW response
+ *  body. One surface — the web hero — needs the untouched body (the server's
+ *  own tone/consulted/flagged tally + the ipinfo `Coordinates` context fact) to
+ *  land the globe, while the card consumes the mapped VerdictData; a single
+ *  round-trip serves both. `fetchEnrich` is this with `raw` dropped, so the
+ *  extension's contract is unchanged. */
+export type EnrichRawOutcome =
+  | { status: 'ok'; data: VerdictData; raw: EnrichResponse }
+  | { status: 'declined'; reason: string }
+  | { status: 'unavailable'; reason: string };
+
 /** The minimal shape this client needs from fetch — injectable for tests. */
 export interface FetchLike {
   (
@@ -54,17 +65,18 @@ function looksLikeResponse(body: unknown): body is EnrichResponse {
 }
 
 /**
- * Call the enrichment endpoint. Resolves to a tagged outcome, never throws:
- *   { status:'ok', data }            a mapped VerdictData
+ * Call the enrichment endpoint, keeping the RAW body on the ok arm. Resolves to
+ * a tagged outcome, never throws:
+ *   { status:'ok', data, raw }       the mapped VerdictData + the untouched body
  *   { status:'declined', reason }    the endpoint refused the indicator (400)
  *   { status:'unavailable', reason } network / timeout / HTTP / parse failure
  * `fetchImpl` is injectable for tests; production uses the global fetch.
  */
-export async function fetchEnrich(
+export async function fetchEnrichRaw(
   type: string,
   q: string,
   { timeoutMs = FETCH_TIMEOUT_MS, fetchImpl, baseUrl = '' }: FetchEnrichOptions = {},
-): Promise<EnrichOutcome> {
+): Promise<EnrichRawOutcome> {
   const f: FetchLike = fetchImpl ?? ((url, init) => fetch(url, init));
   const url = `${baseUrl}/api/enrich?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`;
   const ctrl = new AbortController();
@@ -77,7 +89,9 @@ export async function fetchEnrich(
     } catch {
       /* served a non-JSON error body — treated as unavailable below */
     }
-    if (r.ok && looksLikeResponse(body)) return { status: 'ok', data: mapResponse(body) };
+    // On ok the validated body serves BOTH consumers: mapped for the card, raw
+    // for the globe (the raw carries fields map.ts deliberately ignores).
+    if (r.ok && looksLikeResponse(body)) return { status: 'ok', data: mapResponse(body), raw: body };
     // A 400 from lib/enrich.mjs carries a human reason (private IP, malformed).
     const err = (body as { error?: unknown } | null)?.error;
     if (err) return { status: 'declined', reason: String(err) };
@@ -91,4 +105,18 @@ export async function fetchEnrich(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Call the enrichment endpoint and resolve to a mapped VerdictData outcome. The
+ * extension + the `/lookup` triptych consume this; it is {@link fetchEnrichRaw}
+ * with the raw body dropped, so both paths share ONE fetch implementation.
+ */
+export async function fetchEnrich(
+  type: string,
+  q: string,
+  opts: FetchEnrichOptions = {},
+): Promise<EnrichOutcome> {
+  const o = await fetchEnrichRaw(type, q, opts);
+  return o.status === 'ok' ? { status: 'ok', data: o.data } : o;
 }
