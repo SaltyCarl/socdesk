@@ -1,11 +1,18 @@
 // palette.ts — the escalation card's canvas palette + font stacks.
 //
-// A <canvas> cannot read CSS custom properties, so the warm-espresso / warm-
-// paper + periwinkle system has to be materialised here as literal hexes. These
-// are copied from web/src/index.css — THE source of truth — and must never drift
-// from the tokens (or from the on-screen React card, which paints from the vars).
-// A tiny drift test would be cheap later; for now the values are annotated with
-// the token they mirror so a reviewer can diff them by eye.
+// A <canvas> cannot read CSS custom properties, so the cool-slate DARK / cool
+// off-white LIGHT + periwinkle system has to be materialised here as literal
+// hexes. These are copied from shared/tokens.css — THE source of truth — and
+// must never drift from the tokens (or from the on-screen React card, which
+// paints from the vars). Each value is annotated with the token it mirrors so a
+// reviewer can diff them by eye; palette.test.ts pins them so a drift back to
+// the legacy warm palette fails CI.
+//
+// Retuned 2026-08-14 from the legacy warm-espresso ground to the cool-slate
+// palette the web app moved to (tokens.css §A/§B/§C). The accent + verdict hues
+// were already periwinkle/red-amber-green; this pass brings the neutral ground,
+// surfaces, lines and text into the slate scheme so the copy-card PNG matches
+// the app it is generated in.
 //
 // Pure data + colour maths. No React, no DOM writes (detectTheme only reads).
 
@@ -30,19 +37,19 @@ export interface Palette {
   vGreen: string
 }
 
-/** Hexes mirror index.css `:root`/`[data-theme]` (light) + the dark block. */
+/** Hexes mirror shared/tokens.css §A (light) + §B/§C (dark). Slate scheme. */
 export const THEMES: Record<CanvasTheme, Palette> = {
   light: {
-    bg: '#F2E6D0', // --ink
-    panel: '#FBF4E6', // --panel
-    panel2: '#F0E2C9', // --panel-soft
-    field: '#FDF8EE', // --field
-    border: '#DFC9A2', // --line
-    border2: '#CDB183', // --line-bright
-    border3: '#B8975F', // --line-strong
-    text: '#2C2013', // --paper
-    textDim: '#6A5638', // --muted
-    textFaint: '#98835D', // --faint
+    bg: '#EDF1F6', // --ink
+    panel: '#F8FAFC', // --panel
+    panel2: '#E8EDF3', // --panel-soft
+    field: '#FFFFFF', // --field
+    border: '#D6DCE5', // --line
+    border2: '#C2CAD6', // --line-bright
+    border3: '#A2AEBE', // --line-strong
+    text: '#131A24', // --paper
+    textDim: '#55606F', // --muted
+    textFaint: '#8996A6', // --faint
     accent: '#4A4FD0', // --accent
     accent2: '#6E74E0', // --accent-dim
     vRed: '#D33A50', // --red
@@ -50,21 +57,21 @@ export const THEMES: Record<CanvasTheme, Palette> = {
     vGreen: '#1E9E57', // --green
   },
   dark: {
-    bg: '#15100A',
-    panel: '#1E1710',
-    panel2: '#2A2015',
-    field: '#120D07',
-    border: '#34281B',
-    border2: '#473721',
-    border3: '#5E4829',
-    text: '#F1E8D8',
-    textDim: '#B7A488',
-    textFaint: '#877253',
-    accent: '#7C8AFF',
-    accent2: '#ADB6FF',
-    vRed: '#F5566B',
-    vAmber: '#F2A81E',
-    vGreen: '#4FC97A',
+    bg: '#0E121A', // --ink
+    panel: '#161C27', // --panel
+    panel2: '#212936', // --panel-soft
+    field: '#0A0E15', // --field
+    border: '#29323F', // --line
+    border2: '#3A4557', // --line-bright
+    border3: '#4E5C72', // --line-strong
+    text: '#E9EDF4', // --paper
+    textDim: '#98A3B4', // --muted
+    textFaint: '#697486', // --faint
+    accent: '#7C8AFF', // --accent
+    accent2: '#ADB6FF', // --accent-dim
+    vRed: '#F5566B', // --red
+    vAmber: '#F2A81E', // --gold
+    vGreen: '#4FC97A', // --green
   },
 }
 

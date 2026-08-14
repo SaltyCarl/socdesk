@@ -1,9 +1,10 @@
 import { lazy, Suspense, useRef, useState } from 'react'
-import type { FormEvent, KeyboardEvent, ReactNode } from 'react'
+import type { FormEvent, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { MicroLabel } from '../components/ui'
 import { SituationalBoard } from '../components/overview'
 import type { GlobeApi } from '../components/hero/useGlobe3'
 import { runEnrich, type EnrichStatus } from '../components/hero/enrichFly'
+import { lookupHash, submitLookup } from '../components/palette/commands'
 // The hero-shell classes (.sdh-hero / .sdh-atmos / .sdh-enter*) must be present
 // on FIRST paint — this route is synchronous, so importing the co-located CSS
 // here puts them in the main bundle even though the globe canvas itself streams
@@ -96,7 +97,18 @@ export function Overview({
     if (inputRef.current) inputRef.current.value = v
   }
 
+  // The globe landing is the ambient bonus; the full escalation card at /lookup
+  // is the primary payoff. Once an indicator is in play, offer a direct path to
+  // it (SPA-navigated, but a real href so it right-clicks / opens in a new tab).
+  // /lookup runs its OWN fetch on arrival — no cross-surface result is smuggled.
+  const openFullCard = (e: MouseEvent<HTMLAnchorElement>, q: string) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+    e.preventDefault()
+    submitLookup(q)
+  }
+
   const line = statusLine(status)
+  const indicator = 'indicator' in status ? status.indicator : null
 
   return (
     <div className="flex flex-col">
@@ -138,6 +150,15 @@ export function Overview({
               <p className="font-mono text-xs text-muted" role="status">
                 {line}
               </p>
+            )}
+            {indicator && (
+              <a
+                href={`/lookup${lookupHash(indicator)}`}
+                onClick={(e) => openFullCard(e, indicator)}
+                className="inline-flex w-fit items-center gap-1 font-mono text-xs font-semibold text-accent underline-offset-2 outline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                Open full escalation card <span aria-hidden="true">→</span>
+              </a>
             )}
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-micro uppercase tracking-[0.14em] text-faint">

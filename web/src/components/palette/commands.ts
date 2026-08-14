@@ -91,14 +91,17 @@ export function lookupHash(query: string): string {
 }
 
 /**
- * Submit an indicator lookup. Records it as recent and writes the hash —
- * `hashchange` fires so the (sibling) lookup view can read `#q=` and run.
+ * Submit an indicator lookup. Records it as recent, then routes to the live
+ * `/lookup` surface with the indicator on the `#q=` deep link — from ANY route.
+ * Going through `navigate` (pushState + a synthetic popstate) means a submit
+ * made off the lookup page lands there; `/lookup` reads `#q=` on mount and on
+ * hashchange/popstate, so it runs the lookup automatically either way.
  */
 export function submitLookup(query: string): void {
   const q = query.trim()
   if (!q) return
   pushRecent(q, classifyIndicator(q))
-  window.location.hash = lookupHash(q)
+  navigate(`/lookup${lookupHash(q)}`)
 }
 
 /**
