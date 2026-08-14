@@ -65,6 +65,16 @@ li .t{font-family:var(--mono);font-size:8pt;color:var(--muted)}
 .principles li{font-size:9pt}
 .principles li b{color:var(--mark)}
 
+/* infra tables */
+table.cf{width:100%;border-collapse:collapse;margin:8px 0 4px;font-size:8pt;table-layout:fixed}
+table.cf th,table.cf td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top;word-wrap:break-word}
+table.cf th{background:var(--panel-soft);color:var(--muted);font-size:7pt;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+table.cf td b{color:var(--paper);font-weight:600}
+table.cf .gap{color:var(--red)}
+table.cf .fix{color:var(--green)}
+.flowline{font-family:var(--mono);font-size:8pt;color:var(--muted);background:var(--ink);border:1px solid var(--line);padding:8px 10px;margin:6px 0 10px;line-height:1.9;overflow-wrap:anywhere}
+.flowline b{color:var(--paper);font-weight:600}
+.flowline .mark{color:var(--mark)}
 .pagebreak{break-before:page}
 footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
   font-family:var(--mono);font-size:7.5pt;color:var(--muted);display:flex;justify-content:space-between}
@@ -221,6 +231,165 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
     <li class="plan"><b>Then:</b> settle the employer-IP question → repo public vs. private; Leg 2 threat-intel feed on the existing pipeline (dedup + prioritisation first, then scale article volume).</li>
     <li class="plan"><b>Later:</b> Leg 3 sensor, once the IP gate clears.</li>
   </ul>
+</div>
+
+<!-- INFRASTRUCTURE -->
+<div class="kicker pagebreak">Reference · Infrastructure &amp; deployment architecture</div>
+
+<!-- INFRA 1 -->
+<div class="leg">
+  <div class="leghead">
+    <h2><span class="n">04</span> Hosting &amp; CI/CD</h2>
+    <span class="status st-now">AS SHIPPED</span>
+  </div>
+  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:6px">Two app trees live in one repo. <span class="mono">site/</span> is the legacy vanilla ES-module app and is <b style="color:var(--green)">what serves socdesk.io today</b>. <span class="mono">web/</span> is the new Vite + React + TS + Tailwind + Motion "AAA" app — built clean in-tree but <b style="color:var(--blue)">not yet deployed</b>. The flip is planned, not done.</p>
+  <div class="grid2">
+    <div>
+      <div class="sub-h">Host &amp; deploy method</div>
+      <ul>
+        <li class="done"><b>Cloudflare Pages</b>, project <span class="mono">socdesk</span>, domain <span class="mono">socdesk.io</span></li>
+        <li class="done"><b>Direct Upload</b> via <span class="mono">cloudflare/wrangler-action@v3</span> — deliberately <i>not</i> the Git integration</li>
+        <li class="done"><b>Why not Git integration:</b> free-plan builds are capped at <b>500/mo</b>; this workflow deploys <b>~1,440×/mo</b> (twice hourly). Direct uploads don't count against the cap</li>
+        <li class="done"><b>Repo stays private</b> — Cloudflare never needs read access to the source</li>
+        <li class="done">Production vs preview routing keyed on <span class="mono">--branch=${vars.CF_PRODUCTION_BRANCH || 'main'}</span></li>
+      </ul>
+    </div>
+    <div>
+      <div class="sub-h">Workflow · <span class="mono">.github/workflows/collect-and-deploy.yml</span></div>
+      <ul>
+        <li class="done"><b>Triggers:</b> cron <span class="mono">11,41 * * * *</span> · <span class="mono">workflow_dispatch</span> · push to <span class="mono">main</span> touching <span class="mono">data/brief.json</span></li>
+        <li class="done"><b>Steps:</b> checkout → setup-python 3.12 → <span class="mono">pip install</span> → <span class="mono">pytest tests/</span> → <span class="mono">python run_pipeline.py</span> → commit <span class="mono">data/state</span> + pull-rebase-push → <span class="mono">wrangler pages deploy site</span></li>
+        <li class="done"><b>No self-trigger loop:</b> the state commit uses <span class="mono">GITHUB_TOKEN</span>, whose pushes can't retrigger Actions</li>
+        <li class="done"><b>Intentional asymmetry:</b> the Framework's <span class="mono">brief.json</span> pushes use a deploy key, so <i>those</i> DO trigger this workflow</li>
+      </ul>
+    </div>
+  </div>
+  <div class="flowline"><span class="mark">deploy →</span> <b>wrangler pages deploy site</b> --project-name=<b>socdesk</b> --branch=<b>${{ vars.CF_PRODUCTION_BRANCH || 'main' }}</b></div>
+  <p class="note">The Cloudflare "documented example" gitHubToken/deployments-write path is deliberately omitted — at ~1,440 runs/mo it would file that many GitHub Deployment records. Consistent with docs/OPERATIONS.md §"Why direct upload rather than the Git integration".</p>
+</div>
+
+<!-- INFRA 2 -->
+<div class="leg">
+  <div class="leghead">
+    <h2><span class="n">05</span> Data Flow &amp; Enrichment</h2>
+    <span class="status st-now">AS SHIPPED</span>
+  </div>
+  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:6px">Git is the datastore — one small JSON file per payload, per day. All collectors are keyless/public; the only secrets in the system are the enrichment API keys, held server-side in Cloudflare.</p>
+  <div class="grid2">
+    <div>
+      <div class="sub-h">Pipeline output · <span class="mono">run_pipeline.py</span></div>
+      <ul>
+        <li class="done"><span class="mono">run(...)</span> writes each payload to <b>both</b> <span class="mono">out_dir</span> and <span class="mono">state_dir</span></li>
+        <li class="done"><b><span class="mono">__main__</span> pins</b> <span class="mono">out_dir="site/data"</span>, <span class="mono">state_dir="data/state"</span></li>
+        <li class="done">Rolling <span class="mono">data/state/*.json</span> (+ <span class="mono">history/</span> series) are committed each run — last-known-good survives an upstream outage</li>
+        <li class="done">Payloads: <span class="mono">feed · cves · health · actors · malware · relations · sources · trends</span>; <span class="mono">brief.json</span> passed through if present (Tier 2)</li>
+        <li class="done"><b>No IOC corpus published</b> — reputation data is reached by user-clicked deep links at render, never mirrored (COMPLIANCE.md)</li>
+      </ul>
+      <div class="sub-h" style="color:var(--red)">⚠ Data gap for the flip</div>
+      <ul>
+        <li class="build"><b><span class="mono">web/public/data/state/*.json</span> is a SEPARATE committed copy</b> that the pipeline does <b>not</b> refresh — it only writes <span class="mono">site/data</span> + <span class="mono">data/state</span>. Deploy <span class="mono">web/</span> as-is and its data freezes at whatever was last hand-committed.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="sub-h">Enrichment function · <span class="mono">/api/enrich</span></div>
+      <ul>
+        <li class="done"><b>Cloudflare Pages Function</b> at <span class="mono">functions/api/enrich.js</span> → logic in <span class="mono">lib/enrich.mjs</span></li>
+        <li class="done"><b>Types:</b> <span class="mono">ipv4 · domain · url · md5 · sha1 · sha256</span></li>
+        <li class="done"><b>Sources:</b> AbuseIPDB · VirusTotal · GreyNoise · MalwareBazaar · ipinfo · urlscan</li>
+        <li class="done"><b>Same-origin by design</b> — a Function on the site's own domain keeps CSP <span class="mono">connect-src 'self'</span>; no <span class="mono">api.*</span> origin, no CORS layer</li>
+        <li class="done"><b>Keys in Pages project secrets</b> (<span class="mono">ABUSEIPDB_API_KEY · VIRUSTOTAL · GREYNOISE_API_KEY · IPINFO_TOKEN · URLSCAN_API_KEY</span>) — never in git or the browser; MalwareBazaar is keyless</li>
+        <li class="done"><b>Co-deployed</b> with the Pages project: <span class="mono">functions/</span> sits at the repo root, picked up alongside the deployed asset dir</li>
+      </ul>
+    </div>
+  </div>
+  <div class="flowline"><b>collectors</b> (keyless) <span class="mark">→</span> run_pipeline.py <span class="mark">→</span> <b>site/data/*.json</b> + commit <b>data/state/*.json</b> <span class="mark">→</span> wrangler deploy <b>site</b> <span class="mark">→</span> socdesk.io &nbsp;&nbsp;·&nbsp;&nbsp; browser <span class="mark">→</span> <b>/api/enrich</b> <span class="mark">→</span> AbuseIPDB / VT / GreyNoise / MalwareBazaar / ipinfo / urlscan</div>
+</div>
+
+<!-- INFRA 3 -->
+<div class="leg">
+  <div class="leghead">
+    <h2><span class="n">06</span> Security Posture &amp; Palette State</h2>
+    <span class="status st-now">AS SHIPPED</span>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="sub-h">Content-Security-Policy &amp; headers</div>
+      <ul>
+        <li class="done"><b>Strict CSP, no inline anything.</b> Core across both trees: <span class="mono">default-src 'none'; script-src 'self'; style-src 'self'</span></li>
+        <li class="done"><b>Live (<span class="mono">site/_headers</span>)</b> extends it with <span class="mono">img-src 'self' data:</span>, <span class="mono">font-src 'self'</span>, <span class="mono">connect-src 'self'</span>, <span class="mono">worker/manifest-src 'self'</span>, <span class="mono">base-uri/form-action/object-src 'none'</span>, <span class="mono">frame-ancestors 'none'</span>, <span class="mono">upgrade-insecure-requests</span> — plus Permissions-Policy, COOP, X-Frame-Options: DENY</li>
+        <li class="done">Keys never reach the browser; collectors carry none. Analyst state is <span class="mono">localStorage</span> only — no accounts, no analytics</li>
+      </ul>
+      <div class="sub-h" style="color:var(--red)">⚠ Header parity gap</div>
+      <ul>
+        <li class="build"><b><span class="mono">web/public/_headers</span> is looser than the live one</b>: it omits <span class="mono">frame-ancestors 'none'</span>, <span class="mono">upgrade-insecure-requests</span>, Permissions-Policy, COOP and X-Frame-Options. Bring to parity before the flip.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="sub-h">Palette divergence — intentional, until the flip</div>
+      <ul>
+        <li class="done"><b><span class="mono">web/</span> moved to cool-slate tokens</b> (2026-08-14, <span class="mono">shared/tokens.css</span>) — the old warm-espresso ground clashed with the periwinkle accent</li>
+        <li class="done"><b><span class="mono">site/</span> + the Copy-card PNG stay WARM</b> (<span class="mono">site/css/tokens.css</span> RADAR + <span class="mono">drawVerdict</span>) — a follow-up retune, deliberately divergent until <span class="mono">site/</span> is superseded</li>
+        <li class="done">One token source now feeds web app + extension (<span class="mono">shared/tokens.css</span>) so those two can't drift</li>
+      </ul>
+      <p class="note">Role split held in both: warm/cool neutrals = the room; periwinkle = the product (never a verdict); red/amber/green = verdict &amp; severity meaning only.</p>
+    </div>
+  </div>
+</div>
+
+<!-- DEPLOY FLIP -->
+<div class="leg" style="border-color:var(--line-bright)">
+  <div class="leghead">
+    <h2><span class="n">07</span> Deploy-flip Requirements <span style="font-size:9pt;color:var(--muted);font-weight:400">— site/ → web/</span></h2>
+    <span class="status st-next">PLANNED · NOT DONE</span>
+  </div>
+  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:8px">What must change to point socdesk.io from the vanilla <span class="mono">site/</span> at the React <span class="mono">web/</span> build. None of this is done — the flip is gated on an explicit go.</p>
+  <ul>
+    <li class="plan"><b>Dual-write fresh data.</b> The pipeline must also publish to <span class="mono">web/public/data/state</span> (or the deploy must build from a dir the pipeline refreshes). Today it only refreshes <span class="mono">site/data</span> — deploy <span class="mono">web/</span> without this and the live app's data freezes.</li>
+    <li class="plan"><b>Add <span class="mono">web/public/_redirects</span></b> with <span class="mono">/* /index.html 200</span> (excluding <span class="mono">/api/*</span> and <span class="mono">/data/*</span>) for SPA deep-link fallback. The React app uses <b>PATH routing</b> (<span class="mono">/lookup · /desk · /actor · /gallery</span>) — unlike <span class="mono">site/</span>'s hash routing, a hard refresh on a deep path 404s without this.</li>
+    <li class="plan"><b>Build step in the workflow.</b> Add Node setup + <span class="mono">npm ci</span> + <span class="mono">vite build</span> in <span class="mono">web/</span>, and deploy <span class="mono">web/dist</span> instead of <span class="mono">site</span>. Verify the repo-root <span class="mono">functions/</span> still co-deploys so <span class="mono">/api/enrich</span> keeps working.</li>
+    <li class="plan"><b>De-risk with a preview.</b> Push a Cloudflare Pages <b>preview</b> (non-production branch) deploy and validate it before flipping production — the live domain is the only current target.</li>
+  </ul>
+  <table class="cf">
+    <thead><tr><th style="width:19%">Concern</th><th style="width:29%">Current state</th><th style="width:26%">Gap</th><th style="width:26%">Fix</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Live data</b></td>
+        <td>Pipeline writes <span class="mono">site/data</span> + commits <span class="mono">data/state</span></td>
+        <td class="gap"><span class="mono">web/public/data/state</span> is a stale committed copy the pipeline never refreshes</td>
+        <td class="fix">Dual-write fresh payloads to <span class="mono">web/public/data/state</span></td>
+      </tr>
+      <tr>
+        <td><b>Deep links</b></td>
+        <td><span class="mono">web/</span> uses path routing; <span class="mono">site/</span> uses hash routing</td>
+        <td class="gap">No <span class="mono">web/public/_redirects</span> → hard-refresh on a deep path 404s</td>
+        <td class="fix">Add <span class="mono">/* /index.html 200</span>, excluding <span class="mono">/api/*</span> &amp; <span class="mono">/data/*</span></td>
+      </tr>
+      <tr>
+        <td><b>Build</b></td>
+        <td>Workflow deploys static <span class="mono">site/</span> as-is</td>
+        <td class="gap">No Node / <span class="mono">npm ci</span> / <span class="mono">vite build</span> step; <span class="mono">web/dist</span> not produced in CI</td>
+        <td class="fix">Add Node + <span class="mono">npm ci</span> + <span class="mono">vite build</span>; deploy <span class="mono">web/dist</span></td>
+      </tr>
+      <tr>
+        <td><b>Enrich fn</b></td>
+        <td><span class="mono">functions/</span> at repo root co-deploys with <span class="mono">site</span></td>
+        <td class="gap">Co-deploy unverified when the asset dir becomes <span class="mono">web/dist</span></td>
+        <td class="fix">Confirm <span class="mono">/api/enrich</span> after switching the deploy dir</td>
+      </tr>
+      <tr>
+        <td><b>Header parity</b></td>
+        <td><span class="mono">site/_headers</span> adds frame-ancestors, upgrade-insecure-requests, Permissions-Policy, COOP, X-Frame-Options</td>
+        <td class="gap"><span class="mono">web/public/_headers</span> omits all of those</td>
+        <td class="fix">Bring <span class="mono">web/public/_headers</span> to parity first</td>
+      </tr>
+      <tr>
+        <td><b>Rollout</b></td>
+        <td>Production is the only deploy target</td>
+        <td class="gap">Flipping blind risks the live domain</td>
+        <td class="fix">Preview (non-prod branch) deploy &amp; validate before flip</td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 
 <footer>
