@@ -88,7 +88,7 @@ const AMBIENT_SPAWN_MIN = 4.6
 const AMBIENT_SPAWN_JITTER = 3.0
 
 /* -- look knobs -- */
-const DOT_SIZE = 4.6 // base dot point-size (tuned for BASE_Z + oversample)
+const DOT_SIZE = 5.6 // base dot point-size — fuller continents (denser sample too)
 const LIGHT_DIR: [number, number, number] = [-0.5, 0.55, 0.78] // view-space key light
 
 /* -- critically-damped spring (ported verbatim) -- */
@@ -184,26 +184,28 @@ interface Theme3 {
 function theme3(dark: boolean): Theme3 {
   return dark
     ? {
-        dot: [0.55, 0.6, 1.0],
-        dotShade: [0.26, 0.28, 0.52],
+        // DARK — bright periwinkle land on near-invisible espresso body; a brighter
+        // shaded floor so continents stay legible across the whole sphere.
+        dot: [0.57, 0.62, 1.0],
+        dotShade: [0.34, 0.37, 0.66],
         pin: [0.62, 0.66, 1.0],
         body: [0.1, 0.09, 0.13],
-        bodyAlpha: 0.05,
+        bodyAlpha: 0.04,
         rim: [0.49, 0.54, 1.0],
         rimStrength: 0.5,
         rimPower: 3.0,
       }
     : {
         // ⭐ light mode is the whole point: greige body + periwinkle dots, NOT a dark orb.
-        // Dots deepened + bodyAlpha trimmed so continents read clearly on the greige
-        // WITHOUT losing the light-instrument feel.
-        dot: [0.2, 0.22, 0.72],
-        dotShade: [0.36, 0.37, 0.52],
-        pin: [0.19, 0.21, 0.72],
+        // Land dots deepened/saturated to pop hard on the greige, and bodyAlpha cut so
+        // the ocean recedes and the continents DEFINE the sphere (less "flat ball").
+        dot: [0.16, 0.18, 0.72],
+        dotShade: [0.29, 0.3, 0.5],
+        pin: [0.17, 0.19, 0.7],
         body: [0.6, 0.585, 0.66],
-        bodyAlpha: 0.38,
+        bodyAlpha: 0.24,
         rim: [0.29, 0.31, 0.82],
-        rimStrength: 0.32,
+        rimStrength: 0.34,
         rimPower: 3.2,
       }
 }

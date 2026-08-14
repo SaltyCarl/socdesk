@@ -37,7 +37,7 @@ function fallbackSphere(samples: number): Float32Array {
  * (n = asin(y); lon = ±acos(-x/cos n); u = lon·0.5/π; v = -(n/π + 0.5)) so the
  * dots align with cobe's continents and with unitVec()-placed pins.
  */
-export function buildLandPositions(samples = 26000): Promise<Float32Array> {
+export function buildLandPositions(samples = 60000): Promise<Float32Array> {
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
