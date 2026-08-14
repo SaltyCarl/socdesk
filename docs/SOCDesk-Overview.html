@@ -75,7 +75,7 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
 
 <div class="mast">
   <h1>SOC<span>·</span>DESK</h1>
-  <div class="sub">PRODUCT OVERVIEW &amp; ROADMAP<br>EDITION <b>2026-08-13</b><br>github.com/SaltyCarl/<b>socdesk</b></div>
+  <div class="sub">PRODUCT OVERVIEW &amp; ROADMAP<br>EDITION <b>2026-08-14</b><br>github.com/SaltyCarl/<b>socdesk</b></div>
 </div>
 
 <div class="tagline">The analyst's first stop for any indicator.</div>
@@ -92,7 +92,7 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
 <li><b>No secrets in the repo.</b> Collectors are keyless; enrichment keys live server-side in Cloudflare, never in git or the browser.</li>
 <li><b>Privacy by default.</b> Analyst state (reviewed, watchlist, notable) is localStorage only. No accounts, no analytics, no tracking.</li>
 <li><b>Strict CSP + defence in depth.</b> <span class="mono">default-src 'none'</span>, no inline script; every upstream string sanitised at collection and escaped again at render.</li>
-<li><b>RADAR visual direction.</b> Dark warm-espresso / warm-paper, search-first, <b>periwinkle</b> accent + coffee-mug mark; evolved in-place on the vanilla site (no framework, no build step). Distinctive, not AI-slop. (Chart Room superseded.)</li>
+<li><b>RADAR visual direction.</b> Dark warm-espresso / warm-paper, search-first, <b>periwinkle</b> accent + SD monogram; distinctive, not AI-slop. Now rebuilt on <b>Vite + React + Tailwind + Motion</b> (strict CSP kept) for an AAA craft ceiling — the live site still serves the vanilla build; the React build is staged for deploy. (Chart Room superseded.)</li>
 </ul>
 </div>
 
@@ -131,13 +131,13 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
       </ul>
       <div class="sub-h">Reach — the Recorded-Future move</div>
       <ul>
-        <li class="done"><b>Browser extension v1</b> — right-click lookup + toolbar popup over the live API; warm/periwinkle brand, ready to submit (Unlisted)</li>
+        <li class="done"><b>Browser extension</b> — own React/MV3 build reusing the web escalation cards via a shared package; right-click lookup + popup over the live API. Final parity QA (load unpacked → context-menu handoff) pending</li>
         <li class="plan"><b>v2 · inline page annotation</b> — highlight indicators on any page <span class="t">(broad perms — later)</span></li>
         <li class="plan"><b>Bookmarklet selection-capture</b> — no-install fallback</li>
       </ul>
     </div>
   </div>
-  <p class="note">LIVE at socdesk.io. In progress: the RADAR visual rebuild (the vanilla site evolved in-place to the warm/periwinkle brand — built, awaiting the logo + verdict-graphic picks, then commit/deploy); Extension v1 ready to submit (Unlisted); analyst dogfood. Verdict output is the consensus tally — see docs/VERDICT-LANGUAGE.md.</p>
+  <p class="note">LIVE at socdesk.io (vanilla build). Built in-tree, staged for deploy: the AAA React rebuild (web/ — Overview, Lookup, Data Desk, Gallery routes; three.js globe hero with a real light mode; per-entity escalation cards) and the extension parity uplift (shared card package, own MV3 build). Deploy flip site/ → web/ is gated. Verdict output is the consensus tally — see docs/VERDICT-LANGUAGE.md.</p>
 </div>
 
 <!-- LEG 2 -->
@@ -216,9 +216,9 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
 <div class="leg" style="border-color:var(--line-bright)">
   <div class="kicker">Sequencing &amp; current status</div>
   <ul>
-    <li class="done"><b>Done:</b> Leg 1 is LIVE at socdesk.io — multi-source enrichment, the consensus tally, browser extension v1, and the RADAR visual rebuild (SD-monogram brand + cobe globe, shipped).</li>
-    <li class="build"><b>Now:</b> AAA design elevation — rebuild the site on Vite + React + Tailwind + Motion (strict CSP kept), and redesign the escalation-card system (per-entity heroes, source-class honesty, tally-as-coverage). Spec: docs/superpowers/specs/2026-08-12-aaa-modern-stack-design.md.</li>
-    <li class="plan"><b>Then:</b> settle the employer-IP question → repo public vs. private; Leg 2 threat-intel feed on the existing pipeline.</li>
+    <li class="done"><b>Done:</b> Leg 1 is LIVE at socdesk.io — multi-source enrichment, the consensus tally, live /api/enrich. AAA rebuild built in-tree: Vite + React + Tailwind + Motion under strict CSP (phases 1–4 + site effects), a three.js globe hero with a real light mode, per-entity escalation cards, and extension parity (shared card package + own MV3 build, phases 0–2). Spec: docs/superpowers/specs/2026-08-12-aaa-modern-stack-design.md.</li>
+    <li class="build"><b>Now:</b> Overview board rework (per-lane selection over the score-sort artifact; ransomware-activity leaderboard + named-actor lane; de-LARP voice), then the deploy flip site/ → web/ (gated), then extension final parity QA in Chrome.</li>
+    <li class="plan"><b>Then:</b> settle the employer-IP question → repo public vs. private; Leg 2 threat-intel feed on the existing pipeline (dedup + prioritisation first, then scale article volume).</li>
     <li class="plan"><b>Later:</b> Leg 3 sensor, once the IP gate clears.</li>
   </ul>
 </div>

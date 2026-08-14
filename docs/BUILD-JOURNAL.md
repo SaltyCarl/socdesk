@@ -12,6 +12,41 @@ human-facing mirror of these entries.
 
 ---
 
+## 2026-08-14 — AAA modern-stack web build + three.js globe + extension parity (phases 0–2)
+
+Execution of the 08-13 AAA stack decision. **Shipped to `main` this session** (11 commits `b8ef760`→`2a71916`); `web/` and the extension both build clean, verified in-tree. **`web/` is NOT deployed** — socdesk.io still serves the vanilla `site/`; the deploy flip is gated on Carl's explicit go.
+
+**Shipped:**
+- **AAA web rebuild — task #13** (`web/`, Vite + React + TS + Tailwind v4 + Motion under strict CSP). Phases 1–4 + a site-effects pass all integrated. Routes: `/` (Overview), `/lookup` (escalation cards), `/desk` (feed/vulns/actors/health/sources), `/gallery`. Commits `b8ef760` (phases 3–4 surfaces), `9795f37` (mobile hamburger nav + domain copy-card hero), `0dbe617` (hero entrance/ambient, stat count-ups, copy toast).
+- **Globe rebuilt in three.js** (from vendored cobe) for the highest ceiling + a real **light mode** — cobe rendered an opaque dark-orb-on-cream, a persistent bug. New: 3D dot-sphere (transparent fresnel body), attack arcs (free depth-buffer occlusion), critically-damped spring fly-to, verdict range-lock landing, pointer parallax. Hand-wired `three` (NO R3F/drei/DRACO/KTX2/troika/CDN — landmask is a bundled `data:` URI) → CSP-clean; `three` code-split so other routes don't bloat. Swapped into Overview; old cobe files (`web/src/components/hero/vendor/cobe.js`, `GlobeHero.tsx`, `useGlobe.ts`) left to tree-shake. Files: `web/src/components/hero/globe3.ts`, `GlobeHero3.tsx`, `GlobeStage3.tsx`, `useGlobe3.ts`. Commits `5a31fda` (rebuild, preview at `/globe3`), `5f00607` (clarity pass — denser/higher-contrast dots, less empty sphere), `b4553ad` (attack arcs, fresnel limb, terminator, parallax).
+- **Extension parity uplift — architecture A** (extension gets its own React build + reuses the web cards via a shared source package). Phases 0–2 done:
+  - **Phase 0** `c6c091c` — extracted verdict lib + card components + ui primitives + design tokens into a shared `@socdesk/shared` **source** package. Mechanism: tsconfig paths + Vite `resolve.alias`/`dedupe` + Tailwind `@source` — **NOT** an npm workspace. Web restructured, verified INERT (`/lookup` + `/gallery` pixel-identical). Files: `shared/verdict/`, `shared/cards/`, `shared/ui/`, `shared/tokens/`.
+  - **Phase 1** `c680aaa` — extension got its own Vite/React MV3 build; renders the shared `AnalystVerdict` under MV3's default CSP.
+  - **Phase 2** `98d9428` — real popup UX (indicator input → live `AnalystVerdict` + copy-card + context-menu handoff) wired to the LIVE enrich API. Live-data dogfood caught + fixed a **doubled-verb bug** (live VirusTotal headlines "flag this as malicious" doubled through the doctrine → `normalizeFinding()` in `shared/verdict/map.ts`). Deep-link uses `#q=` (fragment), not `?q=`.
+- **Brand fixes** `e7568da` — wired the real SD monogram (approved `design/mockups/sd_logo.svg`, inlined as a shared component so it theme-adapts) into the topbar (was a placeholder "SD" box); restored the slogan **"IOC in. OSINT out."** (the globe-hero swap had silently dropped it).
+- **Overview redesign** `2a71916` — three.js globe + a "situational board" filling the lower half (from existing data, honest daily-batch framing).
+
+**Reviewed (outcome, not yet built):**
+- Carl critiqued the Overview redesign (CVE flood + LARPy verbiage); two adversarial critics validated. **Approved rework plan — DO NEXT SESSION:**
+  - **Panels:** root cause is a **ranking artifact** — score caps (vuln maxes 85, ransomware 30, apt 8) make a global score-sort render an all-KEV wall, yet vuln is only ~16% of the feed. Fix = **per-lane selection**. New set: Overview stats (add ransomware-claims / active-groups counters) → Ransomware activity leaderboard (flagship, from feed `ransomware.live` — 268 victim claims / 52 groups was the buried "who's active" gem) → Named-actor activity (apt/campaign feed items) → ONE patch-priority CVE panel (absorbs the 3 current CVE panels) → freshness strip. Demote "severe but unexploited" to `/desk`.
+  - **Voice — de-LARP:** "Situational board"→"Daily threat summary", "The judgment we bring"→"Triage", "What's hot"→"Priority", "Top of the queue"→"Highest-scoring reports", "Exploited ≠ severe"→"Exploitation vs. severity"; drop nicknames ("the sleepers", "loud scores quiet so far"); source stamps → cite upstream authority (NVD·EPSS·KEV) or drop the filename stamps.
+
+**Corrections to stale notes:**
+- The enrich API (`https://socdesk.io/api/enrich`, `functions/api/enrich.js`) is **LIVE** — returns real AbuseIPDB/VirusTotal data (NOT dormant as older notes said; `/api/health` 200).
+- `actors.json` / `malware.json` are **static MITRE catalogs** (no recency) — the live activity signal lives in the **FEED**, not there.
+
+**Strategic (forward note):** the platform is a candidate base for Carl's own threat-intel **writing / content creation** later. General-TI article ingestion already runs (RSS pool: BleepingComputer, The Hacker News, Talos, Unit 42, DFIR Report, MSTIC, GTIG, SANS ISC, Securelist). Two maturation priorities before scaling article volume: effective **DEDUP** (a single story/CVE currently renders multiple times — e.g. CVE-2026-8037 3× on the board) and real **PRIORITIZATION** (the per-lane ranking fix above).
+
+**Verified:** in-tree — visual QA of the AAA surfaces in both themes with **0 CSP violations**; `web/` builds clean; shared-package extraction verified INERT (`/lookup` + `/gallery` pixel-identical, 76 tests at phase 0 → 81 tests at phase 2). Extension MV3 build renders the shared verdict; popup dogfooded against the live enrich API (surfaced the doubled-verb fix). Not deployed — no live verification of `web/`.
+
+**Open / next:**
+- **Board rework** (approved plan above) — build next session.
+- **Deploy flip** `site/` → `web/` on Cloudflare Pages — gated on Carl's explicit go; `web/` is NOT live yet.
+- **Extension Phase 3** (final parity QA) — Carl's to run: load `extension/dist` unpacked in Chrome → right-click → "Check in SOCDesk".
+- **Pipeline gaps:** `trends.epss_movers` is empty; a slim pipeline-derived `overview.json` would avoid the board's ~5 MB `cves.json` fetch.
+
+---
+
 ## 2026-08-13 — AAA modern-stack decision + verdict/escalation system design
 
 Long design session (globe fusion → verdict system → LARP critique → market/design research → stack decision). **No code shipped; direction locked.** Authoritative spec: `docs/superpowers/specs/2026-08-12-aaa-modern-stack-design.md`.
