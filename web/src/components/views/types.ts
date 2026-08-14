@@ -128,6 +128,55 @@ export interface RelationsPayload {
   edges: RelEdge[]
 }
 
+/* ---------------- trends (the since-yesterday deltas) ---------------- */
+
+/** Day-over-day totals for the two headline counters. Deltas are signed
+ *  (yesterday → today); `compared_to` is the ISO date the deltas measure from. */
+export interface TrendsTotals {
+  feed_count?: number
+  feed_delta?: number
+  kev_count?: number
+  kev_delta?: number
+  compared_to?: string
+}
+
+/** One CVE that entered CISA KEV in the compared window. `ransomware` is
+ *  optional — the trends snapshot may not carry the flag (it lives in cves.json),
+ *  so consumers must tolerate its absence. */
+export interface NewKevEntry {
+  cve: string
+  added?: string
+  epss?: number | null
+  product?: string
+  ransomware?: boolean
+}
+
+/** One CVE whose EPSS exploitation probability moved materially. Currently the
+ *  pipeline emits an empty array here (no mover detection yet) — the view must
+ *  degrade honestly rather than fabricate rows. */
+export interface EpssMover {
+  cve: string
+  product?: string
+  epss?: number | null
+  prev?: number | null
+  delta?: number | null
+}
+
+/** One day's collected-report count for the 7-day volume sparkline. */
+export interface VolumePoint {
+  date: string
+  count: number
+}
+
+export interface TrendsPayload {
+  generated_at?: string
+  schema_version?: number
+  totals?: TrendsTotals
+  new_kev?: NewKevEntry[]
+  epss_movers?: EpssMover[]
+  volume?: VolumePoint[]
+}
+
 /* ---------------- health (collection status) ---------------- */
 
 export interface HealthSource {

@@ -1,8 +1,8 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import type { Cve } from './types'
-import { day, humanize, num, pct } from './format'
-import { SeverityBadge, KevBadge } from './Badges'
+import { day, humanize, num } from './format'
+import { SeverityBadge, KevBadge, EpssMeter } from './Badges'
 import { CountUp } from './CountUp'
 import { EmptyState } from './states'
 
@@ -25,32 +25,6 @@ interface SortState {
 }
 
 const riskKey = (c: Cve): number => (c.kev ? 2 : 0) + (c.epss ?? 0)
-
-// EPSS meter: a fixed ladder of literal width classes (Tailwind needs them
-// present verbatim to compile — a dynamic `w-[${n}%]` would never generate).
-const EPSS_W = [
-  'w-[0%]', 'w-[5%]', 'w-[10%]', 'w-[15%]', 'w-[20%]', 'w-[25%]', 'w-[30%]',
-  'w-[35%]', 'w-[40%]', 'w-[45%]', 'w-[50%]', 'w-[55%]', 'w-[60%]', 'w-[65%]',
-  'w-[70%]', 'w-[75%]', 'w-[80%]', 'w-[85%]', 'w-[90%]', 'w-[95%]', 'w-[100%]',
-] as const
-
-function EpssMeter({ epss }: { epss?: number | null }) {
-  if (epss == null) {
-    return <span className="font-mono text-xs text-faint">—</span>
-  }
-  const clamped = Math.min(1, Math.max(0, epss))
-  const w = EPSS_W[Math.round(clamped * 20)]
-  const fill =
-    epss >= 0.5 ? 'bg-verdict-red' : epss >= 0.1 ? 'bg-verdict-amber' : 'bg-line-strong'
-  return (
-    <div className="flex items-center justify-end gap-2">
-      <span className="font-mono text-xs tabular-nums text-paper">{pct(epss)}</span>
-      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-panel-soft">
-        <span className={cx('block h-full rounded-full', fill, w)} />
-      </span>
-    </div>
-  )
-}
 
 /* ---------------- controls ---------------- */
 
