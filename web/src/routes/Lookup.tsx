@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
+import { resolveTheme, onSystemThemeChange, type EffectiveTheme } from '@socdesk/shared/lib/theme'
 import { detectType, isEnrichable, refang } from '@socdesk/shared/indicators'
 import { fetchEnrich, type EnrichOutcome, type VerdictData } from '@socdesk/shared/verdict'
 import {
@@ -46,23 +47,44 @@ function Label({ children }: { children: ReactNode }) {
   )
 }
 
+/* ---------- theme: keep the copy-card PNG in step with the app ----------- */
+
+/** The effective ('light'|'dark') theme, reactive to the toggle (a data-theme
+ *  mutation) and to the OS preference while pref==='system'. Threaded into the
+ *  card components so the deterministic copy-card PNG re-renders in the app's
+ *  CURRENT theme rather than a stale mount-time sample. */
+function useEffectiveTheme(): EffectiveTheme {
+  const [theme, setTheme] = useState<EffectiveTheme>(() => resolveTheme())
+  useEffect(() => {
+    const update = () => setTheme(resolveTheme())
+    const obs = new MutationObserver(update)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    const off = onSystemThemeChange(update)
+    return () => {
+      obs.disconnect()
+      off()
+    }
+  }, [])
+  return theme
+}
+
 /* ---------- the shared card layout (client + copy-card + console) --------- */
 
 /** Both registers over one VerdictData: the client escalation card + its
  *  deterministic copy-card PNG (left), the dense analyst console (right).
  *  EscalationCard embeds the copy-card / copy-text CardActions itself. */
-function CardTriptych({ data }: { data: VerdictData }) {
+function CardTriptych({ data, theme }: { data: VerdictData; theme?: EffectiveTheme }) {
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       <div className="flex flex-col gap-8">
         <div>
           <Label>Client register — escalation card</Label>
-          <EscalationCard data={data} />
+          <EscalationCard data={data} theme={theme} />
         </div>
         <div>
           <Label>Copy card — deterministic PNG on the clipboard</Label>
           <div className="rounded-lg border border-dashed border-line-bright bg-ink p-5">
-            <CardCanvasPreview data={data} />
+            <CardCanvasPreview data={data} theme={theme} />
           </div>
         </div>
       </div>
@@ -128,7 +150,7 @@ function Notice({
 /* ---------- the two live resolvers --------------------------------------- */
 
 /** Enrichable indicators — a same-origin /api/enrich round-trip, tagged. */
-function EnrichResult({ indicator, type }: { indicator: string; type: string }) {
+function EnrichResult({ indicator, type, theme }: { indicator: string; type: string; theme?: EffectiveTheme }) {
   const [outcome, setOutcome] = useState<EnrichOutcome | null>(null)
 
   useEffect(() => {
@@ -143,7 +165,7 @@ function EnrichResult({ indicator, type }: { indicator: string; type: string }) 
   }, [indicator, type])
 
   if (!outcome) return <Checking indicator={indicator} />
-  if (outcome.status === 'ok') return <CardTriptych data={outcome.data} />
+  if (outcome.status === 'ok') return <CardTriptych data={outcome.data} theme={theme} />
   if (outcome.status === 'declined') {
     return (
       <Notice tone="amber" eyebrow="Indicator declined" title="The enrichment endpoint declined this indicator">
@@ -160,7 +182,7 @@ function EnrichResult({ indicator, type }: { indicator: string; type: string }) 
 }
 
 /** CVE — authoritative single-source, resolved from the committed catalog. */
-function CveResult({ indicator }: { indicator: string }) {
+function CveResult({ indicator, theme }: { indicator: string; theme?: EffectiveTheme }) {
   const { status, data, error } = useStateData<CvePayload>('cves')
 
   if (status === 'loading') return <Checking indicator={indicator} />
@@ -182,14 +204,14 @@ function CveResult({ indicator }: { indicator: string }) {
       </Notice>
     )
   }
-  return <CardTriptych data={cveToVerdict(cve, data?.generated_at)} />
+  return <CardTriptych data={cveToVerdict(cve, data?.generated_at)} theme={theme} />
 }
 
 /* ---------- the idle examples gallery ------------------------------------ */
 
 /** The static reference gallery — one card per indicator family — shown while
  *  no lookup is active, so a first-time visitor sees what a result looks like. */
-function ExamplesGallery() {
+function ExamplesGallery({ theme }: { theme?: EffectiveTheme }) {
   const [sel, setSel] = useState(STUBS[0].id)
   const stub = STUBS.find((s) => s.id === sel) ?? STUBS[0]
 
@@ -224,7 +246,7 @@ function ExamplesGallery() {
           })}
         </div>
       </div>
-      <CardTriptych data={stub.data} />
+      <CardTriptych data={stub.data} theme={theme} />
     </div>
   )
 }
@@ -238,6 +260,7 @@ export function Lookup() {
   const [query, setQuery] = useState<string>(readLookupQuery)
   const [text, setText] = useState<string>(readLookupQuery)
   const inputRef = useRef<HTMLInputElement>(null)
+  const theme = useEffectiveTheme()
 
   useEffect(() => {
     // hashchange covers a raw hash edit / same-route resubmit; popstate covers a
@@ -280,8 +303,8 @@ export function Lookup() {
 
   let result: ReactNode = null
   if (indicator) {
-    if (type === 'cve') result = <CveResult indicator={indicator} />
-    else if (isEnrichable(type)) result = <EnrichResult key={indicator} indicator={indicator} type={type} />
+    if (type === 'cve') result = <CveResult indicator={indicator} theme={theme} />
+    else if (isEnrichable(type)) result = <EnrichResult key={indicator} indicator={indicator} type={type} theme={theme} />
     else if (type === 'email') {
       result = (
         <Notice eyebrow="Unsupported type" title="Email addresses aren't enriched here">
@@ -344,7 +367,7 @@ export function Lookup() {
         </div>
       </form>
 
-      {indicator ? result : <ExamplesGallery />}
+      {indicator ? result : <ExamplesGallery theme={theme} />}
     </div>
   )
 }
