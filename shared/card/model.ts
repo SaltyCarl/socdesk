@@ -171,7 +171,7 @@ export function domainAgeLevel(ageDays: number): number {
  *  render clock; the web hero calls it with the default (live) clock. When the
  *  WHOIS row carries an explicit age, no clock is read at all. */
 export function domainModel(data: VerdictData, now: Date = new Date()): DomainModel {
-  const whois = data.context.find((c) => /whois|registr/i.test(c.name)) ?? data.context[0]
+  const whois = data.context.find((c) => /whois|registr|rdap/i.test(c.name)) ?? data.context[0]
   const fm = factMap(whois?.facts)
   const registered = pick(fm, 'registered', 'created', 'registration date')
   const explicitAge = parseInt(pick(fm, 'age', 'age (days)').replace(/[^\d]/g, ''), 10)
