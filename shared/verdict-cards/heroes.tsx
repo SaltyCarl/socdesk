@@ -11,7 +11,7 @@
 // holds: the geo hero is periwinkle (product), NEVER a verdict tone; red/amber
 // appear only where they carry verdict meaning. No inline styles (CSP).
 
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import type { VerdictData } from '../verdict'
 import { cx } from '../lib/cx'
 import { Chip, MicroLabel } from '../ui'
@@ -172,6 +172,7 @@ function ageLevel(ageDays: number): number {
 
 export function DomainHero({ data }: { data: VerdictData }) {
   const dm = domainModel(data)
+  const um = urlModel(data)
   const level = ageLevel(dm.ageDays)
   const resolvedGeo = dm.resolved
     ? [dm.resolved.countryName, dm.resolved.city].filter(Boolean).join(' · ')
@@ -180,39 +181,45 @@ export function DomainHero({ data }: { data: VerdictData }) {
     ? [dm.resolved.asn, dm.resolved.org].filter(Boolean).join(' · ') || '—'
     : '—'
   return (
-    <HeroPanel label="Registration age — the newly-registered tell">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <span
-          className={cx(
-            'font-display text-lg font-extrabold tracking-tight',
-            dm.newlyRegistered ? 'text-verdict-amber' : 'text-paper',
-          )}
-        >
-          {dm.ageLabel}
-        </span>
-        {dm.newlyRegistered && <Chip variant="suspicious">newly registered</Chip>}
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="flex gap-1" aria-hidden="true">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <span
-              key={i}
-              className={cx(
-                'h-2.5 w-4 rounded-sm',
-                i <= level ? (dm.newlyRegistered ? 'bg-verdict-amber' : 'bg-accent') : 'bg-line',
-              )}
-            />
-          ))}
-        </span>
-        <span className="font-mono text-micro text-faint">younger → older</span>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <FactCell k="Registered" v={dm.registered} />
-        <FactCell k="Registrar" v={dm.registrar} mono={false} />
-        <FactCell k="Resolves to" v={resolvedGeo} mono={false} />
-        <FactCell k="Hosting" v={hosting} />
-      </div>
-    </HeroPanel>
+    <div className="flex flex-col gap-2.5">
+      <HeroPanel label="Registration age — the newly-registered tell">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span
+            className={cx(
+              'font-display text-lg font-extrabold tracking-tight',
+              dm.newlyRegistered ? 'text-verdict-amber' : 'text-paper',
+            )}
+          >
+            {dm.ageLabel}
+          </span>
+          {dm.newlyRegistered && <Chip variant="suspicious">newly registered</Chip>}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="flex gap-1" aria-hidden="true">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <span
+                key={i}
+                className={cx(
+                  'h-2.5 w-4 rounded-sm',
+                  i <= level ? (dm.newlyRegistered ? 'bg-verdict-amber' : 'bg-accent') : 'bg-line',
+                )}
+              />
+            ))}
+          </span>
+          <span className="font-mono text-micro text-faint">younger → older</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <FactCell k="Registered" v={dm.registered} />
+          <FactCell k="Registrar" v={dm.registrar} mono={false} />
+          <FactCell k="Resolves to" v={resolvedGeo} mono={false} />
+          <FactCell k="Hosting" v={hosting} />
+        </div>
+      </HeroPanel>
+      {/* a domain's latest urlscan scan is a useful "what does this render as"
+          preview — show the scanned-page panel when one exists (item: bare
+          domains should get the screenshot too). */}
+      {um.screenshot && <ScannedPagePanel data={data} />}
+    </div>
   )
 }
 
@@ -242,17 +249,36 @@ function urlVerdictVariant(v: VerdictData['sources'][number]['verdict']) {
  *  live 2026-08-18; if Browserling change their scheme this one line is the fix
  *  (BACKLOG P1.3). The target URL is appended RAW — Browserling parses everything
  *  after /chrome/ as the URL, so it must not be percent-encoded. */
-function browserlingUrl(url: string): string {
+function browserlingUrl(indicator: string): string {
+  // A bare domain gets an https:// scheme so Browserling parses it as a URL.
+  const url = /^https?:\/\//i.test(indicator) ? indicator : `https://${indicator}`
   return `https://www.browserling.com/browse/win10/chrome/${url}`
 }
 
-export function UrlHero({ data }: { data: VerdictData }) {
+/** The urlscan "scanned page" panel: the screenshot (click to enlarge in a
+ *  native <dialog> lightbox — Esc / click-outside to close), the scan verdict
+ *  chip, optional URL-only facts, and the Browserling safe-view pivot. Shared by
+ *  the URL hero and the domain hero — a domain's latest urlscan scan is just as
+ *  useful a preview — and both keep existing-scans-only honesty (no scan → the
+ *  empty state + Browserling). */
+function ScannedPagePanel({ data, showFacts = false }: { data: VerdictData; showFacts?: boolean }) {
   const um = urlModel(data)
+  const dialogRef = useRef<HTMLDialogElement>(null)
   return (
     <HeroPanel label="Scanned page — what the client would have seen">
       <div className="relative overflow-hidden rounded-sm border border-line bg-field">
         {um.screenshot ? (
-          <img src={um.screenshot} alt={`Rendered page for ${um.finalUrl}`} className="block w-full" />
+          <button
+            type="button"
+            onClick={() => dialogRef.current?.showModal()}
+            aria-label="Enlarge the scanned-page screenshot"
+            className="group block w-full cursor-zoom-in outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            <img src={um.screenshot} alt={`Rendered page for ${um.finalUrl}`} className="block w-full" />
+            <span className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-ink/70 py-1 font-mono text-micro font-semibold uppercase tracking-label text-paper opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+              <span aria-hidden="true">⤢</span> click to enlarge
+            </span>
+          </button>
         ) : (
           <div className="flex aspect-[16/10] items-center justify-center bg-panel-soft">
             <span className="flex flex-col items-center gap-1.5 text-center">
@@ -269,10 +295,12 @@ export function UrlHero({ data }: { data: VerdictData }) {
           <Chip variant={urlVerdictVariant(um.verdict)}>{um.scanner}</Chip>
         </span>
       </div>
-      <div className="grid gap-2">
-        <FactCell k="Final URL" v={um.finalUrl} />
-        {um.pageTitle && <FactCell k="Page title" v={um.pageTitle} mono={false} />}
-      </div>
+      {showFacts && (
+        <div className="grid gap-2">
+          <FactCell k="Final URL" v={um.finalUrl} />
+          {um.pageTitle && <FactCell k="Page title" v={um.pageTitle} mono={false} />}
+        </div>
+      )}
       <div className="flex flex-col gap-1 border-t border-line pt-2.5">
         <a
           href={browserlingUrl(data.indicator)}
@@ -287,8 +315,39 @@ export function UrlHero({ data }: { data: VerdictData }) {
           Loads the page in a disposable remote browser — your machine never touches it, and nothing is submitted to a public scanner.
         </p>
       </div>
+      {um.screenshot && (
+        <dialog
+          ref={dialogRef}
+          onClick={(e) => {
+            if (e.target === dialogRef.current) dialogRef.current?.close()
+          }}
+          className="m-auto w-fit max-w-[92vw] rounded-lg border border-line-bright bg-ink p-0 backdrop:bg-black/70"
+        >
+          <div className="flex flex-col">
+            <div className="flex items-center justify-between gap-3 border-b border-line px-3 py-2">
+              <span className="truncate font-mono text-micro text-muted">{um.finalUrl}</span>
+              <button
+                type="button"
+                onClick={() => dialogRef.current?.close()}
+                className="shrink-0 rounded-sm border border-line bg-panel px-2 py-0.5 font-mono text-micro font-semibold uppercase tracking-label text-muted hover:border-line-bright hover:text-paper focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                Close ✕
+              </button>
+            </div>
+            <img
+              src={um.screenshot}
+              alt={`Rendered page for ${um.finalUrl}`}
+              className="block max-h-[80vh] w-auto max-w-full"
+            />
+          </div>
+        </dialog>
+      )}
     </HeroPanel>
   )
+}
+
+export function UrlHero({ data }: { data: VerdictData }) {
+  return <ScannedPagePanel data={data} showFacts />
 }
 
 /* ---------- Hash — malware identity (hash-v2 reference) ------------------- */
