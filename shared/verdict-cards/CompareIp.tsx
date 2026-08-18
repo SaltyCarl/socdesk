@@ -35,7 +35,7 @@ const INPUT_CLS =
   'rounded-md border border-line bg-field px-2.5 py-1.5 font-mono text-xs text-paper ' +
   'outline-offset-2 placeholder:text-faint focus-visible:outline-2 focus-visible:outline-accent'
 
-export function CompareIp({ data }: { data: VerdictData }) {
+export function CompareIp({ data, baseUrl }: { data: VerdictData; baseUrl?: string }) {
   const [open, setOpen] = useState(false)
   const [secondIp, setSecondIp] = useState('')
   const [minutes, setMinutes] = useState('')
@@ -69,7 +69,7 @@ export function CompareIp({ data }: { data: VerdictData }) {
     setResult(null)
     setLoading(true)
     try {
-      const out = await fetchEnrich(type, q)
+      const out = await fetchEnrich(type, q, baseUrl ? { baseUrl } : {})
       if (out.status !== 'ok') {
         setError(
           out.status === 'unavailable'

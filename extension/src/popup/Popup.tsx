@@ -3,10 +3,10 @@
 // Flow: the analyst pastes an indicator (or arrives pre-loaded from the context
 // menu), we refang + classify it with the shared indicator logic, then call the
 // LIVE /api/enrich on the configured origin through the shared verdict client.
-// The mapped VerdictData renders in the shared AnalystVerdict register (dense —
-// right for a ~390px popup) with CardActions (Copy card / Copy text) and a
-// collapsed copy-card preview. CVE/email (not served by /api/enrich) and any
-// error resolve to an HONEST state — never a fabricated verdict.
+// The mapped VerdictData renders in the shared EscalationCard (full client
+// register — heroes, chips, Compare-IP, copy actions), the same card the web app
+// shows, with a collapsed copy-card preview below. CVE/email (not served by
+// /api/enrich) and any error resolve to an HONEST state — never a fabricated verdict.
 //
 // SECURITY: every value in the enrich response is attacker-influenced. Nothing
 // is ever interpolated into HTML — React escapes text, and the source verify
@@ -34,15 +34,15 @@ import {
 import { fetchEnrich, type VerdictData } from '@socdesk/shared/verdict'
 import { Button, Chip, SdMonogram } from '@socdesk/shared/ui'
 import {
-  AnalystVerdict,
-  CardActions,
   CardCanvasPreview,
+  EscalationCard,
   detectTheme,
   type CanvasTheme,
 } from '@socdesk/shared/verdict-cards'
 
 const TYPE_LABEL: Record<Exclude<IndicatorType, ''>, string> = {
   ipv4: 'IPv4',
+  ipv6: 'IPv6',
   domain: 'Domain',
   url: 'URL',
   md5: 'MD5',
@@ -204,7 +204,7 @@ export function Popup() {
       </form>
 
       <main className="px-4 py-3">
-        <ViewBody view={view} theme={theme} onReport={openReport} />
+        <ViewBody view={view} theme={theme} onReport={openReport} baseUrl={origin} />
       </main>
 
       <footer className="flex items-center justify-between gap-2 border-t border-line px-4 py-2.5">
@@ -233,10 +233,12 @@ function ViewBody({
   view,
   theme,
   onReport,
+  baseUrl,
 }: {
   view: View
   theme: CanvasTheme
   onReport: () => void
+  baseUrl: string
 }) {
   switch (view.kind) {
     case 'idle':
@@ -275,20 +277,27 @@ function ViewBody({
         </Notice>
       )
     case 'ok':
-      return <Result data={view.data} theme={theme} />
+      return <Result data={view.data} theme={theme} baseUrl={baseUrl} />
   }
 }
 
-function Result({ data, theme }: { data: VerdictData; theme: CanvasTheme }) {
+function Result({
+  data,
+  theme,
+  baseUrl,
+}: {
+  data: VerdictData
+  theme: CanvasTheme
+  baseUrl: string
+}) {
   return (
     <div className="flex flex-col gap-3">
-      <AnalystVerdict data={data} />
+      <EscalationCard data={data} theme={theme} baseUrl={baseUrl} />
       {data.partial && (
         <p className="font-mono text-micro text-faint">
           Partial — one or more sources were unavailable.
         </p>
       )}
-      <CardActions data={data} theme={theme} />
       <CardPreviewDisclosure data={data} theme={theme} />
     </div>
   )

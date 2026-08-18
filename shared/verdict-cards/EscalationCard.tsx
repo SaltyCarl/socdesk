@@ -35,7 +35,17 @@ function networkChip(data: VerdictData): string | null {
   return /data ?cent(er|re)|hosting|vpn|cdn|transit|cloud/i.test(usage) ? 'hosting / datacenter' : null
 }
 
-export function EscalationCard({ data, theme }: { data: VerdictData; theme?: CanvasTheme }) {
+export function EscalationCard({
+  data,
+  theme,
+  baseUrl,
+}: {
+  data: VerdictData
+  theme?: CanvasTheme
+  /** Enrich origin for the inline Compare-IP lookup — undefined = same-origin
+   *  (the web app); the extension passes its configured SOCDesk origin. */
+  baseUrl?: string
+}) {
   const banner = isBannerLed(data)
   const lead = banner ? null : leadFact(data.sources)
   const showStrongest = lead && data.band !== 'green' && data.band !== 'grey'
@@ -81,7 +91,9 @@ export function EscalationCard({ data, theme }: { data: VerdictData; theme?: Can
 
         <Hero data={data} />
 
-        {(data.type === 'ipv4' || data.type === 'ipv6') && <CompareIp data={data} />}
+        {(data.type === 'ipv4' || data.type === 'ipv6') && (
+          <CompareIp data={data} baseUrl={baseUrl} />
+        )}
 
         <div className="flex flex-col gap-2">
           <MicroLabel tone="muted">Evidence — attributed to public sources</MicroLabel>
