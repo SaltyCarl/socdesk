@@ -13,6 +13,7 @@ import { dualUseNote, dualUseTag, graywareLabel, hashHeadline, leadFact } from '
 import { Chip, MicroLabel } from '../ui'
 import { cveLead, isBannerLed } from '../card/model'
 import { Hero } from './heroes'
+import { CompareIp } from './CompareIp'
 import { CardActions } from './CardActions'
 import { Caveat, ContextList, IndicatorLine, SegGauge, SourceLedger, TallyHeadline } from './ui'
 import type { CanvasTheme } from '../card/palette'
@@ -76,6 +77,8 @@ export function EscalationCard({ data, theme }: { data: VerdictData; theme?: Can
         </div>
 
         <Hero data={data} />
+
+        {(data.type === 'ipv4' || data.type === 'ipv6') && <CompareIp data={data} />}
 
         <div className="flex flex-col gap-2">
           <MicroLabel tone="muted">
