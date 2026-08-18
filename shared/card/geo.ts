@@ -133,6 +133,59 @@ export function project(lat: number, lon: number): { fx: number; fy: number } {
   return { fx, fy }
 }
 
+/** Great-circle arc between two coordinates, sampled and projected to map
+ *  fractions (the SAME equirectangular `project` the pins use). Returned as
+ *  one-or-more polyline SEGMENTS, split at the antimeridian so a flat-map
+ *  polyline never draws a spurious line straight across the frame. Pure geometry:
+ *  the honest shortest-path line between two REAL looked-up coordinates. */
+export function greatCircleArc(
+  aLat: number,
+  aLon: number,
+  bLat: number,
+  bLon: number,
+  samples = 48,
+): Array<Array<{ fx: number; fy: number }>> {
+  const rad = (d: number) => (d * Math.PI) / 180
+  const deg = (r: number) => (r * 180) / Math.PI
+  const toVec = (lat: number, lon: number): [number, number, number] => {
+    const p = rad(lat)
+    const l = rad(lon)
+    return [Math.cos(p) * Math.cos(l), Math.cos(p) * Math.sin(l), Math.sin(p)]
+  }
+  const A = toVec(aLat, aLon)
+  const B = toVec(bLat, bLon)
+  const dot = Math.max(-1, Math.min(1, A[0] * B[0] + A[1] * B[1] + A[2] * B[2]))
+  const omega = Math.acos(dot)
+  const sinO = Math.sin(omega)
+
+  const segments: Array<Array<{ fx: number; fy: number }>> = []
+  let cur: Array<{ fx: number; fy: number }> = []
+  let prevFx: number | null = null
+
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples
+    let v: [number, number, number]
+    if (sinO < 1e-6) {
+      v = A // coincident (or antipodal — no unique great circle); degenerate to A
+    } else {
+      const a = Math.sin((1 - t) * omega) / sinO
+      const b = Math.sin(t * omega) / sinO
+      v = [a * A[0] + b * B[0], a * A[1] + b * B[1], a * A[2] + b * B[2]]
+    }
+    const lat = deg(Math.asin(Math.max(-1, Math.min(1, v[2]))))
+    const lon = deg(Math.atan2(v[1], v[0]))
+    const { fx, fy } = project(lat, lon)
+    if (prevFx !== null && Math.abs(fx - prevFx) > 0.5) {
+      if (cur.length) segments.push(cur)
+      cur = []
+    }
+    cur.push({ fx, fy })
+    prevFx = fx
+  }
+  if (cur.length) segments.push(cur)
+  return segments
+}
+
 function factMap(row: GeoRow): Map<string, string> {
   return new Map((row.facts ?? []).map(([k, v]) => [String(k).toLowerCase(), v]))
 }

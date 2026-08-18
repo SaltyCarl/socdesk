@@ -22,7 +22,8 @@
 import type { Band, VerdictData, VerdictSource } from '../verdict'
 import { CAVEAT, assessmentLine, classTag, dualUseNote, hashHeadline, isStale, predicate } from '../verdict'
 import { detectTheme, MONO, SANS, mix, THEMES, type CanvasTheme, type Palette } from './palette'
-import { WORLD, coordLabel, geoModel, project, type GeoModel } from './geo'
+import { WORLD, coordLabel, geoModel, greatCircleArc, project, type GeoModel } from './geo'
+import type { CompareResult } from '../verdict-cards/CompareIp'
 import {
   cveLead,
   cveModel,
@@ -69,7 +70,7 @@ function bandInk(T: Palette, band: Band): string {
 /* ---------- the card content model (pure) -------------------------------- */
 
 type Hero =
-  | { kind: 'geo'; geo: GeoModel; note: string }
+  | { kind: 'geo'; geo: GeoModel; note: string; compare?: CompareResult | null }
   | { kind: 'domain'; dm: DomainModel }
   | { kind: 'identity'; hash: HashModel }
   | { kind: 'cve'; cve: CveModel }
@@ -102,7 +103,7 @@ interface CardModel {
   queried: string
 }
 
-function heroFor(data: VerdictData, now: Date): Hero {
+function heroFor(data: VerdictData, now: Date, compare?: CompareResult | null): Hero {
   if (data.type === 'cve') return { kind: 'cve', cve: cveModel(data) }
   if (data.identityLed) return { kind: 'identity', hash: hashModel(data) }
   // Domain leads with the registration-age tell (spec §3.3), NOT the geo map —
@@ -111,7 +112,7 @@ function heroFor(data: VerdictData, now: Date): Hero {
   if (data.type === 'domain') return { kind: 'domain', dm: domainModel(data, now) }
   if (data.type === 'ipv4') {
     const geo = geoModel(data.context, data.sources)
-    if (geo) return { kind: 'geo', geo, note: dualUseNote(data.sources) ?? '' }
+    if (geo) return { kind: 'geo', geo, note: dualUseNote(data.sources) ?? '', compare }
   }
   if (data.type === 'url') {
     const scan = data.sources.find((s) => s.name === 'urlscan') ?? data.sources[0]
@@ -127,7 +128,7 @@ function heroFor(data: VerdictData, now: Date): Hero {
   return rows.length ? { kind: 'facts', label: 'Key facts', rows } : { kind: 'none' }
 }
 
-function cardModel(data: VerdictData, now: Date): CardModel {
+function cardModel(data: VerdictData, now: Date, compare?: CompareResult | null): CardModel {
   const bannerLed = isBannerLed(data)
   const headline = data.identityLed
     ? hashHeadline(data)
@@ -144,7 +145,7 @@ function cardModel(data: VerdictData, now: Date): CardModel {
     segments: gaugeSegments(data),
     caption: gaugeCaption(data),
     dualUse: dualUseNote(data.sources),
-    hero: heroFor(data, now),
+    hero: heroFor(data, now, compare),
     sources: data.sources.map((s) => ({
       name: s.name,
       verdict: s.verdict,
@@ -409,7 +410,7 @@ function paintGauge(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, dra
 function paintHero(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, draw: boolean, y: number, inner: number): number {
   switch (m.hero.kind) {
     case 'geo':
-      return paintGeo(ctx, m.hero.geo, T, draw, y, inner)
+      return paintGeo(ctx, m.hero.geo, T, draw, y, inner, m.hero.compare)
     case 'domain':
       return paintDomain(ctx, m.hero.dm, T, draw, y, inner)
     case 'identity':
@@ -434,11 +435,37 @@ function heroPanel(ctx: CanvasRenderingContext2D, T: Palette, draw: boolean, y: 
   ctx.stroke()
 }
 
-function paintGeo(ctx: CanvasRenderingContext2D, g: GeoModel, T: Palette, draw: boolean, y: number, inner: number): number {
+/** "City, CC" when we have it, else the country name — the compact place label
+ *  for the geographic-separation fact (mirrors CompareIp's on-screen label). */
+const geoLabel = (g: GeoModel): string =>
+  [g.city, g.countryCode].filter(Boolean).join(', ') || g.countryName
+
+/** The one-line geographic-separation fact bundled onto the copy-card when a
+ *  compare is active: distance · from → to · (when a time gap was given) the
+ *  implied speed + band. A clean fact, muted — no caveat (the analyst owns the
+ *  nuance in the email body). */
+function geoSepLine(g: GeoModel, c: CompareResult): string {
+  const a = c.assessment
+  const vel = a.mph != null && a.mphLabel ? ` · ${a.mphLabel} (${a.band})` : ''
+  return `GEOGRAPHIC SEPARATION: ${a.milesLabel} · ${geoLabel(g)} → ${geoLabel(c.second)}${vel}`
+}
+
+function paintGeo(ctx: CanvasRenderingContext2D, g: GeoModel, T: Palette, draw: boolean, y: number, inner: number, compare?: CompareResult | null): number {
   const ipad = 12
   const contentW = inner - ipad * 2
   const mapH = contentW * (WORLD.length / WORLD[0].length)
-  const geoH = ipad + 12 + 8 + mapH + 12 + 30 + ipad
+
+  // Geographic-separation fact — present ONLY when a compare is bundled. Its
+  // wrapped line count is computed identically in the measure + draw passes, so
+  // the block height never drifts; with no compare, sepBlock is 0 and the whole
+  // hero is byte-identical to the single-IP card (drawVerdict.test determinism).
+  const mc = measurer()
+  const sepFont = `400 8.5px ${MONO}`
+  const sepGap = 7
+  const sepLH = 12
+  const sepLines = compare ? wrap(mc, geoSepLine(g, compare), sepFont, contentW) : []
+  const sepBlock = compare ? sepGap + sepLines.length * sepLH : 0
+  const geoH = ipad + 12 + 8 + mapH + 12 + 30 + sepBlock + ipad
 
   heroPanel(ctx, T, draw, y, inner, geoH)
 
@@ -451,7 +478,7 @@ function paintGeo(ctx: CanvasRenderingContext2D, g: GeoModel, T: Palette, draw: 
   }
   gy += 12 + 8
 
-  paintWorld(ctx, T, draw, PAD + ipad, gy, contentW, mapH, g)
+  paintWorld(ctx, T, draw, PAD + ipad, gy, contentW, mapH, g, compare)
   gy += mapH + 12
 
   const cx = PAD + ipad
@@ -479,10 +506,18 @@ function paintGeo(ctx: CanvasRenderingContext2D, g: GeoModel, T: Palette, draw: 
     ctx.textAlign = 'left'
   }
 
+  // the geographic-separation fact, below the country row (muted, no caveat)
+  if (compare && draw) {
+    ctx.font = sepFont
+    ctx.fillStyle = T.textDim
+    ctx.textAlign = 'left'
+    sepLines.forEach((ln, i) => ctx.fillText(ln, PAD + ipad, gy + 30 + sepGap + 9 + i * sepLH))
+  }
+
   return y + geoH + 12
 }
 
-function paintWorld(ctx: CanvasRenderingContext2D, T: Palette, draw: boolean, x: number, y: number, w: number, h: number, g: GeoModel): void {
+function paintWorld(ctx: CanvasRenderingContext2D, T: Palette, draw: boolean, x: number, y: number, w: number, h: number, g: GeoModel, compare?: CompareResult | null): void {
   if (!draw) return
   const cols = WORLD[0].length
   const rows = WORLD.length
@@ -526,6 +561,47 @@ function paintWorld(ctx: CanvasRenderingContext2D, T: Palette, draw: boolean, x:
       ctx.fillStyle = hot ? mapHot : mapLand
       ctx.fillRect(x + (c + 0.12) * cell, y + (r + 0.12) * cell, cell * 0.76, cell * 0.76)
     }
+  }
+
+  // Second sign-in overlay: the honest great-circle route + a secondary hollow
+  // pin, drawn UNDER the primary pin so it never competes with it. Periwinkle
+  // (--accent), thin + dashed + moderate opacity — never a verdict hue. Matches
+  // the SVG WorldMap treatment. Wrapped in save/restore so the dash/alpha/width
+  // state can't leak into the primary pin below.
+  if (compare) {
+    ctx.save()
+    ctx.strokeStyle = mapHot
+    ctx.globalAlpha = 0.7
+    ctx.lineWidth = Math.max(0.8, 0.18 * cell)
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.setLineDash([1.6 * cell, 1.4 * cell])
+    for (const seg of greatCircleArc(g.lat, g.lon, compare.second.lat, compare.second.lon)) {
+      ctx.beginPath()
+      seg.forEach((p, i) => {
+        const ax = x + p.fx * w
+        const ay = y + p.fy * h
+        if (i === 0) ctx.moveTo(ax, ay)
+        else ctx.lineTo(ax, ay)
+      })
+      ctx.stroke()
+    }
+    ctx.setLineDash([])
+
+    const p2 = project(compare.second.lat, compare.second.lon)
+    const px2 = x + p2.fx * w
+    const py2 = y + p2.fy * h
+    ctx.globalAlpha = 0.9
+    ctx.lineWidth = Math.max(0.8, 0.35 * cell)
+    ctx.beginPath()
+    ctx.arc(px2, py2, 1.7 * cell, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.globalAlpha = 1
+    ctx.fillStyle = mapHot
+    ctx.beginPath()
+    ctx.arc(px2, py2, 0.7 * cell, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
   }
 
   const px = x + fx * w
@@ -1023,6 +1099,9 @@ function paintSources(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, d
 export interface DrawOptions {
   theme?: CanvasTheme
   now?: Date
+  /** A bundled inline Compare-IP result — draws the arc + second pin on the map
+   *  and the geographic-separation fact line. Absent = the single-IP card. */
+  compare?: CompareResult | null
 }
 
 /**
@@ -1034,7 +1113,7 @@ export function renderVerdictCanvas(data: VerdictData, opts: DrawOptions = {}): 
   const theme = opts.theme ?? detectTheme()
   const T = THEMES[theme] ?? THEMES.dark
   const now = opts.now ?? new Date()
-  const m = cardModel(data, now)
+  const m = cardModel(data, now, opts.compare)
 
   const height = paint(measurer(), m, T, false)
 

@@ -18,6 +18,7 @@ import { DUR, EASE, prefersReducedMotion } from '../lib/motion'
 import { copyCard, copyText } from './copy'
 import { renderVerdictCanvas } from '../card/drawVerdict'
 import type { CanvasTheme } from '../card/palette'
+import type { CompareResult } from './CompareIp'
 
 /* ---------- transient button status (immediate, in-place) ---------------- */
 
@@ -146,13 +147,23 @@ function ToastHost({ toast }: { toast: ToastState | null }) {
 
 /* ---------- the actions -------------------------------------------------- */
 
-export function CardActions({ data, theme }: { data: VerdictData; theme?: CanvasTheme }) {
+export function CardActions({
+  data,
+  theme,
+  compare,
+}: {
+  data: VerdictData
+  theme?: CanvasTheme
+  /** When present, the copied PNG bundles the compare (arc + second pin +
+   *  geographic-separation line) so the image matches the on-screen card. */
+  compare?: CompareResult | null
+}) {
   const [cardMsg, flashCard] = useFlash()
   const [textMsg, flashText] = useFlash()
   const { toast, show } = useToast()
 
   const onCard = async () => {
-    const r = await copyCard(data, theme ? { theme } : {})
+    const r = await copyCard(data, { ...(theme ? { theme } : {}), ...(compare ? { compare } : {}) })
     if (r === 'copied') {
       flashCard('Copied ✓')
       show('Card copied to clipboard')
@@ -190,7 +201,15 @@ export function CardActions({ data, theme }: { data: VerdictData; theme?: Canvas
  * brand faces so the canvas doesn't substitute a fallback, then swaps the drawn
  * canvas in. CSS (className) scales the intrinsic 2× bitmap down responsively.
  */
-export function CardCanvasPreview({ data, theme }: { data: VerdictData; theme?: CanvasTheme }) {
+export function CardCanvasPreview({
+  data,
+  theme,
+  compare,
+}: {
+  data: VerdictData
+  theme?: CanvasTheme
+  compare?: CompareResult | null
+}) {
   const holder = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -204,7 +223,7 @@ export function CardCanvasPreview({ data, theme }: { data: VerdictData; theme?: 
       if (cancelled || !holder.current) return
       let canvas: HTMLCanvasElement
       try {
-        canvas = renderVerdictCanvas(data, theme ? { theme } : {})
+        canvas = renderVerdictCanvas(data, { ...(theme ? { theme } : {}), ...(compare ? { compare } : {}) })
       } catch {
         return
       }
@@ -217,7 +236,7 @@ export function CardCanvasPreview({ data, theme }: { data: VerdictData; theme?: 
     return () => {
       cancelled = true
     }
-  }, [data, theme])
+  }, [data, theme, compare])
 
   return <div ref={holder} className="flex justify-center" />
 }

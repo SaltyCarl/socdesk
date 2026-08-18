@@ -1,8 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { coordLabel, geoModel, project } from '../geo';
+import { coordLabel, geoModel, greatCircleArc, project } from '../geo';
 import { STUBS } from '../../verdict-cards/stubs';
 
 const dataFor = (id: string) => STUBS.find((s) => s.id === id)!.data;
+
+describe('greatCircleArc', () => {
+  it('starts at A and ends at B (projected)', () => {
+    const segs = greatCircleArc(37.77, -122.42, 52.52, 13.4); // SF → Berlin
+    const first = segs[0][0];
+    const last = segs[segs.length - 1][segs[segs.length - 1].length - 1];
+    expect(first.fx).toBeCloseTo(project(37.77, -122.42).fx, 2);
+    expect(last.fx).toBeCloseTo(project(52.52, 13.4).fx, 2);
+  });
+  it('is a single segment when it does not cross the antimeridian', () => {
+    expect(greatCircleArc(40.71, -74.0, 51.5, -0.12)).toHaveLength(1); // NYC → London
+  });
+  it('splits into 2 segments across the antimeridian', () => {
+    // Tokyo → LA: the shortest great circle crosses the 180° line.
+    expect(greatCircleArc(35.68, 139.65, 34.05, -118.24).length).toBeGreaterThan(1);
+  });
+  it('every projected point stays inside the [0,1] frame', () => {
+    for (const seg of greatCircleArc(-33.87, 151.21, 55.75, 37.62)) {
+      for (const p of seg) {
+        expect(p.fx).toBeGreaterThanOrEqual(0);
+        expect(p.fx).toBeLessThanOrEqual(1);
+        expect(p.fy).toBeGreaterThanOrEqual(0);
+        expect(p.fy).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+});
 
 describe('project (equirectangular pin placement)', () => {
   it('maps the origin to the centre and clamps inside the frame', () => {

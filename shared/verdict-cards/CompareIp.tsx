@@ -26,24 +26,43 @@ import { cx } from '../lib/cx'
 const label = (g: GeoModel): string =>
   [g.city, g.countryCode].filter(Boolean).join(', ') || g.countryName || '—'
 
-interface Result {
+/** The successful-compare payload lifted to the card: the resolved second
+ *  location + the travel read. The escalation card threads this to the SVG hero
+ *  (arc + second pin) and the copy-card PNG so all three registers agree. */
+export interface CompareResult {
   second: GeoModel
-  t: TravelAssessment
+  assessment: TravelAssessment
 }
 
 const INPUT_CLS =
   'rounded-md border border-line bg-field px-2.5 py-1.5 font-mono text-xs text-paper ' +
   'outline-offset-2 placeholder:text-faint focus-visible:outline-2 focus-visible:outline-accent'
 
-export function CompareIp({ data, baseUrl }: { data: VerdictData; baseUrl?: string }) {
+export function CompareIp({
+  data,
+  baseUrl,
+  onResult,
+}: {
+  data: VerdictData
+  baseUrl?: string
+  /** Lifts the compare state to the card so the SVG hero + copy-card PNG can draw
+   *  the arc/second pin. Fired with the payload on success, and with `null` on
+   *  clear / re-run / collapse / any error, so the arc never lingers stale. */
+  onResult?: (r: CompareResult | null) => void
+}) {
   const [open, setOpen] = useState(false)
   const [secondIp, setSecondIp] = useState('')
   const [minutes, setMinutes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<Result | null>(null)
+  const [result, setResult] = useState<CompareResult | null>(null)
   const [copied, setCopied] = useState(false)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Latest `onResult` behind a ref so the unmount cleanup can clear the arc
+  // without re-subscribing whenever the parent hands a fresh callback identity.
+  const onResultRef = useRef(onResult)
+  onResultRef.current = onResult
 
   useEffect(
     () => () => {
@@ -51,6 +70,20 @@ export function CompareIp({ data, baseUrl }: { data: VerdictData; baseUrl?: stri
     },
     [],
   )
+
+  // Clear the lifted arc when this helper unmounts (e.g. the card switches to a
+  // non-IP indicator and CompareIp is no longer rendered).
+  useEffect(() => () => onResultRef.current?.(null), [])
+
+  // A new primary indicator resets the panel + the lifted arc, so a prior IP's
+  // route can never linger on a freshly looked-up IP's map.
+  useEffect(() => {
+    setResult(null)
+    setError(null)
+    setSecondIp('')
+    setMinutes('')
+    onResultRef.current?.(null)
+  }, [data.indicator])
 
   // Only a REAL coordinate for THIS IP makes a comparison meaningful — with just
   // a country centroid a distance would be misleading, so the panel is absent.
@@ -62,11 +95,13 @@ export function CompareIp({ data, baseUrl }: { data: VerdictData; baseUrl?: stri
     const type = detectType(q)
     if (type !== 'ipv4' && type !== 'ipv6') {
       setResult(null)
+      onResult?.(null)
       setError('Enter a valid IPv4 or IPv6 address.')
       return
     }
     setError(null)
     setResult(null)
+    onResult?.(null) // drop any prior arc while the new lookup resolves
     setLoading(true)
     try {
       const out = await fetchEnrich(type, q, baseUrl ? { baseUrl } : {})
@@ -86,10 +121,23 @@ export function CompareIp({ data, baseUrl }: { data: VerdictData; baseUrl?: stri
       const mins = minutes.trim() === '' ? null : Number(minutes)
       const gap = mins != null && Number.isFinite(mins) && mins > 0 ? mins : null
       const miles = haversineMiles(first.lat, first.lon, second.lat, second.lon)
-      setResult({ second, t: travelAssessment(miles, gap) })
+      const assessment = travelAssessment(miles, gap)
+      setResult({ second, assessment })
+      onResult?.({ second, assessment })
     } finally {
       setLoading(false)
     }
+  }
+
+  // Collapsing the panel drops the panel state AND the lifted arc together, so
+  // the map and the panel never disagree about whether a compare is active.
+  const toggle = () => {
+    if (open) {
+      setResult(null)
+      setError(null)
+      onResult?.(null)
+    }
+    setOpen((v) => !v)
   }
 
   const copy = async (text: string) => {
@@ -104,13 +152,13 @@ export function CompareIp({ data, baseUrl }: { data: VerdictData; baseUrl?: stri
     }
   }
 
-  const summary = result ? travelSummary(label(first), label(result.second), result.t) : ''
+  const summary = result ? travelSummary(label(first), label(result.second), result.assessment) : ''
 
   return (
     <div className="flex flex-col gap-2.5">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-expanded={open}
         className="inline-flex w-fit items-center gap-1 font-mono text-xs font-semibold text-accent underline-offset-2 outline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent"
       >
@@ -177,13 +225,13 @@ export function CompareIp({ data, baseUrl }: { data: VerdictData; baseUrl?: stri
               </p>
 
               <div className="flex flex-wrap items-baseline gap-2">
-                <span className="font-display text-xl font-bold text-paper">{result.t.milesLabel}</span>
-                {result.t.band === 'plausible' && <Chip variant="neutral">consistent with travel</Chip>}
-                {result.t.band === 'implausible' && <Chip variant="suspicious">implausible travel</Chip>}
-                {result.t.band === 'impossible' && <Chip variant="suspicious">impossible travel</Chip>}
+                <span className="font-display text-xl font-bold text-paper">{result.assessment.milesLabel}</span>
+                {result.assessment.band === 'plausible' && <Chip variant="neutral">consistent with travel</Chip>}
+                {result.assessment.band === 'implausible' && <Chip variant="suspicious">implausible travel</Chip>}
+                {result.assessment.band === 'impossible' && <Chip variant="suspicious">impossible travel</Chip>}
               </div>
 
-              <p className="text-xs leading-relaxed text-muted">{result.t.read}</p>
+              <p className="text-xs leading-relaxed text-muted">{result.assessment.read}</p>
 
               <div className="flex items-start gap-2 rounded-md border border-line bg-panel px-2.5 py-2">
                 <p className="min-w-0 flex-1 font-mono text-micro leading-relaxed text-muted">{summary}</p>

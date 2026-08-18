@@ -10,12 +10,13 @@
 // leads with the tally-as-coverage headline + the segmented gauge, then the hero.
 // All wording/banding comes from the verdict-lib doctrine.
 
+import { useState } from 'react'
 import type { VerdictData } from '../verdict'
 import { dualUseTag, hashHeadline, leadFact } from '../verdict'
 import { Chip, MicroLabel } from '../ui'
 import { cveLead, isBannerLed } from '../card/model'
 import { Hero } from './heroes'
-import { CompareIp } from './CompareIp'
+import { CompareIp, type CompareResult } from './CompareIp'
 import { CardActions } from './CardActions'
 import { ContextList, IndicatorLine, SegGauge, SourceLedger, TallyHeadline } from './ui'
 import type { CanvasTheme } from '../card/palette'
@@ -46,6 +47,10 @@ export function EscalationCard({
    *  (the web app); the extension passes its configured SOCDesk origin. */
   baseUrl?: string
 }) {
+  // A successful inline Compare-IP lifts its result here so the geo hero draws the
+  // arc + second pin and the copy-card PNG bundles the same compare. Null for every
+  // non-IP card (CompareIp is only rendered for IPs) and until a compare succeeds.
+  const [compare, setCompare] = useState<CompareResult | null>(null)
   const banner = isBannerLed(data)
   const lead = banner ? null : leadFact(data.sources)
   const showStrongest = lead && data.band !== 'green' && data.band !== 'grey'
@@ -61,7 +66,7 @@ export function EscalationCard({
           <MicroLabel tone="accent">Escalation draft</MicroLabel>
           <span className="font-mono text-micro text-faint">SOCDESK · TRIAGE</span>
           <div className="ml-auto">
-            <CardActions data={data} theme={theme} />
+            <CardActions data={data} theme={theme} compare={compare} />
           </div>
         </div>
 
@@ -89,10 +94,10 @@ export function EscalationCard({
           )}
         </div>
 
-        <Hero data={data} />
+        <Hero data={data} compare={compare} />
 
         {(data.type === 'ipv4' || data.type === 'ipv6') && (
-          <CompareIp data={data} baseUrl={baseUrl} />
+          <CompareIp data={data} baseUrl={baseUrl} onResult={setCompare} />
         )}
 
         <div className="flex flex-col gap-2">

@@ -15,8 +15,9 @@ import { useRef, type ReactNode } from 'react'
 import type { VerdictData } from '../verdict'
 import { cx } from '../lib/cx'
 import { Chip, MicroLabel } from '../ui'
-import { WORLD, coordLabel, geoModel, project, type FlagDef, type GeoModel } from '../card/geo'
+import { WORLD, coordLabel, geoModel, greatCircleArc, project, type FlagDef, type GeoModel } from '../card/geo'
 import { cveModel, domainModel, hashModel, urlModel } from '../card/model'
+import type { CompareResult } from './CompareIp'
 
 /* ---------- shared scaffolding ------------------------------------------- */
 
@@ -76,7 +77,11 @@ function FlagChip({ geo }: { geo: GeoModel }) {
   )
 }
 
-function WorldMap({ geo }: { geo: GeoModel }) {
+/** The IP geolocation map. With a `compare` present it also draws the honest
+ *  great-circle route to the second sign-in's location + a secondary (hollow)
+ *  pin there — periwinkle `--accent`, never a verdict tone. The arc sits BEHIND
+ *  the pins and the primary pin stays visually dominant. */
+function WorldMap({ geo, compare }: { geo: GeoModel; compare?: CompareResult | null }) {
   const cols = WORLD[0].length
   const rows = WORLD.length
   const { fx, fy } = project(geo.lat, geo.lon)
@@ -96,13 +101,23 @@ function WorldMap({ geo }: { geo: GeoModel }) {
   }
   const pin = `M ${px.toFixed(2)} ${py.toFixed(2)} L ${(px - 1.6).toFixed(2)} ${(py - 2.8).toFixed(2)} A 1.9 1.9 0 1 1 ${(px + 1.6).toFixed(2)} ${(py - 2.8).toFixed(2)} Z`
 
+  // Second sign-in overlay (projected with the SAME equirectangular `project`).
+  const p2 = compare ? project(compare.second.lat, compare.second.lon) : null
+  const px2 = p2 ? p2.fx * cols : 0
+  const py2 = p2 ? p2.fy * rows : 0
+  const arcSegs = compare ? greatCircleArc(geo.lat, geo.lon, compare.second.lat, compare.second.lon) : []
+
   return (
     <svg
       viewBox={`0 0 ${cols} ${rows}`}
       preserveAspectRatio="xMidYMid meet"
       className="w-full rounded-sm border border-[var(--edge-accent)] bg-[var(--tint-accent)]"
       role="img"
-      aria-label={`World map with a location pin on ${geo.countryName}`}
+      aria-label={
+        compare
+          ? `World map with location pins on ${geo.countryName} and ${compare.second.countryName}, joined by a route line`
+          : `World map with a location pin on ${geo.countryName}`
+      }
     >
       <g className="stroke-[var(--edge-accent)] opacity-40" strokeWidth={0.12}>
         {[16, 32, 48, 64].map((x) => (
@@ -124,6 +139,30 @@ function WorldMap({ geo }: { geo: GeoModel }) {
             <rect key={`${c.x}-${c.y}`} x={c.x + 0.14} y={c.y + 0.14} width={0.72} height={0.72} />
           ))}
       </g>
+      {compare && (
+        <>
+          {/* the route — thin, dashed, moderate opacity; drawn BEHIND the pins */}
+          <g
+            className="fill-none stroke-[var(--accent)] opacity-70"
+            strokeWidth={0.18}
+            strokeDasharray="0.9 0.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            {arcSegs.map((seg, i) => (
+              <polyline
+                key={i}
+                points={seg.map((p) => `${(p.fx * cols).toFixed(2)},${(p.fy * rows).toFixed(2)}`).join(' ')}
+              />
+            ))}
+          </g>
+          {/* secondary sign-in — a hollow marker so the primary pin stays dominant */}
+          <g>
+            <circle cx={px2} cy={py2} r={1.7} strokeWidth={0.35} className="fill-none stroke-[var(--accent)] opacity-90" />
+            <circle cx={px2} cy={py2} r={0.65} className="fill-[var(--accent)]" />
+          </g>
+        </>
+      )}
       <g>
         <ellipse cx={px} cy={py} rx={2.1} ry={0.7} className="fill-[var(--accent)] opacity-30" />
         <circle cx={px} cy={headY} r={3.3} strokeWidth={0.4} className="fill-none stroke-[var(--accent)] opacity-50" />
@@ -134,13 +173,13 @@ function WorldMap({ geo }: { geo: GeoModel }) {
   )
 }
 
-export function IpHero({ data }: { data: VerdictData }) {
+export function IpHero({ data, compare }: { data: VerdictData; compare?: CompareResult | null }) {
   const geo = geoModel(data.context, data.sources)
   if (!geo) return null
   const sub = [geo.city, geo.asn, geo.org].filter(Boolean).join(' · ')
   return (
     <HeroPanel label="Geolocation — context, not a verdict">
-      <WorldMap geo={geo} />
+      <WorldMap geo={geo} compare={compare} />
       <div className="flex flex-wrap items-center gap-3">
         <FlagChip geo={geo} />
         <div className="min-w-0">
@@ -468,11 +507,11 @@ export function CveHero({ data }: { data: VerdictData }) {
 
 /** Render the type-appropriate hero for a card. Null when a type carries no
  *  hero (or the data can't support one — e.g. an IP with no geo). */
-export function Hero({ data }: { data: VerdictData }) {
+export function Hero({ data, compare }: { data: VerdictData; compare?: CompareResult | null }) {
   switch (data.type) {
     case 'ipv4':
     case 'ipv6':
-      return <IpHero data={data} />
+      return <IpHero data={data} compare={compare} />
     case 'domain':
       return <DomainHero data={data} />
     case 'url':
