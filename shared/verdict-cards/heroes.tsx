@@ -234,6 +234,18 @@ function urlVerdictVariant(v: VerdictData['sources'][number]['verdict']) {
   return 'unknown' as const
 }
 
+/** Browserling opens the (possibly hostile) URL inside a disposable REMOTE
+ *  browser — the analyst's own machine never fetches it, and nothing is submitted
+ *  to a public scanner (unlike a urlscan submission, which SOCDesk deliberately
+ *  never does — see lib/enrich.mjs). The version-less win10/chrome path resolves
+ *  to the current free-tier browser, so it won't rot on Chrome bumps. Verified
+ *  live 2026-08-18; if Browserling change their scheme this one line is the fix
+ *  (BACKLOG P1.3). The target URL is appended RAW — Browserling parses everything
+ *  after /chrome/ as the URL, so it must not be percent-encoded. */
+function browserlingUrl(url: string): string {
+  return `https://www.browserling.com/browse/win10/chrome/${url}`
+}
+
 export function UrlHero({ data }: { data: VerdictData }) {
   const um = urlModel(data)
   return (
@@ -246,9 +258,9 @@ export function UrlHero({ data }: { data: VerdictData }) {
             <span className="flex flex-col items-center gap-1.5 text-center">
               <ScreenshotGlyph />
               <span className="font-mono text-micro leading-tight text-faint">
-                urlscan screenshot slot
+                no urlscan screenshot on record
                 <br />
-                captured at scan time
+                view it live in Browserling ↓
               </span>
             </span>
           </div>
@@ -260,6 +272,20 @@ export function UrlHero({ data }: { data: VerdictData }) {
       <div className="grid gap-2">
         <FactCell k="Final URL" v={um.finalUrl} />
         {um.pageTitle && <FactCell k="Page title" v={um.pageTitle} mono={false} />}
+      </div>
+      <div className="flex flex-col gap-1 border-t border-line pt-2.5">
+        <a
+          href={browserlingUrl(data.indicator)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex w-fit items-center gap-1.5 font-mono text-xs font-semibold text-accent underline-offset-2 outline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          Open live in Browserling — safe remote sandbox
+          <span aria-hidden="true">↗</span>
+        </a>
+        <p className="font-mono text-micro leading-tight text-faint">
+          Loads the page in a disposable remote browser — your machine never touches it, and nothing is submitted to a public scanner.
+        </p>
       </div>
     </HeroPanel>
   )
@@ -386,6 +412,7 @@ export function CveHero({ data }: { data: VerdictData }) {
 export function Hero({ data }: { data: VerdictData }) {
   switch (data.type) {
     case 'ipv4':
+    case 'ipv6':
       return <IpHero data={data} />
     case 'domain':
       return <DomainHero data={data} />
