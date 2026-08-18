@@ -12,6 +12,7 @@
 /** The indicator families SOCDesk recognises. */
 export type IndicatorType =
   | 'ipv4'
+  | 'ipv6'
   | 'domain'
   | 'url'
   | 'md5'
@@ -186,6 +187,7 @@ export const IDENTITY_TYPES: ReadonlySet<IndicatorType> = new Set<IndicatorType>
 /** Reputation types this client enriches via /api/enrich. */
 export const ENRICHABLE_TYPES: ReadonlySet<IndicatorType> = new Set<IndicatorType>([
   'ipv4',
+  'ipv6',
   'domain',
   'url',
   'md5',

@@ -18,6 +18,7 @@ import { gaugeCaption, gaugeSegments } from '../card/model'
 
 const TYPE_LABEL: Record<VerdictData['type'], string> = {
   ipv4: 'IPv4',
+  ipv6: 'IPv6',
   domain: 'Domain',
   url: 'URL',
   md5: 'MD5',

@@ -12,6 +12,7 @@
 /** Every indicator class the type-detector can return. `""` means unclassified. */
 export type IndicatorType =
   | 'ipv4'
+  | 'ipv6'
   | 'domain'
   | 'url'
   | 'md5'
@@ -22,13 +23,14 @@ export type IndicatorType =
   | ''
 
 /** The subset /api/enrich can actually score — an enrichable indicator. */
-export type EnrichableType = 'ipv4' | 'domain' | 'url' | 'md5' | 'sha1' | 'sha256'
+export type EnrichableType = 'ipv4' | 'ipv6' | 'domain' | 'url' | 'md5' | 'sha1' | 'sha256'
 
 /** The six types /api/enrich can actually score. cve + email are NOT here —
  *  they route to the full report instead. `kind:"context"` rows in a response
  *  (ipinfo geo) are context, never a verdict; the popup renders them as such. */
 export const ENRICHABLE: ReadonlySet<string> = new Set([
   'ipv4',
+  'ipv6',
   'domain',
   'url',
   'md5',
@@ -39,10 +41,18 @@ export const isEnrichable = (t: string): t is EnrichableType => ENRICHABLE.has(t
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i
 
+/** Comprehensive IPv6 matcher (full, ::-compressed, %zone, and IPv4-mapped
+ *  forms). Kept identical to lib/enrich.mjs's server-side RE.ipv6 — the server
+ *  re-validates, so this only has to ROUTE, but keeping them in lockstep avoids
+ *  a "detected but rejected" surprise. */
+const IPV6_RE =
+  /^(([0-9a-f]{1,4}:){7,7}[0-9a-f]{1,4}|([0-9a-f]{1,4}:){1,7}:|([0-9a-f]{1,4}:){1,6}:[0-9a-f]{1,4}|([0-9a-f]{1,4}:){1,5}(:[0-9a-f]{1,4}){1,2}|([0-9a-f]{1,4}:){1,4}(:[0-9a-f]{1,4}){1,3}|([0-9a-f]{1,4}:){1,3}(:[0-9a-f]{1,4}){1,4}|([0-9a-f]{1,4}:){1,2}(:[0-9a-f]{1,4}){1,5}|[0-9a-f]{1,4}:((:[0-9a-f]{1,4}){1,6})|:((:[0-9a-f]{1,4}){1,7}|:)|fe80:(:[0-9a-f]{0,4}){0,4}%[0-9a-z]+|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-f]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/i
+
 /** Classify a refanged indicator. Returns "" when nothing matches.
  *  Order matters: hash lengths before domain, url before bare domain. */
 export function detectType(q: string): IndicatorType {
   if (/^(\d{1,3}\.){3}\d{1,3}$/.test(q)) return 'ipv4'
+  if (IPV6_RE.test(q)) return 'ipv6'
   if (/^[a-f0-9]{64}$/i.test(q)) return 'sha256'
   if (/^[a-f0-9]{40}$/i.test(q)) return 'sha1'
   if (/^[a-f0-9]{32}$/i.test(q)) return 'md5'
