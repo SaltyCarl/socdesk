@@ -479,3 +479,46 @@
     display: none;
   }
 }
+
+/* ==========================================================================
+   RESULT MODE (.sdh-hero.is-result) — the escalation card owns the left column
+   as ONE integrated answer with the globe.
+
+   DESKTOP (>= 1024px): the card is width-capped (max-w-md in the JSX) and sits
+   cleanly to the LEFT of the bleeding globe, so the globe keeps its full
+   presence and bleed — untouched.
+
+   BELOW 1024px: a full-presence globe would collide with the card, so demote it
+   to the same faint, repositioned corner backdrop the narrow layout already
+   uses. It drifts to the top-right and dims — it NEVER overlaps the card, which
+   now stacks full-width under the omnibox. Hint + tooltip are desktop-globe
+   affordances, hidden while the globe is a backdrop. (The <=560px rule above
+   still hides the globe outright — its display:none is untouched here.)
+   ========================================================================== */
+@media (max-width: 1023px) {
+  .sdh-hero.is-result .sdh-wrap {
+    top: 8%;
+    right: -28%;
+    transform: none;
+    opacity: 0.16;
+    pointer-events: none;
+  }
+  .sdh-hero.is-result .sdh-hint,
+  .sdh-hero.is-result .sdh-tip {
+    display: none;
+  }
+}
+
+/* DESKTOP result mode: the base `.sdh-wrap { top: 50% }` centres the globe on
+   the WHOLE hero box — which now grows with the escalation card, so a tall
+   IP/domain card would sink the globe (and its live "pin lands here" moment)
+   below the fold. Cap the anchor to a viewport-proportional value so the globe
+   stops tracking card height: min() keeps idle untouched (short hero → 50% is
+   the smaller term) but pins result mode to 44vh once the hero is tall (the
+   result case), decoupling the globe from however long the card runs. transform
+   (translateY(-50%)) is inherited, so this stays the vertical CENTRE. */
+@media (min-width: 1024px) {
+  .sdh-hero.is-result .sdh-wrap {
+    top: min(50%, 44vh);
+  }
+}
