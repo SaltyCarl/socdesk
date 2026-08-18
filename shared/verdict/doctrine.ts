@@ -34,9 +34,11 @@ import {
 
 /* ---------- classification helpers --------------------------------------- */
 
-/** The source-class for a source name (spec §3.1). Unknown → `score`. */
+/** The source-class for a source name (spec §3.1). An UNMAPPED source falls back
+ *  to `unclassified` — never `score`, so an unknown feed can never impersonate a
+ *  scored reputation source (no class chip, neutral verb, no severity band). */
 export function sourceClassFor(name: string): SourceClass {
-  return CLASS_BY_SOURCE[name] ?? 'score';
+  return CLASS_BY_SOURCE[name] ?? 'unclassified';
 }
 
 /** True when a source's finding is adverse (its verdict flags the indicator). */
@@ -215,13 +217,14 @@ export function coverageHeadline(sources: VerdictSource[]): string {
   return `${n} of ${m} consulted sources flagged this as adverse.`;
 }
 
-/** The escalation ASSESSMENT line (§4). Worded "public reputation sources"
- *  (this travels into a ticket), distinct from the on-screen gauge headline. */
+/** The escalation ASSESSMENT line (§4). Worded "consulted sources" to match the
+ *  coverageHeadline noun (this travels into a ticket), distinct from the
+ *  on-screen gauge headline. */
 export function assessmentLine(sources: VerdictSource[]): string {
   const { consulted: m, flagged: n } = consensus(sources);
   if (m === 0)
     return 'No reputation data available from consulted sources — not evidence of safety.';
-  return `${n} of ${m} public reputation sources flagged this as adverse.`;
+  return `${n} of ${m} consulted sources flagged this as adverse.`;
 }
 
 /* ---------- hash carve-out (spec §3.1) ----------------------------------- */
@@ -255,6 +258,18 @@ export function dualUseNote(sources: VerdictSource[]): string | null {
   return null;
 }
 
+/** The short chip label for the dual-use qualifier (item 7) — an AMBER caution
+ *  surfaced ON the tally row so "N of M flagged" is never misread as N confirmed
+ *  malicious hits. Derived from the SAME facts as dualUseNote (no new data);
+ *  null when none applies. Rendered uppercase by the Chip. */
+export function dualUseTag(sources: VerdictSource[]): string | null {
+  const factHas = (label: RegExp, value: RegExp) =>
+    sources.some((s) => (s.facts ?? []).some(([k, v]) => label.test(k) && value.test(v)));
+  if (factHas(/tor exit/i, /^yes$/i)) return 'dual-use · Tor exit';
+  if (factHas(/riot|known-good/i, /^yes$/i)) return 'dual-use · known-good';
+  return null;
+}
+
 /* ---------- the plain-text escalation composer (spec §4) ----------------- */
 
 /** Defang an indicator for a ticket: evil.com → evil[.]com, http → hxxp. */
@@ -271,9 +286,11 @@ function stampUTC(x: string | number | Date): string {
 }
 
 function ledgerLine(s: VerdictSource, now: Date): string {
-  const rec = s.recency
-    ? ` (as of ${s.recency}${isStale(s.recency, now) ? ', stale' : ''})`
-    : '';
+  // A catalog/identity membership or a KEV listing does not expire off a
+  // first-seen date (item 5) — keep the "as of" date, drop the "stale" marker so
+  // the ledger never contradicts the last-seen banner.
+  const stale = isStale(s.recency, now) && s.class !== 'catalog' && !s.kev;
+  const rec = s.recency ? ` (as of ${s.recency}${stale ? ', stale' : ''})` : '';
   return `  • ${phraseFinding(s)} [${classTag(s)}]${rec}`;
 }
 
@@ -295,7 +312,7 @@ export function escalationLines(data: VerdictData, now: Date = new Date()): stri
     lines.push(`ASSESSMENT: ${assessmentLine(data.sources)}`);
     const lead = leadFact(data.sources);
     if (lead && data.band !== 'green' && data.band !== 'grey')
-      lines.push(`  Strongest signal: ${lead.phrasing}.`);
+      lines.push(`  Lead source: ${lead.phrasing}.`);
     if (data.band === 'grayware') lines.push(`  Note: ${GRAYWARE_LABEL}.`);
     const note = dualUseNote(data.sources);
     if (note) lines.push(`  Note: ${note}`);

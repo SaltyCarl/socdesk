@@ -322,7 +322,7 @@ const CVE_DATA: VerdictData = assemble('CVE-2026-31801', 'cve', [
   {
     name: 'NVD',
     verdict: 'suspicious',
-    class: 'score',
+    class: 'authoritative',
     finding: '9.8 (Critical) — unauthenticated remote code execution',
     recency: '2026-07-10',
     url: 'https://nvd.nist.gov/vuln/detail/CVE-2026-31801',

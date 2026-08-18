@@ -45,7 +45,7 @@ export function AnalystVerdict({ data }: { data: VerdictData }) {
           </p>
         )}
 
-        <SourceLedger data={data} dense />
+        <SourceLedger data={data} />
         <ContextList data={data} />
       </div>
     </Panel>

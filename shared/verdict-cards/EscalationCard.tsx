@@ -9,8 +9,8 @@
 // All wording/banding comes from the verdict-lib doctrine.
 
 import type { VerdictData } from '../verdict'
-import { dualUseNote, graywareLabel, hashHeadline, leadFact } from '../verdict'
-import { MicroLabel } from '../ui'
+import { dualUseNote, dualUseTag, graywareLabel, hashHeadline, leadFact } from '../verdict'
+import { Chip, MicroLabel } from '../ui'
 import { cveLead, isBannerLed } from '../card/model'
 import { Hero } from './heroes'
 import { CardActions } from './CardActions'
@@ -29,6 +29,7 @@ export function EscalationCard({ data, theme }: { data: VerdictData; theme?: Can
   const showStrongest = lead && data.band !== 'green' && data.band !== 'grey'
   const bannerHeadline = data.identityLed ? hashHeadline(data) : data.type === 'cve' ? cveLead(data) : ''
   const dualUse = dualUseNote(data.sources)
+  const dualUseChip = dualUseTag(data.sources)
 
   return (
     <div className="overflow-hidden rounded-lg border border-line-bright bg-panel shadow-e2">
@@ -45,16 +46,21 @@ export function EscalationCard({ data, theme }: { data: VerdictData; theme?: Can
         <IndicatorLine data={data} />
 
         <div className="flex flex-col gap-2">
-          <MicroLabel tone="faint">Assessment</MicroLabel>
+          <MicroLabel tone="muted">Assessment</MicroLabel>
           {banner ? (
             <p className="font-display text-base font-bold leading-snug text-paper">{bannerHeadline}</p>
           ) : (
             <TallyHeadline data={data} />
           )}
           {!banner && <SegGauge data={data} />}
+          {dualUseChip && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Chip variant="suspicious">{dualUseChip}</Chip>
+            </div>
+          )}
           {showStrongest && lead && (
             <p className="text-xs leading-relaxed text-muted">
-              <span className="font-semibold text-paper">Strongest signal:</span> {lead.phrasing}.
+              <span className="font-semibold text-paper">Lead source:</span> {lead.phrasing}.
             </p>
           )}
           {data.band === 'grayware' && (
@@ -72,7 +78,7 @@ export function EscalationCard({ data, theme }: { data: VerdictData; theme?: Can
         <Hero data={data} />
 
         <div className="flex flex-col gap-2">
-          <MicroLabel tone="faint">
+          <MicroLabel tone="muted">
             Evidence — third-party reputation, attributed, not independently verified
           </MicroLabel>
           <SourceLedger data={data} />

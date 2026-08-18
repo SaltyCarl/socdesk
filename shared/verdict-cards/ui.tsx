@@ -58,9 +58,11 @@ const BAND_INK: Record<Band, string> = {
  *  verdict hue). KEV / authoritative membership rides the accent. */
 const CLASS_VARIANT: Record<SourceClass, ChipVariant> = {
   catalog: 'catalog',
+  authoritative: 'accent',
   behavioral: 'behavioral',
   score: 'reputation',
   list: 'list',
+  unclassified: 'neutral',
 }
 
 function classChipVariant(s: VerdictSource): ChipVariant {
@@ -74,14 +76,20 @@ export function VerdictDot({ verdict }: { verdict: SourceVerdict }) {
 }
 
 export function ClassChip({ source }: { source: VerdictSource }) {
+  // An UNMAPPED source carries no class chip — it must never impersonate a
+  // scored source (item 1). A KEV listing still shows its authoritative chip.
+  if (source.class === 'unclassified' && !source.kev) return null
   return <Chip variant={classChipVariant(source)}>{classTag(source)}</Chip>
 }
 
 export function RecencyTag({ source, now }: { source: VerdictSource; now?: Date }) {
   if (!source.recency) return null
-  const stale = isStale(source.recency, now)
+  // A catalog/identity or KEV membership does not go stale off a first-seen date
+  // (item 5) — keep the "as of" date, drop the "· stale" marker so it never
+  // contradicts the last-seen banner.
+  const stale = isStale(source.recency, now) && source.class !== 'catalog' && !source.kev
   return (
-    <span className="font-mono text-micro text-faint">
+    <span className="font-mono text-micro text-muted">
       as of {source.recency}
       {stale && <span className="ml-1 font-semibold text-verdict-amber">· stale</span>}
     </span>
@@ -146,17 +154,15 @@ export function SegGauge({ data }: { data: VerdictData }) {
   )
 }
 
-/** The attributed evidence ledger: every consulted source named, its finding
- *  as fact, its source-class chip, and (analyst register) its recency. */
-export function SourceLedger({
-  data,
-  now,
-  dense = false,
-}: {
-  data: VerdictData
-  now?: Date
-  dense?: boolean
-}) {
+/** The attributed evidence ledger: every consulted source named, its finding as
+ *  fact, its source-class chip, and its recency. A fixed-width left cell stacks
+ *  the source name over its class chip (item 2), so every row's finding shares a
+ *  stable left edge and the finding column stays wide even in the narrow landing
+ *  card; the finding is LEFT-aligned in the remaining space, wrapped lines and
+ *  the recency staying within that column (item 4). This mirrors the copy-card
+ *  PNG's stacked name/chip column, and both registers (client + console) render
+ *  identically. */
+export function SourceLedger({ data, now }: { data: VerdictData; now?: Date }) {
   if (!data.sources.length) {
     return (
       <p className="rounded-md border border-line px-3 py-2 text-xs text-muted">
@@ -169,19 +175,19 @@ export function SourceLedger({
       {data.sources.map((s) => (
         <li
           key={s.name}
-          className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-line px-3 py-2 last:border-0 even:bg-panel-soft/40"
+          className="flex items-start gap-3 border-b border-line px-3 py-2 last:border-0 even:bg-panel-soft/40"
         >
-          <span className="flex items-center gap-2 self-center">
-            <VerdictDot verdict={s.verdict} />
-            <span className="min-w-[92px] font-sans text-xs font-semibold text-paper">{s.name}</span>
-          </span>
-          <ClassChip source={s} />
-          <span className="ml-auto text-right font-mono text-micro text-muted">{predicate(s)}</span>
-          {dense && s.recency && (
-            <span className="w-full text-right">
-              <RecencyTag source={s} now={now} />
+          <span className="flex w-[168px] shrink-0 flex-col items-start gap-1.5">
+            <span className="flex w-full items-center gap-2">
+              <VerdictDot verdict={s.verdict} />
+              <span className="truncate font-sans text-xs font-semibold text-paper">{s.name}</span>
             </span>
-          )}
+            <ClassChip source={s} />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5 font-mono text-micro text-muted">
+            <span className="min-w-0">{predicate(s)}</span>
+            {s.recency && <RecencyTag source={s} now={now} />}
+          </span>
         </li>
       ))}
     </ul>
@@ -192,23 +198,29 @@ export function SourceLedger({
  *  silence about an unconsulted source would lie by omission. */
 export function ContextList({ data }: { data: VerdictData }) {
   if (!data.context.length && !data.errors.length) return null
+  // Same fixed left-cell width as the ledger (item 2): a dot-width spacer + name
+  // in a 168px cell (context carries no source-class chip), so every context /
+  // not-consulted finding aligns with the evidence findings above.
   return (
     <div className="flex flex-col gap-2">
-      <MicroLabel tone="faint">Context — not a verdict</MicroLabel>
+      <MicroLabel tone="muted">Context — not a verdict</MicroLabel>
       <ul className="overflow-hidden rounded-md border border-line">
         {data.context.map((c) => (
-          <li
-            key={c.name}
-            className="flex flex-wrap items-baseline gap-2 border-b border-line px-3 py-2 last:border-0"
-          >
-            <span className="min-w-[92px] font-sans text-xs font-semibold text-paper">{c.name}</span>
-            <span className="ml-auto text-right font-mono text-micro text-muted">{c.finding}</span>
+          <li key={c.name} className="flex items-start gap-3 border-b border-line px-3 py-2 last:border-0">
+            <span className="flex w-[168px] shrink-0 items-center gap-2">
+              <span aria-hidden="true" className="inline-block size-1.5 shrink-0" />
+              <span className="truncate font-sans text-xs font-semibold text-paper">{c.name}</span>
+            </span>
+            <span className="min-w-0 flex-1 font-mono text-micro text-muted">{c.finding}</span>
           </li>
         ))}
         {data.errors.length > 0 && (
-          <li className="flex flex-wrap items-baseline gap-2 px-3 py-2">
-            <span className="min-w-[92px] font-sans text-xs font-semibold text-faint">Not consulted</span>
-            <span className="ml-auto text-right font-mono text-micro text-faint">
+          <li className="flex items-start gap-3 px-3 py-2">
+            <span className="flex w-[168px] shrink-0 items-center gap-2">
+              <span aria-hidden="true" className="inline-block size-1.5 shrink-0" />
+              <span className="truncate font-sans text-xs font-semibold text-muted">Not consulted</span>
+            </span>
+            <span className="min-w-0 flex-1 font-mono text-micro text-faint">
               {data.errors.map((e) => `${e.source} (${e.reason})`).join(' · ')}
             </span>
           </li>

@@ -40,6 +40,7 @@ export {
   deriveBand,
   detectPua,
   dualUseNote,
+  dualUseTag,
   escalationLines,
   graywareLabel,
   hashHeadline,

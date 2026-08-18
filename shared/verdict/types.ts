@@ -26,11 +26,14 @@ export type SourceVerdict = 'malicious' | 'suspicious' | 'benign' | 'unknown';
 
 /** Source-class tags (spec §3.1). Facts ABOUT the source — litmus-safe, they
  *  expose correlation without SOCDesk weighting one source over another:
- *   - catalog     a system of record that catalogs known samples/entities
- *   - behavioral  a verdict from observed activity (scanning, page render)
- *   - score       a computed reputation number / engine ratio
- *   - list        membership on a list (blocklist, RIOT known-good, Tor) */
-export type SourceClass = 'catalog' | 'behavioral' | 'score' | 'list';
+ *   - catalog       a system of record that catalogs known samples/entities
+ *   - behavioral    a verdict from observed activity (scanning, page render)
+ *   - score         a computed reputation number / engine ratio
+ *   - list          membership on a list (blocklist, RIOT known-good, Tor)
+ *   - unclassified  an UNMAPPED source — never impersonates a scored source:
+ *                   no class chip, a neutral verb, lowest authority, and it
+ *                   never forces a severity band. The honest fallback. */
+export type SourceClass = 'catalog' | 'authoritative' | 'behavioral' | 'score' | 'list' | 'unclassified';
 
 /** The doctrine band (spec §3.1). Superset of the contract tone: adds the
  *  distinct `grayware` state so "flagged" is never conflated with "malware". */
@@ -121,13 +124,20 @@ export const CAVEAT =
 export const GRAYWARE_LABEL = 'grayware — flagged, not confirmed malware';
 
 /** Source-class by source name. The server does not emit a class; it is a fact
- *  about the source, assigned here. Unknown sources fall back to `score`. */
+ *  about the source, assigned here. Every source SOCDesk consults is mapped, so
+ *  nothing hits the honest `unclassified` fallback (doctrine.sourceClassFor) in
+ *  practice — an unmapped source there would be a genuinely new feed. */
 export const CLASS_BY_SOURCE: Readonly<Record<string, SourceClass>> = {
   MalwareBazaar: 'catalog',
+  ThreatFox: 'catalog',
+  'CISA KEV': 'catalog',
+  NVD: 'authoritative',
   GreyNoise: 'behavioral',
   urlscan: 'behavioral',
+  'Hybrid Analysis': 'behavioral',
   AbuseIPDB: 'score',
   VirusTotal: 'score',
+  Spamhaus: 'list',
 };
 
 /** The confidence ladder (spec §3.1), published + deterministic. Lower rank =
@@ -135,9 +145,11 @@ export const CLASS_BY_SOURCE: Readonly<Record<string, SourceClass>> = {
  *  > list-membership. `kev` on a source jumps it to the top. */
 export const CLASS_PRECEDENCE: Readonly<Record<SourceClass, number>> = {
   catalog: 1,
+  authoritative: 1,
   behavioral: 2,
   score: 3,
   list: 4,
+  unclassified: 5,
 };
 export const KEV_PRECEDENCE = 0;
 
@@ -145,17 +157,21 @@ export const KEV_PRECEDENCE = 0;
  *  always the subject: "MalwareBazaar catalogs…", never "…— MalwareBazaar". */
 export const VERB_BY_CLASS: Readonly<Record<SourceClass, string>> = {
   catalog: 'catalogs',
+  authoritative: 'reports',
   behavioral: 'classifies',
   score: 'reports',
   list: 'lists',
+  unclassified: 'reports',
 };
 
 /** Human class tag for the escalation ledger. */
 export const CLASS_TAG: Readonly<Record<SourceClass, string>> = {
   catalog: 'catalog/identity',
+  authoritative: 'authoritative',
   behavioral: 'behavioral/observed',
   score: 'reputation-score',
   list: 'list-membership',
+  unclassified: 'unclassified',
 };
 
 /** Indicator types that are IDENTITY, not a cross-source vote (hash carve-out,

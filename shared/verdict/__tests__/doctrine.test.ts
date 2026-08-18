@@ -9,6 +9,7 @@ import {
   deriveBand,
   detectPua,
   dualUseNote,
+  dualUseTag,
   graywareLabel,
   hashHeadline,
   isIdentityType,
@@ -31,9 +32,14 @@ describe('sourceClassFor', () => {
     expect(sourceClassFor('urlscan')).toBe('behavioral');
     expect(sourceClassFor('AbuseIPDB')).toBe('score');
     expect(sourceClassFor('VirusTotal')).toBe('score');
+    // newly mapped so nothing hits the fallback in practice (item 1a)
+    expect(sourceClassFor('ThreatFox')).toBe('catalog');
+    expect(sourceClassFor('Spamhaus')).toBe('list');
+    expect(sourceClassFor('NVD')).toBe('authoritative');
+    expect(sourceClassFor('Hybrid Analysis')).toBe('behavioral');
   });
-  it('falls back to reputation-score for an unknown source', () => {
-    expect(sourceClassFor('SomeNewFeed')).toBe('score');
+  it('falls back to unclassified for an unmapped source — never impersonates a scored source', () => {
+    expect(sourceClassFor('SomeNewFeed')).toBe('unclassified');
   });
 });
 
@@ -238,9 +244,9 @@ describe('coverageHeadline (tally-as-coverage, spec §3.1 — never "probably fi
 });
 
 describe('assessmentLine (escalation register)', () => {
-  it('uses "public reputation sources" wording', () => {
+  it('uses "consulted sources" wording (matches the coverageHeadline noun)', () => {
     expect(assessmentLine([src({ verdict: 'malicious' }), src()])).toBe(
-      '1 of 2 public reputation sources flagged this as adverse.',
+      '1 of 2 consulted sources flagged this as adverse.',
     );
     expect(assessmentLine([])).toMatch(/not evidence of safety/i);
   });
@@ -284,6 +290,16 @@ describe('dualUseNote (spec §4)', () => {
   });
 });
 
+describe('dualUseTag (amber chip label, item 7)', () => {
+  it('derives a short Tor-exit / known-good tag from the same facts as the note', () => {
+    expect(dualUseTag([src({ facts: [['Tor exit node', 'yes']] })])).toBe('dual-use · Tor exit');
+    expect(dualUseTag([src({ facts: [['Known-good service (RIOT)', 'yes']] })])).toBe(
+      'dual-use · known-good',
+    );
+    expect(dualUseTag([src({ facts: [['Country', 'DE']] })])).toBeNull();
+  });
+});
+
 describe('isStale', () => {
   it('flags data older than 90 days, tolerates non-dates', () => {
     expect(isStale('2026-01-01', NOW)).toBe(true);
@@ -321,7 +337,7 @@ describe('composeEscalation (plain-text §4 — travels with the image)', () => 
   it('emits the ordered sections with attributed, class-tagged evidence', () => {
     const text = composeEscalation(richData(), NOW);
     expect(text).toContain('INDICATOR: 185[.]220[.]101[.]42  (IPV4)');
-    expect(text).toContain('ASSESSMENT: 1 of 2 public reputation sources flagged this as adverse.');
+    expect(text).toContain('ASSESSMENT: 1 of 2 consulted sources flagged this as adverse.');
     expect(text).toContain('EVIDENCE (third-party reputation data — attributed, not independently verified):');
     expect(text).toContain('AbuseIPDB reports 98% abuse confidence [reputation-score] (as of 2026-08-10)');
     expect(text).toContain('CONTEXT (not a verdict):');
@@ -355,6 +371,34 @@ describe('composeEscalation (plain-text §4 — travels with the image)', () => 
     });
     const text = composeEscalation(d, NOW);
     expect(text).toContain('ASSESSMENT: MalwareBazaar catalogs known sample');
-    expect(text).not.toMatch(/public reputation sources flagged/);
+    expect(text).not.toMatch(/consulted sources flagged/);
+  });
+
+  it('keeps the "as of" date but drops "stale" for a catalog membership (item 5)', () => {
+    const d = data({
+      band: 'red',
+      identityLed: false,
+      sources: [
+        src({
+          name: 'MalwareBazaar',
+          class: 'catalog',
+          verdict: 'malicious',
+          finding: 'known sample',
+          recency: '2024-01-01',
+        }),
+        src({
+          name: 'VirusTotal',
+          class: 'score',
+          verdict: 'malicious',
+          finding: 'flagged this',
+          recency: '2024-01-01',
+        }),
+      ],
+    });
+    const text = composeEscalation(d, NOW);
+    // catalog membership: date kept, stale marker suppressed
+    expect(text).toContain('MalwareBazaar catalogs known sample [catalog/identity] (as of 2024-01-01)');
+    // a reputation-score source of the same age still shows stale
+    expect(text).toContain('VirusTotal reports flagged this [reputation-score] (as of 2024-01-01, stale)');
   });
 });

@@ -53,7 +53,7 @@ function isoDate(s?: string | null): string | null {
 /**
  * Assemble one catalog CVE row into the shared VerdictData. Mirrors the CVE
  * STUB: a CISA KEV catalog source (present only when actually KEV-listed, so the
- * `kev` banner never lies) plus an NVD score source carrying CVSS/EPSS/vendor.
+ * `kev` banner never lies) plus an NVD authoritative source carrying CVSS/EPSS/vendor.
  * `snapshotAt` stamps the card's "sources queried" line with the snapshot time —
  * honest that this is committed catalog data, not a live query.
  */
@@ -94,7 +94,7 @@ export function cveToVerdict(cve: Cve, snapshotAt?: string): VerdictData {
   sources.push({
     name: 'NVD',
     verdict: scoreVerdict,
-    class: 'score',
+    class: 'authoritative',
     finding: scoreFinding,
     recency: isoDate(cve.last_modified ?? cve.published_at),
     url: `https://nvd.nist.gov/vuln/detail/${encodeURIComponent(cve.cve)}`,

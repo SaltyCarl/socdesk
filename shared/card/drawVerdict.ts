@@ -20,7 +20,7 @@
 // on the artifact — it rides inside the analyst's own email.
 
 import type { Band, VerdictData, VerdictSource } from '../verdict'
-import { CAVEAT, assessmentLine, dualUseNote, hashHeadline, isStale, predicate } from '../verdict'
+import { CAVEAT, assessmentLine, classTag, dualUseNote, hashHeadline, isStale, predicate } from '../verdict'
 import { detectTheme, MONO, SANS, mix, THEMES, type CanvasTheme, type Palette } from './palette'
 import { WORLD, coordLabel, geoModel, project, type GeoModel } from './geo'
 import {
@@ -86,7 +86,17 @@ interface CardModel {
   caption: { left: string; right: string }
   dualUse: string | null
   hero: Hero
-  sources: Array<{ name: string; verdict: VerdictSource['verdict']; finding: string; stale: boolean }>
+  sources: Array<{
+    name: string
+    verdict: VerdictSource['verdict']
+    finding: string
+    /** Resolved source-class tag ("catalog/identity"…); '' when unclassified. */
+    classLabel: string
+    /** The "as of <date>" recency string; '' when the source carries no date. */
+    recency: string
+    /** True only when stale AND not a catalog/KEV membership (item 5). */
+    stale: boolean
+  }>
   caveat: string
   generated: string
   queried: string
@@ -141,7 +151,12 @@ function cardModel(data: VerdictData, now: Date): CardModel {
       // verb-led predicate (the row already prints the name in bold beside it),
       // so the class verb appears exactly once — source-subject-first.
       finding: predicate(s),
-      stale: isStale(s.recency, now),
+      // Source-class tag + recency travel to the PNG so the copy card carries the
+      // same class + "as of <date>" the client card now shows. Unclassified draws
+      // no chip; a catalog/KEV membership never shows "stale" (item 3 / item 5).
+      classLabel: s.class === 'unclassified' ? '' : classTag(s),
+      recency: s.recency ? `as of ${s.recency}` : '',
+      stale: isStale(s.recency, now) && s.class !== 'catalog' && !s.kev,
     })),
     caveat: CAVEAT,
     generated: stampUTC(now),
@@ -273,7 +288,7 @@ function paint(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, draw: bo
     y = paintHero(ctx, m, T, draw, y, inner)
   } else {
     /* tally LEADS as a count */
-    text('CONSENSUS TALLY — ACROSS PUBLIC SOURCES', `700 9px ${SANS}`, T.textFaint, PAD, y + 8)
+    text('COVERAGE TALLY — ACROSS PUBLIC SOURCES', `700 9px ${SANS}`, T.textFaint, PAD, y + 8)
     y += 16
     y = paintTally(ctx, m, T, draw, y, inner, width)
     y = paintGauge(ctx, m, T, draw, y, inner)
@@ -923,17 +938,36 @@ function paintSources(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, d
   const nameW = 96
   const dotGap = 8
   const dotR = 3.5
-  const findX = PAD + rowPadX + dotGap + dotR * 2 + 6 + nameW + 8
+  const nameStart = PAD + rowPadX + dotGap + dotR * 2 + 6
+  const findX = nameStart + nameW + 8
   const findW = W - PAD - rowPadX - findX
+  const rightEdge = W - PAD - rowPadX
   const findFont = `400 9.5px ${MONO}`
+  const chipFont = `700 7px ${MONO}`
+  const metaFont = `400 8px ${MONO}`
+  const metaH = 15 // gap + one 12px meta line (class chip + recency)
 
   const rows = m.sources.length
     ? m.sources
-    : [{ name: '—', verdict: 'unknown' as const, finding: 'No consulted source returned a finding.', stale: false }]
-  const rowHeights = rows.map((s) => {
-    const lines = Math.min(2, wrap(mc, s.finding, findFont, findW).length || 1)
-    return Math.max(20, rowPadY * 2 + lines * 13)
-  })
+    : [
+        {
+          name: '—',
+          verdict: 'unknown' as const,
+          finding: 'No consulted source returned a finding.',
+          classLabel: '',
+          recency: '',
+          stale: false,
+        },
+      ]
+  // Measure once (identical in the measure + draw passes → heights never drift):
+  // finding line count + whether the row carries a class/recency meta line.
+  const rowInfo = rows.map((s) => ({
+    findingLines: Math.min(2, wrap(mc, s.finding, findFont, findW).length || 1),
+    hasMeta: Boolean(s.classLabel) || Boolean(s.recency),
+  }))
+  const rowHeights = rowInfo.map(
+    ({ findingLines, hasMeta }) => Math.max(20, rowPadY * 2 + findingLines * 13 + (hasMeta ? metaH : 0)),
+  )
   const listH = rowHeights.reduce((a, b) => a + b, 0)
 
   if (draw) {
@@ -949,6 +983,7 @@ function paintSources(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, d
   let ry = y
   rows.forEach((s, i) => {
     const rh = rowHeights[i]
+    const { findingLines, hasMeta } = rowInfo[i]
     if (draw) {
       if (i % 2 === 1) {
         ctx.fillStyle = mix(T.panel2, T.panel, 0.45)
@@ -958,26 +993,65 @@ function paintSources(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, d
         ctx.fillStyle = T.border
         ctx.fillRect(PAD, ry, inner, 1)
       }
+      const topY = ry + rowPadY
+      const baseY = topY + 9 // first-line baseline
+
+      // per-source verdict dot, aligned to the first line
       const dotCol = SEG_FILL[s.verdict]?.(T) ?? T.textFaint
       ctx.fillStyle = dotCol
       ctx.beginPath()
-      ctx.arc(PAD + rowPadX + dotR, ry + rh / 2, dotR, 0, Math.PI * 2)
+      ctx.arc(PAD + rowPadX + dotR, topY + 6, dotR, 0, Math.PI * 2)
       ctx.fill()
 
+      // source name (left column)
       ctx.font = `600 11px ${SANS}`
       ctx.fillStyle = T.text
       ctx.textAlign = 'left'
-      ctx.fillText(s.name, PAD + rowPadX + dotGap + dotR * 2 + 6, ry + rh / 2 + 4)
+      ctx.fillText(s.name, nameStart, baseY)
 
+      // finding (right column, up to 2 lines)
       const lines = wrap(mc, s.finding, findFont, findW).slice(0, 2)
       ctx.font = findFont
       ctx.fillStyle = T.textDim
-      const startY = ry + rh / 2 - (lines.length - 1) * 6.5 + 4
       lines.forEach((ln, li) => {
         let out = ln
         if (li === 1 && wrap(mc, s.finding, findFont, findW).length > 2) out = ln.replace(/.$/, '…')
-        ctx.fillText(out, findX, startY + li * 13)
+        ctx.fillText(out, findX, baseY + li * 13)
       })
+
+      // meta line: class micro-chip under the name (periwinkle — source-class,
+      // never a verdict hue), recency right-aligned. Suppress each when absent.
+      if (hasMeta) {
+        const metaY = topY + findingLines * 13 + 3
+        const metaBase = metaY + 8.5
+        if (s.classLabel) {
+          const label = s.classLabel.toUpperCase()
+          ctx.font = chipFont
+          const cw = ctx.measureText(label).width + 10
+          ctx.fillStyle = mix(T.accent, T.panel, 0.16)
+          roundRect(ctx, nameStart, metaY, cw, 12, 3)
+          ctx.fill()
+          ctx.fillStyle = T.accent
+          ctx.textAlign = 'left'
+          ctx.fillText(label, nameStart + 5, metaBase)
+        }
+        if (s.recency) {
+          ctx.font = metaFont
+          ctx.textAlign = 'right'
+          if (s.stale) {
+            const staleTxt = ' · stale'
+            const sw = ctx.measureText(staleTxt).width
+            ctx.fillStyle = T.vAmber
+            ctx.fillText(staleTxt, rightEdge, metaBase)
+            ctx.fillStyle = T.textFaint
+            ctx.fillText(s.recency, rightEdge - sw, metaBase)
+          } else {
+            ctx.fillStyle = T.textFaint
+            ctx.fillText(s.recency, rightEdge, metaBase)
+          }
+          ctx.textAlign = 'left'
+        }
+      }
     }
     ry += rh
   })

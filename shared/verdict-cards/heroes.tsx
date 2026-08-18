@@ -24,7 +24,7 @@ import { cveModel, domainModel, hashModel, urlModel } from '../card/model'
 function HeroPanel({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-2.5 rounded-md border border-[var(--edge-accent)] bg-[var(--tint-accent)] p-3">
-      <MicroLabel tone="faint">{label}</MicroLabel>
+      <MicroLabel tone="muted">{label}</MicroLabel>
       {children}
     </div>
   )
@@ -371,9 +371,10 @@ export function CveHero({ data }: { data: VerdictData }) {
       </div>
       <div className="grid grid-cols-3 gap-2">
         <FactCell k="CVSS" v={cm.cvssSeverity !== '—' ? `${cm.cvss} · ${cm.cvssSeverity}` : cm.cvss} />
-        <FactCell k="EPSS" v={Number.isFinite(cm.epssPct) ? `${cm.epssPct}%` : cm.epss} />
+        <FactCell k="EPSS · via FIRST.org" v={Number.isFinite(cm.epssPct) ? `${cm.epssPct}%` : cm.epss} />
         <FactCell k="Action due" v={cm.due || '—'} />
       </div>
+      <p className="font-mono text-micro text-muted">Sources: CISA KEV · NVD · FIRST.org (EPSS)</p>
     </HeroPanel>
   )
 }
