@@ -20,7 +20,6 @@ import type {
   VerdictSource,
 } from './types';
 import {
-  CAVEAT,
   CLASS_BY_SOURCE,
   CLASS_PRECEDENCE,
   CLASS_TAG,
@@ -313,14 +312,11 @@ export function escalationLines(data: VerdictData, now: Date = new Date()): stri
     const lead = leadFact(data.sources);
     if (lead && data.band !== 'green' && data.band !== 'grey')
       lines.push(`  Lead source: ${lead.phrasing}.`);
-    if (data.band === 'grayware') lines.push(`  Note: ${GRAYWARE_LABEL}.`);
-    const note = dualUseNote(data.sources);
-    if (note) lines.push(`  Note: ${note}`);
   }
 
   lines.push(
     '',
-    'EVIDENCE (third-party reputation data — attributed, not independently verified):',
+    'EVIDENCE (attributed to public sources):',
   );
   if (data.sources.length) for (const s of data.sources) lines.push(ledgerLine(s, now));
   else lines.push('  • No consulted source returned a finding.');
@@ -336,7 +332,6 @@ export function escalationLines(data: VerdictData, now: Date = new Date()): stri
 
   lines.push(
     '',
-    `CAVEAT: ${CAVEAT}`,
     `— Generated ${stampUTC(now)}. Sources queried ${stampUTC(data.checkedAt || now)}.`,
   );
   return lines;

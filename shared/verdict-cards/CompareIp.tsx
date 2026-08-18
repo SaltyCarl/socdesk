@@ -201,11 +201,6 @@ export function CompareIp({ data }: { data: VerdictData }) {
                   {copied ? 'Copied' : 'Copy'}
                 </button>
               </div>
-
-              <p className="font-mono text-micro leading-relaxed text-faint">
-                Geographic separation derived from IP geolocation — city-level and commonly distorted by
-                VPNs, proxies, and mobile carriers. An investigative lead, not proof.
-              </p>
             </div>
           ) : null}
         </div>

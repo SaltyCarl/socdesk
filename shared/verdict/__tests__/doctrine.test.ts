@@ -338,12 +338,14 @@ describe('composeEscalation (plain-text §4 — travels with the image)', () => 
     const text = composeEscalation(richData(), NOW);
     expect(text).toContain('INDICATOR: 185[.]220[.]101[.]42  (IPV4)');
     expect(text).toContain('ASSESSMENT: 1 of 2 consulted sources flagged this as adverse.');
-    expect(text).toContain('EVIDENCE (third-party reputation data — attributed, not independently verified):');
+    expect(text).toContain('EVIDENCE (attributed to public sources):');
     expect(text).toContain('AbuseIPDB reports 98% abuse confidence [reputation-score] (as of 2026-08-10)');
     expect(text).toContain('CONTEXT (not a verdict):');
     expect(text).toContain('Not consulted: urlscan (not configured)');
-    expect(text).toMatch(/CAVEAT: Reflects third-party reputation/);
-    expect(text).toContain('Note: a source tags this a Tor exit node');
+    // clean artifact: no disclaimer caveat, no prose "Note:" lines — the analyst
+    // adds the nuance in the email body.
+    expect(text).not.toMatch(/CAVEAT:/);
+    expect(text).not.toMatch(/Note: a source tags/);
   });
 
   it('carries NO recommendation and NO branding', () => {

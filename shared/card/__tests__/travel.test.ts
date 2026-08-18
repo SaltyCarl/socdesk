@@ -54,16 +54,13 @@ describe('travelAssessment', () => {
 })
 
 describe('travelSummary', () => {
-  it('carries the route, distance, and the geo caveat', () => {
+  it('carries the route and distance as a clean factual line (no caveat)', () => {
     const s = travelSummary('Frankfurt, DE', 'Ashburn, US', travelAssessment(2412, 15))
     expect(s).toContain('Frankfurt, DE → Ashburn, US')
     expect(s).toContain('2,412 mi')
-    expect(s).toMatch(/investigative lead, not proof/i)
-    expect(s).toMatch(/VPNs, proxies/i)
+    expect(s).not.toMatch(/investigative lead|VPNs, proxies/i)
   })
   it('omits velocity when distance-only', () => {
-    const s = travelSummary('A', 'B', travelAssessment(500, null))
-    expect(s).not.toMatch(/mph/)
-    expect(s).toMatch(/investigative lead, not proof/i)
+    expect(travelSummary('A', 'B', travelAssessment(500, null))).not.toMatch(/mph/)
   })
 })

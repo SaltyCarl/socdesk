@@ -87,8 +87,9 @@ export function travelAssessment(miles: number, minutes: number | null): TravelA
   }
 }
 
-/** The copyable one-liner for a client email: distance, the velocity read, and
- *  the mandatory approximate-geo caveat. `fromLabel`/`toLabel` are "City, CC". */
+/** The copyable one-liner for a client email: distance + the velocity read, a
+ *  clean factual statement (the analyst adds any nuance in the email body).
+ *  `fromLabel`/`toLabel` are "City, CC". */
 export function travelSummary(fromLabel: string, toLabel: string, t: TravelAssessment): string {
   const base = `Two sign-ins for this account originated ~${t.milesLabel} apart (${fromLabel} → ${toLabel}).`
   const vel =
@@ -99,7 +100,5 @@ export function travelSummary(fromLabel: string, toLabel: string, t: TravelAsses
         : t.band === 'implausible'
           ? ` Over the stated window that implies ≈${t.mphLabel}, faster than a commercial flight — implausible for a single traveler.`
           : ` Over the stated window that implies ≈${t.mphLabel}, beyond any aircraft — not physically possible for a single traveler.`
-  const caveat =
-    ' Note: IP geolocation is approximate (city-level) and is commonly distorted by VPNs, proxies, and mobile carriers — treat this as an investigative lead, not proof.'
-  return base + vel + caveat
+  return base + vel
 }

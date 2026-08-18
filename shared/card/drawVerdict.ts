@@ -292,15 +292,11 @@ function paint(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, draw: bo
     y += 16
     y = paintTally(ctx, m, T, draw, y, inner, width)
     y = paintGauge(ctx, m, T, draw, y, inner)
-    if (m.dualUse) y = paintNote(ctx, 'NOTE', m.dualUse, T, draw, y, inner, T.accent)
     y = paintHero(ctx, m, T, draw, y, inner)
   }
 
   /* attributed source rows */
   y = paintSources(ctx, m, T, draw, y, inner)
-
-  /* verify caveat (§4) — baked in so it cannot be lost on forward */
-  y = paintNote(ctx, '', m.caveat, T, draw, y, inner, T.border3)
 
   return y + PAD
 }
@@ -406,44 +402,6 @@ function paintGauge(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, dra
     ctx.textAlign = 'left'
   }
   return y + 16
-}
-
-function paintNote(
-  ctx: CanvasRenderingContext2D,
-  label: string,
-  body: string,
-  T: Palette,
-  draw: boolean,
-  y: number,
-  inner: number,
-  barColor: string,
-): number {
-  const mc = measurer()
-  const barTop = y - 2
-  let ny = y
-  if (label) {
-    if (draw) {
-      ctx.font = `700 8.5px ${SANS}`
-      ctx.fillStyle = T.textDim
-      ctx.textAlign = 'left'
-      ctx.fillText(label, PAD + 10, ny + 8)
-    }
-    ny += 12
-  }
-  for (const line of wrap(mc, body, `400 10px ${SANS}`, inner - 12)) {
-    if (draw) {
-      ctx.font = `400 10px ${SANS}`
-      ctx.fillStyle = T.textDim
-      ctx.textAlign = 'left'
-      ctx.fillText(line, PAD + 10, ny + 9)
-    }
-    ny += 14
-  }
-  if (draw) {
-    ctx.fillStyle = barColor
-    ctx.fillRect(PAD, barTop, 2, ny - barTop)
-  }
-  return ny + 8
 }
 
 /* ---------- per-type heroes --------------------------------------------- */
