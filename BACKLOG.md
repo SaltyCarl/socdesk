@@ -16,15 +16,19 @@ The loop, mapped to what exists:
 | Step | SOCDesk feature | Status |
 |---|---|---|
 | Paste indicator | Omnibox, type auto-detect, refang, bulk, bookmarklet | Shipped |
-| Get reputation | `/api/enrich` Pages Function → AbuseIPDB + VT + GreyNoise + **ipinfo geo/ASN** (IP), VT + MalwareBazaar (hash), VT + **urlscan verdict** (URL/domain) | Built; **dormant until Cloudflare Pages exists + free keys set** |
+| Get reputation | `/api/enrich` Pages Function → AbuseIPDB + VT + GreyNoise + **ipinfo geo/ASN** (IP), VT + MalwareBazaar (hash), VT + **urlscan verdict** (URL/domain) | **Live** — socdesk.io, keys set 2026-08-18; multi-source verified in prod |
 | Screenshot for the email | Evidence card rendered to canvas → copy as PNG | Shipped |
 | Paste into email | Copy image / markdown / text / .md download | Shipped |
-| URL safe-view | urlscan existing-scan verdict+screenshot (in `/api/enrich`) + Browserling live-view pivot | Verdict shipped; on-page screenshot preview is P1.2 (below) |
+| URL safe-view | urlscan existing-scan verdict+screenshot (in `/api/enrich`) + Browserling live-view pivot | Verdict shipped; screenshot preview + Browserling pivot = **active build (P1.2/1.3)** |
 
-## P0 — unblocks the entire loop (owner)
-Stand up Cloudflare Pages (`socdesk` project, two secrets, socdesk.io) and add
-the free-tier enrichment keys (ABUSEIPDB, VT, GreyNoise community) as Pages
-env vars. Until then: no public URL, red cron deploys, dormant enrichment.
+## P0 — DONE ✅ (2026-08-18)
+Cloudflare Pages (`socdesk` project, socdesk.io) is live; enrichment keys set in
+the **Production** scope; `/api/enrich` returns multi-source in prod (verified:
+AbuseIPDB + VirusTotal + GreyNoise + ipinfo on a live IP). Also shipped since:
+the AAA modern-stack rebuild, the lookup **cockpit** (escalation card docked
+beside the globe), and the live escalation-card loop (IOC in → OSINT out, with
+the globe landing the pin). Remaining gap: the **Preview** env scope still lacks
+enrich keys (Production-only) — see Polish & ops below.
 
 ## P1 — hammer the loop (after P0, before anything else)
 1. Live dogfood: 2-3 analysts run real alerts through it for a shift; fix
@@ -46,10 +50,30 @@ env vars. Until then: no public URL, red cron deploys, dormant enrichment.
    selection-capture (small, do first), R2 right-click menu (ships with R3),
    R3 MV3 extension (only on real team demand + IT approval). All gated on
    enrichment being live.
+5. **Reputation-quality fixes** (from the 2026-08-18 UX + SOC review — sharpen the
+   "get reputation" output the analyst actually reads): drop MalwareBazaar from IP
+   cards (it's hash-only and currently mis-leads the lead fact); add AbuseIPDB
+   abuse categories to the IP card; add the resolved A-record IP to domain cards
+   (enables the domain→IP pivot). *(Already shipped from that review: honest
+   source-class labels, ledger alignment, per-source recency on card+PNG, EPSS
+   attribution, the dual-use Tor chip, AA contrast.)*
+
+## Polish & ops (opportunistic, non-blocking)
+- Cockpit P2s: exit-anim symmetry (idle↔result), mobile compact-wordmark.
+- Deploy hygiene: `git pull --rebase origin main` before every push (cron diverges
+  origin, so a plain push silently no-ops); fix the PS-5.1 `.ps1` false-success
+  deploy scripts; add enrich keys to the CF **Preview** env scope (fixes the
+  GreyNoise-only preview enrich).
+- Verify the privacy-page contact email.
 
 ## P2 — next core component (only once the loop is excellent)
 CVE / Threat-Intel feed as the second pillar (feed, KEV/EPSS triage — already
-built, needs dogfood-driven sharpening rather than new construction).
+built, needs dogfood-driven sharpening rather than new construction). Review
+adds: CVE patch/fixed-version + an "overdue" chip when action-due < today; wire
+`NVD_API_KEY` into `collectors/nvd.py`. Adjacent enrich/globe candidates: OTX
+AlienVault as an enrich source; AbuseIPDB blacklist → ambient reported-IP globe
+layer; impossible-travel tool (two IPs → great-circle distance/velocity → verdict,
+reusing the dropped globe-arc geometry).
 
 ## Expansion lane — analyst-utility workflow (owner-directed 2026-08-11)
 
