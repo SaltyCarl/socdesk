@@ -58,6 +58,44 @@ describe('classifyCockpitInput — data boundary (spec §2.1/§6)', () => {
   })
 })
 
+describe('classifyCockpitInput — hyphenated-domain regression (ENC_FLAG_RE / invoke-* anchoring)', () => {
+  // ENC_FLAG_RE and the invoke-* cmdlet check are token-anchored (preceded by
+  // whitespace/start-of-string; invoke-* also requires a trailing
+  // whitespace/`(`/end boundary). Before that anchoring, a bare `-e`/`-enc`
+  // or `invoke-\w+` fired mid-word inside an ordinary hyphenated domain
+  // label or URL path segment, misrouting it to 'command'. Fails safe (never
+  // leaks to /api/enrich) but wrong — these are legitimate indicators.
+  it('does not misroute a domain with -e mid-label as command', () => {
+    expect(classifyCockpitInput('site-e.com')).toBe('indicator')
+  })
+  it('does not misroute a domain with -enc mid-label as command', () => {
+    expect(classifyCockpitInput('site-enc.com')).toBe('indicator')
+  })
+  it('does not misroute another -enc domain as command', () => {
+    expect(classifyCockpitInput('sync-enc.io')).toBe('indicator')
+  })
+  it('does not misroute a URL with an -enc path segment as command', () => {
+    expect(classifyCockpitInput('https://example.com/setup-enc')).toBe('indicator')
+  })
+  it('does not misroute an invoke-prefixed domain as command', () => {
+    expect(classifyCockpitInput('invoke-example.com')).toBe('indicator')
+  })
+
+  // Guard against regressing the real command detections while fixing the above.
+  it('still classifies a real -enc flag as command', () => {
+    expect(classifyCockpitInput('powershell -nop -w hidden -enc JABzAGUA')).toBe('command')
+  })
+  it('still classifies a bare -enc flag at string start as command', () => {
+    expect(classifyCockpitInput('-enc JABzAGUA')).toBe('command')
+  })
+  it('still classifies a real Invoke-WebRequest cmdlet call as command', () => {
+    expect(classifyCockpitInput('Invoke-WebRequest https://x.test/a')).toBe('command')
+  })
+  it('still classifies an IEX/New-Object invocation as command', () => {
+    expect(classifyCockpitInput('IEX (New-Object Net.WebClient).DownloadString($u)')).toBe('command')
+  })
+})
+
 describe('classifyCockpitInput — unclassified + determinism', () => {
   it('classifies empty input as unclassified', () => {
     expect(classifyCockpitInput('')).toBe('unclassified')

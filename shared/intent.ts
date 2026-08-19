@@ -21,19 +21,40 @@ import { detectType, refang } from './indicators'
 export type CockpitInputKind = 'indicator' | 'command' | 'unclassified'
 
 /** Command/script tokens that only show up in a PowerShell or shell paste —
- *  never in a bare indicator. `invoke-\w+` covers Invoke-Expression's many
- *  cmdlet siblings (Invoke-WebRequest, Invoke-RestMethod, …) without listing
- *  them one by one. Word-bounded, so `powershell` also fires inside a bare
- *  LOLBin filename like `powershell.exe` (the `.` is a non-word boundary) —
- *  that is intentional: it stops that filename being misread as a domain by
- *  detectType's domain regex (indicators.ts:62). `rundll32.exe` is NOT
- *  covered by this token list (a known, lesser gap the design spec §2.1
- *  calls out and explicitly leaves out of v1 scope). */
-const COMMAND_TOKEN_RE = /\b(powershell|pwsh|iex|invoke-expression|invoke-\w+|new-object)\b/i
+ *  never in a bare indicator. Word-bounded, so `powershell` also fires inside
+ *  a bare LOLBin filename like `powershell.exe` (the `.` is a non-word
+ *  boundary) — that is intentional: it stops that filename being misread as
+ *  a domain by detectType's domain regex (indicators.ts:62). `rundll32.exe`
+ *  is NOT covered by this token list (a known, lesser gap the design spec
+ *  §2.1 calls out and explicitly leaves out of v1 scope). Invoke-* cmdlets
+ *  (Invoke-Expression, Invoke-WebRequest, Invoke-Mimikatz, …) are handled
+ *  separately by INVOKE_RE below, NOT here — a plain `\b` word-boundary
+ *  match on `invoke-\w+`/`invoke-expression` also fires inside a hyphenated
+ *  domain like `invoke-example.com` (the `.` is a non-word boundary too),
+ *  which is a false positive: a domain, not a command. */
+const COMMAND_TOKEN_RE = /\b(powershell|pwsh|iex|new-object)\b/i
+
+/** Invoke-<cmdlet> forms (Invoke-Expression, Invoke-WebRequest,
+ *  Invoke-Mimikatz, …), covering the family without listing every cmdlet by
+ *  name. A real cmdlet invocation is always followed by whitespace, a `(`
+ *  (method-call style), or end-of-string — never by more identifier
+ *  characters straight into a TLD. That lookahead is what lets `Invoke-
+ *  WebRequest https://…`/`Invoke-Expression(...)`/a bare `Invoke-Mimikatz`
+ *  match while `invoke-example.com` (followed by `.com`) does not. Anchored
+ *  to a preceding token boundary (start-of-string or whitespace) for the
+ *  same reason ENC_FLAG_RE is: it must look like a standalone token, not a
+ *  fragment stitched mid-word. */
+const INVOKE_RE = /(?:^|\s)invoke-[a-z]+(?=[\s(]|$)/i
 
 /** `-e`, `-enc`, or `-encodedcommand` — PowerShell's Base64 payload flag in
- *  every abbreviation the interpreter accepts. */
-const ENC_FLAG_RE = /-e(nc|ncodedcommand)?\b/i
+ *  every abbreviation the interpreter accepts. Anchored to a preceding token
+ *  boundary (start-of-string or whitespace): a real PowerShell flag is always
+ *  preceded by whitespace (or starts the string), never sits mid-word. That
+ *  anchor is what stops it firing inside a hyphenated domain label or path
+ *  segment like `site-enc.com`, `sync-enc.io`, or `/setup-enc` — none of
+ *  which have whitespace before the `-e`/`-enc` — while still matching a
+ *  real ` -enc <b64>`/`-enc <b64>`-at-start flag. */
+const ENC_FLAG_RE = /(?:^|\s)-e(nc|ncodedcommand)?\b/i
 
 /** Shell/PS punctuation that never appears in a bare indicator: statement
  *  separator, pipe, backtick (PowerShell's escape/obfuscation character), and
@@ -46,6 +67,7 @@ const SHELL_PUNCT_RE = /[;|`]|\$\(/
 function looksLikeCommand(raw: string): boolean {
   if (raw.includes('\n')) return true
   if (COMMAND_TOKEN_RE.test(raw)) return true
+  if (INVOKE_RE.test(raw)) return true
   if (ENC_FLAG_RE.test(raw)) return true
   if (SHELL_PUNCT_RE.test(raw)) {
     const tokenCount = raw.trim().split(/\s+/).filter(Boolean).length
