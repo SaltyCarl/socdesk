@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import type { FormEvent, KeyboardEvent, MouseEvent, ReactNode } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../components/ui'
 import { SituationalBoard } from '../components/overview'
@@ -11,6 +11,7 @@ import { submitLookup } from '../components/palette/commands'
 import { useEffectiveTheme } from '../components/lookup/useEffectiveTheme'
 import { useCockpitInput, type CockpitResult } from '../components/cockpit/useCockpitInput'
 import { ResultRegion } from '../components/cockpit/ResultRegion'
+import { CockpitOmnibox } from '../components/cockpit/CockpitOmnibox'
 // The hero-shell classes (.sdh-hero / .sdh-atmos / .sdh-enter*) must be present
 // on FIRST paint — this route is synchronous, so importing the co-located CSS
 // here puts them in the main bundle even though the globe canvas itself streams
@@ -62,14 +63,19 @@ export function Overview({
   subtitle,
 }: OverviewProps) {
   const apiRef = useRef<GlobeApi | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  // `submitted` is the COMMITTED (post-Enter) value that drives the result
-  // region + the globe — empty string -> Idle. useCockpitInput classifies it
-  // and runs the matching hook; the unselected hook is fed '' internally, so
-  // only ONE round-trip (or zero, for a command) ever fires per submit.
+  // `liveValue` is the raw, uncommitted omnibox text (drives the input-morph
+  // + ModeChip live detection). `submitted` is the COMMITTED (post-Enter)
+  // value that drives the result region + the globe — empty string -> Idle.
+  // `submittedOverride` carries a ModeChip correction through to
+  // useCockpitInput, captured at submit time so a later live edit can't
+  // retroactively change what already fired. useCockpitInput classifies the
+  // pair and runs the matching hook; the unselected hook is fed '' internally,
+  // so only ONE round-trip (or zero, for a command) ever fires per submit.
+  const [liveValue, setLiveValue] = useState('')
   const [submitted, setSubmitted] = useState('')
+  const [submittedOverride, setSubmittedOverride] = useState<'indicator' | 'command' | null>(null)
   const theme = useEffectiveTheme()
-  const cockpit = useCockpitInput(submitted)
+  const cockpit = useCockpitInput(submitted, submittedOverride)
   const isResult = cockpit.kind !== 'unclassified' || submitted !== ''
   const resultIsGeoless = isGeolessResult(cockpit, submitted)
 
@@ -95,23 +101,26 @@ export function Overview({
       return
     }
     api?.flyBack()
-  }, [cockpit.kind, cockpit.state])
+  }, [cockpit])
 
-  const submit = (value: string) => setSubmitted(value.trim())
+  const submit = (value: string, kindOverride: 'indicator' | 'command' | null) => {
+    const trimmed = value.trim()
+    setSubmitted(trimmed)
+    setSubmittedOverride(trimmed ? kindOverride : null)
+  }
 
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      submit(e.currentTarget.value)
+  const onOmniboxChange = (v: string) => {
+    setLiveValue(v)
+    // Clearing the field returns the hero to Idle (globe flies home).
+    if (v.trim() === '') {
+      setSubmitted('')
+      setSubmittedOverride(null)
     }
   }
-  const onInput = (e: FormEvent<HTMLInputElement>) => {
-    // Clearing the field returns the hero to Idle (globe flies home).
-    if (e.currentTarget.value.trim() === '') setSubmitted('')
-  }
+
   const flyDemo = (v: string) => {
-    setSubmitted(v)
-    if (inputRef.current) inputRef.current.value = v
+    setLiveValue(v)
+    submit(v, null)
   }
 
   // The full analyst console lives at /lookup. Left-click SPA-navigates there;
@@ -184,23 +193,12 @@ export function Overview({
           )}
 
           <div className="sdh-enter sdh-enter-4 mt-5 flex w-full max-w-md flex-col gap-3">
-            <input
-              ref={inputRef}
-              type="text"
-              inputMode="text"
-              autoComplete="off"
-              spellCheck={false}
-              aria-label="Look up an indicator — get its escalation card inline and land it on the globe"
-              placeholder="Enrich an IP / domain / hash — 185.220.101.34"
-              onKeyDown={onKeyDown}
-              onInput={onInput}
-              className="w-full rounded-md border border-line bg-field px-3 py-2 font-mono text-base text-paper outline-offset-2 placeholder:text-faint focus-visible:outline-2 focus-visible:outline-accent"
-            />
+            <CockpitOmnibox value={liveValue} onChange={onOmniboxChange} onSubmit={submit} />
           </div>
 
           {isResult ? (
             <div
-              key={submitted}
+              key={`${cockpit.kind}:${submitted}`}
               role="region"
               aria-label="Cockpit result"
               className={cx('mt-6 w-full', REVEAL_CLS)}

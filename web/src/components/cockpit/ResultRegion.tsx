@@ -31,8 +31,13 @@ function PsStatus({ state }: { state: Extract<PsState, { kind: 'analyzing' } | {
  *   command       -> AnalyzerResult (ok) | PsStatus (analyzing/error).
  *   unclassified  -> an honest one-line hint naming both accepted input kinds.
  *
- * The caller keys its wrapper on `key={cockpit.kind}` (Overview.tsx, Task 6)
- * so a kind flip fully unmounts the previous subtree — this is what stops
+ * The caller keys its wrapper on the COMPOSITE `key={`${cockpit.kind}:
+ * ${submitted}`}` (Overview.tsx, Task 7 — carried forward from Task 6's
+ * `key={cockpit.kind}`) so either a kind flip OR a new committed value fully
+ * unmounts the previous subtree. The composite matters once a ModeChip
+ * override can flip `kind` on the SAME committed string (e.g. forcing an IP
+ * to be treated as a command) — `submitted` alone wouldn't change, so a key
+ * on `submitted` alone would fail to remount. This is what stops
  * EscalationCard's CompareIp second-fetch from surviving a switch to the
  * analyzer and firing against stale state (design spec §2.3, §7).
  */
