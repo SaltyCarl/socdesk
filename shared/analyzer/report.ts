@@ -1,16 +1,66 @@
-import type { AnalysisResult, Characterization, DecodedLayer, Signal } from './types'
-import { preprocess } from './preprocess'
+import type { AnalysisResult, Characterization, DecodedLayer, EvasionFlag, Signal } from './types'
+import { preprocess, type Interpreter } from './preprocess'
 import { tokenize, stringLiterals } from './lex'
 import { decodeEnc, looksBase64, fromBase64, inflate, bytesToText } from './fold'
 import { extractIocs } from './extract'
 import { resolve, normalize } from './resolve'
 import { buildContext, classify, RULES } from './techniques'
 
+const WRAPPER_INTERPRETERS = new Set<Interpreter>(['cmd', 'mshta', 'wscript', 'cscript'])
+const NESTED_REENTRY_MAX_DEPTH = 4
+
+/** cmd/mshta/wscript/cscript wrappers overwhelmingly exist to launch a NESTED
+ *  interpreter (canonically `cmd /c powershell -w hidden -enc <blob>`). Loop
+ *  the extracted body back through preprocess() so a nested powershell -enc/
+ *  -Command payload is decoded exactly as a top-level PowerShell input would
+ *  be — depth-capped (plus a seen-set for cycle detection) so a hostile
+ *  wrapper-in-wrapper cannot spin the analyzer, the same discipline the
+ *  IEX-recursion loop below already applies. Each hop is recorded as its own
+ *  decode-ladder layer naming the transition, e.g. `cmd→powershell`. */
+function reenterNestedInterpreter(
+  outerInterpreter: Interpreter,
+  outerScript: string,
+): { script: string; encoded: string | null; flags: EvasionFlag[]; finalInterpreter: Interpreter; layers: { transform: string; text: string }[] } {
+  const hopLayers: { transform: string; text: string }[] = []
+  let fromInterpreter = outerInterpreter
+  let script = outerScript
+  let encoded: string | null = null
+  let flags: EvasionFlag[] = []
+  const seen = new Set<string>([outerScript])
+  for (let depth = 0; depth < NESTED_REENTRY_MAX_DEPTH; depth++) {
+    if (!WRAPPER_INTERPRETERS.has(fromInterpreter)) break
+    const inner = preprocess(script)
+    if (seen.has(inner.script) || inner.interpreter === 'unknown') break
+    seen.add(inner.script)
+    hopLayers.push({ transform: `${fromInterpreter}→${inner.interpreter}${inner.encoded ? ' -enc' : ''}`, text: inner.script })
+    script = inner.script
+    encoded = inner.encoded
+    flags = flags.concat(inner.flags)
+    fromInterpreter = inner.interpreter
+    if (fromInterpreter === 'powershell') break // reached PS: the existing -enc/layer logic below takes over
+  }
+  return { script, encoded, flags, finalInterpreter: fromInterpreter, layers: hopLayers }
+}
+
 export async function analyze(input: string): Promise<AnalysisResult> {
-  const { script, encoded, flags, interpreter } = preprocess(input)
+  const outer = preprocess(input)
+  let { script, encoded, flags } = outer
+  let interpreter = outer.interpreter
   const layers: DecodedLayer[] = []
 
-  // Layer 1: -enc Base64 → UTF-16LE.
+  if (WRAPPER_INTERPRETERS.has(interpreter)) {
+    const reentered = reenterNestedInterpreter(interpreter, script)
+    for (const hop of reentered.layers) {
+      layers.push({ index: layers.length, transform: hop.transform, text: hop.text, state: 'fully-decoded' })
+    }
+    script = reentered.script
+    encoded = reentered.encoded
+    flags = flags.concat(reentered.flags)
+    interpreter = reentered.finalInterpreter
+  }
+
+  // Layer N: -enc Base64 → UTF-16LE. (unchanged below, now seeded from the
+  // possibly-nested script/encoded.)
   let current = script
   if (encoded) {
     if (looksBase64(encoded)) {
