@@ -4,10 +4,11 @@ const isPlus = (t: Token | undefined): boolean => t?.type === 'bareword' && t?.v
 
 /** Serialize one token back to source-ish text: strings become single-quoted
  *  (their resolved value re-quoted), everything else keeps its original `raw`.
- *  Bare words starting with '+' followed by other chars are split (e.g. '+$x' → '+ $x'). */
+ *  Bare words starting with '+' followed by other chars are split (e.g. '+$x' → '+ $x').
+ *  Embedded single quotes in strings are escaped by doubling. */
 function emit(t: Token): string {
   if (t.type === 'string') {
-    return `'${t.value}'`
+    return `'${t.value.replace(/'/g, "''")}'`
   }
   // Bareword starting with '+' followed by other chars: split into operator + operand
   if (t.type === 'bareword' && t.value.startsWith('+') && t.value.length > 1) {
@@ -31,7 +32,7 @@ export function foldConcat(text: string): string {
         value += toks[j + 1].value
         j += 2
       }
-      out.push(`'${value}'`)
+      out.push(`'${value.replace(/'/g, "''")}'`)
       i = j
     } else {
       out.push(emit(toks[i]))

@@ -17,4 +17,8 @@ describe('foldConcat', () => {
     // $x is not a literal → the + chain is not foldable; leave tokens as-is
     expect(foldConcat("'a'+$x")).toBe("'a' + $x")
   })
+  it('escapes embedded single quotes when re-quoting a folded value', () => {
+    // 'can''t' lexes to value `can't`; folded with 'stop' → `can'tstop`; re-quoted with '' escaping
+    expect(foldConcat("'can''t'+'stop'")).toBe("'can''tstop'")
+  })
 })
