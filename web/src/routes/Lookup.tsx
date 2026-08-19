@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { refang } from '@socdesk/shared/indicators'
+import { classifyCockpitInput } from '@socdesk/shared/intent'
 import type { VerdictData } from '@socdesk/shared/verdict'
 import {
   AnalystVerdict,
@@ -26,7 +27,7 @@ import {
   STUBS,
 } from '@socdesk/shared/verdict-cards'
 import { Button, MicroLabel } from '../components/ui'
-import { lookupHash } from '../components/palette/commands'
+import { lookupHash, navigate } from '../components/palette/commands'
 import { useEffectiveTheme, type EffectiveTheme } from '../components/lookup/useEffectiveTheme'
 import { useLookup } from '../components/lookup/useLookup'
 import { LookupStatus } from '../components/lookup/LookupStates'
@@ -152,6 +153,13 @@ export function Lookup() {
   const runLookup = (raw: string) => {
     const q = refang(raw)
     if (!q) return
+    // A command-shaped paste must never drive useLookup (whose detectType
+    // call has no command guard of its own) — route it to the standalone
+    // analyzer instead of writing the lookup hash (design spec §2.2, §9).
+    if (classifyCockpitInput(q) === 'command') {
+      navigate('/analyzer')
+      return
+    }
     // Writing the hash drives the sync effect. An identical resubmit fires no
     // hashchange — but the result already shows it, so that is a harmless no-op.
     window.location.hash = lookupHash(q)

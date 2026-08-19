@@ -1,5 +1,6 @@
 import type { CommandItem } from './types'
 import { classifyIndicator } from './classify'
+import { classifyCockpitInput } from '@socdesk/shared/intent'
 import { clearRecents, pushRecent } from './recents'
 import { applyThemePref, resolveTheme } from '@socdesk/shared/lib/theme'
 
@@ -100,14 +101,20 @@ export function lookupHash(query: string): string {
 
 /**
  * Submit an indicator lookup. Records it as recent, then routes to the live
- * `/lookup` surface with the indicator on the `#q=` deep link — from ANY route.
- * Going through `navigate` (pushState + a synthetic popstate) means a submit
- * made off the lookup page lands there; `/lookup` reads `#q=` on mount and on
- * hashchange/popstate, so it runs the lookup automatically either way.
+ * `/lookup` surface with the indicator on the `#q=` deep link — from ANY
+ * route. A command-shaped value NEVER reaches `/lookup` (whose `useLookup`
+ * calls `detectType` directly, with no command guard of its own — the exact
+ * leak described in design spec §2.1/§2.2): it routes to the standalone
+ * `/analyzer` instead. Analyzer deep-link parity (prefilling the pasted
+ * command there) is deferred (spec §9) — v1 lands on the bare route.
  */
 export function submitLookup(query: string): void {
   const q = query.trim()
   if (!q) return
+  if (classifyCockpitInput(q) === 'command') {
+    navigate('/analyzer')
+    return
+  }
   pushRecent(q, classifyIndicator(q))
   navigate(`/lookup${lookupHash(q)}`)
 }
