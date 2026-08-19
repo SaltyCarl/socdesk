@@ -69,9 +69,13 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   }
   const iocs = extractIocs(scan)
 
-  // Signatures run over the decoded corpus: the outer (preprocessed) script plus
-  // every resolved layer/recursion text, so a signal in an inner cradle counts.
-  const corpus = [script, ...scan.map((s) => s.text)].filter(Boolean).join('\n')
+  // Signatures run over the decoded corpus: the raw input (so launcher/wrapper
+  // tokens like `conhost --headless` survive preprocess()'s -Command extraction),
+  // the outer (preprocessed) script, plus every resolved layer/recursion text, so
+  // a signal in an inner cradle counts. Rules dedup by id (classify/runRules emit
+  // one Signal per rule), so the input/script overlap can't double-count; IOC
+  // extraction reads `scan`, not `corpus`, so this doesn't affect IOCs.
+  const corpus = [input, script, ...scan.map((s) => s.text)].filter(Boolean).join('\n')
   const signals = classify(buildContext(corpus, flags))
   const characterization = deriveCharacterization(signals)
 

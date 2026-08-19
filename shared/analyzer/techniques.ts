@@ -58,7 +58,6 @@ function triggerFor(ctx: RuleContext, needles: string[]): string {
 
 // Shared vocab.
 const FETCH = ['downloadstring', 'downloaddata', 'downloadfile', 'invoke-webrequest', 'iwr', 'invoke-restmethod', 'irm', 'net.webclient', 'start-bitstransfer', 'httpclient', 'system.net.webrequest', 'wget', 'curl']
-const OUTFILE = ['-outfile', '-out ', 'convertfrom-json', 'set-content', 'out-file']
 
 /** IEX / Invoke-Expression / '&' call-operator sink present. `&` is a bareword
  *  to the lexer (not a punct), so it lands in `words`. */
@@ -289,4 +288,4 @@ export function classify(ctx: RuleContext): Signal[] {
 }
 
 // Re-exported so later rules (Tasks 3–5) and their tests can reuse the vocab/helpers.
-export { hasAll, hasAny, present, flagSet, triggerFor, hasIexSink, FETCH, OUTFILE, matchLolbin }
+export { hasAll, hasAny, present, flagSet, triggerFor, hasIexSink, FETCH, matchLolbin }
