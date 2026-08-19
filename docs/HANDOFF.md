@@ -1,10 +1,65 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-18 (session 4 — AAA app LIVE at socdesk.io + de-wordify + IPv6/URL/RDAP/Compare-IP + extension parity) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-19 (session 5 — PowerShell analyzer Phase 1 + 2a merged to local main, unpushed; Phase 3 interpretation is next, gated on Cyber-Verification restart) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-18 (session 4 — the modern-stack app is LIVE)
+## 0. LATEST — 2026-08-19 (session 5 — PowerShell analyzer: decoder core merged, interpretation layer next)
+
+> Newest block. For **analyzer build-state and what to do next**, this
+> supersedes the session-4 block below. Everything about the live IOC-lookup
+> cockpit in session 4 is unchanged and still current — this block only adds the
+> `/analyzer` route's status.
+
+**The `/analyzer` route now has a real deobfuscation core, but it is a DECODER, not yet an ANALYZER.**
+
+### Shipped to LOCAL main (UNPUSHED / NOT live)
+- **Phase 1** (merge `6eade54`) + **Phase 2a** (merge `ff8fada`) of the PowerShell
+  analyzer are merged to **local `main`**. Local `main` is **~32 commits ahead of
+  `origin/main`** and **nothing analyzer is deployed** — the live socdesk.io
+  `/analyzer` route does NOT yet have this. Deploy is deliberately held for an
+  explicit `deploy` (rebase-guard first: `git pull --rebase origin main`, then
+  trigger collect-and-deploy — see `[[socdesk-deploy]]` memory).
+- What the core does: lexer + `-enc` Base64→UTF-16LE decode + gzip/raw-DEFLATE
+  inflate (U+FFFD-aware plausibility guard) + **string-concat folding** +
+  **position-aware single-assignment variable substitution** (fixpoint-capped) +
+  **`IEX`/`&`-sink recursion** + IOC extraction across **every** decode layer with
+  true `layerIndex` provenance + one-click bridge into the reputation card.
+  Deterministic, client-side, **NEVER executes input** (strict CSP, no eval).
+- Files: `shared/analyzer/{types,lex,preprocess,fold,extract,resolve,report,index}.ts`,
+  `web/src/routes/PowerShellAnalyzer.tsx`, `web/src/components/analyzer/*`. Tests:
+  `shared/analyzer/__tests__/*` — **40/40**, `tsc` clean. Run from `web/`:
+  `npx vitest run ../shared/analyzer`.
+
+### NEXT: Phase 3 — the interpretation layer (the actual analyst value)
+- Phase 1+2a is *decode + IOC extraction*. The payoff Carl asked for —
+  the bulleted **"what did it do"** breakdown, **behavioral signatures**
+  (beaconing, clickfix, download-cradle, AMSI/ETW tampering, etc.), and the
+  **specificity-gated characterization** (near-dispositive signals earn an
+  attributed high-confidence read; weak/strong-only stay a descriptive tally) —
+  is **Phase 3/4** and is **not built yet**.
+- **⚠️ Phase 3 is SAFEGUARD-SENSITIVE:** the signature-catalog content trips the
+  API cyber-safeguard. Carl was added to the **Cyber Verification Program**;
+  Phase 3 was deferred until he **restarts the session** so verification is
+  active. **Before building Phase 3, confirm verification is active** (no
+  safeguard blocks on a signature-authoring probe), then brainstorm/plan →
+  build via **subagent-driven-development**.
+- Design refs (authority): `docs/superpowers/specs/2026-08-19-powershell-analyzer-design.md`
+  **§6** (signatures), **§7** (breakdown), **§14** (open questions + the
+  specificity-gated characterization decision + Phase-2 carry-forward findings).
+
+### Also queued — Phase 2b (deobfuscation breadth, safe to build anytime, lower value)
+`-join` / `-f` format / `[char]` / `-replace` / string-reversal / inline-AES
+folding; lexer-token domain extraction (fixes the lowercase `.dll` IOC leak);
+full wall/opaque layer states + real `fractionAccounted` (resolve layers are
+currently hardcoded `fully-decoded`, so `fractionAccounted` can overstate);
+`.Invoke()` sink (needs `.`-member lexer support) + its comment trim;
+`preprocess` max-input-length (rest of §11); pure-script decode-ladder
+surfacing; `&`-sink recursion test.
+
+---
+
+## 0-PRIOR. 2026-08-18 (session 4 — the modern-stack app is LIVE)
 
 > Newest block. It **supersedes §0-RECENT (session 3) and everything below it**
 > for anything about *what is live and shipped.* The historical design/logo
