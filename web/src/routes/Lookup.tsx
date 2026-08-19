@@ -145,10 +145,12 @@ export function Lookup() {
   const state = useLookup(query)
 
   // Redirecting is a navigation side effect — it must run in an effect, never
-  // during render or inside the `useState` initializer.
+  // during render or inside the `useState` initializer. Carries the command
+  // forward on the same `#q=` deep link so a bookmarked/shared `/lookup#q=`
+  // command-shaped link doesn't silently drop the paste on redirect.
   useEffect(() => {
-    if (isCommand) navigate('/analyzer')
-  }, [isCommand])
+    if (isCommand) navigate(`/analyzer${lookupHash(rawQuery)}`)
+  }, [isCommand, rawQuery])
 
   useEffect(() => {
     // hashchange covers a raw hash edit / same-route resubmit; popstate covers a
@@ -174,7 +176,7 @@ export function Lookup() {
     // call has no command guard of its own) — route it to the standalone
     // analyzer instead of writing the lookup hash (design spec §2.2, §9).
     if (classifyCockpitInput(q) === 'command') {
-      navigate('/analyzer')
+      navigate(`/analyzer${lookupHash(q)}`)
       return
     }
     // Writing the hash drives the sync effect. An identical resubmit fires no

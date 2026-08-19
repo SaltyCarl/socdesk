@@ -105,14 +105,14 @@ export function lookupHash(query: string): string {
  * route. A command-shaped value NEVER reaches `/lookup` (whose `useLookup`
  * calls `detectType` directly, with no command guard of its own — the exact
  * leak described in design spec §2.1/§2.2): it routes to the standalone
- * `/analyzer` instead. Analyzer deep-link parity (prefilling the pasted
- * command there) is deferred (spec §9) — v1 lands on the bare route.
+ * `/analyzer` instead, with the command prefilled via the same `#q=` deep
+ * link so the paste is not lost.
  */
 export function submitLookup(query: string): void {
   const q = query.trim()
   if (!q) return
   if (classifyCockpitInput(q) === 'command') {
-    navigate('/analyzer')
+    navigate(`/analyzer${lookupHash(q)}`)
     return
   }
   pushRecent(q, classifyIndicator(q))

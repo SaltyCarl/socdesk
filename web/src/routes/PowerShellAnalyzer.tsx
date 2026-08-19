@@ -1,10 +1,28 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnalyzerResult } from '../components/analyzer/AnalyzerResult'
 import { usePsAnalysis } from '../components/analyzer/usePsAnalysis'
+import { readLookupQuery } from './lookupModel'
 
 export function PowerShellAnalyzer() {
-  const [input, setInput] = useState('')
+  // Lazy-init from the `#q=` deep link so a command routed here from the
+  // palette/`/lookup` (commands.ts::submitLookup, Lookup.tsx) arrives
+  // prefilled and auto-analyzes for free — `input` already drives
+  // `usePsAnalysis` reactively, so no separate trigger is needed.
+  const [input, setInput] = useState(readLookupQuery)
   const state = usePsAnalysis(input)
+
+  useEffect(() => {
+    // hashchange covers a same-route hash edit/resubmit; popstate covers
+    // commands.ts's cross-route pushState + synthetic-popstate navigation,
+    // which does NOT fire hashchange. Mirrors Lookup.tsx's sync effect.
+    const sync = () => setInput(readLookupQuery())
+    window.addEventListener('hashchange', sync)
+    window.addEventListener('popstate', sync)
+    return () => {
+      window.removeEventListener('hashchange', sync)
+      window.removeEventListener('popstate', sync)
+    }
+  }, [])
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
