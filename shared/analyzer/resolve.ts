@@ -50,26 +50,28 @@ export function foldConcat(text: string): string {
  *  untouched (never guessed). Straight-line only — no control-flow reasoning. */
 export function resolveVars(text: string): string {
   const toks = tokenize(text)
-  // Pass 1: collect bindings. `$v = 'lit'` → candidate; a second assignment poisons it.
-  const bound = new Map<string, string>()
+  // Pass 1: collect single-assignment bindings + the token index of the assignment.
+  const bound = new Map<string, { value: string; at: number }>()
   const poisoned = new Set<string>()
   for (let i = 0; i < toks.length; i++) {
     if (isVar(toks[i]) && isEq(toks[i + 1])) {
       const name = toks[i].value
       if (toks[i + 2]?.type === 'string' && !isPlus(toks[i + 3])) {
         if (bound.has(name) || poisoned.has(name)) { bound.delete(name); poisoned.add(name) }
-        else bound.set(name, toks[i + 2].value)
+        else bound.set(name, { value: toks[i + 2].value, at: i })
       } else {
         bound.delete(name); poisoned.add(name) // assigned to a non-literal → ambiguous
       }
     }
   }
-  // Pass 2: emit, substituting a bound var ONLY where it's a use (not its own assignment LHS).
+  // Pass 2: substitute a bound var ONLY at a use site AFTER its assignment (never
+  // the LHS, never a use-before-def), escaping quotes so it round-trips.
   const out: string[] = []
   for (let i = 0; i < toks.length; i++) {
     const t = toks[i]
     const isAssignLhs = isVar(t) && isEq(toks[i + 1])
-    if (isVar(t) && !isAssignLhs && bound.has(t.value)) out.push(`'${bound.get(t.value)}'`)
+    const b = isVar(t) && !isAssignLhs ? bound.get(t.value) : undefined
+    if (b && i > b.at) out.push(`'${b.value.replace(/'/g, "''")}'`)
     else out.push(emit(t))
   }
   return out.join(' ')

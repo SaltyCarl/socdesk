@@ -35,4 +35,12 @@ describe('resolveVars', () => {
   it('leaves a variable with no literal binding alone', () => {
     expect(resolveVars('IEX $undefined')).toContain('IEX $undefined')
   })
+  it('does not substitute a variable used before its assignment', () => {
+    // the use precedes the only assignment → value not known yet → leave $u
+    expect(resolveVars("IEX $u ; $u = 'http://evil.example'")).toContain('IEX $u')
+  })
+  it('escapes single quotes in a substituted variable value', () => {
+    // $p lexes to value `a'b`; substituted use re-quotes with '' escaping
+    expect(resolveVars("$p = 'a''b' ; IEX $p")).toContain("IEX 'a''b'")
+  })
 })
