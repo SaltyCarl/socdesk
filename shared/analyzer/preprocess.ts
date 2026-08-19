@@ -32,6 +32,44 @@ export function detectInterpreter(input: string): Interpreter {
   return 'unknown'
 }
 
+// WSH-scoped flag rules — structurally the same shape as FLAG_RULES, gated to
+// only ever be checked from the wscript/cscript branch below so they can never
+// collide with PowerShell's own -w/-nop/etc.
+const WSH_FLAG_RULES: { flag: string; re: RegExp; techniqueIds: string[] }[] = [
+  { flag: '//E:vbscript', re: /\/\/E:vbscript\b/i, techniqueIds: ['T1059.005'] },
+  { flag: '//E:jscript', re: /\/\/E:jscript\b/i, techniqueIds: ['T1059.007'] },
+  { flag: '//B', re: /\/\/B\b/i, techniqueIds: ['T1564.003'] },
+  { flag: '//NoLogo', re: /\/\/NoLogo\b/i, techniqueIds: ['T1564.003'] },
+]
+
+// Extract the /c or /k body, mirroring the shape of the existing -Command
+// extraction: match a flag, take the rest of the line.
+function extractCmdBody(input: string): string {
+  const m = input.match(/\/(?:c|k)\s+(.*)$/is)
+  return (m ? m[1] : input).trim()
+}
+
+// The argument itself IS the payload: a URL, a local .hta path, or an inline
+// vbscript:/javascript: scheme. Strip only the leading mshta(.exe) token.
+function extractMshtaBody(input: string): string {
+  const m = input.match(/^\s*(?:["']?[^"'\s]*\b)?mshta(?:\.exe)?\b\s*(.*)$/is)
+  return (m ? m[1] : input).trim()
+}
+
+// Extract the .vbs/.js target (or inline target) and recognize //E:/-B/-NoLogo
+// as evasion/config flags, pushed into the shared `flags` array.
+function extractWshBody(input: string, flags: EvasionFlag[]): string {
+  for (const rule of WSH_FLAG_RULES) {
+    const m = input.match(rule.re)
+    if (!m) continue
+    flags.push({ flag: rule.flag, raw: m[0].trim(), techniqueIds: rule.techniqueIds })
+  }
+  const stripped = input
+    .replace(/^\s*(?:["']?[^"'\s]*\b)?(?:wscript(?:\.exe)?|cscript(?:\.exe)?)\b/i, '')
+    .replace(/\/\/\S+/g, '')
+  return stripped.trim()
+}
+
 export function preprocess(input: string): { script: string; encoded: string | null; flags: EvasionFlag[]; interpreter: Interpreter } {
   const flags: EvasionFlag[] = []
   let encoded: string | null = null
@@ -42,10 +80,19 @@ export function preprocess(input: string): { script: string; encoded: string | n
     if (rule.flag === '-enc' && m[1]) encoded = m[1]
   }
   const interpreter = detectInterpreter(input)
-  // Strip a leading powershell(.exe)/pwsh invocation wrapper; keep the -Command body if present.
-  // (per-interpreter body extraction lands in Task 3 — unchanged here.)
-  let script = input.replace(/^\s*(?:["']?[^"'\s]*\b)?(?:powershell(?:\.exe)?|pwsh(?:\.exe)?)\b/i, '')
-  const cmd = script.match(/-c(?:ommand)?\s+(.*)$/is)
-  if (cmd) script = cmd[1]
+  let script: string
+  if (interpreter === 'cmd') {
+    script = extractCmdBody(input)
+  } else if (interpreter === 'mshta') {
+    script = extractMshtaBody(input)
+  } else if (interpreter === 'wscript' || interpreter === 'cscript') {
+    script = extractWshBody(input, flags)
+  } else {
+    // powershell / unknown — unchanged from Task 2/pre-increment behavior.
+    let s = input.replace(/^\s*(?:["']?[^"'\s]*\b)?(?:powershell(?:\.exe)?|pwsh(?:\.exe)?)\b/i, '')
+    const cmd = s.match(/-c(?:ommand)?\s+(.*)$/is)
+    if (cmd) s = cmd[1]
+    script = s
+  }
   return { script: script.trim(), encoded, flags, interpreter }
 }

