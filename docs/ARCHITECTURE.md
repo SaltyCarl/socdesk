@@ -24,6 +24,11 @@ clearly redistribute. Reputation corpora are reached by user-clicked deep links
 at render time and never fetched by the page. This is enforced structurally by
 the Content-Security-Policy (`connect-src 'self'`), not by convention.
 
+Per-indicator reputation is a separate path from that rule: rather than holding
+a corpus, the browser calls its own origin at `/api/enrich` — still within
+`connect-src 'self'` — and that Cloudflare Pages Function fans out to the public
+reputation sources server-side; nothing is stored (see *What static costs* §2).
+
 ## End to end
 
 ```mermaid
@@ -301,11 +306,15 @@ Stated plainly, because the alternative is pretending it is free:
 1. **Freshness is bounded by cron.** Twice an hour, not on demand. Everything
    in the UI that looks live — the elapsed counter, the next-pull countdown —
    measures our own clock, and says so.
-2. **No live reputation.** A CVE gets a real verdict because the corpus is
-   public-domain and can be held. An IP, domain, hash or URL gets an honest
-   "not in corpus" plus pivots, because holding those corpora is a licensing
-   problem, not a technical one. The queued fix is a stateless enrichment
-   worker (`superpowers/specs/2026-08-07-enrichment-worker-spec.md`).
+2. **Live reputation — the static cost that got bought back.** A CVE gets a real
+   verdict because the corpus is public-domain and can be held. An IP, domain,
+   hash or URL cannot be held — that is a licensing problem, not a technical one.
+   Rather than hold those corpora, the browser calls its OWN origin at
+   `/api/enrich` (`functions/api/enrich.js` + `lib/enrich.mjs`, a Cloudflare
+   Pages Function), which fans out to public reputation sources server-side and
+   returns a source-consensus tally; keys live in Pages secrets, never in the
+   browser, and nothing is stored. This shipped what was the queued fix
+   (`superpowers/specs/2026-08-07-enrichment-worker-spec.md`).
 3. **No shared state.** One analyst's marks are invisible to the next shift.
    Fixing that means a server and authentication, which
    [COMPLIANCE.md](../COMPLIANCE.md) parks as a separate authenticated

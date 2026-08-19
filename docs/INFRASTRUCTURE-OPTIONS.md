@@ -23,18 +23,23 @@ this page.
 - **Scheduled digest generation.** The Framework already commits `brief.json`;
   the same pattern produces any recurring artifact.
 
-## 1. Tier 2 — Stateless Worker (Phase C½, spec'd)
+## 1. Tier 2 — Stateless Worker (Phase C½) — CHOSEN AND SHIPPED
 
-**Infra:** one Cloudflare Worker + KV. Still $0. Still no user data at rest.
+**Infra:** shipped not as a standalone Worker + KV but as a **same-origin
+Cloudflare Pages Function** (`functions/api/enrich.js` + `lib/enrich.mjs`), using
+Cloudflare's edge cache — no KV binding. Still $0. Still no user data at rest.
 
-Unlocks: live reputation enrichment, urlscan screenshot previews, shared
+Delivered: live reputation enrichment, urlscan screenshot previews, a shared
 indicator-level cache, API keys held safely server-side.
 
-Costs: one new origin in the CSP; per-source terms review; the site is no
-longer *provably* incapable of transmitting (though it still never transmits
-without an explicit click).
+Costs: per-source terms review; the site is no longer *provably* incapable of
+transmitting. It stays same-origin — no new CSP origin, `connect-src 'self'`
+unchanged — so an analyst lookup sends the indicator to the site's own
+`/api/enrich`, and that Function fans out to the reputation sources server-side.
+Nothing is stored.
 
-**Verdict: do this.** Best value-per-complexity on the whole list.
+**Verdict: done — chosen and shipped.** Best value-per-complexity on the whole
+list.
 
 ## 2. Tier 3 — Stateful serverless (Workers + D1/KV + Cloudflare Access)
 
@@ -122,7 +127,8 @@ real daily use. 3c belongs in MalwareViz. 3e is gated.**
 ## 5. Recommended path
 
 1. **Ship static.** (Done pending secrets.)
-2. **Tier 2 enrichment Worker** — biggest gain, smallest cost, spec written.
+2. **Tier 2 enrichment** — shipped as the same-origin `/api/enrich` Pages
+   Function. Biggest gain, smallest cost.
 3. **Static-tier wins from §0** — history/trends and offline mode, both cheap.
 4. **Tier 4a local-LLM analysis on the Framework** — the real differentiator,
    using hardware that already exists. Treat it as an *optional enhancement
