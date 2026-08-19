@@ -206,3 +206,22 @@
   --duration-slow: 600ms;
   --duration-draw: 1100ms;
 }
+
+/* Compare-IP route draw-on: the great-circle line reveals origin→destination.
+   Each polyline uses pathLength={1}; the class dashes it to one full-length
+   segment and animates the offset 1→0. Static under reduced-motion. */
+@keyframes sd-arc-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.sd-arc-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sd-arc-draw var(--duration-slow, 600ms) ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sd-arc-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}

@@ -141,17 +141,20 @@ function WorldMap({ geo, compare }: { geo: GeoModel; compare?: CompareResult | n
       </g>
       {compare && (
         <>
-          {/* the route — thin, dashed, moderate opacity; drawn BEHIND the pins */}
+          {/* the route — solid --paper, drawn BEHIND the pins; each segment
+              reveals origin→destination via the sd-arc-draw keyframe (pathLength
+              normalises length so one dash spans the whole segment). */}
           <g
             className="fill-none stroke-[var(--paper)] opacity-90"
             strokeWidth={0.28}
-            strokeDasharray="1.2 0.7"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
             {arcSegs.map((seg, i) => (
               <polyline
                 key={i}
+                className="sd-arc-draw"
+                pathLength={1}
                 points={seg.map((p) => `${(p.fx * cols).toFixed(2)},${(p.fy * rows).toFixed(2)}`).join(' ')}
               />
             ))}

@@ -576,7 +576,7 @@ function paintWorld(ctx: CanvasRenderingContext2D, T: Palette, draw: boolean, x:
     ctx.lineWidth = Math.max(1, 0.28 * cell)
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
-    ctx.setLineDash([2 * cell, 1.4 * cell])
+    // solid route — matches the on-screen SVG (which additionally draws on)
     for (const seg of greatCircleArc(g.lat, g.lon, compare.second.lat, compare.second.lon)) {
       ctx.beginPath()
       seg.forEach((p, i) => {
