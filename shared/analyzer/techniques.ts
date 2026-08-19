@@ -157,6 +157,88 @@ export const RULES: SignatureRule[] = [
       return { hit: false }
     },
   },
+  {
+    id: 'clickfix',
+    label: 'ClickFix / paste-and-run',
+    techniqueIds: ['T1204', 'T1059.001', 'T1218.005', 'T1105'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['download-cradle', 'amsi-reflection'],
+    test(ctx) {
+      const flags = flagSet(ctx)
+      const hiddenFetchIex = flags.has('-w') && flags.has('-nop') && hasAny(ctx, FETCH) && hasIexSink(ctx)
+      const headless = hasAll(ctx, ['conhost', '--headless'])
+      const hta = hasAny(ctx, ['mshta']) && hasAny(ctx, ['http://', 'https://', 'javascript:', '.hta'])
+      const decoy = hasAny(ctx, ['verify you are human', 'i am not a robot', 'ray id', 'captcha', 'press win+r'])
+      if (hiddenFetchIex || headless || hta || decoy) {
+        return { hit: true, trigger: headless ? '--headless' : triggerFor(ctx, [...FETCH, 'mshta', 'captcha']) }
+      }
+      return { hit: false }
+    },
+  },
+  {
+    id: 'beaconing',
+    label: 'beaconing / C2 loop',
+    techniqueIds: ['T1071.001', 'T1571'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['download-cradle', 'reverse-shell'],
+    test(ctx) {
+      const loop = hasAny(ctx, ['while']) && hasAny(ctx, ['start-sleep'])
+      const talk = hasAny(ctx, FETCH) || hasAny(ctx, ['tcpclient', 'net.sockets', 'udpclient'])
+      if (loop && talk) return { hit: true, trigger: triggerFor(ctx, ['start-sleep', 'while']) }
+      return { hit: false }
+    },
+  },
+  {
+    id: 'reverse-shell',
+    label: 'reverse shell',
+    techniqueIds: ['T1059.001', 'T1071.001'],
+    baseSpecificity: 'near-dispositive',
+    upgradesWith: [],
+    test(ctx) {
+      // A raw socket whose stream feeds IEX — Nishang Invoke-PowerShellTcp style.
+      // No legitimate PowerShell one-liner pipes a TCP stream into the interpreter.
+      const socket = hasAny(ctx, ['tcpclient', 'net.sockets.tcpclient', 'invoke-powershelltcp'])
+      if (socket && hasIexSink(ctx) && hasAny(ctx, ['getstream', 'read(', 'invoke-powershelltcp'])) {
+        return { hit: true, trigger: triggerFor(ctx, ['tcpclient', 'invoke-powershelltcp']) }
+      }
+      return { hit: false }
+    },
+  },
+  {
+    id: 'fileless-loader',
+    label: 'in-memory loader / shellcode',
+    techniqueIds: ['T1055', 'T1620'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['amsi-reflection', 'amsi-memory-patch', 'etw-tamper'],
+    test(ctx) {
+      const alloc = hasAny(ctx, ['virtualalloc', 'ntallocatevirtualmemory', '[reflection.assembly]::load', 'createthread', 'createremotethread'])
+      const shell = hasAny(ctx, ['byte[]', '[byte[]]', 'marshal.copy', 'add-type', 'getdelegatefor'])
+      if (alloc && shell) return { hit: true, trigger: triggerFor(ctx, ['virtualalloc', 'createthread', '[reflection.assembly]::load']) }
+      return { hit: false }
+    },
+  },
+  {
+    id: 'persistence',
+    label: 'persistence',
+    techniqueIds: ['T1053.005', 'T1547.001', 'T1546.003'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['download-cradle', 'amsi-reflection', 'clickfix'],
+    test(ctx) {
+      const p = hasAny(ctx, ['register-scheduledtask', 'schtasks', 'currentversion\\run', 'runonce', 'new-service', '__eventfilter', 'commandlineeventconsumer', 'startup\\'])
+      if (p) return { hit: true, trigger: triggerFor(ctx, ['register-scheduledtask', 'schtasks', 'runonce', 'new-service']) }
+      return { hit: false }
+    },
+  },
+  {
+    id: 'lolbin',
+    label: 'LOLBin',
+    techniqueIds: ['T1218'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['download-cradle', 'clickfix'],
+    test(ctx) {
+      return matchLolbin(ctx)
+    },
+  },
 ]
 
 /** Run every rule once; emit one Signal per hit, in table order (deterministic).

