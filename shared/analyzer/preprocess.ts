@@ -1,4 +1,5 @@
 import type { EvasionFlag } from './types'
+import { deobfuscateCaret } from './cmdlex'
 
 // PowerShell accepts unambiguous prefixes of parameter names; match the ones
 // that carry evasion meaning. Each entry: canonical flag → { regex, technique }.
@@ -46,7 +47,8 @@ const WSH_FLAG_RULES: { flag: string; re: RegExp; techniqueIds: string[] }[] = [
 // extraction: match a flag, take the rest of the line.
 function extractCmdBody(input: string): string {
   const m = input.match(/\/(?:c|k)\s+(.*)$/is)
-  return (m ? m[1] : input).trim()
+  const body = m ? m[1] : input
+  return deobfuscateCaret(body).trim()
 }
 
 // The argument itself IS the payload: a URL, a local .hta path, or an inline
