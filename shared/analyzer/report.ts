@@ -39,27 +39,31 @@ export async function analyze(input: string): Promise<AnalysisResult> {
     }
   }
 
-  // Phase 2a: resolve token-obfuscation on the current text, and recurse through
-  // IEX/&/.Invoke() whose operand resolves to a literal string. Depth-capped;
-  // dedupe by resolved content so `$x='IEX $x'` can't spin.
+  // Collect IOC-scan texts + their true layer index: every existing decode layer,
+  // then the resolve/recurse chain seeded from the last layer (or the raw script).
   const seen = new Set<string>()
-  const texts: string[] = [] // texts to scan for IOCs
+  const scan: { index: number; text: string }[] = []
+  for (const l of layers) {
+    if (l.text != null && !seen.has(l.text)) { seen.add(l.text); scan.push({ index: l.index, text: l.text }) }
+  }
   let work = layers.length ? (layers[layers.length - 1].text ?? '') : current
+  let workIndex = layers.length ? layers[layers.length - 1].index : 0
   for (let depth = 0; depth < 6; depth++) {
     const resolved = resolve(work)
     if (seen.has(resolved)) break
     seen.add(resolved)
-    texts.push(resolved)
+    let idx = workIndex
     if (resolved !== work && layers.length) {
       layers.push({ index: layers.length, transform: 'resolve (fold/substitute)', text: resolved, state: 'fully-decoded' })
+      idx = layers.length - 1
     }
-    // find an IEX/&/.Invoke() target that is now a string literal → next layer
+    scan.push({ index: idx, text: resolved })
     const next = iexStringTarget(resolved)
     if (!next || seen.has(next)) break
     work = next
+    workIndex = idx
   }
-
-  const iocs = extractIocs(texts.map((text, index) => ({ index, text })))
+  const iocs = extractIocs(scan)
 
   const fullyDecoded = layers.filter((l) => l.state === 'fully-decoded').length
   const state = layers.length === 0 || fullyDecoded === layers.length ? 'fully-decoded' : 'partial'

