@@ -17,7 +17,8 @@ The answer to *"what did it do"* is the product; the IOC bridge is what makes it
 
 - **Public socdesk.io. 100% client-side, deterministic TypeScript in `shared/analyzer/`. No LLM in v1.** A fenced, Framework-only LLM *narration* layer is a deferred v2 — the fact-object output is designed so it can bolt on later (§13), but v1 ships without it.
 - **Never executes the input.** No `eval`/`new Function`/dynamic dispatch of the pasted script. The CSP (`script-src 'self'`, no `unsafe-eval`; `web/public/_headers`) already forbids this structurally — the parser is a pure string→data transform.
-- **No synthesized "malicious/benign" verdict and no risk score.** Output is a **technique-signal tally** (count + specificity-weighting, each chip citing its triggering substring) — the same "count and attribute, don't pronounce" model as the escalation card. The analyst owns the escalate/close call.
+- **No synthesized, black-box verdict and no risk score.** The base output is a **technique-signal tally** (count + specificity-weighting, each chip citing its triggering substring) — the "count and attribute, don't pronounce" model. The analyst owns the escalate/close call.
+- **Specificity-gated characterization (owner decision 2026-08-19).** When a **near-dispositive** signal fires (a technique with *no legitimate use* — e.g. an AMSI reflection patch, `conhost --headless powershell`, a Nishang reverse shell), the tool DOES assert a **"high-confidence malicious behavior"** characterization — but one **attributed to those named techniques** (each with its "no legitimate use" basis), never a black-box stamp. **Weak/strong-only cases stay the descriptive tally** — benign RMM/installer/GPO tooling shares the weak signals (`-enc`, hidden window, exec-bypass), so a label there would cry wolf. This is the escalation card's own rule applied to behaviours: *authoritative facts assert, ambiguous signals hedge*. A `'suspicious'` tier for strong-only co-occurrence is deliberately deferred (see §6).
 - **Honesty is a first-class output.** Silent partial success is the cardinal sin. Every incomplete decode is marked; residual blobs are shown with entropy; "known-pattern not matched ≠ safe."
 - **Reserved-colour law** (`shared/ui/Chip.tsx`): technique/LOLBin/switch signals render as periwinkle/neutral chips; red/amber/green stay verdict-severity only.
 - **Public sources only** (LOLBAS, public ATT&CK, public MS docs) — no employer/CARL knowledge in this public repo.
@@ -97,6 +98,12 @@ export interface Signal {
   trigger: string              // the exact substring that fired it (audit)
 }
 
+export interface Characterization {
+  level: 'high-confidence-malicious'  // v1: near-dispositive only; 'suspicious' tier deferred (§6)
+  basis: string[]              // ids of the near-dispositive signals that justify it (audit)
+  read: string                 // "High-confidence malicious behaviour: AMSI bypass via reflection (no legitimate use) + download cradle → …"
+}
+
 export interface ActionBullet {
   order: number                // execution order (statement, then dataflow depth)
   verb: string                 // Downloads / Decodes / Disables / Schedules / …
@@ -112,6 +119,7 @@ export interface AnalysisResult {
   layers: DecodedLayer[]
   iocs: ExtractedIoc[]         // deduped across layers
   signals: Signal[]            // the technique tally
+  characterization: Characterization | null  // specificity-gated; null unless a near-dispositive signal fires
   bullets: ActionBullet[]      // the "what did it do" breakdown
   confidence: { fractionAccounted: number; state: DecodeState }  // worst-layer roll-up
   copyText: string
@@ -167,7 +175,9 @@ Rules run over the **decoded** token stream (co-occurrence weighting is the accu
 - **Persistence** — `Register-ScheduledTask`/`schtasks`, WMI event subscription, Run/RunOnce key writes, startup folder, services. T1053.005/T1547.001/T1546.
 - **LOLBins** — certutil, bitsadmin, mshta, regsvr32, rundll32, msiexec `/i http`, wmic (from `lolbins.ts`).
 
-**Tally rendering:** count + specificity ("3 high-risk technique signals across 3 ATT&CK techniques"); each chip cites its trigger substring; no bare score, no "malicious" word.
+**Tally rendering:** count + specificity ("3 high-risk technique signals across 3 ATT&CK techniques"); each chip cites its trigger substring; no bare score.
+
+**Behavioral characterization (specificity-gated pass, in `report.ts`):** after co-occurrence, if **≥1 signal is `near-dispositive`**, emit a `Characterization` (`level: 'high-confidence-malicious'`, `basis` = those signal ids, `read` naming each with its "no legitimate use" note — e.g. "High-confidence malicious behaviour: AMSI bypass via reflection (no legitimate use) + download cradle → `hxxp://…` + logon persistence"). If no signal reaches near-dispositive, `characterization` is **null** and only the tally renders — weak/strong-only patterns (which benign RMM/installer/GPO tooling shares) are never labelled. The characterization is always **enumerated and attributed** — the "malicious" word is earned by named near-dispositive techniques, never a black-box stamp. A **`'suspicious'` tier** for strong-only co-occurrence is deliberately deferred to post-dogfooding: the strong signals (download cradle, Defender-cmdlet tampering, evasion clusters) have real benign twins, so auto-labelling them risks cry-wolf.
 
 ## 7. "What did it do" breakdown (`bullets.ts`) — the headline
 
@@ -208,7 +218,7 @@ A dedicated top-level route (matches `/lookup`'s "input → rich result" shape f
 - **New presentational components** (following `SourceLedger`'s layout grammar — fixed left cell, mono micro-text, zebra rows): `TechniqueTally`, `DecodeLadder`, `IocTable`. Do **not** reuse `TallyHeadline`/`SegGauge` (hard-wired to `VerdictData` doctrine + red/amber/green bands).
 - **No canvas/PNG artifact in v1** (`copyCard`/`renderVerdictCanvas` are `VerdictData`-specific; there's no severity band to theme a card around).
 
-**Layout (top→bottom):** paste input → (analyzing skeleton) → evasion-flag chips + technique tally → the "what did it do" action bullets (confident block, then quarantined "could not resolve") → decode ladder (each layer: transform + state, residual+entropy where opaque) → IOC table with one-click enrich → copy-to-ticket button.
+**Layout (top→bottom):** paste input → (analyzing skeleton) → evasion-flag chips + technique tally, **led by `characterization.read` when present** (the near-dispositive-gated high-confidence line, styled assertively but rendered from the enumerated `basis`), else the plain count → the "what did it do" action bullets (confident block, then quarantined "could not resolve") → decode ladder (each layer: transform + state, residual+entropy where opaque) → IOC table with one-click enrich → copy-to-ticket button.
 
 ## 10. Honesty / completeness UX
 
@@ -227,6 +237,7 @@ A hostile paste must never hang the tab even though nothing executes. **Hard per
 - **Fold:** `-enc` UTF-16LE fixture; gzip + `deflate-raw` cradle fixtures; a nested-cradle fixture; a **halting-boundary fixture verified to report `opaque`/`wall`, never a guess**; inline-key AES fixture.
 - **Extract:** IOC verbatim + defang + layer-provenance fixtures.
 - **Signatures:** one positive + one **benign-twin** fixture per rule (the FP-disambiguation requirement); ClickFix prioritised; a co-occurrence-upgrade test.
+- **Characterization:** a near-dispositive fixture yields `characterization.level === 'high-confidence-malicious'` with the firing signal ids in `basis`; a **strong-only** and a **benign-twin** fixture both yield `characterization === null` (the anti-cry-wolf guarantee); the `read` string contains only names present in `basis`.
 - **Bullets:** execution-ordering test; a **banned-word test** proving bullets never emit "malicious/attacker/likely/C2" unless present as a resolved fact (mirrors how `doctrine.ts` structurally forbids a verdict word); an opaque-quarantine test.
 - **Confidence:** `fractionAccounted` roll-up + worst-layer-state test.
 - **Determinism:** same input → identical `AnalysisResult` (minus `checkedAt`).
