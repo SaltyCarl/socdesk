@@ -3,14 +3,14 @@ import type { FormEvent, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../components/ui'
 import { SituationalBoard } from '../components/overview'
-import { EscalationCard, type CompareResult } from '@socdesk/shared/verdict-cards'
+import type { CompareResult } from '@socdesk/shared/verdict-cards'
 import type { GlobeApi } from '../components/hero/useGlobe3'
 import { ENRICH_EVENT } from '../components/hero/enrichFly'
 import { geoPresent, type EnrichApiResult } from '../components/hero/heroLayers'
-import { lookupHash, submitLookup } from '../components/palette/commands'
-import { useEffectiveTheme, type EffectiveTheme } from '../components/lookup/useEffectiveTheme'
-import { useLookup, type LookupState } from '../components/lookup/useLookup'
-import { LookupStatus } from '../components/lookup/LookupStates'
+import { submitLookup } from '../components/palette/commands'
+import { useEffectiveTheme } from '../components/lookup/useEffectiveTheme'
+import { useCockpitInput, type CockpitResult } from '../components/cockpit/useCockpitInput'
+import { ResultRegion } from '../components/cockpit/ResultRegion'
 // The hero-shell classes (.sdh-hero / .sdh-atmos / .sdh-enter*) must be present
 // on FIRST paint — this route is synchronous, so importing the co-located CSS
 // here puts them in the main bundle even though the globe canvas itself streams
@@ -18,32 +18,10 @@ import { LookupStatus } from '../components/lookup/LookupStates'
 import '../components/hero/globe.css'
 
 /**
- * Overview (`/`) — the crown-jewel landing, restructured as a LOOKUP COCKPIT:
- * the globe and the escalation card read as ONE integrated answer, not two
- * stapled-together features.
- *
- * The hero content column has TWO states, driven by whether a lookup is active:
- *
- *   Idle    — kicker · the "IOC in. OSINT out." H1 · the copy paragraph · the
- *             omnibox · the TRY chips, with the globe bleeding off the right.
- *   Result  — the omnibox stays PINNED near the top (the next lookup needs no
- *             scroll), the marketing intro COLLAPSES (its job is done), and the
- *             real EscalationCard renders directly below the omnibox — IN the
- *             hero column, BESIDE the globe — with a "Full analyst view →" deep
- *             link under it. The honest degraded states (checking / declined /
- *             unavailable / unsupported) render in that same slot via the shared
- *             LookupStatus wording.
- *
- * ONE fetch, two payoffs: for an enrichable indicator `useLookup` makes a single
- * /api/enrich round-trip; its RAW body is dispatched on `socdesk:enrich-result`
- * so the lazily-mounted globe lands it on real coordinates, while its mapped
- * VerdictData feeds the inline card — never a second request. A CVE resolves
- * from the committed catalog (no geo, so no globe landing — honest). Emptying the
- * input returns the hero to Idle (copy back, card gone) and flies the globe home.
- *
- * The dense analyst triptych (client card + copy-card PNG + console) lives at
- * /lookup; the landing shows ONLY the EscalationCard (the copy-card PNG is still
- * produced on demand by the card's own embedded Copy card / Copy text actions).
+ * Overview (`/`) — the POLYMORPHIC cockpit: one omnibox classifies a pasted
+ * indicator or PowerShell command and routes it to enrichment or the local
+ * analyzer, rendering either result in the same docked slot beside the globe
+ * (design spec, full document).
  */
 
 const GlobeStage3 = lazy(() =>
@@ -55,53 +33,21 @@ const DEMO_INDICATORS = ['185.220.101.34', '1.1.1.1', '8.8.8.8']
 const CHIP_CLS =
   'rounded-md border border-line bg-panel px-2.5 py-1 font-mono text-xs text-muted transition-colors duration-150 ease-brand hover:border-line-bright hover:text-paper focus-visible:outline-2 focus-visible:outline-accent'
 
-const FULL_VIEW_CLS =
-  'inline-flex w-fit items-center gap-1 font-mono text-xs font-semibold text-accent underline-offset-2 outline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent'
-
-// Standard enter used for the card reveal + the compact result brand line. The
-// `sd-rise` keyframe animates FROM opacity 0 to the RESTING state, so nothing is
-// ever stranded invisible; `motion-safe` drops it entirely under reduced motion.
+// Standard enter used for the card reveal + the compact result brand line.
 const REVEAL_CLS =
   'motion-safe:animate-[sd-rise_var(--duration-slow)_var(--ease-brand)_both]'
 
-/**
- * The result slot that lives in the hero column beside the globe. On `ok` it is
- * the real EscalationCard; every other resolved state is the shared honest
- * degraded rendering. Both are followed by a deep link into the full analyst
- * console. `idle` renders nothing (the caller only mounts this in Result mode).
- */
-function LandingResult({
-  state,
-  theme,
-  onFullView,
-  onCompare,
-}: {
-  state: LookupState
-  theme: EffectiveTheme
-  onFullView: (e: MouseEvent<HTMLAnchorElement>, q: string) => void
-  onCompare: (c: CompareResult | null) => void
-}) {
-  if (state.kind === 'idle') return null
-  const indicator = 'indicator' in state ? state.indicator : ''
-
-  return (
-    <div className="flex w-full max-w-md flex-col gap-3">
-      {state.kind === 'ok' ? (
-        <EscalationCard data={state.data} theme={theme} onCompare={onCompare} />
-      ) : (
-        <LookupStatus state={state} />
-      )}
-      {indicator && (
-        <a
-          href={`/lookup${lookupHash(indicator)}`}
-          onClick={(e) => onFullView(e, indicator)}
-          className={FULL_VIEW_CLS}
-        >
-          Full analyst view <span aria-hidden="true">→</span>
-        </a>
-      )}
-    </div>
-  )
+/** Whether the CURRENT cockpit result has no geography to land on: a command
+ *  result, an unclassified submission, or an indicator that has resolved
+ *  (past `checking`) without geo. `checking` stays non-geoless so the globe
+ *  doesn't flicker dim before the outcome is known (design spec §3.6, §3.8). */
+function isGeolessResult(cockpit: CockpitResult, submitted: string): boolean {
+  if (cockpit.kind === 'command') return true
+  if (cockpit.kind === 'unclassified') return submitted !== ''
+  const state = cockpit.state
+  if (state.kind === 'idle' || state.kind === 'checking') return false
+  if (state.kind === 'ok') return !(state.raw && geoPresent(state.raw))
+  return true // declined / unavailable / unsupported — no geo
 }
 
 export interface OverviewProps {
@@ -117,13 +63,15 @@ export function Overview({
 }: OverviewProps) {
   const apiRef = useRef<GlobeApi | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  // `active` is the SUBMITTED indicator that drives the result slot + the globe.
-  // Empty string → Idle (the intro returns, the card is gone, the globe flies
-  // home). Any non-empty value → Result mode.
-  const [active, setActive] = useState('')
+  // `submitted` is the COMMITTED (post-Enter) value that drives the result
+  // region + the globe — empty string -> Idle. useCockpitInput classifies it
+  // and runs the matching hook; the unselected hook is fed '' internally, so
+  // only ONE round-trip (or zero, for a command) ever fires per submit.
+  const [submitted, setSubmitted] = useState('')
   const theme = useEffectiveTheme()
-  const state = useLookup(active)
-  const isResult = active !== ''
+  const cockpit = useCockpitInput(submitted)
+  const isResult = cockpit.kind !== 'unclassified' || submitted !== ''
+  const resultIsGeoless = isGeolessResult(cockpit, submitted)
 
   const brand = title ?? (
     <>
@@ -131,21 +79,25 @@ export function Overview({
     </>
   )
 
-  // ONE fetch feeds both surfaces. useLookup owns the single /api/enrich round-
-  // trip; here we route its outcome to the globe: the raw body lands an
-  // enrichable indicator with real geo, and anything non-plottable (a CVE, a
-  // hash, a geoless domain, or any failed/empty state) flies the globe home so a
-  // stale landing never sits under a mismatched card. `checking` is left alone.
+  // The globe only ever lands on an INDICATOR result with real geo. A command
+  // or unclassified result — and any indicator state that isn't a geo-bearing
+  // `ok` — flies the globe home so a stale landing never sits under a
+  // mismatched result. `checking` is left alone (mirrors the old behaviour).
   useEffect(() => {
     const api = apiRef.current
-    if (state.kind === 'ok' && state.raw && geoPresent(state.raw)) {
-      document.dispatchEvent(new CustomEvent<EnrichApiResult>(ENRICH_EVENT, { detail: state.raw }))
-    } else if (state.kind !== 'checking') {
-      api?.flyBack()
+    if (cockpit.kind === 'indicator') {
+      const state = cockpit.state
+      if (state.kind === 'ok' && state.raw && geoPresent(state.raw)) {
+        document.dispatchEvent(new CustomEvent<EnrichApiResult>(ENRICH_EVENT, { detail: state.raw }))
+      } else if (state.kind !== 'checking') {
+        api?.flyBack()
+      }
+      return
     }
-  }, [state])
+    api?.flyBack()
+  }, [cockpit])
 
-  const submit = (value: string) => setActive(value.trim())
+  const submit = (value: string) => setSubmitted(value.trim())
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -155,10 +107,10 @@ export function Overview({
   }
   const onInput = (e: FormEvent<HTMLInputElement>) => {
     // Clearing the field returns the hero to Idle (globe flies home).
-    if (e.currentTarget.value.trim() === '') setActive('')
+    if (e.currentTarget.value.trim() === '') setSubmitted('')
   }
   const flyDemo = (v: string) => {
-    setActive(v)
+    setSubmitted(v)
     if (inputRef.current) inputRef.current.value = v
   }
 
@@ -170,9 +122,6 @@ export function Overview({
     submitLookup(q)
   }
 
-  // A Compare-IP result on the landing card draws the two-IP great-circle arc on
-  // the globe (real coords, both precise); clearing it removes the arc. Country-
-  // level geo has no meaningful point, so it clears rather than draw a fake line.
   const onCompareArc = (c: CompareResult | null) => {
     const api = apiRef.current
     if (!api) return
@@ -185,23 +134,20 @@ export function Overview({
 
   return (
     <div className="flex flex-col">
-      {/* -------- lookup cockpit: two-state hero -------- */}
-      <section className={cx('sdh-hero relative py-16', isResult && 'is-result')}>
+      <section
+        className={cx(
+          'sdh-hero relative py-16',
+          isResult && 'is-result',
+          resultIsGeoless && 'is-geoless',
+        )}
+      >
         <div className="sdh-atmos" aria-hidden="true" />
 
-        {/* content column — renders immediately, layered above the globe. Spacing
-            is per-child (mt-*) rather than a parent `gap` so the collapsing intro
-            leaves NO dead gap behind when it folds away in Result mode. */}
         <div className="relative z-[2] flex max-w-xl flex-col items-start">
           <MicroLabel tone="accent" tick className="sdh-enter sdh-enter-1">
             {kicker}
           </MicroLabel>
 
-          {/* Marketing intro (H1 + copy) — collapses in Result mode via a
-              grid-template-rows fold. It is a REVERSIBLE collapse (idle ⇄ result),
-              not a stranded entrance: the row goes 1fr → 0fr while the inner fades,
-              and both return to their resting state when the omnibox is cleared.
-              Reduced motion → the fold is instant (no transition). */}
           <div
             className={cx(
               'grid w-full transition-[grid-template-rows] duration-[600ms] ease-brand motion-reduce:transition-none',
@@ -226,9 +172,6 @@ export function Overview({
             </div>
           </div>
 
-          {/* Result mode keeps a TRIMMED brand presence: the big intro folds away
-              and this compact wordmark condenses in, so the header never eats the
-              vertical space the card needs beside the globe. */}
           {isResult && (
             <h2
               className={cx(
@@ -240,10 +183,6 @@ export function Overview({
             </h2>
           )}
 
-          {/* Omnibox — PERSISTENT across both states (kept in a stable position so
-              the input never remounts and its value survives the state flip). In
-              Result mode it sits pinned near the top: the next lookup needs no
-              scroll. */}
           <div className="sdh-enter sdh-enter-4 mt-5 flex w-full max-w-md flex-col gap-3">
             <input
               ref={inputRef}
@@ -259,18 +198,14 @@ export function Overview({
             />
           </div>
 
-          {/* Slot below the omnibox: the answer in Result mode, the TRY chips in
-              Idle. Keying the result on `active` re-runs the reveal for each new
-              indicator; within one indicator (checking → ok) the slot stays
-              mounted so the spinner swaps to the card without re-animating. */}
           {isResult ? (
             <div
-              key={active}
+              key={submitted}
               role="region"
-              aria-label="Lookup result"
+              aria-label="Cockpit result"
               className={cx('mt-6 w-full', REVEAL_CLS)}
             >
-              <LandingResult state={state} theme={theme} onFullView={openFullView} onCompare={onCompareArc} />
+              <ResultRegion cockpit={cockpit} theme={theme} onFullView={openFullView} onCompare={onCompareArc} />
             </div>
           ) : (
             <div className="sdh-enter sdh-enter-4 mt-4 flex w-full max-w-md flex-wrap items-center gap-2">
@@ -286,16 +221,11 @@ export function Overview({
           )}
         </div>
 
-        {/* globe visual — lazy (three.js chunk); nothing to render while it loads.
-            On desktop it bleeds off the right beside the card; below the desktop
-            width `.sdh-hero.is-result` demotes it to a faint corner backdrop so it
-            never overlaps the stacked card (see globe.css). */}
         <Suspense fallback={null}>
           <GlobeStage3 apiRef={apiRef} />
         </Suspense>
       </section>
 
-      {/* -------- situational board — unchanged, sits below the hero -------- */}
       <SituationalBoard />
     </div>
   )
