@@ -31,6 +31,14 @@ export const DEFAULT_VIEWS: CommandItem[] = [
     keywords: ['lookup', 'verdict', 'escalation', 'ip', 'domain', 'url', 'hash', 'cve'],
   },
   {
+    id: 'view:analyzer',
+    kind: 'view',
+    label: 'PowerShell analyzer',
+    hint: '/analyzer',
+    href: '/analyzer',
+    keywords: ['powershell', 'analyzer', 'decode', 'base64', 'encodedcommand', 'obfuscation', 'iocs'],
+  },
+  {
     id: 'view:desk',
     kind: 'view',
     label: 'Data desk',
