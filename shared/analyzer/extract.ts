@@ -19,6 +19,10 @@ export function extractIocs(layers: { index: number; text: string | null }[]): E
       if (!raw || seen.has(raw)) continue
       const type = detectType(raw)
       if (!type) continue
+      // .NET member-access tokens (Net.WebClient, IO.MemoryStream, wc.DownloadString)
+      // are mis-typed as domains by the shared detectType. They're PascalCase; real
+      // domains are conventionally lowercase and URL hosts arrive via the URL branch.
+      if (type === 'domain' && /[A-Z]/.test(raw)) continue
       seen.add(raw)
       out.push({ raw, defanged: defang(raw), type, layerIndex: layer.index })
     }
