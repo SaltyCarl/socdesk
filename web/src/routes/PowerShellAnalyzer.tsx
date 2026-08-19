@@ -1,8 +1,5 @@
 import { useState } from 'react'
-import { Chip } from '@socdesk/shared/ui'
-import { DecodeLadder } from '../components/analyzer/DecodeLadder'
-import { IocTable } from '../components/analyzer/IocTable'
-import { TechniqueTally } from '../components/analyzer/TechniqueTally'
+import { AnalyzerResult } from '../components/analyzer/AnalyzerResult'
 import { usePsAnalysis } from '../components/analyzer/usePsAnalysis'
 
 export function PowerShellAnalyzer() {
@@ -25,20 +22,7 @@ export function PowerShellAnalyzer() {
       />
       {state.kind === 'analyzing' && <p className="font-mono text-micro text-faint">Analyzing…</p>}
       {state.kind === 'error' && <p className="font-mono text-xs text-muted">Could not analyze: {state.message}</p>}
-      {state.kind === 'ok' && (
-        <div className="flex flex-col gap-4">
-          {state.result.flags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {state.result.flags.map((f) => (
-                <Chip key={f.flag} variant="neutral">{f.flag}</Chip>
-              ))}
-            </div>
-          )}
-          <TechniqueTally signals={state.result.signals} characterization={state.result.characterization} />
-          <DecodeLadder layers={state.result.layers} />
-          <IocTable iocs={state.result.iocs} />
-        </div>
-      )}
+      {state.kind === 'ok' && <AnalyzerResult result={state.result} />}
     </div>
   )
 }
