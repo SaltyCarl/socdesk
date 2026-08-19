@@ -1,0 +1,90 @@
+import type { MouseEvent } from 'react'
+import { EscalationCard, type CompareResult } from '@socdesk/shared/verdict-cards'
+import { lookupHash } from '../palette/commands'
+import { LookupStatus } from '../lookup/LookupStates'
+import type { EffectiveTheme } from '../lookup/useEffectiveTheme'
+import type { PsState } from '../analyzer/usePsAnalysis'
+import { AnalyzerResult } from '../analyzer/AnalyzerResult'
+import type { CockpitResult } from './useCockpitInput'
+
+const FULL_VIEW_CLS =
+  'inline-flex w-fit items-center gap-1 font-mono text-xs font-semibold text-accent underline-offset-2 outline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent'
+
+/** A light "Analyzing…" line for the command path — the same honest-status
+ *  register as LookupStatus's Checking, but for the (synchronous, near-
+ *  instant) analyzer. `idle` and `ok` are handled by the caller. */
+function PsStatus({ state }: { state: Extract<PsState, { kind: 'analyzing' } | { kind: 'error' }> }) {
+  if (state.kind === 'analyzing') {
+    return <p className="font-mono text-micro text-faint">Analyzing…</p>
+  }
+  return <p className="font-mono text-xs text-muted">Could not analyze: {state.message}</p>
+}
+
+/**
+ * The cockpit's mode-aware result slot (design spec §3.5) — replaces the old
+ * hard `LandingResult` switch. Dispatches on `cockpit.kind` FIRST, then on
+ * each hook's own state union:
+ *
+ *   indicator     -> EscalationCard (ok) | LookupStatus (checking/declined/
+ *                    unavailable/unsupported), unchanged from the old
+ *                    LandingResult, plus the "Full analyst view ->" deep link.
+ *   command       -> AnalyzerResult (ok) | PsStatus (analyzing/error).
+ *   unclassified  -> an honest one-line hint naming both accepted input kinds.
+ *
+ * The caller keys its wrapper on `key={cockpit.kind}` (Overview.tsx, Task 6)
+ * so a kind flip fully unmounts the previous subtree — this is what stops
+ * EscalationCard's CompareIp second-fetch from surviving a switch to the
+ * analyzer and firing against stale state (design spec §2.3, §7).
+ */
+export function ResultRegion({
+  cockpit,
+  theme,
+  onFullView,
+  onCompare,
+}: {
+  cockpit: CockpitResult
+  theme: EffectiveTheme
+  onFullView: (e: MouseEvent<HTMLAnchorElement>, q: string) => void
+  onCompare: (c: CompareResult | null) => void
+}) {
+  if (cockpit.kind === 'indicator') {
+    const { state } = cockpit
+    if (state.kind === 'idle') return null
+    const indicator = 'indicator' in state ? state.indicator : ''
+    return (
+      <div className="flex w-full max-w-md flex-col gap-3">
+        {state.kind === 'ok' ? (
+          <EscalationCard data={state.data} theme={theme} onCompare={onCompare} />
+        ) : (
+          <LookupStatus state={state} />
+        )}
+        {indicator && (
+          <a
+            href={`/lookup${lookupHash(indicator)}`}
+            onClick={(e) => onFullView(e, indicator)}
+            className={FULL_VIEW_CLS}
+          >
+            Full analyst view <span aria-hidden="true">→</span>
+          </a>
+        )}
+      </div>
+    )
+  }
+
+  if (cockpit.kind === 'command') {
+    const { state } = cockpit
+    if (state.kind === 'idle') return null
+    if (state.kind === 'ok') return <AnalyzerResult result={state.result} />
+    return <PsStatus state={state} />
+  }
+
+  // unclassified — an honest hint, never a fabricated result (reuses the
+  // unrecognised voice from LookupStates.tsx:119-127). Only ever mounted
+  // once something has been submitted — the caller gates on `isResult`.
+  return (
+    <p className="font-mono text-xs text-muted">
+      Not a recognised indicator or command — paste an IP, domain, hash, URL, CVE, or a PowerShell
+      command.
+    </p>
+  )
+}
