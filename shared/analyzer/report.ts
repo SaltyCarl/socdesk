@@ -123,12 +123,31 @@ const BASE_SPECIFICITY = new Map(RULES.map((r) => [r.id, r.baseSpecificity]))
  *  black-box stamp. Weak/strong-only patterns (which benign RMM/installer/GPO
  *  tooling shares) return null. */
 function deriveCharacterization(signals: Signal[]): Characterization | null {
+  // Tier 1 — high-confidence malicious: at least one INTRINSICALLY near-dispositive
+  // signal (no legitimate use), gated on the rule's BASE specificity.
   const nd = signals.filter((s) => NEAR_DISPOSITIVE_BASE.has(s.id))
-  if (!nd.length) return null
-  const read =
-    'High-confidence malicious behaviour: ' +
-    nd.map((s) => `${s.label} (no legitimate use)`).join(' + ')
-  return { level: 'high-confidence-malicious', basis: nd.map((s) => s.id), read }
+  if (nd.length) {
+    const read =
+      'High-confidence malicious behaviour: ' +
+      nd.map((s) => `${s.label} (no legitimate use)`).join(' + ')
+    return { level: 'high-confidence-malicious', basis: nd.map((s) => s.id), read }
+  }
+  // Tier 2 — suspicious: no intrinsically-near-dispositive signal, but a STRONG
+  // signal was corroborated up to near-dispositive by co-occurring companions
+  // (its effective specificity reached near-dispositive while its base did not).
+  // This is the beacon shape (evasion cluster + download cradle). Hedged, never
+  // "malicious" — the strong signals have real benign twins, so this says "review".
+  const corroborated = signals.filter(
+    (s) => s.specificity === 'near-dispositive' && !NEAR_DISPOSITIVE_BASE.has(s.id),
+  )
+  if (corroborated.length) {
+    const read =
+      'Suspicious — review: ' +
+      corroborated.map((s) => s.label).join(' + ') +
+      ' (elevated by co-occurring signals)'
+    return { level: 'suspicious', basis: corroborated.map((s) => s.id), read }
+  }
+  return null
 }
 
 // Return the literal string an IEX/&/.Invoke() executes, if it resolved to one.

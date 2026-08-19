@@ -45,7 +45,7 @@ export interface Signal {
 }
 
 export interface Characterization {
-  level: 'high-confidence-malicious'
+  level: 'high-confidence-malicious' | 'suspicious'
   basis: string[]
   read: string
 }

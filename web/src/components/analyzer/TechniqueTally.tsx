@@ -2,9 +2,29 @@ import type { Characterization, Signal } from '@socdesk/shared/analyzer'
 import { Chip, MicroLabel } from '@socdesk/shared/ui'
 
 /** The technique-signal tally — the analyzer's headline. Renders a count line
- *  (or the near-dispositive-gated characterization when present), then one
- *  periwinkle chip per signal, each citing the substring that fired it. No
- *  synthesized score; red/amber/green never appear here (reserved-colour law). */
+ *  (or the gated characterization when present), then one periwinkle chip per
+ *  signal — a tier-tagged fact, sorted strongest-first — each citing the
+ *  substring that fired it. Chips stay periwinkle facts; the gated
+ *  characterization callout is the analyzer's one *considered* severity read,
+ *  and it alone carries a verdict-severity hue: red for high-confidence
+ *  malicious, amber for suspicious. */
+
+const CALLOUT: Record<Characterization['level'], { box: string; eyebrowClass: string; label: string }> = {
+  'high-confidence-malicious': {
+    box: 'border-[var(--edge-red)] bg-[var(--tint-red)]',
+    eyebrowClass: 'text-verdict-red',
+    label: 'High-confidence malicious behaviour',
+  },
+  suspicious: {
+    box: 'border-[var(--edge-gold)] bg-[var(--tint-gold)]',
+    eyebrowClass: 'text-verdict-amber',
+    label: 'Suspicious — review',
+  },
+}
+
+const RANK: Record<Signal['specificity'], number> = { 'near-dispositive': 0, strong: 1, weak: 2 }
+const TIER_LABEL: Record<Signal['specificity'], string> = { 'near-dispositive': 'near-disp', strong: 'strong', weak: 'weak' }
+
 export function TechniqueTally({
   signals,
   characterization,
@@ -14,15 +34,16 @@ export function TechniqueTally({
 }) {
   if (!signals.length) return null
   const techniqueCount = new Set(signals.flatMap((s) => s.techniqueIds)).size
+  const sorted = [...signals].sort((a, b) => RANK[a.specificity] - RANK[b.specificity])
 
   return (
     <div className="flex flex-col gap-2">
       <MicroLabel tone="muted">Technique signals</MicroLabel>
 
       {characterization ? (
-        <div className="rounded-md border border-[var(--edge-accent)] bg-[var(--tint-accent)] p-3">
-          <span className="font-mono text-micro font-semibold uppercase tracking-label text-accent">
-            High-confidence malicious behaviour
+        <div className={`rounded-md border p-3 ${CALLOUT[characterization.level].box}`}>
+          <span className={`font-mono text-micro font-semibold uppercase tracking-label ${CALLOUT[characterization.level].eyebrowClass}`}>
+            {CALLOUT[characterization.level].label}
           </span>
           <p className="mt-1 text-xs font-semibold text-paper">{characterization.read}</p>
         </div>
@@ -34,8 +55,9 @@ export function TechniqueTally({
       )}
 
       <ul className="flex flex-col gap-1.5">
-        {signals.map((s) => (
+        {sorted.map((s) => (
           <li key={s.id} className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-micro text-faint">[{TIER_LABEL[s.specificity]}]</span>
             <Chip variant="technique">{s.label}</Chip>
             <span className="font-mono text-micro text-faint">{s.techniqueIds.join(' · ')}</span>
             {s.trigger && (
