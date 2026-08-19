@@ -25,7 +25,9 @@ export function bytesToText(bytes: Uint8Array): string {
 async function decompress(bytes: Uint8Array, format: 'gzip' | 'deflate-raw'): Promise<Uint8Array | null> {
   try {
     const ds = new DecompressionStream(format)
-    const stream = new Blob([bytes]).stream().pipeThrough(ds)
+    // TS's generic Uint8Array<ArrayBufferLike> isn't assignable to BlobPart
+    // (which wants ArrayBufferView<ArrayBuffer>) — cast; runtime behavior unchanged.
+    const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(ds)
     return new Uint8Array(await new Response(stream).arrayBuffer())
   } catch {
     return null

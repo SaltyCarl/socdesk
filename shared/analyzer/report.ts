@@ -43,7 +43,7 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   const iocs = extractIocs(scan)
 
   const state = layers.every((l) => l.state === 'fully-decoded') ? 'fully-decoded' : 'partial'
-  const copyText = composeCopyText(input, layers, iocs)
+  const copyText = composeCopyText(layers, iocs)
 
   return {
     input,
@@ -59,7 +59,7 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   }
 }
 
-function composeCopyText(input: string, layers: DecodedLayer[], iocs: AnalysisResult['iocs']): string {
+function composeCopyText(layers: DecodedLayer[], iocs: AnalysisResult['iocs']): string {
   const lines: string[] = ['PowerShell static analysis — STATIC analysis, script was NOT executed', '']
   if (layers.length) {
     lines.push('Decoded layers:')
