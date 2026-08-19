@@ -11,9 +11,21 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   // Layer 1: -enc Base64 → UTF-16LE.
   let current = script
   if (encoded) {
-    const text = decodeEnc(encoded)
-    layers.push({ index: layers.length, transform: 'Base64 → UTF-16LE', text, state: 'fully-decoded' })
-    current = text
+    if (looksBase64(encoded)) {
+      const text = decodeEnc(encoded)
+      layers.push({ index: layers.length, transform: 'Base64 → UTF-16LE', text, state: 'fully-decoded' })
+      current = text
+    } else {
+      // Malformed/truncated -EncodedCommand payload (e.g. length not a multiple
+      // of 4) — never let atob throw out of analyze(); surface it honestly.
+      layers.push({
+        index: layers.length,
+        transform: 'Base64 → UTF-16LE',
+        text: null,
+        state: 'opaque',
+        residual: { bytes: encoded.length, entropy: 0, note: 'malformed -EncodedCommand payload — could not Base64-decode' },
+      })
+    }
   }
 
   // Layer 2 (depth 1): an embedded Base64 blob that inflates (gzip/raw-DEFLATE cradle).

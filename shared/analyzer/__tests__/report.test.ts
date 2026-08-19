@@ -40,4 +40,12 @@ describe('analyze — end to end (depth 1)', () => {
     const strip = (r: Awaited<ReturnType<typeof analyze>>) => ({ ...r, checkedAt: '' })
     expect(strip(await analyze(`-enc ${ENC}`))).toEqual(strip(await analyze(`-enc ${ENC}`)))
   })
+
+  it('does not crash on a malformed -enc payload — surfaces it as opaque', async () => {
+    const r = await analyze('powershell -nop -enc AAAAAAAAA') // 9 chars — not a multiple of 4
+    expect(r.layers).toHaveLength(1)
+    expect(r.layers[0].state).toBe('opaque')
+    expect(r.layers[0].text).toBeNull()
+    expect(r.confidence.state).toBe('partial')
+  })
 })
