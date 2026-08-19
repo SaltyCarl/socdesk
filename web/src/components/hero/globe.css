@@ -18,6 +18,7 @@
   position: relative;
   overflow: visible;
   min-height: clamp(460px, 62vh, 680px);
+  transition: min-height 0.3s var(--ease-brand);
 }
 
 /* ---- ambient GROUND: a fixed, very faint periwinkle DOT-GRID — the matte
@@ -438,6 +439,7 @@
   .sdh-enter {
     animation: none;
   }
+  .sdh-hero,
   .sdh-stage,
   .sdh-tip {
     transition: none !important;
@@ -521,4 +523,39 @@
   .sdh-hero.is-result .sdh-wrap {
     top: min(50%, 44vh);
   }
+}
+
+/* ==========================================================================
+   GEOLESS RESULT (.sdh-hero.is-geoless) — the current result has no
+   geography to land on (a command result, an unclassified submission, or a
+   resolved indicator without geo — design spec §3.6, §3.8). Demote the globe
+   to the same faint, repositioned corner backdrop the narrow layout already
+   uses, but REGARDLESS of viewport width — a wide-desktop analyzer result
+   gets the demotion too, not just a stacked mobile card. Kept as its OWN
+   selector (not folded into `.is-result`, which stays "has a result" and
+   only drives the intro fold) so the two concerns never fight over the same
+   rule at the same breakpoint. Placed last in the file so it wins the
+   specificity tie against the `.is-result` desktop centring rule above.
+   ========================================================================== */
+.sdh-hero.is-geoless .sdh-wrap {
+  top: 8%;
+  right: -28%;
+  transform: none;
+  opacity: 0.16;
+  pointer-events: none;
+}
+.sdh-hero.is-geoless .sdh-hint,
+.sdh-hero.is-geoless .sdh-tip {
+  display: none;
+}
+
+/* Result mode may need to grow taller than the idle clamp's 680px ceiling —
+   the full-width analyzer stack (flag chips + technique tally + decode
+   ladder + IOC table) is open-ended in length. Relax the UPPER bound so a
+   tall result grows the hero smoothly instead of straining against a ceiling
+   sized for a compact escalation card; the 460px FLOOR is untouched, so an
+   idle or short (indicator) result still holds its intended minimum height
+   (design spec §3.9). */
+.sdh-hero.is-result {
+  min-height: max(460px, 62vh);
 }

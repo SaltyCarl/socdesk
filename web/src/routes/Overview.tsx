@@ -103,6 +103,15 @@ export function Overview({
     api?.flyBack()
   }, [cockpit.kind, cockpit.state])
 
+  // Loop cost: a geoless result stops the render loop instead of merely
+  // dimming it behind CSS — IntersectionObserver-based gating doesn't see a
+  // CSS opacity change, so without this the globe would keep burning GPU
+  // behind the .is-geoless dim (design spec §2.4, §3.8).
+  useEffect(() => {
+    if (resultIsGeoless) apiRef.current?.suspend()
+    else apiRef.current?.resume()
+  }, [resultIsGeoless])
+
   const submit = (value: string, kindOverride: 'indicator' | 'command' | null) => {
     const trimmed = value.trim()
     setSubmitted(trimmed)

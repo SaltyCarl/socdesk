@@ -296,6 +296,13 @@ export interface GlobeApi {
   drawArc(a: { lat: number; lng: number }, b: { lat: number; lng: number }): void
   /** Remove the compare arc + marker and resume the idle spin. */
   clearArc(): void
+  /** Stop the render loop without losing state — used when the current
+   *  cockpit result has no geography to show (design spec §3.8). Safe to
+   *  call repeatedly. */
+  suspend(): void
+  /** Restart the render loop, but only if the globe is still on-screen
+   *  (mirrors the IntersectionObserver gate the mount effect already uses). */
+  resume(): void
 }
 export interface UseGlobe3Result {
   rootRef: RefObject<HTMLElement | null>
@@ -326,12 +333,16 @@ export function useGlobe3(
     flyBack: () => {},
     drawArc: () => {},
     clearArc: () => {},
+    suspend: () => {},
+    resume: () => {},
   })
   const apiRefStable = useRef<GlobeApi>({
     flyToLatLng: (...a) => apiHolder.current.flyToLatLng(...a),
     flyBack: (...a) => apiHolder.current.flyBack(...a),
     drawArc: (...a) => apiHolder.current.drawArc(...a),
     clearArc: (...a) => apiHolder.current.clearArc(...a),
+    suspend: (...a) => apiHolder.current.suspend(...a),
+    resume: (...a) => apiHolder.current.resume(...a),
   })
 
   useEffect(() => {
@@ -851,6 +862,19 @@ export function useGlobe3(
       if (raf) cancelAnimationFrame(raf)
       raf = 0
     }
+    /** Suspend the loop entirely — a geoless cockpit result stops the globe
+     *  animating instead of merely dimming it behind CSS (design spec §3.8:
+     *  IntersectionObserver-based gating doesn't see a CSS opacity change, so
+     *  without this the loop keeps burning GPU behind the .is-geoless dim). */
+    function suspend(): void {
+      stopLoop()
+    }
+    /** Resume, but only if the globe is still on-screen — mirrors the
+     *  existing onVisibility gate below (`if (document.hidden) stopLoop();
+     *  else if (visible) startLoop()`). */
+    function resume(): void {
+      if (visible) startLoop()
+    }
 
     /* ---------- fly-to (ported spring physics) ---------- */
     function flyToTarget(tt: FlyTarget): void {
@@ -1034,7 +1058,7 @@ export function useGlobe3(
       }
     }
 
-    apiHolder.current = { flyToLatLng, flyBack, drawArc, clearArc }
+    apiHolder.current = { flyToLatLng, flyBack, drawArc, clearArc, suspend, resume }
 
     /* ---------- input ---------- */
     function ndcFromEvent(e: PointerEvent): void {
