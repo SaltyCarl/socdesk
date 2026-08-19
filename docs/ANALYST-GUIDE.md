@@ -24,9 +24,9 @@ Paste into the search box at the top and press Enter. Press `/` from anywhere
 to jump to it.
 
 The type is detected automatically and shown as a chip beside the box: IPv4,
-domain, URL, MD5, SHA-1, SHA-256, CVE, or email. Defanged input is understood —
-`evil[.]com`, `hxxp://`, `1.2.3[.]4`, `user[at]example.com` all refang
-themselves before the lookup runs.
+IPv6, domain, URL, MD5, SHA-1, SHA-256, CVE, or email. Defanged input is
+understood — `evil[.]com`, `hxxp://`, `1.2.3[.]4`, `user[at]example.com` all
+refang themselves before the lookup runs.
 
 You can also paste an actor or malware **name** — "volt typhoon", "Midnight
 Blizzard", "Mimikatz". Aliases resolve, so you do not need the canonical
@@ -61,6 +61,15 @@ nothing you look up is transmitted to this site's host, the same guarantee the
 toolbelt gives. And the bookmark records whichever address you installed it
 from, so if you install it now and the site later moves to its own domain, redo
 the drag once to follow it.
+
+## The browser extension
+
+If you install the SOCDesk extension, its toolbar popup now shows the **same
+full escalation card** the website does — the source tally, the class-tagged
+evidence, the mitigating-signal chips, Compare-IP, and the copy actions. It
+shares the same indicator detection and the same enrichment, so IPv6, the RDAP
+registration line, and the URL workflow all work there too. Select an indicator
+on any page and open the popup — same card, without the tab switch.
 
 ## What the verdict means — and what it does not
 
@@ -99,13 +108,26 @@ vulnerability today.
 KEV-listed. Reserved and very old identifiers land here. Check NVD directly —
 the pivot is right there.
 
-### 2. Any other indicator — a router verdict
+### 2. An IP, domain, URL or hash — a live multi-source read
 
-IPs, domains, URLs, hashes and email addresses always return **NOT IN CORPUS**
-with the same explanation: this tool holds no reputation corpus for that type,
-by design, because those corpora are not licensed for redistribution. What you
-get instead is the correct set of pivots for that type, chosen so you are not
-guessing which service is worth checking:
+Paste one of these and the tool queries a set of public reputation services for
+that single indicator and returns the **escalation card**. It never pronounces a
+verdict in its own voice — it reports a **consensus tally** ("*N of M public
+sources flagged this as adverse*"), with each source **named, class-tagged, and
+dated**, any mitigating signals shown as **chips** (a Tor exit, a dual-use or
+hosting range), and the geolocation as labelled context. The card is a clean,
+factual artifact: **you** add the interpretation, the recommendation, and any
+caveat in your own words in the escalation email it travels inside. "Absence is
+not clearance" still holds — *0 of M flagged* means "no adverse findings", never
+"safe".
+
+Its two copy-out buttons are **Copy card** (a PNG for the email) and **Copy
+text**; neither carries SOCDesk branding, and neither carries a disclaimer
+sentence — the honesty is in the structure (named sources, class tags, dates,
+the chips).
+
+Beneath the card is the correct set of one-click **pivots** for that type,
+chosen so you are not guessing which service to open:
 
 - **IPv4** — VirusTotal, AbuseIPDB, GreyNoise, Shodan, Censys, Spamhaus, urlscan
 - **Domain** — VirusTotal, urlscan, Pulsedive, IBM X-Force, Censys
@@ -113,17 +135,47 @@ guessing which service is worth checking:
   sandboxes marked with a warning glyph
 - **Hash** — VirusTotal, MalwareBazaar, MetaDefender, Hybrid Analysis, Tria.ge,
   ANY.RUN
-- **Email** — Have I Been Pwned and Hudson Rock only; file and URL reputation
-  services are deliberately omitted because they answer nothing about an address
+- **Email** — Have I Been Pwned and Hudson Rock only; there is no reputation card
+  for an email, and the file and URL services are deliberately omitted because
+  they answer nothing about an address
 
-Two things about the sandbox links. They are marked with a warning glyph
-because **submitting a URL detonates it**, which is a much bigger disclosure
-than reading a scan someone else already ran. For URLs the list deliberately
-leads with urlscan *search* — check for an existing public scan before you
-create a new one.
+**IPv6** is detected and enriched the same way an IPv4 is (AbuseIPDB,
+VirusTotal, ipinfo; GreyNoise is IPv4-only, so it sits out). Private and reserved
+v6 addresses — loopback, unique-local, link-local, multicast — are rejected
+rather than looked up.
 
-Nothing is ever fetched on your behalf. The tool cannot contact any of these
-services; it only builds the link. One click goes to one service.
+**Domains** also show a **registration** line — when the domain was registered,
+by which registrar, and when it expires (from RDAP). A brand-new registration is
+worth noticing.
+
+**URLs and domains** show the **screenshot** from urlscan's most recent existing
+scan, when there is one; click it to enlarge. Two things about the URL controls.
+The sandbox links carry a warning glyph because **submitting a URL detonates
+it** — a much bigger disclosure than reading a scan someone else already ran —
+so the list leads with urlscan *search*, checking for an existing public scan
+first. And a **Browserling** button opens the URL inside a disposable remote
+browser, so you can look at a hostile page without it touching your machine.
+SOCDesk itself only ever reads existing urlscan scans; it never submits one.
+
+The pivots are one-click links — the tool does not fan out to them for you, and
+one click goes to exactly one service. The escalation card above them is the one
+thing the tool fetches, and only for the single indicator you pasted.
+
+### Comparing two IPs — impossible travel
+
+After an IP lookup, a collapsed **"Compare to a previous IP"** panel lets you
+paste a second IP and, optionally, the number of minutes between two sign-ins.
+It returns the **great-circle distance** in miles and, if you gave it minutes,
+the **implied speed** in mph with an honest plausibility read: *plausible*
+(≤ 600 mph, ordinary travel), *implausible*, or *impossible* (> 2,200 mph,
+faster than any crewed aircraft). It draws both points and the arc between them
+on the map and gives you a one-line result to copy.
+
+It runs only when **both** IPs resolved to real city-level coordinates — a
+country-centroid guess would make the distance meaningless, so the panel refuses
+rather than invent a number. And it never calls anything "compromised":
+impossible travel is a strong prompt to investigate the account, not a verdict
+on its own.
 
 ### 3. A name — an ATT&CK profile
 
@@ -297,14 +349,19 @@ that has been down for a few hours, not a bug.
 
 ## Privacy
 
-There is no backend, no account, and no analytics. Your lookups, reviewed
-marks, notable flags, watchlist and history live in your browser's local
-storage and are never transmitted — the page's security policy blocks outbound
-requests to anywhere but its own origin, so this is a property of the
-architecture rather than a promise.
+There is no account and no analytics. Your reviewed marks, notable flags,
+watchlist and history live in your browser's local storage and are never
+transmitted — the page's security policy blocks the page itself from making
+outbound requests to anywhere but its own origin.
 
-The exception, and it matters: **clicking a pivot link discloses that indicator
-to that service.** That is the one moment information leaves.
+Two moments do send data, and both matter. **Looking up an indicator** sends
+that one indicator to SOCDesk's own same-origin enrichment function, which
+queries the public reputation services on your behalf and returns the card —
+nothing is stored, but the indicator does leave your browser. And **clicking a
+pivot link** discloses that indicator to the third-party service you clicked.
+This is exactly why the rule at the top of this guide is *use public indicators
+only* — do not paste an indicator from a live client incident into a public
+tool.
 
 **Clear analyst state** wipes everything this browser holds and reloads. Use it
 on a shared workstation, and use it before handing the screen to anyone.
@@ -318,12 +375,16 @@ is worse than no escalation.
    generates no telemetry, runs no sensors, and detects nothing. Its value is
    that it gets you to the right public sources fast and writes up what they
    said.
-2. **NOT IN CORPUS is not a clean verdict.** For everything except CVEs it is
-   the *only* possible answer, and it carries no information about the
-   indicator at all.
-3. **It is a snapshot, not a live query.** Data is up to 30 minutes old at
-   best. If a source retracts something, a static snapshot will not know until
-   the next pull.
+2. **A tally is not a clearance, and it is not SOCDesk's own verdict.** The
+   escalation card counts what independent public sources reported — *N of M
+   flagged* — it confirms nothing itself, and *0 of M* means "no adverse
+   findings", never "safe". For an email, or when nothing is on record, you get
+   an honest empty that carries no information about the indicator at all.
+3. **The feed and vulnerability data are a snapshot, not a live query.** They
+   are up to 30 minutes old at best, and a retraction upstream will not show
+   until the next pull. (Indicator *enrichment*, by contrast, is a live
+   per-lookup query — but it is still only as current as each source's own
+   data.)
 4. **KEV and EPSS mean specific things.** "Known exploited" and "probability of
    exploitation" are not "malicious". Do not translate a vulnerability verdict
    into a statement about a file or a host.

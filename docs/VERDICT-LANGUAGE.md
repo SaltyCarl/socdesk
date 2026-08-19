@@ -5,6 +5,18 @@ uniformly to the **browser-extension popup**, the **website enrichment card**,
 and the copy-paste **escalation card**. Authored 2026-08-10; revised to the
 consensus-tally model (owner decision).
 
+> **Revised 2026-08-18 — DE-WORDIFY.** The escalation card and its copy-out are
+> now a **clean, factual artifact** the analyst annotates in the escalation
+> email. The client-safe **CAVEAT** sentence and the prose **"Note:"** lines
+> (dual-use, grayware) are **no longer rendered** on the card, the PNG, or the
+> copy-text. Honesty is carried by **structure** — attribution + source-class
+> tags + the coverage tally + honest empties + geo-as-context — **not by
+> disclaimer prose.** The mitigating signals became **chips.** The analyst owns
+> the nuance in the email. Everything else in this doc — the consensus tally, the
+> per-source attribution model, no synthesized score, coverage-not-verdict —
+> **still holds unchanged.** Only §4 (the escalation card) and the caveat
+> guidance in §6 change; see the marked revisions below.
+
 ## 0. Governing principle
 
 SOCDesk is a triage aid whose output is used to *escalate for verification* and
@@ -78,38 +90,55 @@ attribution (`reports`, `flags`, `classifies`, `rates`, `scores`). A
 benign/RIOT/known-good finding is surfaced with equal prominence and never
 buried (`GreyNoise — classifies as benign (RIOT: common business service)`).
 
-## 4. Escalation card (ratio-led)
+## 4. Escalation card (ratio-led) — ⚠️ DE-WORDIFIED 2026-08-18
 
-Copy-paste block; reads as an analyst's assessment built on a tally, never an
-assertion.
+A **clean, factual artifact.** It reads as a tally + attributed evidence, never
+an assertion, and it carries **no disclaimer prose.** The honesty lives in the
+**structure** — every claim is named, class-tagged, and dated; the coverage
+tally is a count, never a synthesized score; empties are stated plainly; geo is
+labelled context; mitigating signals are **chips.** The analyst adds the nuance,
+the recommendation, and any caveat in their own words in the escalation email
+the card travels inside.
 
 ```
 INDICATOR: <value>  (<type>)
 ASSESSMENT: <N> of <M> public reputation sources flagged this as adverse.
-  <optional one-line factual synthesis, e.g. "Strongest signal: MalwareBazaar
-  catalogs 3 known samples (Cobalt Strike). Note: tagged Tor exit — dual-use.">
+  <optional one-line factual, attributed synthesis, e.g. "Strongest signal:
+  MalwareBazaar catalogs 3 known samples (Cobalt Strike).">
 
-EVIDENCE (third-party reputation data — attributed, not independently verified):
-  • <Source> — <raw finding as fact, with counts/ratios/dates>
+EVIDENCE — each source named, class-tagged, and dated:
+  • <Source>  [<class>]  — <raw finding as fact, with counts/ratios> · as of <DATE>
   • ...
+  (class ∈ catalog/identity · authoritative · behavioral/observed ·
+   reputation-score · list-membership · unclassified)
+
+SIGNALS: <chip>  <chip>            (e.g. Tor exit · dual-use · hosting/datacenter)
 
 CONTEXT (not a verdict):
-  • ipinfo — <ASN / geo>
-  • <mitigating/dual-use note, e.g. Tor exit, RIOT known-good>
-  • Not consulted: <sources w/o data or key>
+  • Geolocation — <city, country · ASN (org)>
+  • Registration — Registered <DATE> · <registrar>            (RDAP, context)
+  • Not consulted: <sources w/o data or key>                  (honest coverage)
 
-CAVEAT: Reflects third-party reputation gathered at the time shown; it may be
-  incomplete or out of date and has not been independently confirmed.
 — Generated <timestamp / tz>. Sources queried <time>.
 ```
+
+**Removed in the de-wordify (do not reintroduce):** the trailing **CAVEAT**
+sentence ("Reflects third-party reputation … not independently confirmed") and
+the inline prose **"Note:"** lines (dual-use, grayware). Both were disclaimer
+prose; the same honesty is now carried structurally by the class tags, the "as
+of DATE" recency, the honest "not consulted" line, and the SIGNALS chips. This
+applies identically to the card on screen, the **"Copy card"** PNG, and the
+**"Copy text"** block.
 
 **No recommendation in the copy-out card.** What to *do* about an indicator
 (escalate / block / monitor) is the analyst's judgment and belongs in *their*
 words in the ticket — SOCDesk must not put a recommended action into an artifact
 that travels into a ticket under the analyst's name. The copy-out block reports
-the tally, attributed evidence, context, and caveat only. Optional "things to
-check" guidance MAY appear elsewhere *on the page* (for the analyst's eyes,
-never inside the copy-out block). The copy button is labelled simply **`COPY`**.
+the tally, attributed evidence, and context only — no recommendation and, since
+the de-wordify, no caveat sentence. Optional "things to check" guidance MAY
+appear elsewhere *on the page* (for the analyst's eyes, never inside the copy-out
+block). The copy buttons are labelled by their **target** — **`Copy card`** (the
+PNG) and **`Copy text`** — never by a verdict or an action.
 
 **The copied artifact carries no SOCDesk branding.** The name and mark appear
 only on-screen; both copy-outs — the plain-text block and the image "Copy card" —
@@ -120,22 +149,23 @@ ever forwarded standalone it would be unattributed — acceptable only because i
 never sent bare.) **Source names are retained** — attribution is the model: each
 source is named with a verify link. Resolve any commercial-ToS / redistribution
 constraints per source (see the source-license review); prefer name-plus-link over
-reproducing large amounts of a source's proprietary data. **A dual-use / mitigating
-qualifier** (e.g. a Tor exit node) is surfaced directly beneath the tally, never
-buried in context, so "N of M flagged" is never misread as N independent
-confirmations. **Geolocation stays prominent** in the image artifact (still
-labelled *context — not a verdict*); case-specific interpretation is the analyst's,
-added in the email. Client-facing wording glosses analyst jargon (spell out the
-ASN's org; expand IOC / C2). The plain-text block always travels alongside the
-image (deliverability, copyability, accessibility).
+reproducing large amounts of a source's proprietary data. **Dual-use / mitigating
+signals** (e.g. a Tor exit node) render as **chips**, not prose, kept prominent so
+"N of M flagged" is never misread as N independent confirmations. **Geolocation
+stays prominent** in the image artifact (still labelled *context — not a verdict*);
+case-specific interpretation is the analyst's, added in the email. Client-facing
+wording glosses analyst jargon (spell out the ASN's org; expand IOC / C2). The
+plain-text block always travels alongside the image (deliverability, copyability,
+accessibility).
 
 **Worked example — `185.220.101.42`:**
 `ASSESSMENT: 5 of 6 public reputation sources flagged 185.220.101.42 as adverse.
-Strongest signal: MalwareBazaar catalogs 3 known samples (Cobalt Strike). Note:
-GreyNoise tags this a Tor exit node — elevated abuse reporting can reflect
-dual-use traffic.` No SOCDesk-voice verdict and no prescribed action — a count +
-attributed evidence + dual-use context + the verify caveat. Reads urgent,
-survives a client reading it, and leaves the decision to the analyst.
+Strongest signal: MalwareBazaar catalogs 3 known samples (Cobalt Strike).` with a
+**`Tor exit`** chip under the tally and the geo/ASN as labelled context. No
+SOCDesk-voice verdict, no prescribed action, and no caveat sentence — a count +
+attributed, class-tagged, dated evidence + the dual-use chip. Reads urgent,
+survives a client reading it, and leaves the decision — and the nuance — to the
+analyst in the email.
 
 ## 5. CVE language (unchanged — authoritative, not a tally)
 
@@ -158,8 +188,11 @@ into SOCDesk's voice.
 
 **Do:** lead with the tally ("N of M sources flagged…") · attribute every source
 finding · "CISA confirms… / MalwareBazaar catalogs…" (authorities) · "no adverse
-findings — **not a clearance**" · "based on third-party data / may be stale /
-not independently verified" · "recommend verifying / escalating / monitoring."
+findings — **not a clearance**" · convey "third-party / may be stale / not
+independently verified" **structurally** — via the source-class tags and the "as
+of DATE" recency, **not** a caveat sentence on the card (de-wordify, §4) · leave
+"recommend verifying / escalating / monitoring" to the analyst's own words in the
+escalation email, never inside the copy-out artifact.
 
 **Litmus test:** *Could a client hold us to this as a statement of fact?* The
 tally always survives it (it's a count); anything else must be attributed.
@@ -179,11 +212,12 @@ Keep per-source `verdict` (drives "flagged"); drop the top-level single-word
 `verdict` (replaced by the tally). Context rows (`kind:"context"`) and `errors`
 are excluded from `consulted`/`flagged`.
 
-**Site** (`site/js/enrich-client.js`, `verdict.js`, `evidence.js`) — render the
-`N / M` gauge + headline (§2), the attributed breakdown (§3), and the ratio-led
-escalation card (§4).
+**Web app + extension** (`shared/verdict-cards/` — `EscalationCard`, `heroes`,
+`CompareIp`, `copy`; `shared/card/` — `drawVerdict`, `travel`) — render the
+`N / M` headline (§2), the attributed, class-tagged breakdown (§3), and the
+de-wordified escalation card (§4). The `web/` React app and the `extension/`
+popup import the **same** shared components, so the card is byte-identical across
+both. (The legacy `site/js` renderer is superseded.)
 
-**Extension** (`extension/popup.js`) — the same tally + escalation card.
-
-All three surfaces render from the same contract; the `N / M` headline is
-identical everywhere.
+All surfaces render from the same contract; the `N / M` headline is identical
+everywhere.

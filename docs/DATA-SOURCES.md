@@ -193,6 +193,39 @@ table, and both are load-bearing:
 
 ---
 
+## Queried live by the enrichment function — never stored
+
+The lookup cockpit calls a single **same-origin** Cloudflare Pages Function,
+`/api/enrich` (`lib/enrich.mjs`), which queries public reputation services
+server-side for the one indicator the analyst pasted and returns the
+consensus-tally escalation card (see
+[VERDICT-LANGUAGE.md](VERDICT-LANGUAGE.md)). The browser only ever calls its own
+origin — `connect-src 'self'` still holds — and **nothing fetched here is
+mirrored, cached to the repo, or published as a payload;** every response is
+per-request. The reputation sources' redistribution posture is unchanged (there
+is still no `iocs.json`); their terms are the same ones tracked in
+[COMPLIANCE.md](../COMPLIANCE.md) and the source-license review. Two behaviours
+are worth recording here:
+
+- **IPv6 is supported for the IP sources.** AbuseIPDB, VirusTotal and ipinfo are
+  queried for both IPv4 and IPv6; **GreyNoise is IPv4-only** (its community API
+  returns 400 on a v6 address). Private/reserved v6 (`::1`, `fc00::/7`,
+  `fe80::/10`, `ff00::/8`) is rejected before any lookup.
+- **urlscan uses `page.domain:` for domains** — a scan *of* the domain, not any
+  scan that merely contacted it — and surfaces the **existing scan's** verdict and
+  screenshot. SOCDesk reads existing scans only; it **never submits** to urlscan.
+
+### RDAP (domain registration)
+
+| | |
+|---|---|
+| Provides | Registration data for a domain — Registered / Registrar / Expires / Last-changed — via the Registration Data Access Protocol |
+| Endpoint | `rdap.org` (`lib/enrich.mjs`), which bootstraps to the authoritative registry RDAP server. **Keyless**, but requires a `User-Agent` (rdap.org 403s a request that sends none) |
+| Terms | Public registry protocol; no key, no ToS gate. Queried per-request, never stored |
+| Role | **Context, not a verdict** (`kind:"context"`) — it populates the domain card's registration-age hero and is **excluded from the N-of-M tally.** A 404 means "no record / not registered", a finding rather than an outage |
+
+---
+
 ## Reviewed and rejected
 
 **knock-knock.net** (assessed 2026-08-06, detail in [BACKLOG.md](../BACKLOG.md)).

@@ -19,37 +19,47 @@ The loop, mapped to what exists:
 | Get reputation | `/api/enrich` Pages Function → AbuseIPDB + VT + GreyNoise + **ipinfo geo/ASN** (IP), VT + MalwareBazaar (hash), VT + **urlscan verdict** (URL/domain) | **Live** — socdesk.io, keys set 2026-08-18; multi-source verified in prod |
 | Screenshot for the email | Evidence card rendered to canvas → copy as PNG | Shipped |
 | Paste into email | Copy image / markdown / text / .md download | Shipped |
-| URL safe-view | urlscan existing-scan verdict+screenshot (in `/api/enrich`) + Browserling live-view pivot | Verdict shipped; screenshot preview + Browserling pivot = **active build (P1.2/1.3)** |
+| URL safe-view | urlscan existing-scan verdict+screenshot (in `/api/enrich`) + Browserling live-view pivot | **Shipped** — on-card screenshot preview + click-to-expand lightbox + Browserling pivot (2026-08-18) |
 
 ## P0 — DONE ✅ (2026-08-18)
 Cloudflare Pages (`socdesk` project, socdesk.io) is live; enrichment keys set in
 the **Production** scope; `/api/enrich` returns multi-source in prod (verified:
 AbuseIPDB + VirusTotal + GreyNoise + ipinfo on a live IP). Also shipped since:
-the AAA modern-stack rebuild, the lookup **cockpit** (escalation card docked
+the AAA modern-stack rebuild (the `web/` React app, now the deploy target,
+superseding the vanilla `site/`), the lookup **cockpit** (escalation card docked
 beside the globe), and the live escalation-card loop (IOC in → OSINT out, with
-the globe landing the pin). Remaining gap: the **Preview** env scope still lacks
-enrich keys (Production-only) — see Polish & ops below.
+the globe landing the pin). Shipped 2026-08-18 on top of that: **IPv6** lookups;
+the **URL** screenshot preview + lightbox + **Browserling** safe-view; keyless
+**RDAP** domain-registration; **Compare-IP / impossible-travel**; the browser
+**extension full-card parity** (manifest v0.2.0); the **favicon** (SD monogram);
+and the **de-wordify** doctrine change (the card + copy-out are now a clean,
+factual artifact — see `docs/VERDICT-LANGUAGE.md`). Remaining gap: the
+**Preview** env scope still lacks enrich keys (Production-only) — see Polish &
+ops below.
 
 ## P1 — hammer the loop (after P0, before anything else)
 1. Live dogfood: 2-3 analysts run real alerts through it for a shift; fix
    what they trip on. The acceptance test: indicator → verdict → email
    evidence faster than the bookmark-folder workflow.
-2. **urlscan screenshot preview rendered on-page** (the `screenshot` URL is
-   already returned by the enrich function, urlscan-origin-guarded). Two real
-   wrinkles to handle deliberately, not bolt on: (a) CSP is `default-src
-   'none'` — showing the image needs `img-src https://urlscan.io` added to
-   BOTH `_headers` and the `<meta>` copy (csp.spec.js enforces they match);
-   (b) the evidence-card canvas is copied to clipboard as PNG — drawing a
-   cross-origin urlscan image onto it taints the canvas and breaks the copy
-   unless urlscan sends CORS headers (verify; if not, show the preview as a
-   plain `<img>` beside the card, not composited into it).
-3. Verify the Browserling deep-link format against their current URL scheme
-   at first live use.
+2. ✅ **SHIPPED (2026-08-18) — urlscan screenshot preview rendered on-page**,
+   with a click-to-expand lightbox; CSP `img-src https://urlscan.io` added to
+   both `_headers` and the `<meta>` copy. Wrinkle (b) confirmed real: the
+   cross-origin urlscan image taints the evidence-card canvas, so the screenshot
+   shows as a plain `<img>` beside the card and is **not** yet composited into
+   the **Copy card** PNG. Fixing that is the pending same-origin **`/api/shot`**
+   proxy (see Polish & ops).
+3. ✅ **SHIPPED (2026-08-18) — Browserling safe-view pivot** (opens the URL in a
+   disposable remote browser). Deep-link scheme verified live:
+   `browserling.com/browse/win10/chrome/<url>` (a bare domain gets an `https://`
+   scheme first).
 4. **Analyst reach** (the Recorded Future extension question) — scoped in
    `docs/superpowers/specs/2026-08-10-analyst-reach-scope.md`: R1 bookmarklet
    selection-capture (small, do first), R2 right-click menu (ships with R3),
-   R3 MV3 extension (only on real team demand + IT approval). All gated on
-   enrichment being live.
+   R3 MV3 extension (only on real team demand + IT approval). ✅ **R3 SHIPPED
+   to full-card parity (manifest v0.2.0)** — the toolbar popup renders the same
+   `EscalationCard` as the web app (heroes, chips, Compare-IP, copy actions),
+   sharing indicator detection + the enrich pipeline, so IPv6 / RDAP / URL all
+   flow through. Chrome Web Store upload (Unlisted) remains an owner action.
 5. **Reputation-quality fixes** (from the 2026-08-18 UX + SOC review — sharpen the
    "get reputation" output the analyst actually reads): drop MalwareBazaar from IP
    cards (it's hash-only and currently mis-leads the lead fact); add AbuseIPDB
@@ -59,6 +69,13 @@ enrich keys (Production-only) — see Polish & ops below.
    attribution, the dual-use Tor chip, AA contrast.)*
 
 ## Polish & ops (opportunistic, non-blocking)
+- **Compare-IP globe arc** — the great-circle arc on the 3D globe (the shared-card
+  SVG arc + the copy-card PNG arc are in; the globe-arc render is **landing now**).
+- **Same-origin `/api/shot` proxy** — so the copied **Copy card** PNG can include
+  the urlscan screenshot (cross-origin urlscan images taint the copy canvas today
+  — the residual from P1.2).
+- **Per-source metric / icon visual** — a small per-source metric or icon on each
+  evidence line (visual pass, not yet built).
 - Cockpit P2s: exit-anim symmetry (idle↔result), mobile compact-wordmark.
 - Deploy hygiene: `git pull --rebase origin main` before every push (cron diverges
   origin, so a plain push silently no-ops); fix the PS-5.1 `.ps1` false-success
@@ -72,8 +89,9 @@ built, needs dogfood-driven sharpening rather than new construction). Review
 adds: CVE patch/fixed-version + an "overdue" chip when action-due < today; wire
 `NVD_API_KEY` into `collectors/nvd.py`. Adjacent enrich/globe candidates: OTX
 AlienVault as an enrich source; AbuseIPDB blacklist → ambient reported-IP globe
-layer; impossible-travel tool (two IPs → great-circle distance/velocity → verdict,
-reusing the dropped globe-arc geometry).
+layer. *(The impossible-travel tool — two IPs → great-circle distance/velocity →
+plausibility read — **shipped 2026-08-18 as Compare-IP**; the globe-arc render is
+landing now, see Polish & ops.)*
 
 ## Expansion lane — analyst-utility workflow (owner-directed 2026-08-11)
 

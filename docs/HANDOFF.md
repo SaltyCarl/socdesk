@@ -1,18 +1,105 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-12 (session 3 — logo RESOLVED + segmented) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-18 (session 4 — AAA app LIVE at socdesk.io + de-wordify + IPv6/URL/RDAP/Compare-IP + extension parity) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-12 (session 3 — logo RESOLVED + segmented)
+## 0. LATEST — 2026-08-18 (session 4 — the modern-stack app is LIVE)
 
-> Newest block. It **supersedes the session-2 logo section** below (§0-PRIOR
-> "LOGO — UNRESOLVED"): the logo is now **decided and locked.** Everything else
-> in §0-PRIOR — verdict graphic, palette, the working-tree guard — still stands.
+> Newest block. It **supersedes §0-RECENT (session 3) and everything below it**
+> for anything about *what is live and shipped.* The historical design/logo
+> record below stays for context; where it conflicts with this block on shipped
+> state, **this block wins.** Palette + the SD-monogram logo decision are
+> unchanged — no re-skin.
 
-**Read this first.** The logo saga is over. The next session is a set of
-**segmented, mostly-independent tasks** (only #4 is a sequence). **Palette is
-unchanged — no re-skin.**
+**Read this first. SOCDesk is live and the loop works end to end.**
+
+### The AAA modern-stack app is LIVE at socdesk.io ✅
+- The production site is now the **`web/` app** — **Vite + React + Tailwind v4 +
+  Motion**, under the **strict CSP** — deployed to socdesk.io. The **legacy
+  `site/` vanilla app is SUPERSEDED** (kept in-repo for history; no longer the
+  deploy target).
+- The landing is a lookup **"cockpit":** typing an indicator **folds the
+  marketing intro, pins the omnibox, and docks the escalation card beside a 3D
+  globe** (the globe lands the geo pin). IOC in → OSINT out, in one screen.
+- **Favicon = the SD monogram** (periwinkle `#7C8AFF`), cut from the approved
+  master. The logo saga (§0-RECENT / §0-PRIOR) is closed.
+
+### The escalation card — honest by STRUCTURE
+- **Source-class labels** on every source: `catalog/identity`, `authoritative`,
+  `behavioral/observed`, `reputation-score`, `list-membership`, and an
+  `unclassified` fallback. The **evidence ledger** stacks the source name over
+  its class chip with **per-source recency** ("as of DATE"). **EPSS is
+  attributed to FIRST.org** on CVE cards.
+- **Signals are CHIPS, not prose:** dual-use / Tor, grayware, and
+  hosting/datacenter render as chips.
+
+### ⚠️ DE-WORDIFY (2026-08-18) — a doctrine change (see `docs/VERDICT-LANGUAGE.md`)
+The escalation card **and its copy-out** (the **"Copy card"** PNG + **"Copy
+text"**) are now a **CLEAN, FACTUAL artifact** the analyst annotates in the
+email body. **Removed** from the card, the PNG, and the copy-text: the
+disclaimer **CAVEAT** ("Reflects third-party reputation … not independently
+confirmed") and the prose **"Note:"** lines (dual-use, grayware). **Honesty is
+now STRUCTURE**, not disclaimer prose — every claim attributed to a named source
++ class, the coverage tally (never a synthesized score), honest empties ("not a
+clearance"), geo-as-context. The signals became chips. **The analyst owns the
+nuance in the escalation email.** `docs/VERDICT-LANGUAGE.md` §4 is the binding
+copy.
+
+### Shipped this session — the loop's reach
+- **IPv6 lookups** — detected + enriched (**AbuseIPDB + VirusTotal + ipinfo**;
+  **GreyNoise stays IPv4-only** — its community API 400s on v6). Private/reserved
+  v6 (`::1`, `fc00::/7`, `fe80::/10`, `ff00::/8`) is rejected.
+- **URL workflow** — the urlscan **existing-scan screenshot** renders on-card
+  (CSP allows `https://urlscan.io` images) with a **click-to-expand lightbox**,
+  plus a **Browserling** safe-view pivot (opens the URL in a disposable remote
+  browser). **Existing-scans only — SOCDesk never submits to urlscan.**
+- **Domain** — the registration-age hero is populated by a new **keyless RDAP**
+  source (`rdap.org`, requires a User-Agent; `kind:"context"` so it is excluded
+  from the tally) carrying **Registered / Registrar / Expires**. The urlscan
+  domain search uses **`page.domain:`** (a scan *of* the domain, not any scan
+  that merely contacted it); domains also show the scanned-page screenshot.
+- **Compare-IP / impossible-travel** — after an IP lookup, a collapsed **"Compare
+  to a previous IP"** panel takes a second IP + optional minutes → **great-circle
+  distance in miles + implied speed in mph** with an honest plausibility read
+  (**plausible ≤600 mph / implausible / impossible >2200 mph**) + a copyable
+  one-liner. Computed **only from real coordinates** (both IPs `precise`), never
+  country centroids; an amber caution chip, **never a red "compromised" verdict.**
+  Shows **distance, velocity, and a map arc** (the arc + second pin also draw in
+  the copy-card PNG).
+- **Browser extension → full-card parity (manifest `v0.2.0`)** — the toolbar
+  popup now renders the shared `EscalationCard` (heroes, chips, Compare-IP, copy
+  actions), the **same card the web app shows.** It already shares indicator
+  detection + the enrich pipeline, so IPv6 / RDAP / URL all flow through.
+
+### Deploy — the rebase guard
+- CI (`collect-and-deploy.yml`) **builds `web/dist` and direct-uploads to
+  Cloudflare Pages.** The cron commits **"data: refresh snapshots"** constantly,
+  so a plain `git push` is **non-fast-forward** — **always
+  `git pull --rebase origin main` before pushing.**
+
+### Next / pending
+- **Compare-IP globe arc** — the great-circle arc on the 3D globe is **landing
+  now** (the shared-card SVG arc + PNG arc are in).
+- **Per-source metric / icon visual** — a small per-source metric or icon on each
+  evidence line (visual pass, not yet built).
+- **Same-origin `/api/shot` proxy** — so the copied PNG can include the urlscan
+  screenshot (cross-origin urlscan images currently taint the copy canvas; a
+  same-origin proxy fixes it). Not built.
+
+---
+
+## 0-RECENT. 2026-08-12 (session 3 — logo RESOLVED + segmented)
+
+> Second-newest block. **Superseded by §0 for shipped state** (the segmented
+> next-session tasks below — wire the logo, ship the rebuild — have since landed
+> in the `web/` app). Kept for the logo/palette decision record, which still
+> holds. Everything in §0-PRIOR — verdict graphic, palette, the working-tree
+> guard — still stands as history.
+
+**The logo saga is over.** The next session was a set of **segmented,
+mostly-independent tasks** (only #4 is a sequence). **Palette is unchanged — no
+re-skin.**
 
 ### LOGO — RESOLVED (locked) ✅
 - **Primary mark = "SD Monogram" (brand-sheet Option 1)** — interlocking S/D
@@ -336,7 +423,8 @@ lookup loop is in production.
 **Repo:** https://github.com/SaltyCarl/socdesk
 **Local path:** `C:\Users\Carl\Desktop\Projects\VIGIL\` ⚠️ *folder is still named
 VIGIL; the product was renamed to SOCDesk on 2026-08-08. Do not be confused.*
-**Domain:** `socdesk.io` registered (Cloudflare), **DNS not yet pointed** — see §8.
+**Domain:** `socdesk.io` — **live** (Cloudflare Pages, custom domain attached,
+serving the `web/` app). See §0.
 
 ---
 

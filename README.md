@@ -1,16 +1,22 @@
 # SOCDesk
 
 The analyst's first stop for any indicator. Paste an IP, domain, hash, URL,
-CVE or email and get one screen back: a verdict grounded in public
-vulnerability data, an escalation write-up you can drop into a ticket, and a
-row of one-click pivots to every public reputation service worth checking.
-Alongside it, a threat feed ranked by what deserves attention first rather
-than by what happened most recently.
+CVE or email and get one screen back: a live multi-source reputation read on
+the indicator (or, for a CVE, a verdict grounded in public vulnerability data),
+an escalation card you can drop into a ticket, and a row of one-click pivots to
+every public reputation service worth checking. Alongside it, a threat feed
+ranked by what deserves attention first rather than by what happened most
+recently.
 
-Static site. No backend, no database, no accounts, no bill. Scheduled
-collectors publish JSON; the browser does the rest.
+A React app (Vite + Tailwind + Motion) under a strict Content-Security-Policy.
+Scheduled collectors publish the feed and CVE data as JSON; a single
+same-origin serverless function (`/api/enrich`) queries public reputation
+services on demand for the indicator you paste. No database, no accounts, no
+bill.
 
-**Live:** https://socdesk.io
+**Live:** https://socdesk.io — a lookup "cockpit": start typing an indicator and
+the marketing intro folds away, the omnibox pins, and the escalation card docks
+beside a 3D globe.
 
 <!-- SCREENSHOT: 1440px-wide capture of the console with a KEV CVE looked up —
      verdict gauge, escalation docket, and pivot row visible. Save to
@@ -34,11 +40,23 @@ failure-isolation story, all of it readable in this repo.
 
 ## What it actually does today
 
+The live app is the **`web/`** React app with **`shared/`** components and the
+**`lib/enrich.mjs`** / `/api/enrich` function; it supersedes the legacy vanilla
+`site/` app. The `site/js` paths below are the legacy locations — several
+capabilities now live in `web/`, `shared/`, and `lib/`.
+
 | Capability | Where it lives |
 |---|---|
-| Indicator lookup with type auto-detection (IPv4, domain, URL, MD5/SHA-1/SHA-256, CVE, email) | `site/js/data.js`, `site/js/verdict.js` |
+| Indicator lookup with type auto-detection (IPv4, **IPv6**, domain, URL, MD5/SHA-1/SHA-256, CVE, email) | `shared/indicators.ts`, `lib/enrich.mjs` |
+| Live multi-source reputation — the escalation card: N-of-M consensus tally, honest per-source **class labels** + recency, mitigating signals as **chips** (IPv4, IPv6, domain, URL, hash) | `lib/enrich.mjs`, `shared/verdict-cards/` |
+| **IPv6** enrichment — AbuseIPDB + VirusTotal + ipinfo (GreyNoise is IPv4-only); private/reserved v6 rejected | `lib/enrich.mjs` |
+| Domain **registration age** via keyless RDAP — Registered / Registrar / Expires | `lib/enrich.mjs` |
+| **URL safe-view** — urlscan existing-scan screenshot preview (click to expand) + a **Browserling** disposable-browser pivot; existing scans only, never submits | `shared/verdict-cards/heroes.tsx` |
+| **Compare-IP / impossible-travel** — great-circle miles + implied mph + an honest plausibility read + a map arc, from real coordinates only | `shared/card/travel.ts`, `shared/verdict-cards/CompareIp.tsx` |
+| Copy-out — clean factual **"Copy card"** (PNG) + **"Copy text"**, no branding, no disclaimer prose | `shared/verdict-cards/copy.ts`, `shared/card/drawVerdict.ts` |
+| Browser extension — the toolbar popup renders the **same full escalation card** (manifest v0.2.0), sharing detection + the enrich pipeline | `extension/` |
 | Authoritative CVE verdict — CISA KEV × NVD CVSS × FIRST EPSS | `site/js/verdict.js` |
-| Honest "not in corpus" for every other indicator type, plus type-aware pivots | `site/js/verdict.js` |
+| Honest "not in corpus" for a CVE outside the corpus, plus type-aware pivots | `site/js/verdict.js` |
 | Escalation write-up (markdown / plain text / `.md` download) | `site/js/verdict.js` |
 | Bulk lookup — paste up to 200 indicators, export CSV / JSON / defanged TXT | `site/js/verdict.js`, `site/js/app.js` |
 | In-context lookup bookmarklet — select an indicator on any page, get the verdict, no install | `site/js/bookmarklet.js` |
@@ -58,20 +76,24 @@ For how to *use* these as an analyst, read
 
 SOCDesk publishes only data it may clearly redistribute — CISA KEV, NVD, FIRST
 EPSS, MITRE ATT&CK, and headline-plus-link RSS. Reputation corpora
-(VirusTotal, AbuseIPDB, GreyNoise, urlscan, abuse.ch, Shodan) are reached
-through links you click, never fetched in the background and never mirrored
-locally. That is a licensing decision before it is an architectural one; the
-reasoning is in [COMPLIANCE.md](COMPLIANCE.md) and the per-source consequences
-are in [docs/DATA-SOURCES.md](docs/DATA-SOURCES.md).
+(VirusTotal, AbuseIPDB, GreyNoise, urlscan, abuse.ch, Shodan) are never
+mirrored or stored locally: they are reached through links you click, or queried
+on demand — for the single indicator you paste — by SOCDesk's own same-origin
+enrichment function, never fetched in the background and never persisted. That
+is a licensing decision before it is an architectural one; the reasoning is in
+[COMPLIANCE.md](COMPLIANCE.md) and the per-source consequences are in
+[docs/DATA-SOURCES.md](docs/DATA-SOURCES.md).
 
-> **Privacy.** There is no backend, no accounts, and no analytics. Anything you
-> paste, mark or save stays in your browser's localStorage and is never
-> transmitted — the Content-Security-Policy sets `connect-src 'self'`, so the
-> page cannot call a third party even if it wanted to.
+> **Privacy.** There are no accounts and no analytics. Anything you mark or save
+> stays in your browser's localStorage and is never transmitted — the
+> Content-Security-Policy sets `connect-src 'self'`, so the page itself cannot
+> call a third party. Looking up an indicator does send that one indicator to
+> SOCDesk's own same-origin enrichment function, which queries the public
+> reputation services on your behalf and stores nothing.
 >
-> **Disclosure.** Clicking a pivot link discloses that indicator to the
-> third-party service you clicked, and urlscan publishes public scans. Use
-> public indicators only.
+> **Disclosure.** Enriching or clicking a pivot for an indicator discloses it —
+> to SOCDesk's enrichment function and, on a click, to the third-party service
+> you clicked; urlscan publishes public scans. Use public indicators only.
 
 ## Three tiers, each independently degradable
 
@@ -134,8 +156,13 @@ endpoint.
 ## Deployment
 
 Push to `main`. The `collect-and-deploy` workflow runs the tests, runs the
-collectors, commits refreshed state snapshots, and uploads `site/` to
-Cloudflare Pages. It also runs on cron at `:11` and `:41` past every hour.
+collectors, commits refreshed state snapshots, builds the `web/` app (Vite), and
+direct-uploads `web/dist` to Cloudflare Pages. It also runs on cron at `:11` and
+`:41` past every hour.
+
+Because the cron commits refreshed snapshots constantly, `origin/main` diverges
+from your local `HEAD` between edits — a plain `git push` is non-fast-forward.
+**Always `git pull --rebase origin main` before pushing.**
 
 Deployment is a `wrangler pages deploy` direct upload rather than Cloudflare's
 Git integration, for two reasons: free-plan Git builds are capped at 500 a
@@ -162,7 +189,12 @@ run_pipeline.py the entry point that wires collectors to pipeline to output
 data/state/     committed last-known-good payloads + daily history snapshots
 data/entities/  actor / malware / vendor dictionaries for entity extraction
 data/sources.json  the source registry rendered on the site
-site/           the deployed static site (site/data/ is generated, gitignored)
+web/            the deployed React app (Vite + Tailwind + Motion); web/dist is the build
+shared/         cross-surface UI + logic shared by web/ and extension/ (escalation card, verdict, compare-IP)
+lib/            enrich.mjs — the source fan-out behind the /api/enrich function
+functions/      Cloudflare Pages Functions (/api/enrich)
+extension/      MV3 browser extension (manifest v0.2.0) — same escalation card as the web app
+site/           the legacy vanilla site, superseded by web/ (kept for history)
 site-tests/     Playwright suite driven off the real published payloads
 tests/          pytest suite, fixture-backed, offline
 design/         brand book, approved mockups, visual reference
