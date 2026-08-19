@@ -25,6 +25,7 @@ import { cx } from '../lib/cx'
 export type ChipVariant =
   | 'neutral'
   | 'accent'
+  | 'technique'
   | 'catalog'
   | 'behavioral'
   | 'reputation'
@@ -38,6 +39,8 @@ export type ChipVariant =
 const VARIANT: Record<ChipVariant, string> = {
   neutral: 'border-line bg-panel-soft text-muted',
   accent: 'border-[var(--edge-accent)] bg-[var(--tint-accent)] text-accent',
+  // technique/LOLBin signal — periwinkle, NEVER a verdict hue (reserved-colour law)
+  technique: 'border-[var(--edge-accent)] bg-[var(--tint-accent)] text-accent',
   // source-class — hierarchy by ink weight, no verdict hue
   catalog: 'border-[var(--edge-accent)] bg-[var(--tint-accent)] text-accent',
   behavioral: 'border-line-bright bg-panel-soft text-paper',
@@ -62,6 +65,7 @@ const VERDICT_DOT: Partial<Record<ChipVariant, string>> = {
 const DEFAULT_LABEL: Record<ChipVariant, string> = {
   neutral: 'label',
   accent: 'tag',
+  technique: 'technique',
   catalog: 'catalog / identity',
   behavioral: 'behavioral / observed',
   reputation: 'reputation-score',
