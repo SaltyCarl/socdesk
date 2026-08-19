@@ -264,3 +264,12 @@ Each phase = a dogfoodable checkpoint (per the project's dogfood-checkpoint disc
 - **`web/` browser-test harness** existence (the legacy `site-tests/` Playwright targets `site/`, not `web/`) — confirm before citing browser-test gates for the UI phases.
 - **Extension reachability** of `shared/analyzer/` — plausible (extension already ships shared card parity) but v1 is web-only; verify the alias before a v1.x extension surface.
 - **LOLBAS/ATT&CK table refresh cadence/owner** — `lolbins.ts`/`techniques.ts` are hand-authored, committed, public-sources-only constants (no live fetch).
+
+### Carried from the Phase-1 build (2026-08-19) — Phase-2 work
+
+- **Layer-2 spurious inflate.** `report.ts`'s depth-1 loop accepts the first string literal that inflates via `deflate-raw`; ~0.4% of random ≥8-char base64-charset strings inflate to garbage without throwing, which can mislabel a `fully-decoded` layer and `break` before a real payload. Phase-2 fix: a printable-plausibility guard on the inflated bytes before accepting the layer, and/or prefer the longest/most-plausible hit.
+- **Lowercase code-token domain leak.** `extract.ts`'s uppercase-domain filter drops PascalCase `.NET` members (`Net.WebClient`) but not lowercase filenames (`kernel32.dll`, `amsi.dll`), which `detectType`'s TLD-agnostic domain regex accepts. Phase-2 fix: extract domain candidates only from **string-literal tokens** via the lexer (subsumes both this leak and the layer-2 plausibility guard above — schedule them together).
+- **Test precision.** Phase-1 extraction tests use `toContain`, blind to *extra* junk IOCs. When Phase-2 tightens extraction, convert the key assertions to exact-array (`toEqual`).
+- **Next dogfood coverage.** The Phase-1 dogfood proved the PascalCase filter but did NOT exercise a lowercase-`.dll`/`.exe` payload — run one (e.g. an AMSI-bypass / `VirtualAlloc`/`kernel32.dll` cradle) to characterize the deferred leak with real data.
+- **`fractionAccounted`** is now derived from layer completeness (Phase-1 proxy). Phase-2's `confidence.ts` should replace it with the real "fraction of input tokens accounted for by known rules."
+- **UI (Phase-2 polish):** `usePsAnalysis` fires `analyze()` per keystroke (fast/client-side, but wasteful on large pastes) — add caller debounce when the input UX is built out.
