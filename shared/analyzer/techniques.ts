@@ -194,9 +194,16 @@ export const RULES: SignatureRule[] = [
       const hiddenFetchIex = flags.has('-w') && flags.has('-nop') && hasAny(ctx, FETCH) && hasIexSink(ctx) && !localFile
       const headless = hasAll(ctx, ['conhost', '--headless'])
       const hta = hasAny(ctx, ['mshta']) && hasAny(ctx, ['http://', 'https://', 'javascript:', '.hta'])
-      const decoy = hasAny(ctx, ['verify you are human', 'i am not a robot', 'ray id', 'captcha', 'press win+r', 'press enter to verify', '--verify'])
+      const decoyPhrases = ['verify you are human', 'i am not a robot', 'ray id', 'captcha', 'press win+r', 'press enter to verify']
+      // A bare '--verify' is a routine signature-verification flag (`gpg --verify
+      // sig.asc file`, `openssl ... -verify`) — count it as a ClickFix decoy only
+      // when it co-occurs with real lure/fetch context, never as a bare token.
+      const verifyDecoy = hasAny(ctx, ['--verify']) && (hasAny(ctx, ['press enter', 'press win+r']) || hasAny(ctx, FETCH))
+      const decoy = hasAny(ctx, decoyPhrases) || verifyDecoy
       if (hiddenFetchIex || headless || hta || decoy) {
-        return { hit: true, trigger: headless ? '--headless' : triggerFor(ctx, [...FETCH, 'mshta', 'captcha']) }
+        const decoyTrigger = decoyPhrases.find((p) => present(ctx, p)) ?? (verifyDecoy ? '--verify' : undefined)
+        const trigger = headless ? '--headless' : decoyTrigger ?? triggerFor(ctx, [...FETCH, 'mshta'])
+        return { hit: true, trigger }
       }
       return { hit: false }
     },
