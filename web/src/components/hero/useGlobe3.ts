@@ -508,6 +508,26 @@ export function useGlobe3(
     arcB.frustumCulled = false
     arcB.visible = false
     globeGroup.add(arcB)
+    // draw-on reveal + a periwinkle pulse that travels A→B along the route.
+    const arcAnim = { reveal: 0, revealing: false, pulse: 0, curve: null as CatmullRomCurve3 | null }
+    const arcPulseMat = new ShaderMaterial({
+      vertexShader: MARK_VERT,
+      fragmentShader: MARK_FRAG,
+      transparent: true,
+      depthWrite: false,
+      uniforms: {
+        uSize: { value: 13 },
+        uPix: { value: pr },
+        uColor: { value: t3.pin },
+        uAlpha: { value: 0 },
+      },
+    })
+    const arcPulseGeo = new BufferGeometry()
+    arcPulseGeo.setAttribute('position', new Float32BufferAttribute(new Float32Array([0, 0, ARC_LIFT]), 3))
+    const arcPulse = new Points(arcPulseGeo, arcPulseMat)
+    arcPulse.frustumCulled = false
+    arcPulse.visible = false
+    globeGroup.add(arcPulse)
 
     // The pending / active enrich card (sticky; revealed on landing).
     let pendingEnrich: EnrichCard | null = null
@@ -709,6 +729,31 @@ export function useGlobe3(
         if (landAnim.pulse >= 1) pulse.visible = false
       }
     }
+    /** Compare arc: draw the tube on (grow its draw range), then loop a pulse A→B. */
+    function stepArcAnim(dt: number): void {
+      if (!arcMesh.visible) return
+      const geo = arcMesh.geometry
+      if (arcAnim.revealing) {
+        arcAnim.reveal = Math.min(1, arcAnim.reveal + dt / 0.75)
+        const idx = geo.index
+        const total = idx ? idx.count : geo.getAttribute('position').count
+        geo.setDrawRange(0, Math.max(0, Math.floor(total * arcAnim.reveal)))
+        if (arcAnim.reveal >= 1) {
+          geo.setDrawRange(0, Infinity)
+          arcAnim.revealing = false
+        }
+      }
+      if (arcPulse.visible && arcAnim.curve && !arcAnim.revealing) {
+        arcAnim.pulse += dt / 2.4
+        if (arcAnim.pulse > 1) arcAnim.pulse -= 1
+        const p = arcAnim.curve.getPointAt(arcAnim.pulse)
+        const pos = arcPulse.geometry.getAttribute('position')
+        pos.setXYZ(0, p.x, p.y, p.z)
+        pos.needsUpdate = true
+        // fade in/out toward the endpoints so it reads as a travelling signal.
+        arcPulseMat.uniforms.uAlpha.value = 0.35 + 0.6 * Math.sin(Math.PI * arcAnim.pulse)
+      }
+    }
 
     /* ---------- render one composed frame ---------- */
     function applyGrow(): void {
@@ -782,6 +827,7 @@ export function useGlobe3(
       anim.parTheta += (ptY * PAR_MAX - anim.parTheta) * kPar
 
       stepLanded(dt)
+      stepArcAnim(dt)
       composeAndRender()
       hitTest()
       positionTip()
@@ -940,6 +986,14 @@ export function useGlobe3(
       arcMesh.geometry.dispose()
       arcMesh.geometry = new TubeGeometry(curve, 96, 0.009, 8, false)
       arcMesh.visible = true
+      // draw-on: grow the tube's draw range 0→full, then the pulse rides it.
+      arcAnim.curve = curve
+      arcAnim.reveal = reduced() ? 1 : 0
+      arcAnim.revealing = !reduced()
+      arcAnim.pulse = 0
+      if (arcAnim.revealing) arcMesh.geometry.setDrawRange(0, 0)
+      arcPulse.visible = !reduced()
+      arcPulseMat.uniforms.uAlpha.value = 0
       const bv = new Vector3(rB[0], rB[1], rB[2]).normalize()
       arcB.position.set(bv.x * ARC_LIFT, bv.y * ARC_LIFT, bv.z * ARC_LIFT)
       arcB.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), bv)
@@ -953,6 +1007,9 @@ export function useGlobe3(
       const wasShown = arcMesh.visible
       arcMesh.visible = false
       arcB.visible = false
+      arcPulse.visible = false
+      arcAnim.revealing = false
+      arcAnim.curve = null
       // resume the idle spin we suspended to frame the arc (unless a verdict
       // landing is currently holding the view — then leave it be).
       if (wasShown && !anim.landed && !anim.landedShown) {
@@ -1122,6 +1179,7 @@ export function useGlobe3(
       ;(pinMat.uniforms.uColor.value as number[]) = c.pin
       arcMat.color.setRGB(c.paper[0], c.paper[1], c.paper[2])
       ;(arcBMat.color as { setRGB: (r: number, g: number, b: number) => void }).setRGB(c.pin[0], c.pin[1], c.pin[2])
+      ;(arcPulseMat.uniforms.uColor.value as number[]) = c.pin
       ;(bodyMat.uniforms.uBodyColor.value as number[]) = c.body
       bodyMat.uniforms.uBodyAlpha.value = c.bodyAlpha
       ;(bodyMat.uniforms.uRimColor.value as number[]) = c.rim
@@ -1224,6 +1282,8 @@ export function useGlobe3(
       arcMat.dispose()
       arcB.geometry.dispose()
       arcBMat.dispose()
+      arcPulseGeo.dispose()
+      arcPulseMat.dispose()
       renderer.dispose()
       renderer.forceContextLoss()
     }
