@@ -5,6 +5,7 @@
 // banding come from web/src/lib/verdict (the doctrine); this layer only renders.
 
 export { EscalationCard } from './EscalationCard'
+export type { CompareResult } from './CompareIp'
 export { AnalystVerdict } from './AnalystVerdict'
 export { CardActions, CardCanvasPreview } from './CardActions'
 export { Hero, IpHero, DomainHero, UrlHero, HashHero, CveHero } from './heroes'

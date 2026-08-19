@@ -3,7 +3,7 @@ import type { FormEvent, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../components/ui'
 import { SituationalBoard } from '../components/overview'
-import { EscalationCard } from '@socdesk/shared/verdict-cards'
+import { EscalationCard, type CompareResult } from '@socdesk/shared/verdict-cards'
 import type { GlobeApi } from '../components/hero/useGlobe3'
 import { ENRICH_EVENT } from '../components/hero/enrichFly'
 import { geoPresent, type EnrichApiResult } from '../components/hero/heroLayers'
@@ -74,10 +74,12 @@ function LandingResult({
   state,
   theme,
   onFullView,
+  onCompare,
 }: {
   state: LookupState
   theme: EffectiveTheme
   onFullView: (e: MouseEvent<HTMLAnchorElement>, q: string) => void
+  onCompare: (c: CompareResult | null) => void
 }) {
   if (state.kind === 'idle') return null
   const indicator = 'indicator' in state ? state.indicator : ''
@@ -85,7 +87,7 @@ function LandingResult({
   return (
     <div className="flex w-full max-w-md flex-col gap-3">
       {state.kind === 'ok' ? (
-        <EscalationCard data={state.data} theme={theme} />
+        <EscalationCard data={state.data} theme={theme} onCompare={onCompare} />
       ) : (
         <LookupStatus state={state} />
       )}
@@ -166,6 +168,19 @@ export function Overview({
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
     e.preventDefault()
     submitLookup(q)
+  }
+
+  // A Compare-IP result on the landing card draws the two-IP great-circle arc on
+  // the globe (real coords, both precise); clearing it removes the arc. Country-
+  // level geo has no meaningful point, so it clears rather than draw a fake line.
+  const onCompareArc = (c: CompareResult | null) => {
+    const api = apiRef.current
+    if (!api) return
+    if (c && c.first.precise && c.second.precise) {
+      api.drawArc({ lat: c.first.lat, lng: c.first.lon }, { lat: c.second.lat, lng: c.second.lon })
+    } else {
+      api.clearArc()
+    }
   }
 
   return (
@@ -255,7 +270,7 @@ export function Overview({
               aria-label="Lookup result"
               className={cx('mt-6 w-full', REVEAL_CLS)}
             >
-              <LandingResult state={state} theme={theme} onFullView={openFullView} />
+              <LandingResult state={state} theme={theme} onFullView={openFullView} onCompare={onCompareArc} />
             </div>
           ) : (
             <div className="sdh-enter sdh-enter-4 mt-4 flex w-full max-w-md flex-wrap items-center gap-2">

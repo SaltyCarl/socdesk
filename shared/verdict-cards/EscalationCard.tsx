@@ -40,12 +40,17 @@ export function EscalationCard({
   data,
   theme,
   baseUrl,
+  onCompare,
 }: {
   data: VerdictData
   theme?: CanvasTheme
   /** Enrich origin for the inline Compare-IP lookup — undefined = same-origin
    *  (the web app); the extension passes its configured SOCDesk origin. */
   baseUrl?: string
+  /** Fired whenever the inline Compare-IP result changes (payload on success,
+   *  null on clear). The landing page uses this to draw the two-IP great-circle
+   *  arc on the hero globe; other surfaces omit it. */
+  onCompare?: (c: CompareResult | null) => void
 }) {
   // A successful inline Compare-IP lifts its result here so the geo hero draws the
   // arc + second pin and the copy-card PNG bundles the same compare. Null for every
@@ -97,7 +102,14 @@ export function EscalationCard({
         <Hero data={data} compare={compare} />
 
         {(data.type === 'ipv4' || data.type === 'ipv6') && (
-          <CompareIp data={data} baseUrl={baseUrl} onResult={setCompare} />
+          <CompareIp
+            data={data}
+            baseUrl={baseUrl}
+            onResult={(c) => {
+              setCompare(c)
+              onCompare?.(c)
+            }}
+          />
         )}
 
         <div className="flex flex-col gap-2">

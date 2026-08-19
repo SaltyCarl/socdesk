@@ -30,6 +30,8 @@ const label = (g: GeoModel): string =>
  *  location + the travel read. The escalation card threads this to the SVG hero
  *  (arc + second pin) and the copy-card PNG so all three registers agree. */
 export interface CompareResult {
+  /** The primary (looked-up) IP's location — the arc's origin. */
+  first: GeoModel
   second: GeoModel
   assessment: TravelAssessment
 }
@@ -122,8 +124,8 @@ export function CompareIp({
       const gap = mins != null && Number.isFinite(mins) && mins > 0 ? mins : null
       const miles = haversineMiles(first.lat, first.lon, second.lat, second.lon)
       const assessment = travelAssessment(miles, gap)
-      setResult({ second, assessment })
-      onResult?.({ second, assessment })
+      setResult({ first, second, assessment })
+      onResult?.({ first, second, assessment })
     } finally {
       setLoading(false)
     }

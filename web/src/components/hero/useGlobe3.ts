@@ -48,6 +48,8 @@ import {
   Vector3,
   Matrix4,
   DoubleSide,
+  CatmullRomCurve3,
+  TubeGeometry,
 } from 'three'
 import { resolveTheme, onSystemThemeChange } from '@socdesk/shared/lib/theme'
 import { buildLandPositions, tierColor3 } from './globe3'
@@ -139,6 +141,8 @@ interface Theme3 {
   dot: [number, number, number]
   dotShade: [number, number, number]
   pin: [number, number, number]
+  /** high-contrast ink (--paper) — the compare arc, visible in both themes. */
+  paper: [number, number, number]
   body: [number, number, number]
   bodyAlpha: number
   rim: [number, number, number]
@@ -151,6 +155,7 @@ function theme3(dark: boolean): Theme3 {
         dot: [0.57, 0.62, 1.0],
         dotShade: [0.34, 0.37, 0.66],
         pin: [0.62, 0.66, 1.0],
+        paper: [0.91, 0.93, 0.96],
         body: [0.1, 0.09, 0.13],
         bodyAlpha: 0.04,
         rim: [0.49, 0.54, 1.0],
@@ -161,6 +166,7 @@ function theme3(dark: boolean): Theme3 {
         dot: [0.16, 0.18, 0.72],
         dotShade: [0.29, 0.3, 0.5],
         pin: [0.17, 0.19, 0.7],
+        paper: [0.075, 0.1, 0.14],
         body: [0.6, 0.585, 0.66],
         bodyAlpha: 0.24,
         rim: [0.29, 0.31, 0.82],
@@ -283,6 +289,11 @@ export interface GlobeApi {
   flyToLatLng(lat: number, lng: number, opts?: { tier?: Tier; sev?: number }): void
   /** Return home (also fired by Escape). */
   flyBack(): void
+  /** Draw the great-circle route between two real coordinates + a marker at B,
+   *  and rotate it into view. Used by the landing Compare-IP result. */
+  drawArc(a: { lat: number; lng: number }, b: { lat: number; lng: number }): void
+  /** Remove the compare arc + marker and resume the idle spin. */
+  clearArc(): void
 }
 export interface UseGlobe3Result {
   rootRef: RefObject<HTMLElement | null>
@@ -311,10 +322,14 @@ export function useGlobe3(
   const apiHolder = useRef<GlobeApi>({
     flyToLatLng: () => {},
     flyBack: () => {},
+    drawArc: () => {},
+    clearArc: () => {},
   })
   const apiRefStable = useRef<GlobeApi>({
     flyToLatLng: (...a) => apiHolder.current.flyToLatLng(...a),
     flyBack: (...a) => apiHolder.current.flyBack(...a),
+    drawArc: (...a) => apiHolder.current.drawArc(...a),
+    clearArc: (...a) => apiHolder.current.clearArc(...a),
   })
 
   useEffect(() => {
@@ -473,6 +488,24 @@ export function useGlobe3(
     pulse.visible = false
     globeGroup.add(pulse)
     const landAnim = { active: false, rise: 0, pulse: 0, target: [0, 0, 1] as Vec3, size: 24 }
+
+    /* ---------- compare arc: two-IP great-circle route + a hollow B marker ----------
+       The route is --paper (high contrast over the periwinkle globe, both themes);
+       the B marker is periwinkle. Both sit just above the surface at ARC_LIFT so the
+       depth occluder culls their back-hemisphere halves for free, exactly like pins. */
+    const ARC_LIFT = 1.02
+    const arcMat = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92, depthWrite: false })
+    arcMat.color.setRGB(t3.paper[0], t3.paper[1], t3.paper[2])
+    const arcMesh = new Mesh(new BufferGeometry(), arcMat)
+    arcMesh.frustumCulled = false
+    arcMesh.visible = false
+    globeGroup.add(arcMesh)
+    const arcBMat = new MeshBasicMaterial({ color: 0x7c8aff, transparent: true, opacity: 0.95, side: DoubleSide, depthWrite: false })
+    ;(arcBMat.color as { setRGB: (r: number, g: number, b: number) => void }).setRGB(t3.pin[0], t3.pin[1], t3.pin[2])
+    const arcB = new Mesh(new RingGeometry(0.012, 0.02, 28), arcBMat)
+    arcB.frustumCulled = false
+    arcB.visible = false
+    globeGroup.add(arcB)
 
     // The pending / active enrich card (sticky; revealed on landing).
     let pendingEnrich: EnrichCard | null = null
@@ -844,7 +877,103 @@ export function useGlobe3(
         sev: Number.isFinite(opts.sev) ? (opts.sev as number) : 70,
       })
     }
-    apiHolder.current = { flyToLatLng, flyBack }
+
+    /* ---------- compare arc ---------- */
+    const ARC_ZOOM = 1.15 // gentler than a landing so both endpoints stay framed
+
+    /** Rotate a direction to the front of the globe WITHOUT a verdict beat — used
+     *  to frame the arc's midpoint. Leaves any existing landed marker untouched. */
+    function rotateTo(r: Vec3, zoom: number): void {
+      const { phi: phiT0, theta: thetaT } = flyTargets(r)
+      let phiT = phiT0
+      while (phiT - anim.phi > Math.PI) phiT -= 2 * Math.PI
+      while (anim.phi - phiT > Math.PI) phiT += 2 * Math.PI
+      if (reduced()) {
+        anim.phi = phiT
+        anim.targetPhi = phiT
+        anim.theta = thetaT
+        anim.gz = zoom
+        anim.gzTarget = zoom
+        anim.flying = false
+        anim.spinSuspended = true
+        renderOnce()
+        return
+      }
+      anim.flyPhi.x = anim.phi; anim.flyPhi.v = 0; anim.flyPhi.t = phiT
+      anim.flyTheta.x = anim.theta; anim.flyTheta.v = 0; anim.flyTheta.t = thetaT
+      anim.flyGz.x = anim.gz; anim.flyGz.v = 0; anim.flyGz.t = zoom
+      anim.gzTarget = zoom
+      anim.flying = true
+      anim.flyBackMode = false
+      anim.spinSuspended = true
+      startLoop()
+    }
+
+    /** Great-circle sample points (slerp on unit vectors), lifted above the surface. */
+    function arcPoints(rA: Vec3, rB: Vec3, n = 64): Vector3[] {
+      const va = new Vector3(rA[0], rA[1], rA[2]).normalize()
+      const vb = new Vector3(rB[0], rB[1], rB[2]).normalize()
+      const omega = Math.acos(Math.max(-1, Math.min(1, va.dot(vb))))
+      const sin = Math.sin(omega)
+      const out: Vector3[] = []
+      for (let i = 0; i <= n; i++) {
+        const t = i / n
+        const p =
+          sin < 1e-4
+            ? va.clone()
+            : va.clone().multiplyScalar(Math.sin((1 - t) * omega) / sin).add(vb.clone().multiplyScalar(Math.sin(t * omega) / sin))
+        out.push(p.normalize().multiplyScalar(ARC_LIFT))
+      }
+      return out
+    }
+
+    function drawArc(a: { lat: number; lng: number }, b: { lat: number; lng: number }): void {
+      if (disposed) return
+      if (![a.lat, a.lng, b.lat, b.lng].every(Number.isFinite)) return
+      const rA = unitVec(a.lat, a.lng)
+      const rB = unitVec(b.lat, b.lng)
+      const curve = new CatmullRomCurve3(arcPoints(rA, rB, 64))
+      arcMesh.geometry.dispose()
+      arcMesh.geometry = new TubeGeometry(curve, 96, 0.009, 8, false)
+      arcMesh.visible = true
+      const bv = new Vector3(rB[0], rB[1], rB[2]).normalize()
+      arcB.position.set(bv.x * ARC_LIFT, bv.y * ARC_LIFT, bv.z * ARC_LIFT)
+      arcB.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), bv)
+      arcB.visible = true
+      const mid = new Vector3(rA[0] + rB[0], rA[1] + rB[1], rA[2] + rB[2])
+      if (mid.lengthSq() > 1e-6) rotateTo([mid.x, mid.y, mid.z], ARC_ZOOM)
+      else if (!running) renderOnce()
+    }
+
+    function clearArc(): void {
+      const wasShown = arcMesh.visible
+      arcMesh.visible = false
+      arcB.visible = false
+      // resume the idle spin we suspended to frame the arc (unless a verdict
+      // landing is currently holding the view — then leave it be).
+      if (wasShown && !anim.landed && !anim.landedShown) {
+        if (reduced()) {
+          anim.theta = THETA
+          anim.gz = 1
+          anim.gzTarget = 1
+          anim.spinSuspended = false
+          renderOnce()
+        } else {
+          anim.flyPhi.x = anim.phi; anim.flyPhi.v = 0; anim.flyPhi.t = anim.phi
+          anim.flyTheta.x = anim.theta; anim.flyTheta.v = 0; anim.flyTheta.t = THETA
+          anim.flyGz.x = anim.gz; anim.flyGz.v = 0; anim.flyGz.t = 1
+          anim.gzTarget = 1
+          anim.flying = true
+          anim.flyBackMode = true // settle → clearLanded() → spinSuspended = false
+          anim.spinSuspended = true
+          startLoop()
+        }
+      } else if (!running) {
+        renderOnce()
+      }
+    }
+
+    apiHolder.current = { flyToLatLng, flyBack, drawArc, clearArc }
 
     /* ---------- input ---------- */
     function ndcFromEvent(e: PointerEvent): void {
@@ -952,7 +1081,9 @@ export function useGlobe3(
     window.addEventListener('pointercancel', endDrag)
 
     function onKeyDown(e: KeyboardEvent): void {
-      if (e.key === 'Escape') flyBack()
+      if (e.key !== 'Escape') return
+      if (arcMesh.visible) clearArc()
+      else flyBack()
     }
     window.addEventListener('keydown', onKeyDown)
 
@@ -976,6 +1107,8 @@ export function useGlobe3(
       ;(dotMat.uniforms.uColor.value as number[]) = c.dot
       ;(dotMat.uniforms.uShade.value as number[]) = c.dotShade
       ;(pinMat.uniforms.uColor.value as number[]) = c.pin
+      arcMat.color.setRGB(c.paper[0], c.paper[1], c.paper[2])
+      ;(arcBMat.color as { setRGB: (r: number, g: number, b: number) => void }).setRGB(c.pin[0], c.pin[1], c.pin[2])
       ;(bodyMat.uniforms.uBodyColor.value as number[]) = c.body
       bodyMat.uniforms.uBodyAlpha.value = c.bodyAlpha
       ;(bodyMat.uniforms.uRimColor.value as number[]) = c.rim
@@ -1074,6 +1207,10 @@ export function useGlobe3(
       markMat.dispose()
       pulse.geometry.dispose()
       pulseMat.dispose()
+      arcMesh.geometry.dispose()
+      arcMat.dispose()
+      arcB.geometry.dispose()
+      arcBMat.dispose()
       renderer.dispose()
       renderer.forceContextLoss()
     }
