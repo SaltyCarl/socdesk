@@ -30,4 +30,9 @@ describe('matchLolbin', () => {
     const r = matchLolbin(ctx("Write-Host 'run regsvr32 to register the dll'"))
     expect(r.hit).toBe(false)
   })
+
+  it('does NOT hit certutil -decode (a local, non-download/exec deobfuscation op)', () => {
+    const r = matchLolbin(ctx('certutil -decode payload.b64 out.exe'))
+    expect(r.hit).toBe(false)
+  })
 })

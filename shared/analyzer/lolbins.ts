@@ -12,7 +12,7 @@ export interface LolbinEntry {
 }
 
 export const LOLBINS: LolbinEntry[] = [
-  { bin: 'certutil', context: ['-urlcache', '-verifyctl', 'http://', 'https://', '-decode', '-encode'], techniqueIds: ['T1105', 'T1140'] },
+  { bin: 'certutil', context: ['-urlcache', '-verifyctl', 'http://', 'https://'], techniqueIds: ['T1105'] },
   { bin: 'bitsadmin', context: ['/transfer', '/addfile', 'http://', 'https://'], techniqueIds: ['T1105', 'T1197'] },
   { bin: 'mshta', context: ['http://', 'https://', 'javascript:', 'vbscript:', '.hta'], techniqueIds: ['T1218.005'] },
   { bin: 'regsvr32', context: ['/i:http', 'scrobj', '/u ', 'http://', 'https://'], techniqueIds: ['T1218.010'] },

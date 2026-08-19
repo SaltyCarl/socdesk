@@ -82,7 +82,8 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   const fullyDecoded = layers.filter((l) => l.state === 'fully-decoded').length
   const state = layers.length === 0 || fullyDecoded === layers.length ? 'fully-decoded' : 'partial'
   const fractionAccounted = layers.length === 0 ? 1 : fullyDecoded / layers.length
-  const copyText = composeCopyText(layers, iocs, signals, characterization)
+  const decodedScript = [...layers].reverse().find((l) => l.text != null)?.text ?? script
+  const copyText = composeCopyText(layers, iocs, signals, characterization, decodedScript)
 
   return {
     input,
@@ -106,6 +107,10 @@ export async function analyze(input: string): Promise<AnalysisResult> {
 const NEAR_DISPOSITIVE_BASE = new Set(
   RULES.filter((r) => r.baseSpecificity === 'near-dispositive').map((r) => r.id),
 )
+
+// Rule id → its BASE specificity (pre-co-occurrence-upgrade), for the copyText
+// signals line — see composeCopyText below.
+const BASE_SPECIFICITY = new Map(RULES.map((r) => [r.id, r.baseSpecificity]))
 
 /** Specificity-gated: emit a characterization ONLY when at least one signal's
  *  underlying rule is INTRINSICALLY near-dispositive (a technique with no
@@ -151,13 +156,19 @@ function composeCopyText(
   iocs: AnalysisResult['iocs'],
   signals: Signal[],
   characterization: Characterization | null,
+  decodedScript: string,
 ): string {
   const lines: string[] = ['PowerShell static analysis — STATIC analysis, script was NOT executed', '']
   if (characterization) lines.push(characterization.read, '')
   if (signals.length) {
     lines.push('Behaviour signals:')
-    signals.forEach((s) => lines.push(`  [${s.specificity}] ${s.label} (${s.techniqueIds.join(', ')})`))
+    signals.forEach((s) => lines.push(`  [${BASE_SPECIFICITY.get(s.id) ?? s.specificity}] ${s.label} (${s.techniqueIds.join(', ')})`))
     lines.push('')
+  }
+  if (decodedScript) {
+    lines.push(layers.length ? 'Decoded script:' : 'Script:')
+    const capped = decodedScript.length > 4000 ? decodedScript.slice(0, 4000) + '\n… [truncated]' : decodedScript
+    lines.push(capped, '')
   }
   if (layers.length) {
     lines.push('Decoded layers:')
