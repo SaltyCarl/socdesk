@@ -11,6 +11,14 @@ const WRAPPER_INTERPRETERS = new Set<Interpreter>(['cmd', 'mshta', 'wscript', 'c
 const WSH_INTERPRETERS = new Set<Interpreter>(['mshta', 'wscript', 'cscript'])
 const NESTED_REENTRY_MAX_DEPTH = 4
 
+// detectInterpreter (preprocess.ts) is anchored to the start of the string —
+// real wrapper shapes routinely bury the nested launcher somewhere past
+// position 0 (mshta's launcher inside a quoted Run() argument; cmd running a
+// command before the launcher, or via `start /min launcher`). When the
+// anchored check comes back 'unknown', fall back to a non-anchored search for
+// the first embedded launcher token and resume decoding from there.
+const EMBEDDED_LAUNCHER_RE = /\b(?:powershell|pwsh|cmd|mshta|wscript|cscript)(?:\.exe)?\b/i
+
 /** cmd/mshta/wscript/cscript wrappers overwhelmingly exist to launch a NESTED
  *  interpreter (canonically `cmd /c powershell -w hidden -enc <blob>`). Loop
  *  the extracted body back through preprocess() so a nested powershell -enc/
@@ -22,8 +30,20 @@ const NESTED_REENTRY_MAX_DEPTH = 4
 function reenterNestedInterpreter(
   outerInterpreter: Interpreter,
   outerScript: string,
-): { script: string; encoded: string | null; flags: EvasionFlag[]; finalInterpreter: Interpreter; layers: { transform: string; text: string }[] } {
+): {
+  script: string
+  encoded: string | null
+  flags: EvasionFlag[]
+  finalInterpreter: Interpreter
+  layers: { transform: string; text: string }[]
+  contextTexts: string[]
+} {
   const hopLayers: { transform: string; text: string }[] = []
+  // Every body seen along the way, including ones the fallback below jumps
+  // past (e.g. a `for /f … do cmd.exe /c %e` cradle whose prefix carries its
+  // own signal-relevant text) — folded into analyze()'s signal corpus so a
+  // later hop's truncation never erases an earlier body's content.
+  const contextTexts: string[] = [outerScript]
   let fromInterpreter = outerInterpreter
   let script = outerScript
   let encoded: string | null = null
@@ -32,16 +52,51 @@ function reenterNestedInterpreter(
   for (let depth = 0; depth < NESTED_REENTRY_MAX_DEPTH; depth++) {
     if (!WRAPPER_INTERPRETERS.has(fromInterpreter)) break
     const inner = preprocess(script)
-    if (seen.has(inner.script) || inner.interpreter === 'unknown') break
+    if (inner.interpreter === 'unknown') {
+      // Non-anchored fallback: the launcher wasn't the first token — search
+      // for it further in and, if found, resume decoding from that point.
+      // This still costs one iteration of the depth cap and is still subject
+      // to the seen-set cycle guard below, so a hostile input can't use it
+      // to spin the analyzer.
+      const m = script.match(EMBEDDED_LAUNCHER_RE)
+      if (!m || m.index === undefined || m.index === 0) break
+      const resumed = script.slice(m.index)
+      if (seen.has(resumed)) break
+      seen.add(resumed)
+      script = resumed
+      contextTexts.push(script)
+      continue
+    }
+    if (seen.has(inner.script)) break
     seen.add(inner.script)
     hopLayers.push({ transform: `${fromInterpreter}→${inner.interpreter}${inner.encoded ? ' -enc' : ''}`, text: inner.script })
     script = inner.script
+    contextTexts.push(script)
     encoded = inner.encoded
     flags = flags.concat(inner.flags)
     fromInterpreter = inner.interpreter
     if (fromInterpreter === 'powershell') break // reached PS: the existing -enc/layer logic below takes over
   }
-  return { script, encoded, flags, finalInterpreter: fromInterpreter, layers: hopLayers }
+  return { script, encoded, flags, finalInterpreter: fromInterpreter, layers: hopLayers, contextTexts }
+}
+
+/** Dedupe EvasionFlags by (flag, raw), keeping first occurrence order. The
+ *  outer preprocess(input) scan and the nested-reentry inner preprocess()
+ *  calls both scan overlapping text for the same PS flag regexes (e.g.
+ *  `cmd /c powershell -w hidden -enc …` matches `-w`/`-enc` both on the raw
+ *  input and again on the extracted/re-entered script), so flags gets
+ *  concatenated with duplicates before this final pass — which otherwise
+ *  surface as duplicate React keys in AnalyzerResult's EvasionFlag chips. */
+function dedupeFlags(flags: EvasionFlag[]): EvasionFlag[] {
+  const seen = new Set<string>()
+  const out: EvasionFlag[] = []
+  for (const f of flags) {
+    const key = f.flag + '|' + f.raw
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(f)
+  }
+  return out
 }
 
 export async function analyze(input: string): Promise<AnalysisResult> {
@@ -49,6 +104,9 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   let { script, encoded, flags } = outer
   let interpreter = outer.interpreter
   const layers: DecodedLayer[] = []
+  // Every intermediate wrapper body the reentry loop passed through — see
+  // reenterNestedInterpreter's contextTexts doc comment.
+  let reentryContext: string[] = []
 
   if (WRAPPER_INTERPRETERS.has(interpreter)) {
     const reentered = reenterNestedInterpreter(interpreter, script)
@@ -59,6 +117,7 @@ export async function analyze(input: string): Promise<AnalysisResult> {
     encoded = reentered.encoded
     flags = flags.concat(reentered.flags)
     interpreter = reentered.finalInterpreter
+    reentryContext = reentered.contextTexts
   }
 
   // Layer N: -enc Base64 → UTF-16LE. (unchanged below, now seeded from the
@@ -132,11 +191,14 @@ export async function analyze(input: string): Promise<AnalysisResult> {
 
   // Signatures run over the decoded corpus: the raw input (so launcher/wrapper
   // tokens like `conhost --headless` survive preprocess()'s -Command extraction),
-  // the outer (preprocessed) script, plus every resolved layer/recursion text, so
-  // a signal in an inner cradle counts. Rules dedup by id (classify/runRules emit
-  // one Signal per rule), so the input/script overlap can't double-count; IOC
-  // extraction reads `scan`, not `corpus`, so this doesn't affect IOCs.
-  const corpus = [input, script, ...scan.map((s) => s.text)].filter(Boolean).join('\n')
+  // the outer (preprocessed) script, every intermediate nested-reentry body (so a
+  // fallback hop's truncation never erases an earlier wrapper body's own signal
+  // content — e.g. a `for /f … do cmd.exe /c %e` cradle prefix), plus every
+  // resolved layer/recursion text, so a signal in an inner cradle counts. Rules
+  // dedup by id (classify/runRules emit one Signal per rule), so overlap across
+  // these sources can't double-count; IOC extraction reads `scan`, not `corpus`,
+  // so this doesn't affect IOCs.
+  const corpus = [input, ...reentryContext, script, ...scan.map((s) => s.text)].filter(Boolean).join('\n')
   const signals = classify(buildContext(corpus, flags, interpreter))
   const characterization = deriveCharacterization(signals)
 
@@ -148,7 +210,7 @@ export async function analyze(input: string): Promise<AnalysisResult> {
 
   return {
     input,
-    flags,
+    flags: dedupeFlags(flags),
     layers,
     iocs,
     signals,

