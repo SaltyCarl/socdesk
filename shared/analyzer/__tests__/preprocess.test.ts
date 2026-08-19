@@ -4,8 +4,8 @@ import { preprocess } from '../preprocess'
 
 describe('preprocess', () => {
   it('captures -enc payload and the evasion flags (prefix-matched, case-insensitive)', () => {
-    const r = preprocess('powershell.exe -NoP -W Hidden -Ep Bypass -enc AAAA')
-    expect(r.encoded).toBe('AAAA')
+    const r = preprocess('powershell.exe -NoP -W Hidden -Ep Bypass -enc AAAAAAAA')
+    expect(r.encoded).toBe('AAAAAAAA')
     const flags = r.flags.map((f) => f.flag).sort()
     expect(flags).toEqual(['-enc', '-ep', '-nop', '-w'])
   })

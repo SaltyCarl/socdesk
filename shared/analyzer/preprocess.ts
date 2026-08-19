@@ -3,7 +3,7 @@ import type { EvasionFlag } from './types'
 // PowerShell accepts unambiguous prefixes of parameter names; match the ones
 // that carry evasion meaning. Each entry: canonical flag → { regex, technique }.
 const FLAG_RULES: { flag: string; re: RegExp; techniqueIds: string[] }[] = [
-  { flag: '-enc', re: /(?:^|\s)-e(?:c|nc|ncodedcommand)?\s+([A-Za-z0-9+/=]{4,})/i, techniqueIds: ['T1027', 'T1140'] },
+  { flag: '-enc', re: /(?:^|\s)-e(?:c|nc|ncodedcommand)?\s+([A-Za-z0-9+/=]{8,})/i, techniqueIds: ['T1027', 'T1140'] },
   { flag: '-nop', re: /(?:^|\s)-nop(?:rofile)?\b/i, techniqueIds: ['T1059.001'] },
   { flag: '-w', re: /(?:^|\s)-w(?:indowstyle)?\s+(?:hidden|h|1|minimized)\b/i, techniqueIds: ['T1564.003'] },
   { flag: '-ep', re: /(?:^|\s)-e(?:p|xec(?:utionpolicy)?)\s+(?:bypass|unrestricted)\b/i, techniqueIds: ['T1059.001'] },
