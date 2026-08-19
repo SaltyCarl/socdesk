@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Chip } from '@socdesk/shared/ui'
 import { DecodeLadder } from '../components/analyzer/DecodeLadder'
 import { IocTable } from '../components/analyzer/IocTable'
+import { TechniqueTally } from '../components/analyzer/TechniqueTally'
 import { usePsAnalysis } from '../components/analyzer/usePsAnalysis'
 
 export function PowerShellAnalyzer() {
@@ -33,6 +34,7 @@ export function PowerShellAnalyzer() {
               ))}
             </div>
           )}
+          <TechniqueTally signals={state.result.signals} characterization={state.result.characterization} />
           <DecodeLadder layers={state.result.layers} />
           <IocTable iocs={state.result.iocs} />
         </div>
