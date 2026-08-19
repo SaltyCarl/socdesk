@@ -79,8 +79,8 @@ function FlagChip({ geo }: { geo: GeoModel }) {
 
 /** The IP geolocation map. With a `compare` present it also draws the honest
  *  great-circle route to the second sign-in's location + a secondary (hollow)
- *  pin there — periwinkle `--accent`, never a verdict tone. The arc sits BEHIND
- *  the pins and the primary pin stays visually dominant. */
+ *  pin there. The route is `--paper` (high-contrast over the periwinkle map);
+ *  pins are `--accent`, never a verdict tone. The primary pin stays dominant. */
 function WorldMap({ geo, compare }: { geo: GeoModel; compare?: CompareResult | null }) {
   const cols = WORLD[0].length
   const rows = WORLD.length
@@ -143,9 +143,9 @@ function WorldMap({ geo, compare }: { geo: GeoModel; compare?: CompareResult | n
         <>
           {/* the route — thin, dashed, moderate opacity; drawn BEHIND the pins */}
           <g
-            className="fill-none stroke-[var(--accent)] opacity-70"
-            strokeWidth={0.18}
-            strokeDasharray="0.9 0.7"
+            className="fill-none stroke-[var(--paper)] opacity-90"
+            strokeWidth={0.28}
+            strokeDasharray="1.2 0.7"
             strokeLinecap="round"
             strokeLinejoin="round"
           >

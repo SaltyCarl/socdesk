@@ -564,18 +564,19 @@ function paintWorld(ctx: CanvasRenderingContext2D, T: Palette, draw: boolean, x:
   }
 
   // Second sign-in overlay: the honest great-circle route + a secondary hollow
-  // pin, drawn UNDER the primary pin so it never competes with it. Periwinkle
-  // (--accent), thin + dashed + moderate opacity — never a verdict hue. Matches
-  // the SVG WorldMap treatment. Wrapped in save/restore so the dash/alpha/width
+  // pin, drawn UNDER the primary pin so it never competes with it. The route is
+  // --paper (high-contrast ink, visible over the periwinkle map in both themes);
+  // the pin stays --accent — never a verdict hue. Matches the SVG WorldMap
+  // treatment. Wrapped in save/restore so the dash/alpha/width
   // state can't leak into the primary pin below.
   if (compare) {
     ctx.save()
-    ctx.strokeStyle = mapHot
-    ctx.globalAlpha = 0.7
-    ctx.lineWidth = Math.max(0.8, 0.18 * cell)
+    ctx.strokeStyle = T.text
+    ctx.globalAlpha = 0.9
+    ctx.lineWidth = Math.max(1, 0.28 * cell)
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
-    ctx.setLineDash([1.6 * cell, 1.4 * cell])
+    ctx.setLineDash([2 * cell, 1.4 * cell])
     for (const seg of greatCircleArc(g.lat, g.lon, compare.second.lat, compare.second.lon)) {
       ctx.beginPath()
       seg.forEach((p, i) => {
