@@ -783,6 +783,15 @@ export function useGlobe3(
     let raf = 0
     let running = false
     let visible = false
+    // Persistent "intentionally suspended" latch — set by suspend()/cleared by
+    // resume(). visible alone isn't enough to gate a restart: a suspended globe
+    // that's alt-tabbed back into view or scrolled back on-screen would
+    // otherwise have the IntersectionObserver/visibilitychange/reduced-motion
+    // handlers below restart the loop on their own, even though the current
+    // result is still geoless and Overview's effect won't re-fire (the value
+    // it watches didn't change). visible keeps tracking real on-screen state
+    // (resume() still needs it) — this flag only blocks the OTHER restarters.
+    let geolessSuspended = false
     function frame(): void {
       const now = performance.now()
       let dt = anim.lastT ? (now - anim.lastT) / 1000 : 0.0167
@@ -867,14 +876,22 @@ export function useGlobe3(
      *  IntersectionObserver-based gating doesn't see a CSS opacity change, so
      *  without this the loop keeps burning GPU behind the .is-geoless dim). */
     function suspend(): void {
+      geolessSuspended = true
       stopLoop()
     }
     /** Resume, but only if the globe is still on-screen — mirrors the
      *  existing onVisibility gate below (`if (document.hidden) stopLoop();
      *  else if (visible) startLoop()`). */
     function resume(): void {
+      geolessSuspended = false
       if (visible) startLoop()
     }
+    // Note: suspend() racing an in-flight flyBack() (i.e. a result flips
+    // geoless mid fly-back animation) cancels the fly-back's rAF via
+    // stopLoop(), freezing the canvas on that stale mid-flight frame. Harmless
+    // — the globe is dimmed/cornered by .is-geoless at that point, and the
+    // frozen pose self-heals the moment the loop next restarts (resume(), or
+    // any startLoop() caller re-driving flyBack/flyToLatLng from scratch).
 
     /* ---------- fly-to (ported spring physics) ---------- */
     function flyToTarget(tt: FlyTarget): void {
@@ -1221,7 +1238,7 @@ export function useGlobe3(
       if (reduced()) {
         stopLoop()
         renderOnce()
-      } else startLoop()
+      } else if (!geolessSuspended) startLoop()
     }
     reducedMq.addEventListener('change', onReducedChange)
 
@@ -1245,7 +1262,7 @@ export function useGlobe3(
           if (en.isIntersecting) {
             visible = true
             canvas!.classList.add('is-ready')
-            startLoop()
+            if (!geolessSuspended) startLoop()
           } else {
             visible = false
             stopLoop()
@@ -1258,7 +1275,7 @@ export function useGlobe3(
 
     function onVisibility(): void {
       if (document.hidden) stopLoop()
-      else if (visible) startLoop()
+      else if (visible && !geolessSuspended) startLoop()
     }
     document.addEventListener('visibilitychange', onVisibility)
 

@@ -555,7 +555,14 @@
    tall result grows the hero smoothly instead of straining against a ceiling
    sized for a compact escalation card; the 460px FLOOR is untouched, so an
    idle or short (indicator) result still holds its intended minimum height
-   (design spec §3.9). */
-.sdh-hero.is-result {
-  min-height: max(460px, 62vh);
+   (design spec §3.9). Scoped to >760px: the existing
+   `@media (max-width: 760px) { .sdh-hero { min-height: auto } }` rule must
+   win on mobile (shrink-to-fit under a short result) — a bare `.is-result`
+   min-height here has higher specificity (2 classes vs 1) and would override
+   that `auto` at any width, forcing ~460-560px of dead whitespace under a
+   short mobile result. */
+@media (min-width: 761px) {
+  .sdh-hero.is-result {
+    min-height: max(460px, 62vh);
+  }
 }
