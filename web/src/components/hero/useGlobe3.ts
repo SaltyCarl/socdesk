@@ -111,6 +111,8 @@ interface Anim {
   lastT: number
   dragging: boolean
   lastX: number
+  lastY: number
+  userTilt: boolean
   hovering: boolean
   cursorNDC: { x: number; y: number } | null
   hoverIdx: number
@@ -129,7 +131,7 @@ function newAnim(): Anim {
   return {
     phi: 0, targetPhi: 0, theta: THETA,
     gz: 1, gzTarget: 1, spinFactor: 1, lastT: 0,
-    dragging: false, lastX: 0, hovering: false, cursorNDC: null, hoverIdx: -1,
+    dragging: false, lastX: 0, lastY: 0, userTilt: false, hovering: false, cursorNDC: null, hoverIdx: -1,
     flying: false, flyBackMode: false, spinSuspended: false, landedShown: false,
     landed: null, parPhi: 0, parTheta: 0,
     flyPhi: newSpring(), flyTheta: newSpring(), flyGz: newSpring(),
@@ -763,7 +765,7 @@ export function useGlobe3(
         anim.spinFactor += (ts - anim.spinFactor) * (1 - Math.exp(-dt * 7))
         if (!anim.dragging) anim.targetPhi += 0.0035 * (dt * 60) * anim.spinFactor
         anim.phi += (anim.targetPhi - anim.phi) * (1 - Math.exp(-dt * 6.5))
-        if (!anim.landed) anim.theta += (THETA - anim.theta) * (1 - Math.exp(-dt * 6.5))
+        if (!anim.landed && !anim.userTilt) anim.theta += (THETA - anim.theta) * (1 - Math.exp(-dt * 6.5))
         if (Math.abs(anim.gzTarget - anim.gz) > 4e-4) anim.gz += (anim.gzTarget - anim.gz) * (1 - Math.exp(-dt * 9))
         else anim.gz = anim.gzTarget
       }
@@ -814,6 +816,7 @@ export function useGlobe3(
       while (anim.phi - phiT > Math.PI) phiT += 2 * Math.PI
       anim.landed = { r: tt.r, tier: tt.tier, sev: tt.sev }
       anim.landedShown = false
+      anim.userTilt = false // the landing owns theta now
 
       if (reduced()) {
         anim.phi = phiT
@@ -844,6 +847,7 @@ export function useGlobe3(
     }
     function flyBack(): void {
       if (!anim.flying && !anim.landed && !anim.landedShown) return
+      anim.userTilt = false // restore the resting-tilt auto-return
       if (reduced()) {
         anim.theta = THETA
         anim.gz = 1
@@ -1058,6 +1062,7 @@ export function useGlobe3(
       if (reduced()) return
       anim.dragging = true
       anim.lastX = e.clientX
+      anim.lastY = e.clientY
       if (anim.flying && !anim.flyBackMode) anim.flying = false
       stage!.classList.add('is-dragging')
       try {
@@ -1070,6 +1075,14 @@ export function useGlobe3(
       if (!anim.dragging) return
       anim.targetPhi += (e.clientX - anim.lastX) * 0.005
       anim.lastX = e.clientX
+      // vertical drag tilts the globe (theta); clamp shy of the poles. The tilt
+      // persists (userTilt suspends the resting-tilt auto-return until flyBack).
+      const dy = e.clientY - anim.lastY
+      if (dy !== 0) {
+        anim.theta = Math.max(-1.2, Math.min(1.2, anim.theta + dy * 0.005))
+        anim.userTilt = true
+      }
+      anim.lastY = e.clientY
     }
     function endDrag(): void {
       anim.dragging = false
