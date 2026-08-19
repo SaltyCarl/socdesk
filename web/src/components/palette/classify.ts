@@ -1,48 +1,32 @@
 import type { IndicatorType } from './types'
+import { detectType } from '@socdesk/shared/indicators'
 
 /**
- * Lightweight, dependency-free indicator classifier. Deterministic and
- * cheap — it runs on every keystroke to badge the live query. It is
- * intentionally permissive (a triage hint, not a validator); the real
- * enrichment layer owns strict parsing.
+ * Lightweight indicator classifier for the palette's live badge. Delegates
+ * ALL shape-detection to the shared `detectType` (the same classifier the
+ * cockpit's data-boundary check and useLookup use) so the palette can never
+ * drift from the rest of the app again (design spec §2.2, §3.2). This
+ * function only maps detectType's richer taxonomy onto the palette's badge
+ * enum — it adds no detection logic of its own.
  */
 
-const HEX = /^[a-f0-9]+$/i
+const TYPE_MAP: Record<string, IndicatorType> = {
+  ipv4: 'ip',
+  ipv6: 'ip',
+  domain: 'domain',
+  url: 'url',
+  md5: 'hash',
+  sha1: 'hash',
+  sha256: 'hash',
+  cve: 'cve',
+  email: 'unknown', // no palette badge for email — not part of this taxonomy
+  '': 'unknown',
+}
 
 export function classifyIndicator(raw: string): IndicatorType {
   const s = raw.trim()
   if (!s) return 'unknown'
-
-  // CVE-YYYY-NNNN(+)
-  if (/^cve-\d{4}-\d{3,}$/i.test(s)) return 'cve'
-
-  // MD5 / SHA-1 / SHA-256 by length + hex alphabet
-  if ((s.length === 32 || s.length === 40 || s.length === 64) && HEX.test(s)) {
-    return 'hash'
-  }
-
-  // IPv4 with in-range octets
-  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s) && s.split('.').every((o) => Number(o) <= 255)) {
-    return 'ip'
-  }
-
-  // IPv6 (rough — colon-delimited hex, ≥2 groups)
-  if (s.includes(':') && /^[0-9a-f:]+$/i.test(s) && (s.match(/:/g)?.length ?? 0) >= 2) {
-    return 'ip'
-  }
-
-  // URL — an explicit scheme, or a path component
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(s) || s.includes('/')) return 'url'
-
-  // Bare domain — labels joined by dots with a plausible TLD
-  if (
-    /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(s) &&
-    /\.[a-z]{2,}$/i.test(s)
-  ) {
-    return 'domain'
-  }
-
-  return 'unknown'
+  return TYPE_MAP[detectType(s)] ?? 'unknown'
 }
 
 /** Short uppercase badge shown on indicator rows. */
