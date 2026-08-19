@@ -8,15 +8,24 @@ every public reputation service worth checking. Alongside it, a threat feed
 ranked by what deserves attention first rather than by what happened most
 recently.
 
+Paste a PowerShell command, a `.ps1`, or a Sysmon/PowerShell 4104 script
+instead, and the same box runs it through a deterministic, client-side decode
+ladder — Base64/gzip/DEFLATE, variable substitution, `IEX` recursion —
+pulling out IOCs with one-click reputation pivots, tallying MITRE ATT&CK
+techniques, and flagging the specific signals that make something malicious
+or suspicious. The input is never executed and never leaves the browser.
+
 A React app (Vite + Tailwind + Motion) under a strict Content-Security-Policy.
 Scheduled collectors publish the feed and CVE data as JSON; a single
 same-origin serverless function (`/api/enrich`) queries public reputation
 services on demand for the indicator you paste. No database, no accounts, no
 bill.
 
-**Live:** https://socdesk.io — a lookup "cockpit": start typing an indicator and
-the marketing intro folds away, the omnibox pins, and the escalation card docks
-beside a 3D globe.
+**Live:** https://socdesk.io — a lookup "cockpit": start typing an indicator
+*or* a PowerShell command and the marketing intro folds away, the omnibox
+pins, and — depending on what you pasted — the escalation card or the
+PowerShell analyzer docks inline beside a 3D globe, which yields when it's
+the analyzer's turn.
 
 <!-- SCREENSHOT: 1440px-wide capture of the console with a KEV CVE looked up —
      verdict gauge, escalation docket, and pivot row visible. Save to
@@ -47,6 +56,7 @@ capabilities now live in `web/`, `shared/`, and `lib/`.
 
 | Capability | Where it lives |
 |---|---|
+| **Polymorphic cockpit** — one omnibox at `/`; paste an indicator and the escalation card docks beside the 3D globe, paste a PowerShell command and the analyzer renders inline in the same slot while the globe yields. One screen, no tab switch — a pasted command never reaches the enrichment endpoint or leaves the browser | `shared/intent.ts`, `web/src/components/cockpit/`, `web/src/routes/Overview.tsx` |
 | Indicator lookup with type auto-detection (IPv4, **IPv6**, domain, URL, MD5/SHA-1/SHA-256, CVE, email) | `shared/indicators.ts`, `lib/enrich.mjs` |
 | Live multi-source reputation — the escalation card: N-of-M consensus tally, honest per-source **class labels** + recency, mitigating signals as **chips** (IPv4, IPv6, domain, URL, hash) | `lib/enrich.mjs`, `shared/verdict-cards/` |
 | **IPv6** enrichment — AbuseIPDB + VirusTotal + ipinfo (GreyNoise is IPv4-only); private/reserved v6 rejected | `lib/enrich.mjs` |
@@ -55,6 +65,7 @@ capabilities now live in `web/`, `shared/`, and `lib/`.
 | **Compare-IP / impossible-travel** — great-circle miles + implied mph + an honest plausibility read + a map arc, from real coordinates only | `shared/card/travel.ts`, `shared/verdict-cards/CompareIp.tsx` |
 | Copy-out — clean factual **"Copy card"** (PNG) + **"Copy text"**, no branding, no disclaimer prose | `shared/verdict-cards/copy.ts`, `shared/card/drawVerdict.ts` |
 | Browser extension — the toolbar popup renders the **same full escalation card** (manifest v0.2.0), sharing detection + the enrich pipeline | `extension/` |
+| **PowerShell analyzer** (`/analyzer`) — deterministic, client-side decode ladder (`-enc` Base64, gzip/raw-DEFLATE inflate, variable substitution, `IEX`/`&`/`.Invoke()` recursion) + typed, deduped IOC extraction with one-click reputation pivots + a MITRE ATT&CK technique tally + a specificity-gated malicious/suspicious characterization. Never executes the input | `shared/analyzer/`, `web/src/routes/PowerShellAnalyzer.tsx` |
 | Authoritative CVE verdict — CISA KEV × NVD CVSS × FIRST EPSS | `site/js/verdict.js` |
 | Honest "not in corpus" for a CVE outside the corpus, plus type-aware pivots | `site/js/verdict.js` |
 | Escalation write-up (markdown / plain text / `.md` download) | `site/js/verdict.js` |
@@ -65,7 +76,7 @@ capabilities now live in `web/`, `shared/`, and `lib/`.
 | Trends — biggest EPSS rises and new KEV entries, from committed daily snapshots | `pipeline/history.py`, `site/js/views.js` |
 | ATT&CK actor and malware profiles, resolvable by name or alias | `collectors/attack.py`, `site/js/views.js` |
 | Collection health per source, with last-known-good retention | `pipeline/validate.py`, `site/js/views.js` |
-| Analyst toolbelt — defang/refang, IOC extract, UTF-16LE Base64 decode, PowerShell parser, LOLBin lookup | `site/js/toolbelt/` |
+| Analyst toolbelt — defang/refang, IOC extract, UTF-16LE Base64 decode | `site/js/toolbelt/` (legacy; PowerShell parsing and LOLBin lookup superseded by the PowerShell analyzer above) |
 | Shift handoff digest from items you flagged notable | `site/js/app.js` |
 | Offline capability via service worker (data network-first, never stale-as-fresh) | `site/sw.js` |
 

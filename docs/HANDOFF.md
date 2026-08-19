@@ -1,10 +1,102 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-19 (session 5 — PowerShell analyzer Phase 1 + 2a merged to local main, unpushed; Phase 3 interpretation is next, gated on Cyber-Verification restart) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-19 (session 6 — analyzer Phase 3 signatures + polymorphic cockpit SHIPPED LIVE) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-19 (session 5 — PowerShell analyzer: decoder core merged, interpretation layer next)
+## 0. LATEST — 2026-08-19 (session 6 — analyzer Phase 3 + polymorphic cockpit SHIPPED LIVE)
+
+> Newest block. Supersedes §0-RECENT (session 5) on analyzer status — Phase 3
+> interpretation now IS built, tested, and live, not just the Phase 1/2a
+> decoder. Also ships an entirely new capability, the polymorphic cockpit, not
+> covered by any block below. Both verified live on socdesk.io, `origin/main`
+> ≈ `a62ac2f`.
+
+**Two features shipped and verified live since the last checkpoint.**
+
+### 1. PowerShell analyzer Phase 3 — signatures + characterization (`/analyzer`, LIVE)
+- The Phase 1/2a decoder core (lex → fold → resolve → extract, §0-PRIOR) now
+  feeds a **signature catalog**: 12 MITRE-ATT&CK-mapped `SignatureRule`s
+  across download cradle, evasion-flag cluster, AMSI reflection/memory-patch,
+  ETW tamper, Defender tamper, ClickFix/paste-and-run, beaconing, reverse
+  shell, fileless loader, persistence, and LOLBins (certutil/bitsadmin/mshta/
+  regsvr32/rundll32/msiexec/wmic/installutil/conhost), with co-occurrence
+  upgrade.
+- **Specificity-gated characterization** (the analyst payoff Carl asked for):
+  `analyze()` emits a **RED** "High-confidence malicious behaviour" callout
+  ONLY for intrinsically near-dispositive signals (amsi-reflection,
+  amsi-memory-patch, reverse-shell — "no legitimate use"); an **AMBER**
+  "Suspicious — review" tier fires when a strong signal is corroborated to
+  near-dispositive by co-occurrence (the CS-beacon shape); otherwise just the
+  periwinkle technique tally. **Never a synthesized score/verdict.**
+- **⚠ RESERVED-COLOUR EVOLUTION (owner-approved):** the ONE gated
+  characterization callout carries a verdict-severity hue (red/amber);
+  technique CHIPS stay periwinkle facts, tier-tagged, sorted strongest-first.
+  This relaxes the old "analyzer is periwinkle-only" rule for the gated read
+  only — red/amber/green stay reserved for a real severity read elsewhere,
+  never decoration.
+- Files: `shared/analyzer/{types,lex,preprocess,fold,extract,resolve,report,index}.ts`,
+  `web/src/routes/PowerShellAnalyzer.tsx`,
+  `web/src/components/analyzer/{AnalyzerResult,TechniqueTally,DecodeLadder,IocTable}.tsx`.
+  `AnalyzerResult` is a shared component, reused by the cockpit (below). Each
+  extracted IOC has a one-click "Look up →" into the reputation/enrich card.
+  **86 vitest** for `shared/analyzer`.
+
+### 2. Polymorphic cockpit — one omnibox, two paths (`/` = `Overview.tsx`, LIVE)
+- `shared/intent.ts::classifyCockpitInput(raw)` classifies a paste as
+  `'indicator'|'command'|'unclassified'` and routes it. An **indicator** →
+  enrichment (`useLookup` → `/api/enrich`) → `EscalationCard` inline + the 3D
+  globe lands the geo pin. A **PowerShell command** → the local analyzer
+  (`usePsAnalysis`) → `AnalyzerResult` inline in the SAME docked slot, and the
+  globe YIELDS — dims/steps back AND suspends its WebGL render loop
+  (`GlobeApi.suspend/resume` + `.is-geoless` CSS). One screen, no tab-switch.
+  `/analyzer` stays as the deep/standalone view sharing `AnalyzerResult`.
+- Key pieces: `web/src/components/cockpit/{useCockpitInput,ResultRegion,
+  CockpitOmnibox,ModeChip}.tsx`. `useCockpitInput(submitted, override)`
+  composes both `useLookup` + `usePsAnalysis` (the unselected path fed `''`);
+  `ResultRegion` dispatches by kind; `CockpitOmnibox` morphs a single-line
+  `<input>` ↔ an auto-growing `<textarea>` for scripts; `ModeChip` shows the
+  detected kind (periwinkle catalog), correctable to escalate to command
+  (monotonic — see below).
+- **⚠ DATA BOUNDARY (load-bearing, verified live):** a pasted command NEVER
+  reaches the third-party `/api/enrich`. `classifyCockpitInput` runs before
+  `detectType` at EVERY entry point: the cockpit auto-path; the mode-chip
+  override (`resolveKind` is MONOTONIC — a detected command can't be
+  overridden back to indicator); `palette/commands.ts::submitLookup` +
+  `Lookup.tsx::runLookup` (submit); and `Lookup.tsx`'s hash mount /
+  `hashchange` / `popstate` reads — a `/lookup#q=<command>` link redirects to
+  `/analyzer`, zero enrich calls. Also consolidated the two drifted
+  classifiers (`palette/classify.ts` now delegates to `detectType`).
+- Submit is unified — only the committed value runs, never live-typed, so no
+  per-keystroke `/api/enrich`.
+
+**Both verified live on socdesk.io — `origin/main` ≈ `a62ac2f`.**
+
+### Deferred fast-follows (not yet built)
+- `/analyzer#q=` deep-link prefill — a command routed from the palette/
+  `/lookup` currently lands on the BARE `/analyzer` (loses the paste). Add a
+  `#q=` consumer mirroring `Lookup.tsx`'s hash reader.
+- `IocTable` "Look up →" → in-place cockpit kind-flip, instead of navigating
+  away.
+
+### Roadmap (owner-set, unbuilt)
+1. **cmd-family / multi-interpreter increment** — cmd `^`/`^^` caret
+   deobfusc, `finger`/`for /f`/`start` LOLBin+cradle, broader ClickFix decoys,
+   HTA/WSH awareness; fix the lowercase-filename→domain IOC leak. Motivated
+   by a live test: a ClickFix `cmd /c … for /f … in ('finger user@host') do
+   %e` finger download-exec cradle the analyzer under-detected.
+2. The **"explained"/kill-chain breakdown** — spec §7 `ActionBullet` /
+   `bullets.ts`, currently `bullets:[]` — the numbered, execution-ordered
+   plain-English "what did it do" narrative.
+3. **PowerShell deobfusc breadth** (`-join`/`-f`/`[char]`/`-replace`/
+   `[Convert]::FromBase64String`/`.Invoke()` sink); **technique-family
+   expansion** (credential-access, ransomware shadow-delete, UAC bypass,
+   lateral, DNS exfil); LOLBin table expansion; **honesty layer** (real
+   entropy/`wall`/`fractionAccounted`).
+
+---
+
+## 0-RECENT. 2026-08-19 (session 5 — PowerShell analyzer: decoder core merged, interpretation layer next)
 
 > Newest block. For **analyzer build-state and what to do next**, this
 > supersedes the session-4 block below. Everything about the live IOC-lookup

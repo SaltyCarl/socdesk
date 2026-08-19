@@ -32,6 +32,22 @@ You can also paste an actor or malware **name** — "volt typhoon", "Midnight
 Blizzard", "Mimikatz". Aliases resolve, so you do not need the canonical
 spelling.
 
+The front-page box reads a fourth kind of paste: a **PowerShell command**
+line, the contents of a `.ps1` file, or an EID 4104 script-block log entry.
+Paste one in and the chip switches to **PowerShell** — the panel that opens is
+the analyzer's decode-and-technique read (see below) instead of an escalation
+card, in the same slot, no tab switch. The box grows into a multi-line field
+on its own once it looks like a script rather than a single value. An
+indicator that resolves to a real place still lands its pin on the 3D globe
+behind the box; a command has no location to show, so the globe dims and
+steps back instead of leaving a stale pin sitting there.
+
+The chip is correctable, but only in one direction. If something
+command-shaped gets misread as plain text, click the chip to force it to
+PowerShell before you submit. A paste already detected as PowerShell cannot be
+switched back to an indicator lookup from the chip — that is deliberate, so a
+script can never be sent out to a third-party service by mistake.
+
 Results open in a panel directly under the search. The page does not jump.
 `Esc` or **Clear** closes it.
 
@@ -207,6 +223,71 @@ taxonomy, or your client, and it is not a substitute for your own assessment.
 If a copy button reports **COPY BLOCKED** instead of **COPIED**, the clipboard
 was genuinely denied and nothing was copied; the button will not lie to you
 about that.
+
+## The PowerShell analyzer
+
+Paste a PowerShell command line, the contents of a `.ps1` file, or an EID 4104
+script-block log entry — into the box on the front page, or into the
+dedicated box at **Analyzer** — and it unwraps the command and tells you what
+it found. It never runs what you paste. Everything happens in your browser;
+from the front-page box, the command itself never reaches SOCDesk's own
+servers, unlike an indicator lookup.
+
+### The decode ladder
+
+Obfuscated PowerShell is usually several layers deep — a `-enc` Base64 blob
+that unpacks to a gzip stream, that unpacks to a script built out of
+variables, that hands the result to `Invoke-Expression`. The **decode ladder**
+shows each layer as its own numbered step: the text it produced, and an
+honest label for how far the tool got on that step — **fully decoded**,
+**partial**, **opaque** (recognisable as encoded but not something the tool
+can unwrap), or **wall** (it stopped there). Read the labels, not just the
+last rung — a ladder that turns opaque on step two means everything under it
+is the tool's best guess, not a confirmed read.
+
+### Technique signals
+
+Below the ladder, every pattern the tool recognised is listed as a chip — a
+download cradle, a cluster of evasion flags, an AMSI reflection or memory
+patch, an ETW tamper, a Defender tamper, beaconing, a reverse shell, a
+fileless loader, persistence, a ClickFix-style paste-and-run, or one of the
+tracked LOLBins (certutil, bitsadmin, mshta, regsvr32, rundll32, msiexec,
+wmic, installutil, conhost). Each chip names the ATT&CK technique ID it maps
+to and shows the exact substring of your paste that triggered it, so you can
+check the tool's work instead of taking the label on faith. Small flag chips
+above the tally call out execution-evasion flags spotted while unwrapping the
+command — hidden window, no-profile, execution-policy bypass, and the like.
+
+The tool adds its own colour-coded read in exactly two situations, and stays
+silent otherwise:
+
+- **High-confidence malicious behaviour** (red) — a technique fired that has
+  no legitimate use on its own: AMSI reflection, an AMSI memory patch, or a
+  reverse shell.
+- **Suspicious — review** (amber) — a strong signal is corroborated by
+  another signal alongside it, the shape a beacon typically produces.
+
+Anything short of that stays a plain count — so many technique signals across
+so many ATT&CK techniques, explicitly **not a synthesized verdict** — because
+a coincidental match or two is not grounds for one, and the tool will not
+manufacture a score to fill the gap.
+
+### Extracted indicators
+
+Any IP, domain, URL, or hash the decode turns up is listed with a **Look up
+→** button beside it. Clicking it pivots straight into that indicator's
+escalation card — which means that indicator, unlike the command itself, does
+leave your browser at that point to query the reputation services, under the
+same rules as any other lookup in this guide.
+
+### What it does not cover yet
+
+The analyzer is PowerShell-scoped today. A command wrapped in `cmd.exe`, a
+`finger`-based download-and-execute cradle, `for /f` tricks, or caret (`^`)
+obfuscation — the cmd.exe side of a ClickFix-style attack, for example — is
+under-detected right now. That is a known, named gap and next on the roadmap,
+not a silent one. A thin or empty result from something that is obviously not
+pure PowerShell is a reason for more scrutiny, not less.
 
 ## Bulk lookup
 
@@ -395,3 +476,10 @@ is worse than no escalation.
 7. **No warranty.** Verify independently before acting on any indicator. This
    is a personal project, not a vendor product, and not an official tool of any
    organization.
+8. **The analyzer reads PowerShell — not every interpreter yet.** A
+   `cmd.exe`-wrapped command, a `finger`-based download-and-execute cradle,
+   `for /f` tricks, and caret (`^`) obfuscation are under-detected today, so a
+   script built mainly around those instead of PowerShell can slip through
+   with a thin or empty result. That is a known gap and next on the roadmap,
+   not a silent one — a quiet read on something that plainly is not pure
+   PowerShell is a reason for more scrutiny, never clearance.
