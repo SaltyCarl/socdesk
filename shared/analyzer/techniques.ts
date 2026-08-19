@@ -118,7 +118,7 @@ export const RULES: SignatureRule[] = [
   {
     id: 'amsi-memory-patch',
     label: 'AMSI memory patch',
-    techniqueIds: ['T1562.001', 'T1055'],
+    techniqueIds: ['T1562.001'],
     baseSpecificity: 'near-dispositive',
     upgradesWith: [],
     test(ctx) {
@@ -135,7 +135,11 @@ export const RULES: SignatureRule[] = [
     baseSpecificity: 'strong',
     upgradesWith: ['amsi-reflection', 'fileless-loader'],
     test(ctx) {
-      if (hasAny(ctx, ['etweventwrite', 'eventpipe', 'nttraceevent'])) {
+      // Mentioning an ETW API is normal in .NET diagnostics/tracing; the
+      // "tampering" fact is true only when a patch/hook/silence primitive co-occurs.
+      const api = hasAny(ctx, ['etweventwrite', 'eventpipe', 'nttraceevent', 'etweventunregister'])
+      const patch = hasAny(ctx, ['virtualprotect', 'writeprocessmemory', 'getprocaddress', 'setvalue', '[reflection.assembly]::load', 'ntsetinformationprocess'])
+      if (api && patch) {
         return { hit: true, trigger: triggerFor(ctx, ['etweventwrite', 'eventpipe', 'nttraceevent']) }
       }
       return { hit: false }
@@ -165,7 +169,10 @@ export const RULES: SignatureRule[] = [
     upgradesWith: ['download-cradle', 'amsi-reflection'],
     test(ctx) {
       const flags = flagSet(ctx)
-      const hiddenFetchIex = flags.has('-w') && flags.has('-nop') && hasAny(ctx, FETCH) && hasIexSink(ctx)
+      // A -File-launched script is a file execution, not a paste-and-run one-liner;
+      // its inner fetch+IEX is a download-cradle concern, not ClickFix (mirrors evasion-cluster).
+      const localFile = /-file\b/i.test(ctx.text) || present(ctx, '-file')
+      const hiddenFetchIex = flags.has('-w') && flags.has('-nop') && hasAny(ctx, FETCH) && hasIexSink(ctx) && !localFile
       const headless = hasAll(ctx, ['conhost', '--headless'])
       const hta = hasAny(ctx, ['mshta']) && hasAny(ctx, ['http://', 'https://', 'javascript:', '.hta'])
       const decoy = hasAny(ctx, ['verify you are human', 'i am not a robot', 'ray id', 'captcha', 'press win+r'])
@@ -191,7 +198,7 @@ export const RULES: SignatureRule[] = [
   {
     id: 'reverse-shell',
     label: 'reverse shell',
-    techniqueIds: ['T1059.001', 'T1071.001'],
+    techniqueIds: ['T1059.001', 'T1095'],
     baseSpecificity: 'near-dispositive',
     upgradesWith: [],
     test(ctx) {
@@ -220,7 +227,7 @@ export const RULES: SignatureRule[] = [
   {
     id: 'persistence',
     label: 'persistence',
-    techniqueIds: ['T1053.005', 'T1547.001', 'T1546.003'],
+    techniqueIds: ['T1053.005', 'T1547.001', 'T1546.003', 'T1543.003'],
     baseSpecificity: 'strong',
     upgradesWith: ['download-cradle', 'amsi-reflection', 'clickfix'],
     test(ctx) {

