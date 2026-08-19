@@ -95,7 +95,7 @@ export function Overview({
       return
     }
     api?.flyBack()
-  }, [cockpit])
+  }, [cockpit.kind, cockpit.state])
 
   const submit = (value: string) => setSubmitted(value.trim())
 

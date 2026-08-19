@@ -27,6 +27,13 @@ export type CockpitResult =
   | { kind: 'command'; state: PsState }
   | { kind: 'unclassified'; state: { kind: 'idle' } }
 
+// A stable reference for the unclassified branch's state — without this, a
+// fresh `{ kind: 'idle' }` object literal every render would defeat any
+// caller effect keyed on `cockpit.state` (e.g. Overview.tsx's globe-landing
+// effect), re-firing on every incidental re-render even though nothing about
+// the result actually changed.
+const IDLE = { kind: 'idle' } as const
+
 /** Pure routing step: which committed value (if any) each downstream hook
  *  should receive for a given classified `kind`. Exported and unit-tested on
  *  its own (see useCockpitInput.test.ts). */
@@ -55,5 +62,5 @@ export function useCockpitInput(
 
   if (kind === 'indicator') return { kind, state: lookupState }
   if (kind === 'command') return { kind, state: psState }
-  return { kind: 'unclassified', state: { kind: 'idle' } }
+  return { kind: 'unclassified', state: IDLE }
 }
