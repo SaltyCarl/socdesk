@@ -17,3 +17,26 @@ export function looksBase64(s: string): boolean {
   const t = s.replace(/\s+/g, '')
   return t.length >= 8 && t.length % 4 === 0 && B64_RE.test(t)
 }
+
+export function bytesToText(bytes: Uint8Array): string {
+  return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+}
+
+async function decompress(bytes: Uint8Array, format: 'gzip' | 'deflate-raw'): Promise<Uint8Array | null> {
+  try {
+    const ds = new DecompressionStream(format)
+    const stream = new Blob([bytes]).stream().pipeThrough(ds)
+    return new Uint8Array(await new Response(stream).arrayBuffer())
+  } catch {
+    return null
+  }
+}
+
+/** Inflate a gzip (magic 1F 8B) or raw-DEFLATE blob. Returns null if neither
+ *  applies — PowerShell's DeflateStream is raw DEFLATE, so 'deflate-raw'. */
+export async function inflate(bytes: Uint8Array): Promise<Uint8Array | null> {
+  if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    return decompress(bytes, 'gzip')
+  }
+  return decompress(bytes, 'deflate-raw')
+}
