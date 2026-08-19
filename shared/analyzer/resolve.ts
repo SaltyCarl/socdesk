@@ -1,6 +1,8 @@
 import { tokenize, type Token } from './lex'
 
 const isPlus = (t: Token | undefined): boolean => t?.type === 'bareword' && t?.value === '+'
+const isVar = (t: Token | undefined): boolean => !!t && t.type === 'bareword' && /^\$[A-Za-z_][\w]*$/.test(t.value)
+const isEq = (t: Token | undefined): boolean => !!t && t.type === 'punct' && t.value === '='
 
 /** Serialize one token back to source-ish text: strings become single-quoted
  *  (their resolved value re-quoted), everything else keeps its original `raw`.
@@ -38,6 +40,37 @@ export function foldConcat(text: string): string {
       out.push(emit(toks[i]))
       i++
     }
+  }
+  return out.join(' ')
+}
+
+/** Substitute single-assignment `$var = '<literal>'` bindings. A variable bound
+ *  exactly once to a string literal is replaced at its use sites; a variable
+ *  assigned more than once, or to a non-literal, is marked ambiguous and left
+ *  untouched (never guessed). Straight-line only — no control-flow reasoning. */
+export function resolveVars(text: string): string {
+  const toks = tokenize(text)
+  // Pass 1: collect bindings. `$v = 'lit'` → candidate; a second assignment poisons it.
+  const bound = new Map<string, string>()
+  const poisoned = new Set<string>()
+  for (let i = 0; i < toks.length; i++) {
+    if (isVar(toks[i]) && isEq(toks[i + 1])) {
+      const name = toks[i].value
+      if (toks[i + 2]?.type === 'string' && !isPlus(toks[i + 3])) {
+        if (bound.has(name) || poisoned.has(name)) { bound.delete(name); poisoned.add(name) }
+        else bound.set(name, toks[i + 2].value)
+      } else {
+        bound.delete(name); poisoned.add(name) // assigned to a non-literal → ambiguous
+      }
+    }
+  }
+  // Pass 2: emit, substituting a bound var ONLY where it's a use (not its own assignment LHS).
+  const out: string[] = []
+  for (let i = 0; i < toks.length; i++) {
+    const t = toks[i]
+    const isAssignLhs = isVar(t) && isEq(toks[i + 1])
+    if (isVar(t) && !isAssignLhs && bound.has(t.value)) out.push(`'${bound.get(t.value)}'`)
+    else out.push(emit(t))
   }
   return out.join(' ')
 }
