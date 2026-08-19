@@ -17,3 +17,6 @@ CLAUDE.md
 .claude/
 .wrangler/
 .playwright-mcp/
+
+# SDD scratch (ledger, briefs, review packages)
+.superpowers/
