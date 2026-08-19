@@ -124,14 +124,31 @@ function ExamplesGallery({ theme }: { theme?: EffectiveTheme }) {
 /* ---------- the route ---------------------------------------------------- */
 
 export function Lookup() {
-  // `query` is the SUBMITTED indicator (from the `#q=` hash) that drives the
-  // result; `text` is the live input value. Keystrokes change only `text`;
-  // submitting writes the hash, which the sync effect reflects back into both.
-  const [query, setQuery] = useState<string>(readLookupQuery)
+  // `rawQuery` is the SUBMITTED indicator (from the `#q=` hash) exactly as
+  // read — including a command-shaped value, which must never itself reach
+  // `useLookup` (see `isCommand`/`query` below). `text` is the live input
+  // value. Keystrokes change only `text`; submitting writes the hash, which
+  // the sync effect reflects back into both.
+  const [rawQuery, setRawQuery] = useState<string>(readLookupQuery)
   const [text, setText] = useState<string>(readLookupQuery)
   const inputRef = useRef<HTMLInputElement>(null)
   const theme = useEffectiveTheme()
+
+  // A command-shaped hash query is a bookmarked/shared-link route into the
+  // SAME leak `runLookup` already guards for a form submit (§2.2) — the
+  // initial mount value and the hashchange/popstate sync below both read the
+  // hash directly, with no interaction to intercept. Guard them here instead:
+  // a command-shaped `rawQuery` never becomes the `query` fed to `useLookup`
+  // (design spec §2.1, §9).
+  const isCommand = rawQuery !== '' && classifyCockpitInput(rawQuery) === 'command'
+  const query = isCommand ? '' : rawQuery
   const state = useLookup(query)
+
+  // Redirecting is a navigation side effect — it must run in an effect, never
+  // during render or inside the `useState` initializer.
+  useEffect(() => {
+    if (isCommand) navigate('/analyzer')
+  }, [isCommand])
 
   useEffect(() => {
     // hashchange covers a raw hash edit / same-route resubmit; popstate covers a
@@ -139,7 +156,7 @@ export function Lookup() {
     // popstate, which does NOT emit hashchange).
     const sync = () => {
       const q = readLookupQuery()
-      setQuery(q)
+      setRawQuery(q)
       setText(q)
     }
     window.addEventListener('hashchange', sync)

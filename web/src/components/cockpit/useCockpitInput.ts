@@ -47,15 +47,29 @@ export function resolveCockpitArgs(
   }
 }
 
+/** Apply the ModeChip override monotonically: it may escalate a missed
+ *  indicator/unclassified value TO 'command', but must NEVER pull an
+ *  auto-detected 'command' away from 'command' — doing so would feed the raw
+ *  script to useLookup → /api/enrich (design spec §2.1). */
+export function resolveKind(
+  autoKind: CockpitInputKind,
+  override: 'indicator' | 'command' | null,
+): CockpitInputKind {
+  if (autoKind === 'command') return 'command'
+  return override ?? autoKind
+}
+
 /**
  * `override`, when set, wins over auto-detection for this submission — the
- * ModeChip's correction (design spec §3.7, Task 7). Defaults to auto-detect.
+ * ModeChip's correction (design spec §3.7, Task 7) — EXCEPT it can never pull
+ * an auto-detected 'command' away from 'command' (`resolveKind` above,
+ * design spec §2.1's monotonic guard). Defaults to auto-detect.
  */
 export function useCockpitInput(
   submitted: string,
   override: 'indicator' | 'command' | null = null,
 ): CockpitResult {
-  const kind: CockpitInputKind = override ?? classifyCockpitInput(submitted)
+  const kind: CockpitInputKind = resolveKind(classifyCockpitInput(submitted), override)
   const { indicatorArg, commandArg } = resolveCockpitArgs(kind, submitted)
   const lookupState = useLookup(indicatorArg)
   const psState = usePsAnalysis(commandArg)

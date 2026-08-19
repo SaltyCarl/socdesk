@@ -19,16 +19,21 @@ export function ModeChip({
   onToggle: () => void
 }) {
   const autoKind = classifyCockpitInput(value)
-  const kind = override ?? autoKind
+  // The override is monotonic (`resolveKind`, useCockpitInput.ts, design spec
+  // §2.1): it may escalate a missed indicator/unclassified value TO
+  // 'command', but can never pull an auto-detected 'command' away from
+  // 'command'. So an auto-detected command ignores any override entirely —
+  // offering the correction there would advertise a click that silently does
+  // nothing — and the true empty box has nothing to correct either.
+  const isEmpty = value.trim() === ''
+  const correctable = !isEmpty && autoKind !== 'command'
+  const kind = autoKind === 'command' ? 'command' : (override ?? autoKind)
   const label =
     kind === 'unclassified'
       ? '—'
       : kind === 'command'
         ? 'PowerShell'
         : INDICATOR_LABEL[classifyIndicator(value)]
-  // Only offer the override toggle when there is a real call to correct — not
-  // the honest '—' unclassified state.
-  const correctable = kind !== 'unclassified'
   return (
     <button
       type="button"
@@ -37,7 +42,9 @@ export function ModeChip({
       aria-label={
         correctable
           ? `Detected as ${label} — click to switch to ${kind === 'command' ? 'indicator' : 'command'}`
-          : 'No indicator or command detected yet'
+          : isEmpty
+            ? 'No indicator or command detected yet'
+            : `Detected as ${label}`
       }
       className="shrink-0 disabled:cursor-default"
     >
