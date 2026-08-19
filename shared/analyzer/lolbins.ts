@@ -21,6 +21,14 @@ export const LOLBINS: LolbinEntry[] = [
   { bin: 'wmic', context: ['process call create', '/node:', 'format:http'], techniqueIds: ['T1047'] },
   { bin: 'installutil', context: ['/logfile', '/u ', '.exe'], techniqueIds: ['T1218.004'] },
   { bin: 'conhost', context: ['--headless'], techniqueIds: ['T1059.001'] },
+  // finger.exe fetching a payload via a for /f download/exec cradle — the
+  // discriminator is real co-occurrence with the cradle shape, not a bare
+  // mention (finger alone is used for legitimate directory-protocol lookups).
+  { bin: 'finger', context: ['for /f', 'do %'], techniqueIds: ['T1105'] },
+  // NOTE: `start` is intentionally NOT a standalone LOLBin entry — it's a
+  // companion discriminator only, usable inside cmd-cradle/clickfix's own
+  // test() functions. `start notepad.exe` alone is unremarkable; registering
+  // it here would fire on ordinary benign shell usage.
 ]
 
 /** Match the first LOLBin whose binary name AND at least one discriminator both

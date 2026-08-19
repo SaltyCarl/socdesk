@@ -69,6 +69,7 @@ function hasIexSink(ctx: RuleContext): boolean {
 // ---- the rule table (extended by Tasks 3–5) ----
 
 const WSH_HTA_INTERPRETERS: Interpreter[] = ['mshta', 'wscript', 'cscript']
+const MSHTA_DISCRIMINATORS = ['http://', 'https://', 'javascript:', 'vbscript:', '.hta']
 
 export const RULES: SignatureRule[] = [
   {
@@ -81,6 +82,22 @@ export const RULES: SignatureRule[] = [
       const fetches = hasAny(ctx, FETCH)
       // Discriminator: fetched content must flow into an interpreter, not a file.
       if (fetches && hasIexSink(ctx)) return { hit: true, trigger: triggerFor(ctx, FETCH) }
+      return { hit: false }
+    },
+  },
+  {
+    id: 'cmd-cradle',
+    label: 'cmd.exe download/exec cradle',
+    techniqueIds: ['T1059.003', 'T1105'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['clickfix', 'evasion-cluster'],
+    test(ctx) {
+      // Discriminator: the for /f loop construct alone must not fire — it
+      // needs a download/exec inner command co-occurring, exactly as a bare
+      // iwr/curl alone doesn't fire download-cradle without an IEX sink.
+      const loop = hasAny(ctx, ['for /f'])
+      const inner = hasAny(ctx, ['finger', 'curl', 'certutil', 'bitsadmin', 'powershell', 'pwsh'])
+      if (loop && inner) return { hit: true, trigger: triggerFor(ctx, ['for /f']) }
       return { hit: false }
     },
   },
@@ -177,7 +194,7 @@ export const RULES: SignatureRule[] = [
       const hiddenFetchIex = flags.has('-w') && flags.has('-nop') && hasAny(ctx, FETCH) && hasIexSink(ctx) && !localFile
       const headless = hasAll(ctx, ['conhost', '--headless'])
       const hta = hasAny(ctx, ['mshta']) && hasAny(ctx, ['http://', 'https://', 'javascript:', '.hta'])
-      const decoy = hasAny(ctx, ['verify you are human', 'i am not a robot', 'ray id', 'captcha', 'press win+r'])
+      const decoy = hasAny(ctx, ['verify you are human', 'i am not a robot', 'ray id', 'captcha', 'press win+r', 'press enter to verify', '--verify'])
       if (hiddenFetchIex || headless || hta || decoy) {
         return { hit: true, trigger: headless ? '--headless' : triggerFor(ctx, [...FETCH, 'mshta', 'captcha']) }
       }
@@ -246,6 +263,41 @@ export const RULES: SignatureRule[] = [
     upgradesWith: ['download-cradle', 'clickfix'],
     test(ctx) {
       return matchLolbin(ctx)
+    },
+  },
+  {
+    id: 'mshta-interpreter',
+    label: 'mshta execution',
+    techniqueIds: ['T1218.005'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['clickfix', 'download-cradle'],
+    test(ctx) {
+      // interpreter === 'mshta' is itself the discriminator that distinguishes
+      // this from a mere LOLBin text mention; a URL/.hta/inline-script target
+      // is still required — the "bin AND discriminator" contract, never a
+      // bare invocation.
+      if (ctx.interpreter !== 'mshta') return { hit: false }
+      if (!hasAny(ctx, MSHTA_DISCRIMINATORS)) return { hit: false }
+      const inlineScript = hasAny(ctx, ['vbscript:', 'javascript:'])
+      const techniqueIds = inlineScript ? ['T1218.005', 'T1059.005'] : ['T1218.005']
+      return { hit: true, trigger: triggerFor(ctx, MSHTA_DISCRIMINATORS), techniqueIds }
+    },
+  },
+  {
+    id: 'wsh-script-exec',
+    label: 'WSH script execution',
+    techniqueIds: ['T1059.005', 'T1059.007'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['clickfix', 'download-cradle'],
+    test(ctx) {
+      if (ctx.interpreter !== 'wscript' && ctx.interpreter !== 'cscript') return { hit: false }
+      const suspiciousPath = hasAny(ctx, ['\\appdata\\', '\\temp\\', '\\public\\', '\\programdata\\'])
+      const inlineEval = hasAny(ctx, ['//e:'])
+      if (!suspiciousPath && !inlineEval) return { hit: false }
+      const vbs = /\.vbs\b/i.test(ctx.text)
+      const js = /\.js\b/i.test(ctx.text)
+      if (!vbs && !js) return { hit: false }
+      return { hit: true, trigger: triggerFor(ctx, ['.vbs', '.js', '//e:']), techniqueIds: vbs ? ['T1059.005'] : ['T1059.007'] }
     },
   },
   {
