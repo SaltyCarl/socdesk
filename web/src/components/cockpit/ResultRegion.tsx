@@ -46,11 +46,13 @@ export function ResultRegion({
   theme,
   onFullView,
   onCompare,
+  onLookup,
 }: {
   cockpit: CockpitResult
   theme: EffectiveTheme
   onFullView: (e: MouseEvent<HTMLAnchorElement>, q: string) => void
   onCompare: (c: CompareResult | null) => void
+  onLookup?: (raw: string) => void
 }) {
   if (cockpit.kind === 'indicator') {
     const { state } = cockpit
@@ -79,7 +81,7 @@ export function ResultRegion({
   if (cockpit.kind === 'command') {
     const { state } = cockpit
     if (state.kind === 'idle') return null
-    if (state.kind === 'ok') return <AnalyzerResult result={state.result} />
+    if (state.kind === 'ok') return <AnalyzerResult result={state.result} onLookup={onLookup} />
     return <PsStatus state={state} />
   }
 

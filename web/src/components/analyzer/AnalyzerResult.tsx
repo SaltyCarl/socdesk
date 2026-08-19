@@ -10,8 +10,15 @@ import { TechniqueTally } from './TechniqueTally'
  *  ResultRegion can render the exact same surface for a `command`-classified
  *  submission (design spec §3.4). Prop-driven, no local state — both callers
  *  own their own `usePsAnalysis` hook and pass down only the resolved
- *  `AnalysisResult`. */
-export function AnalyzerResult({ result }: { result: AnalysisResult }) {
+ *  `AnalysisResult`. `onLookup` forwards straight to `IocTable` — see there
+ *  for the in-place cockpit pivot vs. standalone-route fallback. */
+export function AnalyzerResult({
+  result,
+  onLookup,
+}: {
+  result: AnalysisResult
+  onLookup?: (raw: string) => void
+}) {
   return (
     <div className="flex flex-col gap-4">
       {result.flags.length > 0 && (
@@ -23,7 +30,7 @@ export function AnalyzerResult({ result }: { result: AnalysisResult }) {
       )}
       <TechniqueTally signals={result.signals} characterization={result.characterization} />
       <DecodeLadder layers={result.layers} />
-      <IocTable iocs={result.iocs} />
+      <IocTable iocs={result.iocs} onLookup={onLookup} />
     </div>
   )
 }
