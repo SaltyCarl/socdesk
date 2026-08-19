@@ -76,3 +76,17 @@ export function resolveVars(text: string): string {
   }
   return out.join(' ')
 }
+
+/** Fold concatenations and substitute single-assignment vars to a fixpoint.
+ *  Capped so hostile input can never spin. Note: a var built FROM a concat
+ *  (`$c = $a + $b`) resolves over successive passes — substitute the vars, then
+ *  the next foldConcat collapses the now-literal `'x' + 'y'`. */
+export function resolve(text: string): string {
+  let cur = text
+  for (let i = 0; i < 12; i++) {
+    const next = foldConcat(resolveVars(cur))
+    if (next === cur) return next
+    cur = next
+  }
+  return cur
+}

