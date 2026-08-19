@@ -34,8 +34,11 @@ export async function analyze(input: string): Promise<AnalysisResult> {
     if (!looksBase64(lit)) continue
     const inflated = await inflate(fromBase64(lit))
     if (inflated) {
-      layers.push({ index: layers.length, transform: 'Base64 → inflate', text: bytesToText(inflated), state: 'fully-decoded' })
-      break // depth 1: one inflate; deeper recursion is Phase 2
+      const text = bytesToText(inflated)
+      if (isMostlyPrintable(text)) {
+        layers.push({ index: layers.length, transform: 'Base64 → inflate', text, state: 'fully-decoded' })
+        break // depth 1: one inflate; deeper recursion is Phase 2
+      }
     }
   }
 
@@ -118,4 +121,17 @@ function composeCopyText(layers: DecodedLayer[], iocs: AnalysisResult['iocs']): 
     lines.push('Indicators: (none extracted)')
   }
   return lines.join('\n')
+}
+
+/** Accept a decompressed layer only if it's mostly printable text — raw-DEFLATE
+ *  "succeeds" on ~0.4% of arbitrary base64, producing binary garbage that must
+ *  not be presented as a decoded layer. Printable = tab/newline/CR or >= 0x20. */
+function isMostlyPrintable(s: string): boolean {
+  if (!s) return false
+  let printable = 0
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i)
+    if (c === 9 || c === 10 || c === 13 || (c >= 32 && c < 127) || c >= 160) printable++
+  }
+  return printable / s.length >= 0.85
 }

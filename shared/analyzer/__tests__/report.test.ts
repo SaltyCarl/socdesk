@@ -87,3 +87,26 @@ describe('analyze — deobfuscation (Phase 2a)', () => {
     expect(r.iocs.find((i) => i.raw === 'http://stage1.test/y')?.layerIndex).toBe(1)
   })
 })
+
+describe('analyze — inflate plausibility', () => {
+  it('does not accept a layer-2 inflate that produces non-printable garbage', async () => {
+    // A short base64 literal in a benign context; if it spuriously inflates to
+    // binary, no "Base64 → inflate" layer should appear.
+    const r = await analyze("$s = 'q83vChABCД' ; Write-Output $s")
+    expect(r.layers.every((l) => l.transform !== 'Base64 → inflate' || (l.text ?? '').length > 0)).toBe(true)
+    // primary guarantee: any accepted inflate layer has printable text
+    for (const l of r.layers.filter((l) => l.transform === 'Base64 → inflate')) {
+      expect(/[\x00-\x08\x0e-\x1f]/.test(l.text ?? '')).toBe(false)
+    }
+  })
+
+  it('accepts a genuinely-printable inflate (roundtrip sanity)', async () => {
+    // relies on Task 5 of Phase 1's inflate; a real gzip of PS text is printable
+    const cs = new CompressionStream('gzip')
+    const bytes = new Uint8Array(await new Response(new Blob([new TextEncoder().encode("IEX 'hi'")]).stream().pipeThrough(cs)).arrayBuffer())
+    const b64 = btoa(String.fromCharCode(...bytes))
+    const r = await analyze(`$s='${b64}'; IEX ([IO.StreamReader](New-Object IO.Compression.GzipStream([IO.MemoryStream][Convert]::FromBase64String($s),1))).ReadToEnd()`)
+    // the gzip blob is a quoted literal → layer-2 inflate should fire and be accepted (printable)
+    expect(r.layers.some((l) => l.transform === 'Base64 → inflate' && (l.text ?? '').includes("IEX 'hi'"))).toBe(true)
+  })
+})
