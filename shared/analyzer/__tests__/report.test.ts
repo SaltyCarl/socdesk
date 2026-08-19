@@ -89,15 +89,21 @@ describe('analyze — deobfuscation (Phase 2a)', () => {
 })
 
 describe('analyze — inflate plausibility', () => {
-  it('does not accept a layer-2 inflate that produces non-printable garbage', async () => {
-    // A short base64 literal in a benign context; if it spuriously inflates to
-    // binary, no "Base64 → inflate" layer should appear.
-    const r = await analyze("$s = 'q83vChABCД' ; Write-Output $s")
-    expect(r.layers.every((l) => l.transform !== 'Base64 → inflate' || (l.text ?? '').length > 0)).toBe(true)
-    // primary guarantee: any accepted inflate layer has printable text
-    for (const l of r.layers.filter((l) => l.transform === 'Base64 → inflate')) {
-      expect(/[\x00-\x08\x0e-\x1f]/.test(l.text ?? '')).toBe(false)
-    }
+  async function deflateRawB64(bytes: Uint8Array): Promise<string> {
+    const cs = new CompressionStream('deflate-raw')
+    const out = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(cs)).arrayBuffer())
+    let bin = ''; for (const b of out) bin += String.fromCharCode(b)
+    return btoa(bin)
+  }
+
+  it('rejects an inflate that decompresses to binary garbage (U+FFFD-heavy)', async () => {
+    // 0x80-0xBF are lone UTF-8 continuation bytes → each decodes to U+FFFD.
+    const garbage = new Uint8Array(200)
+    for (let i = 0; i < garbage.length; i++) garbage[i] = 0x80 + (i % 0x40)
+    const b64 = await deflateRawB64(garbage)
+    const r = await analyze(`$data = '${b64}'`)
+    // The blob raw-inflates successfully but to non-text; no inflate layer may be pushed.
+    expect(r.layers.some((l) => /inflate/i.test(l.transform))).toBe(false)
   })
 
   it('accepts a genuinely-printable inflate (roundtrip sanity)', async () => {

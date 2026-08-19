@@ -131,7 +131,7 @@ function isMostlyPrintable(s: string): boolean {
   let printable = 0
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i)
-    if (c === 9 || c === 10 || c === 13 || (c >= 32 && c < 127) || c >= 160) printable++
+    if (c === 9 || c === 10 || c === 13 || (c >= 32 && c < 127) || (c >= 160 && c !== 0xfffd)) printable++
   }
   return printable / s.length >= 0.85
 }
