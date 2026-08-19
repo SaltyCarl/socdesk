@@ -101,7 +101,7 @@ export function Overview({
       return
     }
     api?.flyBack()
-  }, [cockpit])
+  }, [cockpit.kind, cockpit.state])
 
   const submit = (value: string, kindOverride: 'indicator' | 'command' | null) => {
     const trimmed = value.trim()

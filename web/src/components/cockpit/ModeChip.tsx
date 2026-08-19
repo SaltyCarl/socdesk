@@ -3,7 +3,9 @@ import { classifyCockpitInput } from '@socdesk/shared/intent'
 import { classifyIndicator, INDICATOR_LABEL } from '../palette/classify'
 
 /** The live-detected input kind, shown beside the omnibox — a FACT about the
- *  pasted text, never a verdict (periwinkle/neutral, design spec §8).
+ *  pasted text, never a verdict (periwinkle/`catalog`, design spec §8 — NOT
+ *  `neutral`, which renders identically to Chip's gray `unknown` VERDICT
+ *  badge and would misread as a severity state).
  *  Correctable: clicking toggles a manual override that wins over
  *  auto-detection for the next submit (spec §3.7, §7 — the misclassification
  *  mitigation). `override` is null when auto-detection is in force. */
@@ -39,7 +41,7 @@ export function ModeChip({
       }
       className="shrink-0 disabled:cursor-default"
     >
-      <Chip variant="neutral">{label}</Chip>
+      <Chip variant="catalog">{label}</Chip>
     </button>
   )
 }

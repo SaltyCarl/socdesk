@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { classifyCockpitInput } from '@socdesk/shared/intent'
@@ -25,18 +25,47 @@ export interface CockpitOmniboxProps {
  * === 'command'). Both elements are fully CONTROLLED off the same `value`
  * prop, so the swap never loses what was typed/pasted — only the DOM node
  * identity changes (input and textarea are different element types, so React
- * always remounts the leaf on the swap); the focus effect below re-focuses
- * the textarea immediately after, so a mid-paste morph doesn't strand the
- * caret in the unmounted input.
+ * always remounts the leaf on the swap). Focus follows the morph in BOTH
+ * directions: forward into the textarea when the value becomes command-shaped
+ * (e.g. mid-paste), and back into the input when it stops being command-shaped
+ * (e.g. backspacing a command below the detection threshold) — tracked via
+ * `prevCommandShapedRef` so only an actual transition refocuses, never the
+ * component's initial mount. The textarea's height is synced to its content
+ * in a `useLayoutEffect` keyed on `[value, isCommandShaped]`, so a paste that
+ * morphs the box straight into multi-line text is sized correctly on that
+ * same paint — not clipped at the floor height until the next keystroke.
  */
 export function CockpitOmnibox({ value, onChange, onSubmit }: CockpitOmniboxProps) {
   const [override, setOverride] = useState<'indicator' | 'command' | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const isCommandShaped = classifyCockpitInput(value) === 'command'
+  const prevCommandShapedRef = useRef(isCommandShaped)
+
+  // A change to `value` for ANY reason — typed, pasted, or demo-populated —
+  // invalidates a stale ModeChip correction (it was a correction for a
+  // DIFFERENT string). Clicking the chip itself does not change `value`, so
+  // "click chip -> submit the same value" still carries the override through.
+  useEffect(() => {
+    setOverride(null)
+  }, [value])
 
   useEffect(() => {
-    if (isCommandShaped) textareaRef.current?.focus()
+    const wasCommandShaped = prevCommandShapedRef.current
+    if (isCommandShaped && !wasCommandShaped) {
+      textareaRef.current?.focus()
+    } else if (!isCommandShaped && wasCommandShaped) {
+      inputRef.current?.focus()
+    }
+    prevCommandShapedRef.current = isCommandShaped
   }, [isCommandShaped])
+
+  useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [value, isCommandShaped])
 
   const fire = () => {
     onSubmit(value, override)
@@ -50,14 +79,9 @@ export function CockpitOmnibox({ value, onChange, onSubmit }: CockpitOmniboxProp
   }
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value)
-    setOverride(null) // a further edit invalidates a stale correction
   }
   const onTextareaChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     onChange(e.target.value)
-    setOverride(null)
-    const el = e.target
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
   }
   const toggleOverride = () => {
     const autoKind = classifyCockpitInput(value)
@@ -82,6 +106,7 @@ export function CockpitOmnibox({ value, onChange, onSubmit }: CockpitOmniboxProp
           />
         ) : (
           <input
+            ref={inputRef}
             type="text"
             inputMode="text"
             autoComplete="off"
