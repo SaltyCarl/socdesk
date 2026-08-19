@@ -1,4 +1,5 @@
 import type { EvasionFlag, RuleContext, Signal, Specificity } from './types'
+import type { Interpreter } from './preprocess'
 import { tokenize } from './lex'
 import { matchLolbin } from './lolbins'
 
@@ -21,12 +22,12 @@ export interface SignatureRule {
 /** Build the read-only match context once per analysis. `words` are lowercased
  *  bareword/string token values (backtick obfuscation already stripped by the
  *  lexer); `lower` is the whole-text fallback for multi-word phrases. */
-export function buildContext(text: string, flags: EvasionFlag[]): RuleContext {
+export function buildContext(text: string, flags: EvasionFlag[], interpreter: Interpreter = 'unknown'): RuleContext {
   const tokens = tokenize(text)
   const words = tokens
     .filter((t) => t.type === 'bareword' || t.type === 'string')
     .map((t) => t.value.toLowerCase())
-  return { text, lower: text.toLowerCase(), tokens, words, flags }
+  return { text, lower: text.toLowerCase(), tokens, words, flags, interpreter }
 }
 
 // ---- match helpers (all case-insensitive; token-value first, whole-text fallback) ----

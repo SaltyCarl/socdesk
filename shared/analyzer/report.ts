@@ -7,7 +7,7 @@ import { resolve, normalize } from './resolve'
 import { buildContext, classify, RULES } from './techniques'
 
 export async function analyze(input: string): Promise<AnalysisResult> {
-  const { script, encoded, flags } = preprocess(input)
+  const { script, encoded, flags, interpreter } = preprocess(input)
   const layers: DecodedLayer[] = []
 
   // Layer 1: -enc Base64 → UTF-16LE.
@@ -76,7 +76,7 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   // one Signal per rule), so the input/script overlap can't double-count; IOC
   // extraction reads `scan`, not `corpus`, so this doesn't affect IOCs.
   const corpus = [input, script, ...scan.map((s) => s.text)].filter(Boolean).join('\n')
-  const signals = classify(buildContext(corpus, flags))
+  const signals = classify(buildContext(corpus, flags, interpreter))
   const characterization = deriveCharacterization(signals)
 
   const fullyDecoded = layers.filter((l) => l.state === 'fully-decoded').length

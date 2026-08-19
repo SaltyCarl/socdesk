@@ -1,5 +1,6 @@
 import type { IndicatorType } from '../indicators'
 import type { Token } from './lex'
+import type { Interpreter } from './preprocess'
 
 export type ConfidenceTier = 'resolved' | 'inferred' | 'opaque'
 export type DecodeState = 'fully-decoded' | 'partial' | 'opaque' | 'wall'
@@ -19,6 +20,7 @@ export interface RuleContext {
   tokens: Token[]        // tokenize(text)
   words: string[]        // lowercased bareword + string token values
   flags: EvasionFlag[]   // outer command-line evasion flags from preprocess
+  interpreter: Interpreter // resolved interpreter (post nested-reentry); 'unknown' for existing PS-only call sites
 }
 
 export interface DecodedLayer {
