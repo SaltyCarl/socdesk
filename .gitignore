@@ -12,3 +12,8 @@ test-results/
 # and the file is an assistant-tooling convention, not project documentation.
 # Everything a contributor needs is in README.md and docs/.
 CLAUDE.md
+
+# Local tooling/cache dirs — never part of the project
+.claude/
+.wrangler/
+.playwright-mcp/
