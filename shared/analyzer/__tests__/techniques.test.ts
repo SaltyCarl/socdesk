@@ -3,7 +3,8 @@ import { buildContext, classify } from '../techniques'
 import { preprocess } from '../preprocess'
 
 function analyze(text: string, raw = text) {
-  return classify(buildContext(text, preprocess(raw).flags))
+  const pre = preprocess(raw)
+  return classify(buildContext(text, pre.flags, pre.interpreter))
 }
 const ids = (text: string, raw = text) => analyze(text, raw).map((s) => s.id)
 const specOf = (text: string, id: string, raw = text) =>
@@ -161,5 +162,25 @@ describe('LOLBin surfaces through classify', () => {
     const l = s.find((x) => x.id === 'lolbin')
     expect(l).toBeTruthy()
     expect(l!.label.toLowerCase()).toContain('certutil')
+  })
+})
+
+describe('WSH honesty signals', () => {
+  it('the unconditional WSH-limits notice fires for interpreter in {mshta, wscript, cscript} regardless of corpus content', () => {
+    expect(ids('C:\\Users\\Public\\a.vbs', 'wscript C:\\Users\\Public\\a.vbs')).toContain('wsh-decode-limits')
+    const wshCtx = buildContext('Chr(72)&Chr(105)', [], 'mshta')
+    expect(classify(wshCtx).map((s) => s.id)).toContain('wsh-decode-limits')
+  })
+
+  it('the concat/eval presence-detector fires on VBScript concat, JScript concat, and Execute/eval', () => {
+    expect(classify(buildContext('"po" & "wershell"', [], 'wscript')).map((s) => s.id)).toContain('wsh-concat-eval-present')
+    expect(classify(buildContext('"a"+"b"', [], 'cscript')).map((s) => s.id)).toContain('wsh-concat-eval-present')
+    expect(classify(buildContext('Execute("malicious")', [], 'mshta')).map((s) => s.id)).toContain('wsh-concat-eval-present')
+  })
+
+  it('neither WSH honesty signal fires for a plain PowerShell input (interpreter-gated)', () => {
+    const sigs = classify(buildContext('"a" & "b" ; Execute("x")', [], 'powershell')).map((s) => s.id)
+    expect(sigs).not.toContain('wsh-decode-limits')
+    expect(sigs).not.toContain('wsh-concat-eval-present')
   })
 })

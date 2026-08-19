@@ -5,8 +5,10 @@ import { decodeEnc, looksBase64, fromBase64, inflate, bytesToText } from './fold
 import { extractIocs } from './extract'
 import { resolve, normalize } from './resolve'
 import { buildContext, classify, RULES } from './techniques'
+import { decodeNumericCharCodes } from './wsh'
 
 const WRAPPER_INTERPRETERS = new Set<Interpreter>(['cmd', 'mshta', 'wscript', 'cscript'])
+const WSH_INTERPRETERS = new Set<Interpreter>(['mshta', 'wscript', 'cscript'])
 const NESTED_REENTRY_MAX_DEPTH = 4
 
 /** cmd/mshta/wscript/cscript wrappers overwhelmingly exist to launch a NESTED
@@ -77,6 +79,15 @@ export async function analyze(input: string): Promise<AnalysisResult> {
         state: 'opaque',
         residual: { bytes: encoded.length, entropy: 0, note: 'malformed -EncodedCommand payload — could not Base64-decode' },
       })
+    }
+  }
+
+  // Layer: WSH/HTA numeric char-code decode — interpreter-gated (§4).
+  if (WSH_INTERPRETERS.has(interpreter)) {
+    const decoded = decodeNumericCharCodes(current)
+    if (decoded !== current) {
+      layers.push({ index: layers.length, transform: 'Chr()/fromCharCode → text', text: decoded, state: 'fully-decoded' })
+      current = decoded
     }
   }
 

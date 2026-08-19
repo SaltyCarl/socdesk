@@ -42,3 +42,12 @@ describe('nested interpreter re-entry (§2.1)', () => {
     expect(r.layers[r.layers.length - 1].text).toContain('cmd /c') // did NOT fully unwrap — the cap stopped it
   })
 })
+
+describe('WSH numeric char-code decode (§4)', () => {
+  it('a Chr()-encoded mshta payload gets a decode layer and its own signals; a PS script with literal Chr() text is untouched', async () => {
+    const mshta = await analyze('mshta vbscript:Execute(Chr(87)&Chr(83)&Chr(72))')
+    expect(mshta.layers.some((l) => l.transform.includes('fromCharCode') || l.transform.includes('Chr'))).toBe(true)
+    const ps = await analyze("Write-Host 'Chr(72)&Chr(105)'")
+    expect(ps.layers.some((l) => l.transform.includes('Chr'))).toBe(false)
+  })
+})

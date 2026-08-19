@@ -68,6 +68,8 @@ function hasIexSink(ctx: RuleContext): boolean {
 
 // ---- the rule table (extended by Tasks 3–5) ----
 
+const WSH_HTA_INTERPRETERS: Interpreter[] = ['mshta', 'wscript', 'cscript']
+
 export const RULES: SignatureRule[] = [
   {
     id: 'download-cradle',
@@ -244,6 +246,31 @@ export const RULES: SignatureRule[] = [
     upgradesWith: ['download-cradle', 'clickfix'],
     test(ctx) {
       return matchLolbin(ctx)
+    },
+  },
+  {
+    id: 'wsh-decode-limits',
+    label: 'WSH/HTA support is numeric char-code decode only; string-concatenation and Execute/eval are not resolved — a thin result here is not a clean result.',
+    techniqueIds: [],
+    baseSpecificity: 'weak',
+    upgradesWith: [],
+    test(ctx) {
+      if (!WSH_HTA_INTERPRETERS.includes(ctx.interpreter)) return { hit: false }
+      return { hit: true, trigger: ctx.interpreter }
+    },
+  },
+  {
+    id: 'wsh-concat-eval-present',
+    label: 'string-concat / eval obfuscation present — not resolved; elevated suspicion warranted',
+    techniqueIds: [],
+    baseSpecificity: 'weak',
+    upgradesWith: [],
+    test(ctx) {
+      if (!WSH_HTA_INTERPRETERS.includes(ctx.interpreter)) return { hit: false }
+      const concat = /"[^"]*"\s*&\s*"[^"]*"/.test(ctx.text) || /"[^"]*"\s*\+\s*"[^"]*"/.test(ctx.text)
+      const evalCall = hasAny(ctx, ['execute(', 'executeglobal(', 'eval('])
+      if (!concat && !evalCall) return { hit: false }
+      return { hit: true, trigger: triggerFor(ctx, ['execute(', 'executeglobal(', 'eval(']) }
     },
   },
 ]
