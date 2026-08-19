@@ -77,12 +77,12 @@ export function ToolbeltView() {
         role="status"
         className="rounded-lg border border-line bg-panel px-5 py-6"
       >
-        <MicroLabel tone="accent">Stub</MicroLabel>
+        <MicroLabel tone="accent">Partly wired</MicroLabel>
         <p className="mt-2 max-w-2xl text-base text-muted">
-          The toolbelt is scaffolded, not yet wired. The micro-tools below draw
-          on the same deterministic helpers as the lookup engine; their
-          standalone forms land in a later pass. Nothing here fakes a working
-          control.
+          The Base64 / PowerShell decoder below is live. The rest of the
+          toolbelt is still scaffolded — the micro-tools draw on the same
+          deterministic helpers as the lookup engine, but their standalone
+          forms land in a later pass. Nothing here fakes a working control.
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

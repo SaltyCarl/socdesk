@@ -19,6 +19,7 @@ export function PowerShellAnalyzer() {
         onChange={(e) => setInput(e.target.value)}
         spellCheck={false}
         placeholder="powershell -nop -w hidden -enc …"
+        aria-label="PowerShell command"
         className="min-h-28 w-full rounded-md border border-line bg-field p-3 font-mono text-xs text-paper placeholder:text-faint focus-visible:border-line-bright"
       />
       {state.kind === 'analyzing' && <p className="font-mono text-micro text-faint">Analyzing…</p>}

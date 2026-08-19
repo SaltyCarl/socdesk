@@ -42,7 +42,9 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   const scan = layers.length ? layers.map((l) => ({ index: l.index, text: l.text })) : [{ index: 0, text: current }]
   const iocs = extractIocs(scan)
 
-  const state = layers.every((l) => l.state === 'fully-decoded') ? 'fully-decoded' : 'partial'
+  const fullyDecoded = layers.filter((l) => l.state === 'fully-decoded').length
+  const state = layers.length === 0 || fullyDecoded === layers.length ? 'fully-decoded' : 'partial'
+  const fractionAccounted = layers.length === 0 ? 1 : fullyDecoded / layers.length
   const copyText = composeCopyText(layers, iocs)
 
   return {
@@ -53,7 +55,7 @@ export async function analyze(input: string): Promise<AnalysisResult> {
     signals: [],
     characterization: null,
     bullets: [],
-    confidence: { fractionAccounted: 1, state },
+    confidence: { fractionAccounted, state },
     copyText,
     checkedAt: new Date().toISOString(),
   }
