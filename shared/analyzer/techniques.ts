@@ -101,6 +101,62 @@ export const RULES: SignatureRule[] = [
       return { hit: false }
     },
   },
+  {
+    id: 'amsi-reflection',
+    label: 'AMSI bypass via reflection',
+    techniqueIds: ['T1562.001'],
+    baseSpecificity: 'near-dispositive',
+    upgradesWith: [],
+    test(ctx) {
+      // AmsiUtils + (amsiInitFailed | SetValue) reflection patch — zero benign use.
+      if (hasAll(ctx, ['amsiutils']) && hasAny(ctx, ['amsiinitfailed', 'setvalue'])) {
+        return { hit: true, trigger: triggerFor(ctx, ['amsiutils']) }
+      }
+      return { hit: false }
+    },
+  },
+  {
+    id: 'amsi-memory-patch',
+    label: 'AMSI memory patch',
+    techniqueIds: ['T1562.001', 'T1055'],
+    baseSpecificity: 'near-dispositive',
+    upgradesWith: [],
+    test(ctx) {
+      if (hasAll(ctx, ['amsiscanbuffer']) && hasAny(ctx, ['virtualprotect', 'writeprocessmemory'])) {
+        return { hit: true, trigger: triggerFor(ctx, ['amsiscanbuffer']) }
+      }
+      return { hit: false }
+    },
+  },
+  {
+    id: 'etw-tamper',
+    label: 'ETW tampering',
+    techniqueIds: ['T1562.006'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['amsi-reflection', 'fileless-loader'],
+    test(ctx) {
+      if (hasAny(ctx, ['etweventwrite', 'eventpipe', 'nttraceevent'])) {
+        return { hit: true, trigger: triggerFor(ctx, ['etweventwrite', 'eventpipe', 'nttraceevent']) }
+      }
+      return { hit: false }
+    },
+  },
+  {
+    id: 'defender-tamper',
+    label: 'Defender tampering',
+    techniqueIds: ['T1562.001'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['download-cradle', 'amsi-reflection', 'persistence'],
+    test(ctx) {
+      // Set/Add-MpPreference: installer collision → STRONG (needs corroboration),
+      // not near-dispositive.
+      if (hasAny(ctx, ['set-mppreference', 'add-mppreference']) &&
+          hasAny(ctx, ['disablerealtimemonitoring', 'disableioavprotection', 'disablebehaviormonitoring', 'exclusionpath', 'exclusionextension', 'exclusionprocess'])) {
+        return { hit: true, trigger: triggerFor(ctx, ['set-mppreference', 'add-mppreference']) }
+      }
+      return { hit: false }
+    },
+  },
 ]
 
 /** Run every rule once; emit one Signal per hit, in table order (deterministic).

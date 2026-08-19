@@ -60,3 +60,35 @@ describe('determinism / ordering', () => {
     expect(a).toEqual(b)
   })
 })
+
+describe('AMSI / ETW / Defender tampering', () => {
+  it('AMSI reflection patch is near-dispositive on its own', () => {
+    const s = analyze("[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true)")
+    const a = s.find((x) => x.id === 'amsi-reflection')
+    expect(a).toBeTruthy()
+    expect(a!.specificity).toBe('near-dispositive')
+  })
+
+  it('AMSI memory patch (AmsiScanBuffer + VirtualProtect) is near-dispositive', () => {
+    const s = analyze("$p = VirtualProtect $addr 0x1000 0x40 ([ref]$old); ... AmsiScanBuffer patch")
+    expect(s.find((x) => x.id === 'amsi-memory-patch')?.specificity).toBe('near-dispositive')
+  })
+
+  it('Defender cmdlet tampering stays STRONG (installer/GPO benign twin exists)', () => {
+    const s = analyze("Set-MpPreference -DisableRealtimeMonitoring $true")
+    const d = s.find((x) => x.id === 'defender-tamper')
+    expect(d).toBeTruthy()
+    expect(d!.specificity).toBe('strong')
+  })
+
+  it('benign twin: a legitimate Add-MpPreference exclusion by itself is only STRONG, never near-dispositive', () => {
+    const s = analyze("Add-MpPreference -ExclusionPath 'C:\\Program Files\\VendorApp'")
+    const nd = s.filter((x) => x.specificity === 'near-dispositive')
+    expect(nd).toHaveLength(0)
+  })
+
+  it('ETW tampering fires (strong)', () => {
+    const s = analyze("[Reflection.Assembly]::Load(...); EtwEventWrite patched via reflection")
+    expect(s.find((x) => x.id === 'etw-tamper')?.specificity).toBe('strong')
+  })
+})
