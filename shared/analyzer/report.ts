@@ -3,7 +3,7 @@ import { preprocess } from './preprocess'
 import { tokenize, stringLiterals } from './lex'
 import { decodeEnc, looksBase64, fromBase64, inflate, bytesToText } from './fold'
 import { extractIocs } from './extract'
-import { resolve } from './resolve'
+import { resolve, normalize } from './resolve'
 
 export async function analyze(input: string): Promise<AnalysisResult> {
   const { script, encoded, flags } = preprocess(input)
@@ -56,7 +56,7 @@ export async function analyze(input: string): Promise<AnalysisResult> {
     if (seen.has(resolved)) break
     seen.add(resolved)
     let idx = workIndex
-    if (resolved !== work && layers.length) {
+    if (resolved !== normalize(work) && layers.length) {
       layers.push({ index: layers.length, transform: 'resolve (fold/substitute)', text: resolved, state: 'fully-decoded' })
       idx = layers.length - 1
     }

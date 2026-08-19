@@ -77,14 +77,23 @@ export function resolveVars(text: string): string {
   return out.join(' ')
 }
 
+/** Re-emit the token stream with no folding or substitution — the whitespace/
+ *  quote baseline that separates real deobfuscation from mere reformatting.
+ *  resolve(x) === normalize(x) exactly when nothing was folded or substituted. */
+export function normalize(text: string): string {
+  return tokenize(text).map(emit).join(' ')
+}
+
 /** Fold concatenations and substitute single-assignment vars to a fixpoint.
  *  Capped so hostile input can never spin. Note: a var built FROM a concat
  *  (`$c = $a + $b`) resolves over successive passes — substitute the vars, then
  *  the next foldConcat collapses the now-literal `'x' + 'y'`. */
 export function resolve(text: string): string {
+  const MAX_OUTPUT = 1 << 20 // 1 MiB — bail past this; return the last bounded form
   let cur = text
   for (let i = 0; i < 12; i++) {
     const next = foldConcat(resolveVars(cur))
+    if (next.length > MAX_OUTPUT) return cur
     if (next === cur) return next
     cur = next
   }

