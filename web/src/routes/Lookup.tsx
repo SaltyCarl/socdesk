@@ -25,10 +25,11 @@ import {
   CardCanvasPreview,
   EscalationCard,
   STUBS,
+  useEffectiveTheme,
+  type EffectiveTheme,
 } from '@socdesk/shared/verdict-cards'
 import { Button, MicroLabel } from '../components/ui'
 import { lookupHash, navigate } from '../components/palette/commands'
-import { useEffectiveTheme, type EffectiveTheme } from '../components/lookup/useEffectiveTheme'
 import { useLookup } from '../components/lookup/useLookup'
 import { LookupStatus } from '../components/lookup/LookupStates'
 import { readLookupQuery } from './lookupModel'

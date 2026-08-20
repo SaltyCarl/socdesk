@@ -4,10 +4,9 @@
 // indicator ever reaches `/api/enrich` — the analyzed command/script text
 // that produced it is never sent (data boundary, unchanged).
 
-import { EscalationCard } from '@socdesk/shared/verdict-cards'
+import { EscalationCard, useEffectiveTheme } from '@socdesk/shared/verdict-cards'
 import { useLookup } from '../lookup/useLookup'
 import { LookupStatus } from '../lookup/LookupStates'
-import { useEffectiveTheme } from '../lookup/useEffectiveTheme'
 
 export function InlineLookup({ raw }: { raw: string }) {
   const state = useLookup(raw)

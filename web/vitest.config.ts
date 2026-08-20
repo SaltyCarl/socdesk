@@ -16,6 +16,12 @@ export default defineConfig({
     alias: {
       '@socdesk/shared': fileURLToPath(new URL('../shared', import.meta.url)),
     },
+    // A shared/ module that USES (not merely imports) a react hook — e.g.
+    // useInlineEnrich — needs this: shared/ has no node_modules on its own
+    // walk-up, so vite-node's SSR resolution of the bare 'react' specifier
+    // from a file that far outside web/ mis-resolves without a pinned dedupe
+    // target. Mirrors vite.config.ts's dedupe for the same reason.
+    dedupe: ['react', 'react-dom'],
   },
   test: {
     environment: 'node',

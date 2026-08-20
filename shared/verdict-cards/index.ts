@@ -4,6 +4,8 @@
 // deterministic copy-card PNG, and the dense analyst console. All wording +
 // banding come from web/src/lib/verdict (the doctrine); this layer only renders.
 
+export { useEffectiveTheme } from './useEffectiveTheme'
+export type { EffectiveTheme } from './useEffectiveTheme'
 export { EscalationCard } from './EscalationCard'
 export type { CompareResult } from './CompareIp'
 export { AnalystVerdict } from './AnalystVerdict'
