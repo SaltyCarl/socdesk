@@ -68,7 +68,9 @@ export function TechniqueTally({
             <Chip variant={CHIP_VARIANT[s.specificity]}>{s.label}</Chip>
             <span className="font-mono text-micro text-faint">{s.techniqueIds.join(' · ')}</span>
             {s.trigger && (
-              <code className="min-w-0 truncate font-mono text-micro text-muted">{s.trigger}</code>
+              <span className="min-w-0 truncate font-mono text-micro text-faint">
+                matched: <code className="text-muted">{s.trigger}</code>
+              </span>
             )}
           </li>
         ))}
