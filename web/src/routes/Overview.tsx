@@ -132,17 +132,6 @@ export function Overview({
     submit(v, null)
   }
 
-  // An extracted IOC's "Look up ->" click, from inside the cockpit's own
-  // analyzer result: pivot the cockpit's committed value/kind in place
-  // instead of navigating to /lookup (design spec fast-follow). Mirrors
-  // flyDemo's setLiveValue + submit; forcing kind 'indicator' is safe even
-  // though resolveKind is monotonic toward 'command' — an extracted IOC
-  // value never itself auto-classifies as a command.
-  const onIocLookup = (raw: string) => {
-    setLiveValue(raw)
-    submit(raw, 'indicator')
-  }
-
   // The full analyst console lives at /lookup. Left-click SPA-navigates there;
   // modified clicks keep the real href so it right-clicks / opens in a new tab.
   const openFullView = (e: MouseEvent<HTMLAnchorElement>, q: string) => {
@@ -228,7 +217,6 @@ export function Overview({
                 theme={theme}
                 onFullView={openFullView}
                 onCompare={onCompareArc}
-                onLookup={onIocLookup}
               />
             </div>
           ) : (
