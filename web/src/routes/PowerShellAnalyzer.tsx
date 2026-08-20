@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AnalyzerResult } from '../components/analyzer/AnalyzerResult'
-import { usePsAnalysis } from '../components/analyzer/usePsAnalysis'
+import { AnalyzerResult, usePsAnalysis } from '@socdesk/shared/analyzer-ui'
 import { readLookupQuery } from './lookupModel'
 
 export function PowerShellAnalyzer() {

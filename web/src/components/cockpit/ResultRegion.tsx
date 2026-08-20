@@ -2,8 +2,7 @@ import type { MouseEvent } from 'react'
 import { EscalationCard, type CompareResult, type EffectiveTheme } from '@socdesk/shared/verdict-cards'
 import { lookupHash } from '../palette/commands'
 import { LookupStatus } from '../lookup/LookupStates'
-import type { PsState } from '../analyzer/usePsAnalysis'
-import { AnalyzerResult } from '../analyzer/AnalyzerResult'
+import { AnalyzerResult, type PsState } from '@socdesk/shared/analyzer-ui'
 import type { CockpitResult } from './useCockpitInput'
 
 const FULL_VIEW_CLS =

@@ -20,7 +20,7 @@
 
 import { classifyCockpitInput, type CockpitInputKind } from '@socdesk/shared/intent'
 import { useLookup, type LookupState } from '../lookup/useLookup'
-import { usePsAnalysis, type PsState } from '../analyzer/usePsAnalysis'
+import { usePsAnalysis, type PsState } from '@socdesk/shared/analyzer-ui'
 
 export type CockpitResult =
   | { kind: 'indicator'; state: LookupState }

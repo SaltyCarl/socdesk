@@ -10,7 +10,7 @@ import { InlineLookup } from './InlineLookup'
  * more than one card tall. The analyzer output above is never touched or
  * replaced (design spec: seamless inline lookup, no lost context).
  */
-export function IocTable({ iocs }: { iocs: ExtractedIoc[] }) {
+export function IocTable({ iocs, baseUrl }: { iocs: ExtractedIoc[]; baseUrl?: string }) {
   const [open, setOpen] = useState<string | null>(null)
   if (!iocs.length) return null
   return (
@@ -36,7 +36,7 @@ export function IocTable({ iocs }: { iocs: ExtractedIoc[] }) {
               {expanded && (
                 <div className="border-t border-line bg-ink/40 py-3 pl-4 pr-3">
                   <div className="border-l-2 border-accent/40 pl-3">
-                    <InlineLookup raw={i.raw} />
+                    <InlineLookup raw={i.raw} baseUrl={baseUrl} />
                   </div>
                 </div>
               )}

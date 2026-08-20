@@ -13,7 +13,7 @@ import { TechniqueTally } from './TechniqueTally'
  *  own their own `usePsAnalysis` hook and pass down only the resolved
  *  `AnalysisResult`. `IocTable` owns its own inline-expand lookup per row —
  *  nothing here navigates or replaces this result. */
-export function AnalyzerResult({ result }: { result: AnalysisResult }) {
+export function AnalyzerResult({ result, baseUrl }: { result: AnalysisResult; baseUrl?: string }) {
   return (
     <div className="flex flex-col gap-4">
       {result.flags.length > 0 && (
@@ -26,7 +26,7 @@ export function AnalyzerResult({ result }: { result: AnalysisResult }) {
       <TechniqueTally signals={result.signals} characterization={result.characterization} />
       <ActionBullets bullets={result.bullets} />
       <DecodeLadder layers={result.layers} />
-      <IocTable iocs={result.iocs} />
+      <IocTable iocs={result.iocs} baseUrl={baseUrl} />
     </div>
   )
 }
