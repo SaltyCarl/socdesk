@@ -9,10 +9,20 @@
 //
 // The panel can MOUNT before the background's chrome.storage.session.set
 // lands (side panels open asynchronously), so the pending handoff is read
-// both on mount AND via chrome.storage.onChanged for the session area. Either
-// path is one-shot: the first `take()` wins (applied.current guards a double
-// apply from a mount-read racing a change event for the same value), and the
-// stash is removed once consumed.
+// both on mount AND via chrome.storage.onChanged for the session area.
+//
+// MV3 side panels persist for the page lifetime and a second
+// chrome.sidePanel.open() on an already-open panel is a no-op (no remount) —
+// so this is NOT a one-shot-forever guard. `take()` dedups by the handoff's
+// own `at` timestamp (the background stamps every stash with Date.now()):
+// a handoff is applied only if its `at` is strictly newer than the last one
+// applied, which both (a) collapses the mount-read racing an onChanged event
+// for the SAME value (they share one `at`) and (b) lets a genuinely NEWER
+// right-click — the analyst triaging alert A, then highlighting script B —
+// re-apply and replace what's showing. A handoff older than PENDING_TTL_MS
+// (mirroring Popup.tsx) is ignored outright, so a stale `pending` left behind
+// doesn't replay when the panel is opened via Chrome's own side-panel UI.
+// The stash is removed once consumed either way.
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { DEFAULT_ORIGIN, detectType, normalizeOrigin, refang } from '@socdesk/shared/indicators'
@@ -24,12 +34,22 @@ import { SdMonogram } from '@socdesk/shared/ui'
 
 type Mode = { kind: 'idle' } | { kind: 'analyze'; script: string } | { kind: 'lookup'; q: string }
 
+/** Shape of the background's session-storage handoff, as read here — just
+ *  enough to route (routeSelection re-derives mode/type from `q` itself) and
+ *  to dedup/expire by `at`. */
+type PendingHandoff = { q?: string; at?: number }
+
+/** Ignore a pending handoff older than this — mirrors Popup.tsx's own
+ *  PENDING_TTL_MS, same value, same reasoning: a stale stash left behind
+ *  shouldn't replay into a panel opened some other way. */
+const PENDING_TTL_MS = 120_000
+
 export function Panel() {
   const [origin, setOrigin] = useState(DEFAULT_ORIGIN)
   const [input, setInput] = useState('')
   const [mode, setMode] = useState<Mode>({ kind: 'idle' })
   const theme: CanvasTheme = detectTheme()
-  const applied = useRef(false)
+  const lastAppliedAt = useRef(0)
 
   const apply = useCallback((raw: string) => {
     const route = routeSelection(raw)
@@ -40,26 +60,37 @@ export function Panel() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+
+    const take = (p?: PendingHandoff) => {
+      if (cancelled || !p?.q) return
+      const at = p.at ?? 0
+      if (at <= lastAppliedAt.current || Date.now() - at >= PENDING_TTL_MS) return
+      lastAppliedAt.current = at
+      void chrome.storage.session.remove('pending')
+      apply(p.q)
+    }
+
+    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'session' && changes.pending?.newValue) take(changes.pending.newValue as PendingHandoff)
+    }
+    chrome.storage.onChanged.addListener(onChanged)
+
     void (async () => {
       try {
         const { origin: stored } = (await chrome.storage.sync.get('origin')) as { origin?: string }
-        setOrigin(normalizeOrigin(stored))
+        if (!cancelled) setOrigin(normalizeOrigin(stored))
       } catch { /* default */ }
-      const take = (p?: { mode?: string; q?: string }) => {
-        if (applied.current || !p?.q) return
-        applied.current = true
-        void chrome.storage.session.remove('pending')
-        apply(p.q)
-      }
       try {
-        const { pending } = (await chrome.storage.session.get('pending')) as { pending?: { mode?: string; q?: string } }
+        const { pending } = (await chrome.storage.session.get('pending')) as { pending?: PendingHandoff }
         take(pending)
       } catch { /* none */ }
-      const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-        if (area === 'session' && changes.pending?.newValue) take(changes.pending.newValue as { mode?: string; q?: string })
-      }
-      chrome.storage.onChanged.addListener(onChanged)
     })()
+
+    return () => {
+      cancelled = true
+      chrome.storage.onChanged.removeListener(onChanged)
+    }
   }, [apply])
 
   const onSubmit = (e: FormEvent) => { e.preventDefault(); apply(input) }

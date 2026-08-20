@@ -63,11 +63,20 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     return
   }
 
-  // LOOKUP / REPORT — the existing async flow (unchanged behaviour).
-  void handleLookupOrReport(route)
+  // LOOKUP / REPORT — the existing async flow (unchanged behaviour). An
+  // 'analyze' route only reaches here when the side-panel gesture-path above
+  // couldn't run (no chrome.sidePanel.open, or no tab id) — degrade it the
+  // same way handleLookupOrReport already degrades any non-'lookup' route:
+  // the report tab. Narrowing the literal here (rather than widening
+  // handleLookupOrReport's param back to include 'analyze') keeps that
+  // function's signature honest about what it actually branches on.
+  void handleLookupOrReport({
+    mode: route.mode === 'analyze' ? 'report' : route.mode,
+    q: route.q,
+  })
 })
 
-async function handleLookupOrReport(route: { mode: 'lookup' | 'report' | 'analyze'; q: string }): Promise<void> {
+async function handleLookupOrReport(route: { mode: 'lookup' | 'report'; q: string }): Promise<void> {
   const origin = await getOrigin()
   if (route.mode !== 'lookup') return openReport(origin, route.q)
   // storage.session is trusted-context-only by default, so only our own popup /
