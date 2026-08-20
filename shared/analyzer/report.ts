@@ -312,6 +312,17 @@ function composeCopyText(
     confidentBullets.forEach((b) => lines.push(`  ${b.order}. [${b.confidence}] ${b.text}`))
     lines.push('')
   }
+  // M1 (whole-branch review, minor): the UI shows opaque bullets (WSH/HTA
+  // honesty notices, malformed-decode notes) in a separate "Could not
+  // resolve" block (ActionBullets.tsx) — mirror that here so a pasted ticket
+  // doesn't silently lose that honesty signal. Never promoted into the
+  // confident section above (D3/D6) — just parity with what the UI shows.
+  const opaqueBullets = bullets.filter((b) => b.confidence === 'opaque')
+  if (opaqueBullets.length) {
+    lines.push('Could not resolve:')
+    opaqueBullets.forEach((b) => lines.push(`  ${b.order}. ${b.text}`))
+    lines.push('')
+  }
   if (signals.length) {
     lines.push('Behaviour signals:')
     signals.forEach((s) => lines.push(`  [${BASE_SPECIFICITY.get(s.id) ?? s.specificity}] ${s.label} (${s.techniqueIds.join(', ')})`))

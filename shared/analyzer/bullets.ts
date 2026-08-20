@@ -28,6 +28,8 @@ import type {
   RuleContext,
   Signal,
 } from './types'
+import { FETCH } from './techniques'
+import { defang } from '../verdict/doctrine'
 
 export type VerbFamily =
   | 'delivery' | 'interpreter-transition' | 'deobfuscate' | 'decode' | 'decompress' | 'evade'
@@ -78,8 +80,88 @@ export interface ActionRule {
 }
 
 const HOST_TYPES = new Set(['url', 'domain', 'ipv4', 'ipv6'])
-function findHostIoc(iocs: ExtractedIoc[]): ExtractedIoc | undefined {
-  return iocs.find((i) => HOST_TYPES.has(i.type))
+
+// ---- F1 (whole-branch review, CRITICAL): per-behavior host attribution. ----
+// The retired `findHostIoc()` returned the FIRST host-type IOC in the whole
+// flat iocs array — reused across download-cradle/lolbin-msiexec/beacon-loop/
+// reverse-shell, so on a multi-host sample a bullet could name a host that
+// belongs to a DIFFERENT behavior entirely. Every helper below resolves a
+// host from THAT construct's own text (a regex anchored to the construct
+// itself), never from the flat list — a bullet must never name a host it
+// can't attribute to its own behavior.
+
+/** A resolved host, independent of whether extractIocs's catalog happened to
+ *  keep it (it always scans the same corpus, so it usually did) — falls back
+ *  to defanging the raw match directly so a construct-local resolution is
+ *  never blocked on the global IOC list's own type filters. */
+interface HostRef { raw: string; defanged: string; layerIndex: number }
+function hostRefFromRaw(ctx: BulletContext, raw: string): HostRef {
+  const found = ctx.iocs.find((i) => i.raw === raw)
+  return found
+    ? { raw: found.raw, defanged: found.defanged, layerIndex: found.layerIndex }
+    : { raw, defanged: defang(raw), layerIndex: 0 }
+}
+
+// reverse-shell-open: host:port from the reverse-shell construct itself —
+// `New-Object Net.Sockets.TCPClient('HOST', PORT)` / `TCPClient(HOST,PORT)`.
+const TCPCLIENT_RE = /tcpclient\s*\(\s*['"]?([^'"(),\s]+)['"]?\s*,\s*(\d+)\s*\)/i
+function reverseShellHostPort(ctx: BulletContext): { host: HostRef; port: string } | null {
+  const m = ctx.text.match(TCPCLIENT_RE)
+  if (!m) return null
+  const raw = m[1]
+  if (!raw || raw.startsWith('$')) return null // an unresolved variable, not a literal host — not parseable
+  return { host: hostRefFromRaw(ctx, raw), port: m[2] }
+}
+
+// beacon-loop: a fetch/URL resolvable inside the loop's own text window —
+// never the flat first IOC (which might be an unrelated behavior's host,
+// e.g. a reverse-shell target that also happens to sit inside the loop).
+function beaconLoopHost(ctx: BulletContext): HostRef | null {
+  const whileIdx = ctx.lower.indexOf('while')
+  if (whileIdx === -1) return null
+  const window = ctx.text.slice(whileIdx, whileIdx + 400)
+  const m = window.match(/https?:\/\/[^\s'"()<>]+/i)
+  if (!m) return null
+  return hostRefFromRaw(ctx, m[0])
+}
+
+// download-cradle-fetch / lolbin-msiexec: the URL adjacent to THIS
+// construct's own fetch call (DownloadString/iwr/irm/msiexec /i), not the
+// global first IOC. Safe simplification (SOC-approved): when the construct
+// regex can't isolate a URL but the analysis has exactly ONE host IOC total,
+// naming it is fine; with MULTIPLE and no isolation, degrade honestly.
+function constructUrlHost(ctx: BulletContext, constructRe: RegExp): HostRef | undefined {
+  const m = ctx.text.match(constructRe)
+  if (m && m[1]) return hostRefFromRaw(ctx, m[1])
+  const hostIocs = ctx.iocs.filter((i) => HOST_TYPES.has(i.type))
+  if (hostIocs.length === 1) {
+    const only = hostIocs[0]
+    return { raw: only.raw, defanged: only.defanged, layerIndex: only.layerIndex }
+  }
+  return undefined
+}
+
+const FETCH_URL_RE = new RegExp(
+  '\\b(?:' + FETCH.map((k) => k.replace(/\./g, '\\.')).join('|') + ')\\b[^\\n]{0,80}?(https?:\\/\\/[^\\s\'"()<>]+)',
+  'i',
+)
+const MSIEXEC_URL_RE = /msiexec(?:\.exe)?\s*\/i\s+['"]?(https?:\/\/[^\s'"()<>]+)/i
+
+// ---- F2/F3 (whole-branch review, MAJOR): method from the signal trigger. ----
+// The retired `downloadMethod()` independently re-scanned `ctx.lower` (wrong
+// priority order — `start-bitstransfer` checked ahead of `downloadstring`, so
+// a commented-out BITS line could out-rank the real construct — plus a
+// leading-space requirement on ` irm`/` iwr` that missed a position-0 irm/iwr)
+// instead of using the `download-cradle` Signal.trigger techniques.ts already
+// computed via `triggerFor(ctx, FETCH)` — the same fact `mshta-execute` below
+// already threads through as `s.trigger`.
+function downloadMethodFromTrigger(trigger: string): string {
+  const t = trigger.toLowerCase()
+  if (t.includes('downloadstring') || t.includes('downloaddata') || t.includes('downloadfile') || t.includes('net.webclient')) return 'WebClient.DownloadString'
+  if (t.includes('invoke-webrequest') || t.includes('iwr')) return 'Invoke-WebRequest'
+  if (t.includes('invoke-restmethod') || t.includes('irm')) return 'Invoke-RestMethod'
+  if (t.includes('bitsadmin') || t.includes('start-bitstransfer')) return 'BITS transfer'
+  return trigger.replace(/^\.+/, '')
 }
 
 // The clickfix SIGNAL (techniques.ts) fires broadly — including on a bare
@@ -95,19 +177,6 @@ function isClickfixPresentation(ctx: BulletContext): boolean {
     (ctx.lower.includes('--verify') && (ctx.lower.includes('press enter') || ctx.lower.includes('press win+r')))
   const headless = ctx.lower.includes('conhost') && ctx.lower.includes('--headless')
   return decoy || headless
-}
-
-// Names the cmdlet/method that actually fired download-cradle — surfaces the
-// FETCH vocab hit (techniques.ts's FETCH list) as one of the 4 named methods
-// (SOC must-fix #4), instead of a generic "downloads content" with no method.
-// Returns null when no FETCH vocab literal is present in THIS ctx's text —
-// callers must not invent a default method when nothing actually resolved.
-function downloadMethod(ctx: BulletContext): string | null {
-  if (ctx.lower.includes('start-bitstransfer')) return 'Start-BitsTransfer'
-  if (ctx.lower.includes('downloadstring') || ctx.lower.includes('downloaddata') || ctx.lower.includes('downloadfile') || ctx.lower.includes('net.webclient')) return 'WebClient.DownloadString'
-  if (ctx.lower.includes('invoke-webrequest') || ctx.lower.includes(' iwr') || ctx.lower.includes('invoke-restmethod') || ctx.lower.includes(' irm') || ctx.lower.includes('wget') || ctx.lower.includes('curl')) return 'Invoke-WebRequest'
-  if (ctx.lower.includes('httpclient') || ctx.lower.includes('system.net.webrequest')) return 'raw WebRequest'
-  return null
 }
 
 const FLAG_DESCRIPTOR: Record<string, string> = {
@@ -163,7 +232,7 @@ export const RULES: ActionRule[] = [
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: { trigger: s.trigger } }
     },
     render(m) {
-      return { verb: 'Executes', text: `Executes an mshta payload (\`${m.vars.trigger}\`)` }
+      return { verb: 'Executes', text: `Executes an mshta payload (${m.vars.trigger})` }
     },
   },
   {
@@ -194,9 +263,9 @@ export const RULES: ActionRule[] = [
     },
     render(m) {
       if (m.vars.state === 'fully-decoded') {
-        return { verb: 'Decodes', text: 'Decodes a Base64 `-EncodedCommand` (UTF-16LE)' }
+        return { verb: 'Decodes', text: 'Decodes a Base64 -EncodedCommand (UTF-16LE)' }
       }
-      return { verb: 'Decodes', text: 'Attempts to decode a Base64 `-EncodedCommand` — payload malformed, could not resolve' }
+      return { verb: 'Decodes', text: 'Attempts to decode a Base64 -EncodedCommand — payload malformed, could not resolve' }
     },
   },
   {
@@ -256,7 +325,7 @@ export const RULES: ActionRule[] = [
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
     },
     render() {
-      return { verb: 'Disables', text: 'Disables AMSI via an in-memory patch (`AmsiScanBuffer`)' }
+      return { verb: 'Disables', text: 'Disables AMSI via an in-memory patch (AmsiScanBuffer)' }
     },
   },
   {
@@ -304,7 +373,7 @@ export const RULES: ActionRule[] = [
     },
     render(m) {
       const text = m.vars.path
-        ? `Adds a Microsoft Defender exclusion for **${m.vars.path}**`
+        ? `Adds a Microsoft Defender exclusion for ${m.vars.path}`
         : 'Adds a Microsoft Defender exclusion — path not resolved'
       return { verb: 'Adds', text }
     },
@@ -334,22 +403,27 @@ export const RULES: ActionRule[] = [
     fires(ctx) {
       const s = ctx.signals.find((x) => x.id === 'download-cradle')
       if (!s) return null
-      const hostIoc = findHostIoc(ctx.iocs)
-      const method = downloadMethod(ctx)
+      const host = constructUrlHost(ctx, FETCH_URL_RE)
+      const method = downloadMethodFromTrigger(s.trigger)
       return {
-        layerIndex: hostIoc?.layerIndex ?? 0,
-        confidence: hostIoc ? 'resolved' : 'inferred',
-        iocs: hostIoc ? [hostIoc.raw] : [],
+        layerIndex: host?.layerIndex ?? 0,
+        confidence: host ? 'resolved' : 'inferred',
+        iocs: host ? [host.raw] : [],
         techniqueIds: s.techniqueIds,
-        vars: { url: hostIoc ? hostIoc.defanged : '', method: method ?? '' },
+        vars: { url: host ? host.defanged : '', method: method ?? '' },
       }
     },
     render(m) {
       let text: string
       if (m.vars.url && m.vars.method) {
-        text = `Downloads content from **${m.vars.url}** via \`${m.vars.method}\``
+        text = `Downloads content from ${m.vars.url} via ${m.vars.method}`
+      } else if (m.vars.url) {
+        // F3 (whole-branch review): a resolved URL must never fall through to
+        // the "assembled at runtime" wording just because the method didn't
+        // separately resolve — the URL IS a resolved fact.
+        text = `Downloads content from ${m.vars.url} — method not resolved`
       } else if (m.vars.method) {
-        text = `Downloads content via \`${m.vars.method}\` — target URL not resolved`
+        text = `Downloads content via ${m.vars.method} — target URL not resolved`
       } else {
         text = 'Downloads content from a URL assembled at runtime — not resolved'
       }
@@ -366,7 +440,7 @@ export const RULES: ActionRule[] = [
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
     },
     render() {
-      return { verb: 'Fetches', text: 'Fetches a command via `for /f`/finger and executes its output' }
+      return { verb: 'Fetches', text: 'Fetches a command via for /f or finger and executes its output' }
     },
   },
 
@@ -387,7 +461,7 @@ export const RULES: ActionRule[] = [
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
     },
     render() {
-      return { verb: 'Decodes', text: 'Decodes/downloads a payload via `certutil`' }
+      return { verb: 'Decodes', text: 'Decodes/downloads a payload via certutil' }
     },
   },
   {
@@ -400,7 +474,7 @@ export const RULES: ActionRule[] = [
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
     },
     render() {
-      return { verb: 'Fetches', text: 'Fetches a file via `bitsadmin`/BITS transfer' }
+      return { verb: 'Fetches', text: 'Fetches a file via bitsadmin/BITS transfer' }
     },
   },
   {
@@ -413,7 +487,7 @@ export const RULES: ActionRule[] = [
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
     },
     render() {
-      return { verb: 'Registers', text: 'Registers and executes a remote script via `regsvr32` (Squiblydoo)' }
+      return { verb: 'Registers', text: 'Registers and executes a remote script via regsvr32 (Squiblydoo)' }
     },
   },
   {
@@ -426,7 +500,7 @@ export const RULES: ActionRule[] = [
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
     },
     render() {
-      return { verb: 'Executes', text: 'Executes code via `rundll32`' }
+      return { verb: 'Executes', text: 'Executes code via rundll32' }
     },
   },
   {
@@ -436,13 +510,13 @@ export const RULES: ActionRule[] = [
     fires(ctx) {
       const s = ctx.signals.find((x) => x.id === 'lolbin' && x.trigger === 'msiexec')
       if (!s) return null
-      const hostIoc = findHostIoc(ctx.iocs)
-      return { layerIndex: hostIoc?.layerIndex ?? 0, confidence: hostIoc ? 'resolved' : 'inferred', iocs: hostIoc ? [hostIoc.raw] : [], techniqueIds: s.techniqueIds, vars: { url: hostIoc ? hostIoc.defanged : '' } }
+      const host = constructUrlHost(ctx, MSIEXEC_URL_RE)
+      return { layerIndex: host?.layerIndex ?? 0, confidence: host ? 'resolved' : 'inferred', iocs: host ? [host.raw] : [], techniqueIds: s.techniqueIds, vars: { url: host ? host.defanged : '' } }
     },
     render(m) {
       const text = m.vars.url
-        ? `Installs from a remote MSI via \`msiexec /i ${m.vars.url}\``
-        : 'Installs from a remote MSI via `msiexec /i` — URL not resolved'
+        ? `Installs from a remote MSI via msiexec /i ${m.vars.url}`
+        : 'Installs from a remote MSI via msiexec /i — URL not resolved'
       return { verb: 'Installs', text }
     },
   },
@@ -456,7 +530,7 @@ export const RULES: ActionRule[] = [
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
     },
     render() {
-      return { verb: 'Executes', text: 'Executes via `wmic`' }
+      return { verb: 'Executes', text: 'Executes via wmic' }
     },
   },
 
@@ -518,21 +592,25 @@ export const RULES: ActionRule[] = [
     fires(ctx) {
       const s = ctx.signals.find((x) => x.id === 'beaconing')
       if (!s) return null
-      const hostIoc = findHostIoc(ctx.iocs)
+      // F1 (whole-branch review): the host comes from a fetch/URL resolvable
+      // INSIDE the loop's own text — never the flat first IOC, which may
+      // belong to an entirely different behavior (e.g. a reverse-shell target
+      // that also happens to sit elsewhere in the corpus).
+      const host = beaconLoopHost(ctx)
       const sleepMatch = ctx.text.match(/Start-Sleep\s+(?:-Seconds\s+)?(\d+)/i)
       return {
-        layerIndex: hostIoc?.layerIndex ?? 0,
-        confidence: hostIoc ? 'resolved' : 'inferred',
-        iocs: hostIoc ? [hostIoc.raw] : [],
+        layerIndex: host?.layerIndex ?? 0,
+        confidence: host ? 'resolved' : 'inferred',
+        iocs: host ? [host.raw] : [],
         techniqueIds: s.techniqueIds,
-        vars: { host: hostIoc ? hostIoc.defanged : '', interval: sleepMatch ? sleepMatch[1] : '' },
+        vars: { host: host ? host.defanged : '', interval: sleepMatch ? sleepMatch[1] : '' },
       }
     },
     render(m) {
       const suffix = m.vars.interval ? ` every ~${m.vars.interval}s` : ''
       const text = m.vars.host
-        ? `Beacons to **${m.vars.host}** in a loop${suffix}`
-        : `Beacons to a runtime-resolved host in a loop${suffix} — not resolved`
+        ? `Beacons to ${m.vars.host} in a loop${suffix}`
+        : `Beacons to a remote host in a loop${suffix}`
       return { verb: 'Beacons', text }
     },
   },
@@ -543,17 +621,20 @@ export const RULES: ActionRule[] = [
     fires(ctx) {
       const s = ctx.signals.find((x) => x.id === 'reverse-shell')
       if (!s) return null
-      const hostIoc = findHostIoc(ctx.iocs)
+      // F1 (whole-branch review): host:port comes ONLY from this construct's
+      // own TCPClient(host, port) call — never the flat first IOC, which may
+      // name an unrelated behavior's host (e.g. a download URL).
+      const hp = reverseShellHostPort(ctx)
       return {
-        layerIndex: hostIoc?.layerIndex ?? 0,
-        confidence: hostIoc ? 'resolved' : 'inferred',
-        iocs: hostIoc ? [hostIoc.raw] : [],
+        layerIndex: hp?.host.layerIndex ?? 0,
+        confidence: hp ? 'resolved' : 'inferred',
+        iocs: hp ? [hp.host.raw] : [],
         techniqueIds: s.techniqueIds,
-        vars: { host: hostIoc ? hostIoc.defanged : '' },
+        vars: { host: hp ? hp.host.defanged : '', port: hp ? hp.port : '' },
       }
     },
     render(m) {
-      const text = m.vars.host ? `Opens a reverse shell to **${m.vars.host}**` : 'Opens a reverse shell to a runtime-resolved host — not resolved'
+      const text = m.vars.host ? `Opens a reverse shell to ${m.vars.host}:${m.vars.port}` : 'Opens a reverse shell to a remote endpoint'
       return { verb: 'Opens', text }
     },
   },

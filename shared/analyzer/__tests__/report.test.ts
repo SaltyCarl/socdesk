@@ -162,7 +162,7 @@ describe('analyze — bullets wiring (Phase 4)', () => {
   it('a -enc download cradle yields decode → fetch → execute bullets, in that order', async () => {
     const r = await analyze('powershell -nop -w hidden -enc ' + encCradle)
     expect(r.bullets.length).toBeGreaterThanOrEqual(3)
-    expect(r.bullets[0].text).toContain('Base64 `-EncodedCommand`')
+    expect(r.bullets[0].text).toContain('Base64 -EncodedCommand')
     expect(r.bullets.some((b) => b.text.includes('Downloads content from'))).toBe(true)
     expect(r.bullets.some((b) => b.text.includes('Executes the downloaded content in memory'))).toBe(true)
   })
@@ -177,5 +177,18 @@ describe('analyze — bullets wiring (Phase 4)', () => {
     const r = await analyze("IEX (New-Object Net.WebClient).DownloadString($u)")
     const b = r.bullets.find((x) => x.verb === 'Downloads')
     expect(b!.confidence).toBe('inferred')
+  })
+})
+
+describe('copyText — opaque bullets get parity with the UI (whole-branch review M1, minor)', () => {
+  it('includes a "Could not resolve" section listing opaque bullets, matching ActionBullets.tsx\'s separate block — never merged into the confident "What it did" section', async () => {
+    const r = await analyze('wscript //E:vbscript C:\\Users\\Public\\payload.vbs')
+    expect(r.copyText).toContain('Could not resolve:')
+    expect(r.copyText).toContain('numeric char-code decode only')
+    // still never promoted into the confident section (D3/D6)
+    const whatItDidIdx = r.copyText.indexOf('What it did:')
+    const couldNotResolveIdx = r.copyText.indexOf('Could not resolve:')
+    const whatItDidSection = whatItDidIdx === -1 ? '' : r.copyText.slice(whatItDidIdx, couldNotResolveIdx === -1 ? undefined : couldNotResolveIdx)
+    expect(whatItDidSection).not.toContain('numeric char-code decode only')
   })
 })
