@@ -28,7 +28,7 @@ import type {
   RuleContext,
   Signal,
 } from './types'
-import { FETCH } from './techniques'
+import { FETCH, MSHTA_DISCRIMINATORS, triggerFor } from './techniques'
 import { defang } from '../verdict/doctrine'
 
 export type VerbFamily =
@@ -140,9 +140,16 @@ function beaconLoopHost(ctx: BulletContext): HostRef | null {
   }
   if (closeBrace === -1) return null // unbalanced — never guess past it
   const body = ctx.text.slice(openBrace, closeBrace + 1)
-  const m = body.match(/https?:\/\/[^\s'"()<>]+/i)
-  if (!m) return null
-  return hostRefFromRaw(ctx, m[0])
+  const urlMatch = body.match(/https?:\/\/[^\s'"()<>]+/i)
+  if (urlMatch) return hostRefFromRaw(ctx, urlMatch[0])
+  // SOC-2 (output-quality pass): a raw-socket beacon is just as resolvable as
+  // a fetch/URL — reuse the same TCPClient(host, port) extraction
+  // reverseShellHostPort() uses, scoped to THIS loop's own braced body so it
+  // can never cross the brace into an unrelated construct (port is dropped;
+  // beacon-loop's own vars shape only names a host).
+  const tcpMatch = body.match(TCPCLIENT_RE)
+  if (tcpMatch && tcpMatch[1] && !tcpMatch[1].startsWith('$')) return hostRefFromRaw(ctx, tcpMatch[1])
+  return null
 }
 
 // download-cradle-fetch / lolbin-msiexec: the URL adjacent to THIS
@@ -244,12 +251,23 @@ export const RULES: ActionRule[] = [
   },
   {
     id: 'mshta-execute',
-    requiredFacts: ['signal: mshta-interpreter'],
+    requiredFacts: ['signal: mshta-interpreter', 'OR layer: mshta→* hop'],
     family: 'interpreter-transition',
     fires(ctx) {
+      // SOC-1 (output-quality pass): the mshta-interpreter SIGNAL gates on
+      // ctx.interpreter === 'mshta' (techniques.ts) — but by the time
+      // deriveBullets runs, report.ts's nested-reentry loop has already
+      // reassigned `interpreter` to the FINAL resolved value (e.g.
+      // 'powershell' for a real mshta→…→powershell -enc HTA launcher), so the
+      // signal never fires on the common case. Mirror cmd-launches-powershell:
+      // also check the recorded `layers` for a hop whose SOURCE is mshta —
+      // that fact survives the reassignment.
       const s = ctx.signals.find((x) => x.id === 'mshta-interpreter')
-      if (!s) return null
-      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: { trigger: s.trigger } }
+      const hop = ctx.layers.find((l) => l.transform.startsWith('mshta→'))
+      if (!s && !hop) return null
+      const trigger = s ? s.trigger : triggerFor(ctx, MSHTA_DISCRIMINATORS)
+      const techniqueIds = s ? s.techniqueIds : ['T1218.005']
+      return { layerIndex: hop ? hop.index : 0, confidence: 'resolved', iocs: [], techniqueIds, vars: { trigger } }
     },
     render(m) {
       return { verb: 'Executes', text: `Executes an mshta payload (${m.vars.trigger})` }
@@ -257,14 +275,35 @@ export const RULES: ActionRule[] = [
   },
   {
     id: 'wsh-execute',
-    requiredFacts: ['signal: wsh-script-exec'],
+    requiredFacts: ['signal: wsh-script-exec', 'OR layer: wscript→*/cscript→* hop'],
     family: 'interpreter-transition',
     fires(ctx) {
+      // SOC-1: same reassigned-interpreter gap as mshta-execute — also check
+      // the recorded layers for a wscript/cscript-sourced hop. Guard: an
+      // mshta→wscript hop is NOT a genuine wscript entry — preprocess()'s
+      // embedded-launcher fallback can mistake a `Wscript.Shell` COM ProgID
+      // referenced from an mshta vbscript: payload for a real wscript.exe
+      // launcher. Once mshta is confirmed as a hop SOURCE anywhere in the
+      // chain, mshta is the true entry vector and no downstream wscript/
+      // cscript hop is trusted as a second, genuine one.
       const s = ctx.signals.find((x) => x.id === 'wsh-script-exec')
-      if (!s) return null
-      const lang = s.techniqueIds.includes('T1059.005') ? 'vbs' : 'js'
-      const host = ctx.interpreter === 'cscript' ? 'cscript' : 'wscript'
-      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: { lang, host } }
+      const mshtaPresent = ctx.layers.some((l) => l.transform.startsWith('mshta→'))
+      const hop = mshtaPresent ? undefined : ctx.layers.find((l) => l.transform.startsWith('wscript→') || l.transform.startsWith('cscript→'))
+      if (!s && !hop) return null
+      let lang: string
+      let host: string
+      let techniqueIds: string[]
+      if (s) {
+        lang = s.techniqueIds.includes('T1059.005') ? 'vbs' : 'js'
+        host = ctx.interpreter === 'cscript' ? 'cscript' : 'wscript'
+        techniqueIds = s.techniqueIds
+      } else {
+        const vbs = /\.vbs\b/i.test(ctx.text)
+        lang = vbs ? 'vbs' : 'js'
+        host = hop!.transform.startsWith('cscript→') ? 'cscript' : 'wscript'
+        techniqueIds = vbs ? ['T1059.005'] : ['T1059.007']
+      }
+      return { layerIndex: hop ? hop.index : 0, confidence: 'resolved', iocs: [], techniqueIds, vars: { lang, host } }
     },
     render(m) {
       return { verb: 'Runs', text: `Runs a ${m.vars.lang} script via ${m.vars.host}` }
@@ -411,7 +450,12 @@ export const RULES: ActionRule[] = [
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: { descriptors: descriptors.join(', ') } }
     },
     render(m) {
-      return { verb: 'Runs', text: `Runs ${m.vars.descriptors || 'with a clustered evasion-flag set'}` }
+      // SOC-3 (output-quality pass): "Runs hidden, no-profile" read as a
+      // dropped clause — spell out what's being run with.
+      const text = m.vars.descriptors
+        ? `Runs with evasion flags (${m.vars.descriptors})`
+        : 'Runs with a clustered evasion-flag set'
+      return { verb: 'Runs', text }
     },
   },
 

@@ -182,7 +182,7 @@ describe('deriveBullets — evade family: split rules, no slash-hedge (SOC must-
       buildContext('', [{ flag: '-w', raw: '-w hidden', techniqueIds: [] }, { flag: '-nop', raw: '-nop', techniqueIds: [] }], 'powershell'),
       [], [], [sig('evasion-cluster')],
     )
-    expect(twoFlags.find((b) => b.verb === 'Runs')!.text).toBe('Runs hidden, no-profile')
+    expect(twoFlags.find((b) => b.verb === 'Runs')!.text).toBe('Runs with evasion flags (hidden, no-profile)')
     expect(twoFlags.find((b) => b.verb === 'Runs')!.text).not.toContain('execution-policy bypass')
   })
 })
@@ -265,7 +265,7 @@ describe('execution ordering (D2/D6, 11-tier): delivery → interpreter-transiti
     const r = await analyze('powershell -nop -w hidden -enc ' + ENC_CRADLE)
     const texts = r.bullets.map((b) => b.text)
     const decodeIdx = texts.findIndex((t) => t.includes('Base64 -EncodedCommand'))
-    const evadeIdx = texts.findIndex((t) => t.startsWith('Runs hidden'))
+    const evadeIdx = texts.findIndex((t) => t.startsWith('Runs with evasion flags'))
     const fetchIdx = texts.findIndex((t) => t.includes('Downloads content from'))
     const execIdx = texts.findIndex((t) => t.includes('Executes the downloaded content in memory'))
     expect(decodeIdx).toBeGreaterThanOrEqual(0)
@@ -454,5 +454,40 @@ describe('whole-branch review regressions (2026-08-19)', () => {
     // either a genuinely in-body host (none here) or the unnamed degrade form
     expect(beacon!.text).toBe('Beacons to a remote host in a loop every ~30s')
     expect(beacon!.confidence).toBe('inferred')
+  })
+
+  it('SOC-1 (output-quality pass): the mshta entry vector leads the narrative even after nested-reentry reassigns ctx.interpreter to the final resolved value, with no spurious wscript bullet', async () => {
+    // report.ts's nested-reentry loop reassigns `interpreter` to the FINAL
+    // resolved value (here 'powershell') by the time deriveBullets runs, so
+    // the mshta-interpreter SIGNAL (gated on ctx.interpreter === 'mshta')
+    // never fires — the narrative used to start cold at the decode bullet and
+    // never named mshta as the entry vector.
+    const input = 'mshta vbscript:CreateObject("Wscript.Shell").Run("powershell -w hidden -enc c2xlZXAgMQ==")'
+    const r = await analyze(input)
+    const mshtaIdx = r.bullets.findIndex((b) => b.text.startsWith('Executes an mshta payload'))
+    const decodeIdx = r.bullets.findIndex((b) => b.text.includes('Base64 -EncodedCommand'))
+    expect(mshtaIdx).toBe(0)
+    expect(decodeIdx).toBeGreaterThan(mshtaIdx)
+    // preprocess()'s embedded-launcher fallback can mistake the `Wscript.Shell`
+    // COM ProgID for a real wscript.exe launcher, producing an artifact
+    // `wscript→powershell` hop — must not surface as a spurious wsh bullet.
+    expect(r.bullets.some((b) => b.text.includes('script via wscript') || b.text.includes('script via cscript'))).toBe(false)
+  })
+
+  it('SOC-2 (output-quality pass): beacon-loop names a raw-socket host already in the IOC catalog, scoped to the loop body', async () => {
+    const input = "while($true){ Start-Sleep 30; (New-Object Net.Sockets.TCPClient('99.99.99.99',4444)) }"
+    const r = await analyze(input)
+    const beacon = r.bullets.find((b) => b.verb === 'Beacons')
+    expect(beacon).toBeTruthy()
+    expect(beacon!.confidence).toBe('resolved')
+    expect(beacon!.text).toContain('99[.]99[.]99[.]99')
+    expect(beacon!.iocs).toContain('99.99.99.99')
+  })
+
+  it('SOC-3 (output-quality pass): the evasion-cluster bullet reads as a full clause, not a dropped one', async () => {
+    const r = await analyze('powershell -nop -w hidden -enc ' + ENC_CRADLE)
+    const evade = r.bullets.find((b) => b.verb === 'Runs')
+    expect(evade).toBeTruthy()
+    expect(evade!.text).toBe('Runs with evasion flags (hidden, no-profile)')
   })
 })

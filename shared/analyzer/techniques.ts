@@ -375,4 +375,4 @@ export function classify(ctx: RuleContext): Signal[] {
 }
 
 // Re-exported so later rules (Tasks 3–5) and their tests can reuse the vocab/helpers.
-export { hasAll, hasAny, present, flagSet, triggerFor, hasIexSink, FETCH, matchLolbin }
+export { hasAll, hasAny, present, flagSet, triggerFor, hasIexSink, FETCH, matchLolbin, MSHTA_DISCRIMINATORS }
