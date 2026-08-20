@@ -15,6 +15,7 @@ import { CAVEAT, classTag, coverageState, isStale } from '../verdict'
 import { cx } from '../lib/cx'
 import { Chip, MicroLabel, type ChipVariant } from '../ui'
 import { gaugeCaption, gaugeSegments } from '../card/model'
+import { splitLead } from './findingLead'
 
 const TYPE_LABEL: Record<VerdictData['type'], string> = {
   ipv4: 'IPv4',
@@ -160,6 +161,24 @@ export function SegGauge({ data }: { data: VerdictData }) {
   )
 }
 
+/** Ink for the highlighted lead figure — red/amber draw the eye to a bad number;
+ *  a clean or no-verdict figure is bold but uncoloured (never a loud green). */
+const LEAD_INK: Partial<Record<SourceVerdict, string>> = {
+  malicious: 'text-verdict-red',
+  suspicious: 'text-verdict-amber',
+}
+
+/** A source finding with its lead figure highlighted (bold, severity-inked). */
+function FindingLine({ source }: { source: VerdictSource }) {
+  const [lead, rest] = splitLead(source.finding || '— no finding reported')
+  return (
+    <span className="min-w-0">
+      <b className={cx('font-semibold', LEAD_INK[source.verdict] ?? 'text-paper')}>{lead}</b>
+      {rest}
+    </span>
+  )
+}
+
 /** The attributed evidence ledger: every consulted source named, its finding as
  *  fact, its source-class chip, and its recency. A fixed-width left cell stacks
  *  the source name over its class chip (item 2), so every row's finding shares a
@@ -192,9 +211,9 @@ export function SourceLedger({ data, now }: { data: VerdictData; now?: Date }) {
           </span>
           <span className="flex min-w-0 flex-1 flex-col gap-0.5 font-mono text-micro text-muted">
             {/* Bare finding, no "reports"/"classifies" verb — the name cell above
-                already attributes it, so the verb only repeats the source. The
-                copy-TEXT keeps the verb (no columns there to do the attributing). */}
-            <span className="min-w-0">{s.finding || '— no finding reported'}</span>
+                already attributes it. Lead figure highlighted so the eye lands on
+                the number. The copy-TEXT keeps the verb (no columns to attribute). */}
+            <FindingLine source={s} />
             {s.recency && <RecencyTag source={s} now={now} />}
           </span>
         </li>
@@ -206,13 +225,17 @@ export function SourceLedger({ data, now }: { data: VerdictData; now?: Date }) {
 /** Context rows (geo/ASN) + named not-consulted sources. Never in the tally —
  *  silence about an unconsulted source would lie by omission. */
 export function ContextList({ data }: { data: VerdictData }) {
-  // OTX is surfaced as the assessment attention chip (EscalationCard.otxSignal),
-  // so it is dropped here — the same pulse count must not appear twice.
-  const rows = data.context.filter((c) => !/otx|alienvault/i.test(c.name))
-  if (!rows.length && !data.errors.length) return null
+  // The type hero already presents the primary context richly (geo hero = ipinfo,
+  // domain hero = RDAP registration) and OTX is the assessment chip — so those
+  // rows would only echo what's shown above. Drop them; a genuinely stand-alone
+  // context source (none today) would still render. Not-consulted sources are
+  // dropped from the CARD (the "N consulted" count + thin-coverage chip carry
+  // coverage); the copy-TEXT keeps them verbatim for the ticket's audit trail.
+  const rows = data.context.filter((c) => !/otx|alienvault|ipinfo|rdap|whois/i.test(c.name))
+  if (!rows.length) return null
   // Same fixed left-cell width as the ledger (item 2): a dot-width spacer + name
-  // in a 168px cell (context carries no source-class chip), so every context /
-  // not-consulted finding aligns with the evidence findings above.
+  // in a 168px cell (context carries no source-class chip), so every context
+  // finding aligns with the evidence findings above.
   return (
     <div className="flex flex-col gap-2">
       <MicroLabel tone="muted">Context — not a verdict</MicroLabel>
@@ -226,17 +249,6 @@ export function ContextList({ data }: { data: VerdictData }) {
             <span className="min-w-0 flex-1 font-mono text-micro text-muted">{c.finding}</span>
           </li>
         ))}
-        {data.errors.length > 0 && (
-          <li className="flex items-start gap-3 px-3 py-2">
-            <span className="flex w-[168px] shrink-0 items-center gap-2">
-              <span aria-hidden="true" className="inline-block size-1.5 shrink-0" />
-              <span className="truncate font-sans text-xs font-semibold text-muted">Not consulted</span>
-            </span>
-            <span className="min-w-0 flex-1 font-mono text-micro text-faint">
-              {data.errors.map((e) => `${e.source} (${e.reason})`).join(' · ')}
-            </span>
-          </li>
-        )}
       </ul>
     </div>
   )
