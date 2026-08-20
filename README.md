@@ -54,6 +54,8 @@ The live app is the **`web/`** React app with **`shared/`** components and the
 `site/` app. The `site/js` paths below are the legacy locations — several
 capabilities now live in `web/`, `shared/`, and `lib/`.
 
+#### Live in `web/` today
+
 | Capability | Where it lives |
 |---|---|
 | **Polymorphic cockpit** — one omnibox at `/`; paste an indicator and the escalation card docks beside the 3D globe, paste a PowerShell command and the analyzer renders inline in the same slot while the globe yields. One screen, no tab switch — a pasted command never reaches the enrichment endpoint or leaves the browser | `shared/intent.ts`, `web/src/components/cockpit/`, `web/src/routes/Overview.tsx` |
@@ -66,19 +68,25 @@ capabilities now live in `web/`, `shared/`, and `lib/`.
 | Copy-out — clean factual **"Copy card"** (PNG) + **"Copy text"**, no branding, no disclaimer prose | `shared/verdict-cards/copy.ts`, `shared/card/drawVerdict.ts` |
 | Browser extension — the toolbar popup renders the **same full escalation card** (manifest v0.2.0), sharing detection + the enrich pipeline | `extension/` |
 | **PowerShell analyzer** (`/analyzer`) — deterministic, client-side decode ladder (`-enc` Base64, gzip/raw-DEFLATE inflate, variable substitution, `IEX`/`&`/`.Invoke()` recursion) + typed, deduped IOC extraction with one-click reputation pivots + a MITRE ATT&CK technique tally + a specificity-gated malicious/suspicious characterization. Never executes the input | `shared/analyzer/`, `web/src/routes/PowerShellAnalyzer.tsx` |
-| Authoritative CVE verdict — CISA KEV × NVD CVSS × FIRST EPSS | `site/js/verdict.js` |
-| Honest "not in corpus" for a CVE outside the corpus, plus type-aware pivots | `site/js/verdict.js` |
-| Escalation write-up (markdown / plain text / `.md` download) | `site/js/verdict.js` |
+
+| Authoritative CVE verdict — CISA KEV × NVD CVSS × FIRST EPSS | `web/src/routes/lookupModel.ts` (`cveToVerdict`), `shared/verdict/doctrine.ts` |
+| Honest "not in corpus" for a CVE outside the corpus, plus type-aware pivots | `web/src/components/lookup/useLookup.ts`, `web/src/components/lookup/LookupStates.tsx` |
+| Escalation write-up (markdown / plain text / `.md` download) | `shared/verdict/doctrine.ts` (`composeEscalation`), `shared/verdict-cards/copy.ts` |
+| Threat feed scored 0–100 with an explainable `why` per item | `pipeline/relevance.py`, `web/src/routes/FeedRoute.tsx`, `web/src/components/views/FeedView.tsx` |
+| Vulnerability triage table with watchlist, KEV filter, sortable columns | `web/src/routes/VulnsRoute.tsx`, `web/src/components/views/VulnsView.tsx` |
+| ATT&CK actor and malware profiles, resolvable by name or alias | `collectors/attack.py`, `web/src/routes/ActorProfileRoute.tsx`, `web/src/components/views/ActorsView.tsx` |
+| Collection health per source, with last-known-good retention | `pipeline/validate.py`, `web/src/routes/HealthRoute.tsx`, `web/src/components/views/HealthView.tsx` |
+
+#### Legacy — `site/` only (historical, not on the live site)
+
+| Capability | Where it lives |
+|---|---|
 | Bulk lookup — paste up to 200 indicators, export CSV / JSON / defanged TXT | `site/js/verdict.js`, `site/js/app.js` |
 | In-context lookup bookmarklet — select an indicator on any page, get the verdict, no install | `site/js/bookmarklet.js` |
-| Threat feed scored 0–100 with an explainable `why` per item | `pipeline/relevance.py`, `site/js/views.js` |
-| Vulnerability triage table with watchlist, KEV filter, sortable columns | `site/js/views.js` |
-| Trends — biggest EPSS rises and new KEV entries, from committed daily snapshots | `pipeline/history.py`, `site/js/views.js` |
-| ATT&CK actor and malware profiles, resolvable by name or alias | `collectors/attack.py`, `site/js/views.js` |
-| Collection health per source, with last-known-good retention | `pipeline/validate.py`, `site/js/views.js` |
-| Analyst toolbelt — defang/refang, IOC extract, UTF-16LE Base64 decode | `site/js/toolbelt/` (legacy; PowerShell parsing and LOLBin lookup superseded by the PowerShell analyzer above) |
+| Trends — biggest EPSS rises and new KEV entries, from committed daily snapshots | `pipeline/history.py`, `site/js/views.js` (the `TrendsPayload` schema is also fetched in `web/src/components/overview/OverviewStats.tsx` for day-over-day totals + a volume sparkline, but the EPSS-risers/new-KEV leaderboard itself has no `web/` view) |
+| Analyst toolbelt — defang/refang, IOC extract, UTF-16LE Base64 decode | `site/js/toolbelt/` (legacy; PowerShell parsing and LOLBin lookup superseded by the PowerShell analyzer above; `web/src/components/views/ToolbeltView.tsx` is a deliberate stub — only Base64 decode is live there, linking out to `/analyzer`) |
 | Shift handoff digest from items you flagged notable | `site/js/app.js` |
-| Offline capability via service worker (data network-first, never stale-as-fresh) | `site/sw.js` |
+| Offline capability via service worker (data network-first, never stale-as-fresh) | `site/sw.js` (`web/public/sw.js` is a deliberate tombstone — clears caches and unregisters on activate, not an offline cache) |
 
 For how to *use* these as an analyst, read
 [docs/ANALYST-GUIDE.md](docs/ANALYST-GUIDE.md).

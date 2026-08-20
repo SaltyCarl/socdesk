@@ -1,5 +1,9 @@
 # SOCDESK — Autonomous Build Loop
 
+> ⚠ Written 2026-08-07, before the `web/` pivot. The §1 Definition of Done
+> below describes the original `site/` target; the live app is now `web/`
+> (Vite/React). §2–§6 (process doctrine) still hold.
+
 Operating doctrine for driving SOCDESK to deployment-ready with minimal human
 input. Written 2026-08-07. Survives context resets: an agent picking this repo
 up cold should read this file, `COMPLIANCE.md`, `design-system.md`, and the
@@ -19,15 +23,22 @@ active plan in `docs/superpowers/plans/`, then resume at step 1.
 Deployment-ready means ALL of:
 
 - [ ] `pytest tests/ -q` green; `python run_pipeline.py` clean (`problems=[]`).
-- [ ] Production site in `site/` renders every spec-§4 capability against real
-      `site/data/*.json` — no sample/mock data anywhere.
+- [ ] ~~Production site in `site/` renders every spec-§4 capability against
+      real `site/data/*.json` — no sample/mock data anywhere.~~
+      **Historical/superseded** — `site/` is legacy, not deployed. Current
+      equivalent: `web/` build is green (`npm run build` in `web/`) and the
+      live `web/` app renders every spec-§4 capability against real data —
+      no sample/mock data anywhere.
 - [ ] Playwright suite green, including: an XSS-injection fixture rendering
       inert, a CDN-failure path still showing all data, and a
       reduced-motion path.
 - [ ] `_headers` ships a CSP with **no** `unsafe-inline`; zero inline scripts,
       handlers or `style=""` in production output.
-- [ ] Visual parity with `design/mockups/g-chartroom.html`, verified by
-      screenshot comparison at 1440px — the mockup is the acceptance test.
+- [ ] ~~Visual parity with `design/mockups/g-chartroom.html`, verified by
+      screenshot comparison at 1440px — the mockup is the acceptance test.~~
+      **Historical/superseded** — `g-chartroom.html` governs the legacy
+      `site/` (bone/vermilion) direction only. No `web/`-equivalent
+      mockup-parity gate is defined; treat as N/A for the current app.
 - [ ] Every COMPLIANCE.md must-fix closed: no mirrored reputation corpora, no
       victim names, disclosure banner prominent, escalation card passes the
       generic test, EPSS attribution present, `noindex` set.

@@ -5,7 +5,7 @@ costs. Read [COMPLIANCE.md](../COMPLIANCE.md) alongside this: several
 architectural decisions here are licensing decisions wearing engineering
 clothes.
 
-**A note on scope.** Everything from here through *Tier 3 — the site* below
+**A note on scope.** *Tier 1 — collection* through *Tier 3 — the site* below
 describes the original zero-infrastructure pipeline, and most of it is still
 exactly how data gets collected and published today. What has moved: the
 deployed frontend is no longer the vanilla `site/` app that section describes
@@ -15,10 +15,10 @@ target; `run_pipeline.py` now dual-writes into `web/public/data/state`
 instead of `site/data`. `site/` is kept in-repo for history but is not what
 deploys. `shared/` is a framework-free library layer, consumed by both `web/`
 and the browser extension, holding logic too load-bearing to duplicate —
-including the two subsystems documented in their own sections below, added
-after *Tier 3*. Reconciling the rest of `site/`'s vanilla-ES-modules framing
-against `web/` — module-by-module — is real doc-debt, tracked but not
-attempted in this pass.
+including the two subsystems documented in their own sections immediately
+below, right after *End to end*. Reconciling the rest of `site/`'s
+vanilla-ES-modules framing against `web/` — module-by-module — is real
+doc-debt, tracked but not attempted in this pass.
 
 ## The constraint that produced the design
 
@@ -79,10 +79,19 @@ flowchart TB
   subgraph out[Outputs]
     STATE[(data/state/*.json<br/>committed, last known good)]
     HISTD[(data/state/history/YYYY-MM-DD.json<br/>committed, 90 day window)]
-    SITE[(site/data/*.json<br/>gitignored, regenerated every run)]
+    WEBSTATE[(web/public/data/state/*.json<br/>dual-write, the deployed artifact)]
+    SITE[(site/data/*.json<br/>gitignored, legacy, regenerated every run)]
   end
 
-  subgraph t3[Tier 3 — static site, Cloudflare Pages]
+  subgraph tweb[web/ — Vite + React 19 + Tailwind v4 + Motion, Cloudflare Pages — LIVE]
+    APPW[React app: cockpit, PowerShell analyzer, lookup]
+    SWW[service worker: web/public/sw.js]
+    LSW[(localStorage — analyst state, never transmitted)]
+    APPW --- SWW
+    APPW --- LSW
+  end
+
+  subgraph t3[Tier 3 — static site, Cloudflare Pages — legacy, superseded]
     APP[vanilla ES modules, no build step]
     SW[service worker: shell cache-first, data network-first]
     LS[(localStorage — analyst state, never transmitted)]
@@ -99,10 +108,269 @@ flowchart TB
   GATE --> STATE
   GATE --> SITE
   GATE --> HISTD
+  GATE --> WEBSTATE
   STATE -. prior run feeds the next .-> GATE
+  WEBSTATE --> APPW
   SITE --> APP
+  APPW -. user clicks .-> PIV
   APP -. user clicks .-> PIV
 ```
+
+## The PowerShell analyzer (`shared/analyzer/`)
+
+Lives in `shared/`, not `web/` — a framework-free library consumed by the
+standalone `/analyzer` route, the cockpit below, and (via the same
+`@socdesk/shared/analyzer` alias) the browser extension. **Deterministic,
+client-side, and it never executes the input.** `analyze()` (`report.ts:9`)
+is a pure function from a string to an `AnalysisResult`; its only browser
+APIs are `atob` (`fold.ts:1`) and `DecompressionStream` (`fold.ts:27`) — both
+local, both operating on already-in-memory bytes. Nothing in the module
+touches `eval`, `Function()`, or the network.
+
+**Pipeline**, one module per stage:
+
+1. **`preprocess.ts:14`** strips a leading `powershell(.exe)`/`pwsh` wrapper,
+   pulls the `-Command` body if present, and extracts the outer evasion flags
+   (`-enc`, `-nop`, `-w hidden`, `-ep bypass`, `-noni`, `-sta`) via a small
+   `FLAG_RULES` table (`:5`) — each flag carries its own ATT&CK
+   `techniqueIds`, matched on PowerShell's unambiguous-prefix rule (`-e`,
+   `-ec`, `-enc`, `-encodedcommand` all resolve to the same flag).
+2. **`lex.ts:15`** `tokenize()` is a hand-rolled, literal-safe PowerShell
+   lexer: a string token's `value` is its resolved payload (backtick escapes
+   decoded, doubled quotes un-escaped) kept separate from its `raw` source
+   slice, so every later stage matches against resolved values — a signature
+   check can't be defeated by backtick obfuscation the way a raw-text regex
+   would be.
+3. **`fold.ts`** decodes the two payload shapes PowerShell attackers actually
+   use: `decodeEnc` (`:11`) is Base64 → UTF-16LE (an `-EncodedCommand`
+   payload is UTF-16LE, not UTF-8 — the #1 gotcha the comment names
+   directly), and `inflate()` (`:39`) handles both gzip (magic `1F 8B`) and
+   PowerShell's raw-DEFLATE `DeflateStream`. A decompressed layer is only
+   accepted if `isMostlyPrintable` (`report.ts:209`) passes — raw-DEFLATE
+   "succeeds" on roughly 0.4% of arbitrary Base64, and that binary garbage
+   must never be presented as a decoded layer.
+4. **`resolve.ts`** is the static-deobfuscation core: `foldConcat` (`:25`)
+   collapses `'a'+'b'+…` literal-only runs; `resolveVars` (`:51`) substitutes
+   single-assignment `$var = 'literal'` bindings and leaves anything assigned
+   more than once, or to a non-literal, untouched and "poisoned" rather than
+   guessed; `resolve` (`:91`) iterates both to a fixpoint, capped at 12
+   passes and 1 MiB of output so hostile input can't spin the analyzer.
+   `report.ts`'s `analyze()` drives up to 6 rounds of this plus IEX/`&`/
+   `.Invoke()` recursion (`iexStringTarget`, `report.ts:154`) — chasing what
+   a resolved string literal would hand the interpreter next.
+5. **`extract.ts:11`** `extractIocs()` scans every decoded layer's text with
+   one candidate regex (URLs, IPv4, domains, 32/40/64-hex hashes) and hands
+   each candidate to the app's own `detectType` as the arbiter — the same
+   classifier `/lookup` and the cockpit's data boundary use, so the analyzer
+   can't drift into a second, disagreeing notion of "what's an IOC."
+   PascalCase `.NET` member-access tokens like `Net.WebClient` are filtered
+   back out (`:25`) because they collide with the domain regex.
+6. **`techniques.ts` + `lolbins.ts`** — the signature layer. A
+   `SignatureRule` (`techniques.ts:12`) is `{ id, label, techniqueIds,
+   baseSpecificity: 'weak'|'strong'|'near-dispositive', upgradesWith:
+   string[], test(ctx) }`, matched against a `RuleContext` built once per
+   analysis (`buildContext`, `:24`: decoded corpus text/lowercased text,
+   tokenized words, evasion flags, interpreter). 17 rules (`:74`–`335`):
+   download cradle, `cmd-cradle` (`:89`, a `for /f` loop plus a
+   `finger`/curl/certutil/bitsadmin/powershell inner command — T1059.003,
+   T1105), evasion-flag cluster, AMSI bypass via reflection, AMSI memory
+   patch, ETW tampering, Defender tampering, ClickFix/paste-and-run,
+   beaconing, reverse shell, in-memory loader/shellcode, persistence,
+   `mshta-interpreter` (`:276`, gated on `ctx.interpreter === 'mshta'` plus a
+   URL/`.hta`/inline-script discriminator — T1218.005, plus T1059.005 for an
+   inline `vbscript:`/`javascript:` target), `wsh-script-exec` (`:294`,
+   gated on wscript/cscript plus a suspicious path or `//e:` inline-eval
+   flag — T1059.005 for `.vbs`, T1059.007 for `.js`), two always-on WSH/HTA
+   honesty signals that fire whenever the interpreter is
+   mshta/wscript/cscript (`wsh-decode-limits` `:311`, `wsh-concat-eval-present`
+   `:322` — flag that char-code decode is thin coverage rather than presenting
+   a clean result), and a data-driven LOLBins rule backed by a 9-binary table
+   in `lolbins.ts:14` (certutil, bitsadmin, mshta, regsvr32, rundll32,
+   msiexec, wmic, installutil, conhost — each needs the binary name **and** a
+   discriminating context token; a bare mention never fires). `classify()`
+   (`techniques.ts:364`) applies the **co-occurrence upgrade**: after every
+   rule runs once, a rule whose `upgradesWith` names a companion that also
+   fired is bumped one specificity tier (capped at `near-dispositive`) —
+   every individual token has a benign twin, so corroboration is the
+   accuracy mechanism.
+7. **`report.ts`** ties it together: `analyze()` (`:9`) is the orchestrator
+   above; `composeCopyText` (`:173`) builds the deterministic clipboard
+   export.
+
+**Multi-interpreter (shipped 2026-08-19).** The pipeline above was
+PowerShell-only through the analyzer's first ship. `detectInterpreter`
+(`preprocess.ts:29`) now classifies the outer wrapper as `cmd` / `mshta` /
+`wscript` / `cscript` / `powershell` / `unknown` before any of that runs, and
+`preprocess()` (`:75`) branches to interpreter-specific body extraction —
+`extractCmdBody` (`:48`, cmd-gated caret deobfuscation via
+`deobfuscateCaret` in `cmdlex.ts:24`, called from nowhere else so
+PowerShell regex literals like `^https?://` are never corrupted),
+`extractMshtaBody` (`:56`), and `extractWshBody` (`:63`, also lifting
+`//E:vbscript`/`//E:jscript`/`//B`/`//NoLogo` into the shared evasion-flag
+array via `WSH_FLAG_RULES`, `:39`). `reenterNestedInterpreter`
+(`report.ts:30`) loops a wrapper's extracted body back through
+`preprocess()` — depth-capped at 4 (`NESTED_REENTRY_MAX_DEPTH`, `:12`) with
+a seen-set cycle guard and a non-anchored embedded-launcher fallback
+(`:61`) for a launcher buried past position 0 — so `cmd /c powershell -w
+hidden -enc <blob>` decodes the inner PowerShell exactly as a top-level
+input would, each hop recorded as its own `cmd→powershell` decode-ladder
+layer. On the WSH/HTA branch, `decodeNumericCharCodes` (`wsh.ts:25`)
+resolves `Chr(72)&Chr(105)`/`String.fromCharCode(72,105)` payloads to text
+— a bounded regex transform, explicitly not a WSH interpreter (no
+concat-folding, no `Execute`/`eval` recursion) — backed by the two
+always-on honesty signals named above so a thin WSH result reads as thin,
+never as clean.
+
+**Specificity-gated characterization** — `deriveCharacterization`
+(`report.ts:125`). Two tiers, both hedged against a synthesized score:
+
+- **Tier 1, "High-confidence malicious behaviour"** (red) fires only when a
+  fired signal's rule has `baseSpecificity === 'near-dispositive'` — AMSI
+  reflection, AMSI memory patch, or reverse shell, techniques the code
+  comment states plainly have "no legitimate use." This is gated on the
+  rule's **base** specificity, never the post-co-occurrence-upgraded one, so
+  a merely-strong signal that corroboration bumped up can never borrow a
+  "no legitimate use" claim it hasn't intrinsically earned.
+- **Tier 2, "Suspicious — review"** (amber) fires when no near-dispositive
+  base signal exists, but a strong signal was corroborated up to
+  near-dispositive by its co-occurring companions — the evasion-cluster +
+  download-cradle beacon shape. Language stays hedged ("elevated by
+  co-occurring signals"), never "malicious."
+- Anything short of that — weak/strong signals with no corroboration — earns
+  no characterization at all: just the periwinkle technique tally, captioned
+  "not a synthesized verdict" (`TechniqueTally.tsx:52`).
+
+**Reserved-colour evolution (owner-approved).** `TechniqueTally.tsx:12`
+(`CALLOUT`) is the one place the analyzer spends a verdict-severity hue: the
+gated characterization box is red (`--edge-red`/`--tint-red`,
+`text-verdict-red`) or amber (`--edge-gold`/`--tint-gold`,
+`text-verdict-amber`). Every individual technique **chip** stays periwinkle
+(`variant="technique"`), tier-tagged and sorted strongest-first, each citing
+the literal substring that fired it. This deliberately relaxes the earlier
+"analyzer output is periwinkle-only" rule — scoped to that one gated
+callout; red/amber remain reserved for a real severity read everywhere else,
+never decoration.
+
+**UI.** `web/src/routes/PowerShellAnalyzer.tsx` is the standalone `/analyzer`
+view (a bare textarea over `usePsAnalysis`); `web/src/components/analyzer/
+AnalyzerResult.tsx` is the prop-driven, stateless result composition (flag
+chips + `TechniqueTally` + `DecodeLadder` + `IocTable`) shared verbatim
+between that route and the cockpit's inline result — one render path, two
+callers, per `AnalyzerResult.tsx:8`. `IocTable`'s "Look up →" button
+(`IocTable.tsx:17`) pivots an extracted indicator into `submitLookup`, which
+re-runs the same data-boundary classifier before routing (see below), so a
+pivot can't reopen the leak the classifier exists to close.
+
+138 vitest specs across 12 files in `shared/analyzer/__tests__/` (preprocess,
+lex, fold, resolve, extract, techniques, lolbins, characterization, cmdlex,
+wsh, report, and an end-to-end integration file).
+
+## The polymorphic cockpit (`/`, `web/` + `shared/intent.ts`)
+
+The landing omnibox (`web/src/routes/Overview.tsx`) used to accept only an
+indicator, routed straight to `/api/enrich`. It is now polymorphic: one
+input classifies what was pasted and renders either an escalation card
+(indicator) or the local analyzer's result (command) inline, in the same
+docked slot beside the globe — no tab-switch, no navigation. `/analyzer`
+remains as the standalone deep view, sharing `AnalyzerResult` with it
+verbatim.
+
+**`classifyCockpitInput` (`shared/intent.ts:87`) is the data-boundary gate**
+— the single function every submit path in the app calls *before*
+`detectType` (`shared/indicators.ts`) ever sees a raw value. `detectType`
+alone is not safe here: its URL regex is prefix-only, not end-anchored
+(`indicators.ts:61`), so a multi-line paste whose first line is a download
+URL would classify as `'url'` under `detectType` alone, and the entire blob
+would go to the third-party `/api/enrich` as `?q=<full text>`.
+`looksLikeCommand` (`intent.ts:67`) fires on: any newline; a `powershell`/
+`pwsh`/`iex`/`new-object` token (`COMMAND_TOKEN_RE`, `:35` — deliberately
+also matches inside `powershell.exe` as a bareword, so that filename can't
+be misread as a domain); an `Invoke-<cmdlet>` form (`INVOKE_RE`, `:47`,
+lookahead-gated so it doesn't false-positive on a hyphenated domain like
+`invoke-example.com`); the `-e`/`-enc`/`-encodedcommand` flag
+(`ENC_FLAG_RE`, `:57`, anchored to a token boundary so it can't fire
+mid-word inside `site-enc.com`); or two-or-more shell-punctuation tokens
+(`;`, `|`, backtick, `` $( `` — `SHELL_PUNCT_RE`, `:65`). `classifyCockpitInput`
+(`:87`) returns `'command'` the moment `looksLikeCommand` is true, before
+`detectType` runs at all; **command wins any tie** — a value that is both
+command- and indicator-shaped (`powershell.exe`) still resolves `'command'`.
+
+**`useCockpitInput`** (`web/src/components/cockpit/useCockpitInput.ts:68`)
+composes both downstream hooks unconditionally, per the rules of hooks:
+classify first, then call both `useLookup` and `usePsAnalysis`, feeding the
+*unselected* one `''` — which each hook already short-circuits to its own
+`idle` state for free (`:5`), so only the selected path's fetch or analysis
+actually runs. `resolveCockpitArgs` (`:40`) is the pure, unit-tested routing
+step; `resolveKind` (`:54`) applies a ModeChip correction **monotonically**
+— a value auto-detected as `'command'` can never be overridden back to
+`'indicator'`, because that would feed a raw script to `useLookup` →
+`/api/enrich`.
+
+**`ResultRegion`** (`web/src/components/cockpit/ResultRegion.tsx:44`)
+dispatches purely on `cockpit.kind`: `indicator` → `EscalationCard` (ok) or
+`LookupStatus` (checking/declined/unavailable/unsupported) plus a "Full
+analyst view →" link into `/lookup`; `command` → the same `AnalyzerResult`
+`/analyzer` renders, or an "Analyzing…"/error line; `unclassified` → an
+honest one-line hint naming both accepted input kinds, never a fabricated
+result. The caller keys the result wrapper on the *composite*
+`` `${cockpit.kind}:${submitted}` `` (`Overview.tsx:210`), not `submitted`
+alone — a ModeChip override can flip `kind` on the same committed string,
+and a key on `submitted` alone would fail to remount, which is what stops a
+stale `EscalationCard` compare-fetch from surviving a switch to the
+analyzer.
+
+**`CockpitOmnibox`** (`web/src/components/cockpit/CockpitOmnibox.tsx:38`)
+morphs a single-line `<input>` into an auto-growing, monospace `<textarea>`
+the moment the *live* (pre-submit) value becomes command-shaped, focus
+following the morph in both directions and height synced in a
+`useLayoutEffect` (`:63`) so a multi-line paste is sized correctly on the
+same paint. `ModeChip` (`web/src/components/cockpit/ModeChip.tsx:12`) shows
+the detected kind as a fact, not a verdict — `Chip variant="catalog"`
+(periwinkle), deliberately not `"neutral"` (which renders identically to the
+gray "unknown" verdict badge) — and is click-correctable, feeding
+`resolveKind`'s override under the same monotonic guard.
+
+**The globe suspend/resume yield.** `Overview.tsx`'s `isGeolessResult`
+(`:45`) is true for every `command` result, a non-empty `unclassified`
+submission, or an indicator resolved past `checking` with no geo. Two
+effects follow it: one flies the globe home or lands it on a pin
+(`:92`, keyed on `cockpit.kind`/`cockpit.state`); the other (`:110`) calls
+`GlobeApi.suspend()`/`.resume()` (`web/src/components/hero/
+useGlobe3.ts:878`/`885`) — not merely a CSS dim. The reason, per the code
+comment at `Overview.tsx:106`: IntersectionObserver-based render-loop
+gating doesn't see a CSS opacity change, so without an explicit suspend the
+WebGL loop would keep burning GPU behind the `.is-geoless` dim
+(`web/src/components/hero/globe.css:529`).
+
+**⚠ DATA BOUNDARY, verified live: a pasted command never reaches
+`/api/enrich`.** `classifyCockpitInput` guards every entry point, not just
+the cockpit's own submit:
+
+- the cockpit's auto-path (`useCockpitInput`, above);
+- the ModeChip override, monotonic in the command direction (`resolveKind`);
+- `palette/commands.ts::submitLookup` (`:111`) — the route every other
+  surface (the palette, `IocTable`'s pivot) uses to reach `/lookup` — checks
+  `classifyCockpitInput` first and redirects a command-shaped value to
+  `/analyzer` instead of writing the lookup hash;
+- `Lookup.tsx::runLookup` (`:170`), the form-submit handler, carries the
+  identical guard;
+- and `Lookup.tsx`'s own **hash reads** — both the initial-mount value
+  (`rawQuery`, `:132`, guarded at `:143`) and the `hashchange`/`popstate`
+  sync effect (`:153`, which re-derives `rawQuery`/`text` from the hash on
+  every navigation) — route a command-shaped `#q=` value to `/analyzer`
+  (`:150`) rather than ever constructing the query fed to `useLookup`. A
+  bookmarked or shared `/lookup#q=<command>` link therefore redirects to
+  `/analyzer` with zero calls to `/api/enrich`.
+
+`palette/classify.ts` was also consolidated in this pass: it now delegates
+all shape-detection to the shared `detectType` (`:26`) instead of carrying
+its own drifted copy, so the palette's live badge can't disagree with the
+data-boundary check or `useLookup` again.
+
+**Unified submit.** Every hook above receives only the *committed*
+(post-Enter) value, never the live-typed one — `useLookup` has no debounce
+of its own, so this is what stops `/api/enrich` (or the analyzer) firing on
+every keystroke (`useCockpitInput.ts:10`).
 
 ## Tier 1 — collection
 
@@ -258,6 +526,9 @@ Measured on the 2026-08-09T03:41:46Z run: 5.46 MB raw across eight payloads,
 *Superseded — see the scope note at the top of this document. `web/` is the
 live frontend; this section is kept for history and is not what deploys.*
 
+> Legacy. Skip to the PowerShell analyzer / polymorphic cockpit sections
+> above for the live `web/` frontend.
+
 Vanilla ES modules served as files. No framework, no bundler, no build step;
 what is in `site/` is what deploys.
 
@@ -304,227 +575,6 @@ be bumped on every shell change — see
 watchlist, and lookup history live under the `socdesk:v1:` localStorage prefix
 (`site/js/state.js:4`), and `clearAll()` wipes exactly that prefix. There is no
 endpoint to transmit them to.
-
-## The PowerShell analyzer (`shared/analyzer/`)
-
-Lives in `shared/`, not `web/` — a framework-free library consumed by the
-standalone `/analyzer` route, the cockpit below, and (via the same
-`@socdesk/shared/analyzer` alias) the browser extension. **Deterministic,
-client-side, and it never executes the input.** `analyze()` (`report.ts:9`)
-is a pure function from a string to an `AnalysisResult`; its only browser
-APIs are `atob` (`fold.ts:1`) and `DecompressionStream` (`fold.ts:27`) — both
-local, both operating on already-in-memory bytes. Nothing in the module
-touches `eval`, `Function()`, or the network.
-
-**Pipeline**, one module per stage:
-
-1. **`preprocess.ts:14`** strips a leading `powershell(.exe)`/`pwsh` wrapper,
-   pulls the `-Command` body if present, and extracts the outer evasion flags
-   (`-enc`, `-nop`, `-w hidden`, `-ep bypass`, `-noni`, `-sta`) via a small
-   `FLAG_RULES` table (`:5`) — each flag carries its own ATT&CK
-   `techniqueIds`, matched on PowerShell's unambiguous-prefix rule (`-e`,
-   `-ec`, `-enc`, `-encodedcommand` all resolve to the same flag).
-2. **`lex.ts:15`** `tokenize()` is a hand-rolled, literal-safe PowerShell
-   lexer: a string token's `value` is its resolved payload (backtick escapes
-   decoded, doubled quotes un-escaped) kept separate from its `raw` source
-   slice, so every later stage matches against resolved values — a signature
-   check can't be defeated by backtick obfuscation the way a raw-text regex
-   would be.
-3. **`fold.ts`** decodes the two payload shapes PowerShell attackers actually
-   use: `decodeEnc` (`:11`) is Base64 → UTF-16LE (an `-EncodedCommand`
-   payload is UTF-16LE, not UTF-8 — the #1 gotcha the comment names
-   directly), and `inflate()` (`:39`) handles both gzip (magic `1F 8B`) and
-   PowerShell's raw-DEFLATE `DeflateStream`. A decompressed layer is only
-   accepted if `isMostlyPrintable` (`report.ts:209`) passes — raw-DEFLATE
-   "succeeds" on roughly 0.4% of arbitrary Base64, and that binary garbage
-   must never be presented as a decoded layer.
-4. **`resolve.ts`** is the static-deobfuscation core: `foldConcat` (`:25`)
-   collapses `'a'+'b'+…` literal-only runs; `resolveVars` (`:51`) substitutes
-   single-assignment `$var = 'literal'` bindings and leaves anything assigned
-   more than once, or to a non-literal, untouched and "poisoned" rather than
-   guessed; `resolve` (`:91`) iterates both to a fixpoint, capped at 12
-   passes and 1 MiB of output so hostile input can't spin the analyzer.
-   `report.ts`'s `analyze()` drives up to 6 rounds of this plus IEX/`&`/
-   `.Invoke()` recursion (`iexStringTarget`, `report.ts:154`) — chasing what
-   a resolved string literal would hand the interpreter next.
-5. **`extract.ts:11`** `extractIocs()` scans every decoded layer's text with
-   one candidate regex (URLs, IPv4, domains, 32/40/64-hex hashes) and hands
-   each candidate to the app's own `detectType` as the arbiter — the same
-   classifier `/lookup` and the cockpit's data boundary use, so the analyzer
-   can't drift into a second, disagreeing notion of "what's an IOC."
-   PascalCase `.NET` member-access tokens like `Net.WebClient` are filtered
-   back out (`:25`) because they collide with the domain regex.
-6. **`techniques.ts` + `lolbins.ts`** — the signature layer. A
-   `SignatureRule` (`techniques.ts:12`) is `{ id, label, techniqueIds,
-   baseSpecificity: 'weak'|'strong'|'near-dispositive', upgradesWith:
-   string[], test(ctx) }`, matched against a `RuleContext` built once per
-   analysis (`buildContext`, `:24`: decoded corpus text/lowercased text,
-   tokenized words, evasion flags). 12 rules (`:70`–`247`): download cradle,
-   evasion-flag cluster, AMSI bypass via reflection, AMSI memory patch, ETW
-   tampering, Defender tampering, ClickFix/paste-and-run, beaconing, reverse
-   shell, in-memory loader/shellcode, persistence, and a data-driven LOLBins
-   rule backed by a 9-binary table in `lolbins.ts:14` (certutil, bitsadmin,
-   mshta, regsvr32, rundll32, msiexec, wmic, installutil, conhost — each
-   needs the binary name **and** a discriminating context token; a bare
-   mention never fires). `classify()` (`techniques.ts:277`) applies the
-   **co-occurrence upgrade**: after every rule runs once, a rule whose
-   `upgradesWith` names a companion that also fired is bumped one
-   specificity tier (capped at `near-dispositive`) — every individual token
-   has a benign twin, so corroboration is the accuracy mechanism.
-7. **`report.ts`** ties it together: `analyze()` (`:9`) is the orchestrator
-   above; `composeCopyText` (`:173`) builds the deterministic clipboard
-   export.
-
-**Specificity-gated characterization** — `deriveCharacterization`
-(`report.ts:125`). Two tiers, both hedged against a synthesized score:
-
-- **Tier 1, "High-confidence malicious behaviour"** (red) fires only when a
-  fired signal's rule has `baseSpecificity === 'near-dispositive'` — AMSI
-  reflection, AMSI memory patch, or reverse shell, techniques the code
-  comment states plainly have "no legitimate use." This is gated on the
-  rule's **base** specificity, never the post-co-occurrence-upgraded one, so
-  a merely-strong signal that corroboration bumped up can never borrow a
-  "no legitimate use" claim it hasn't intrinsically earned.
-- **Tier 2, "Suspicious — review"** (amber) fires when no near-dispositive
-  base signal exists, but a strong signal was corroborated up to
-  near-dispositive by its co-occurring companions — the evasion-cluster +
-  download-cradle beacon shape. Language stays hedged ("elevated by
-  co-occurring signals"), never "malicious."
-- Anything short of that — weak/strong signals with no corroboration — earns
-  no characterization at all: just the periwinkle technique tally, captioned
-  "not a synthesized verdict" (`TechniqueTally.tsx:52`).
-
-**Reserved-colour evolution (owner-approved).** `TechniqueTally.tsx:12`
-(`CALLOUT`) is the one place the analyzer spends a verdict-severity hue: the
-gated characterization box is red (`--edge-red`/`--tint-red`,
-`text-verdict-red`) or amber (`--edge-gold`/`--tint-gold`,
-`text-verdict-amber`). Every individual technique **chip** stays periwinkle
-(`variant="technique"`), tier-tagged and sorted strongest-first, each citing
-the literal substring that fired it. This deliberately relaxes the earlier
-"analyzer output is periwinkle-only" rule — scoped to that one gated
-callout; red/amber remain reserved for a real severity read everywhere else,
-never decoration.
-
-**UI.** `web/src/routes/PowerShellAnalyzer.tsx` is the standalone `/analyzer`
-view (a bare textarea over `usePsAnalysis`); `web/src/components/analyzer/
-AnalyzerResult.tsx` is the prop-driven, stateless result composition (flag
-chips + `TechniqueTally` + `DecodeLadder` + `IocTable`) shared verbatim
-between that route and the cockpit's inline result — one render path, two
-callers, per `AnalyzerResult.tsx:8`. `IocTable`'s "Look up →" button
-(`IocTable.tsx:17`) pivots an extracted indicator into `submitLookup`, which
-re-runs the same data-boundary classifier before routing (see below), so a
-pivot can't reopen the leak the classifier exists to close.
-
-86 vitest specs across `shared/analyzer/__tests__/` (preprocess, lex, fold,
-resolve, extract, techniques, lolbins, characterization, and an end-to-end
-integration file).
-
-## The polymorphic cockpit (`/`, `web/` + `shared/intent.ts`)
-
-The landing omnibox (`web/src/routes/Overview.tsx`) used to accept only an
-indicator, routed straight to `/api/enrich`. It is now polymorphic: one
-input classifies what was pasted and renders either an escalation card
-(indicator) or the local analyzer's result (command) inline, in the same
-docked slot beside the globe — no tab-switch, no navigation. `/analyzer`
-remains as the standalone deep view, sharing `AnalyzerResult` with it
-verbatim.
-
-**`classifyCockpitInput` (`shared/intent.ts:87`) is the data-boundary gate**
-— the single function every submit path in the app calls *before*
-`detectType` (`shared/indicators.ts`) ever sees a raw value. `detectType`
-alone is not safe here: its URL regex is prefix-only, not end-anchored
-(`indicators.ts:61`), so a multi-line paste whose first line is a download
-URL would classify as `'url'` under `detectType` alone, and the entire blob
-would go to the third-party `/api/enrich` as `?q=<full text>`.
-`looksLikeCommand` (`intent.ts:67`) fires on: any newline; a `powershell`/
-`pwsh`/`iex`/`new-object` token (`COMMAND_TOKEN_RE`, `:35` — deliberately
-also matches inside `powershell.exe` as a bareword, so that filename can't
-be misread as a domain); an `Invoke-<cmdlet>` form (`INVOKE_RE`, `:47`,
-lookahead-gated so it doesn't false-positive on a hyphenated domain like
-`invoke-example.com`); the `-e`/`-enc`/`-encodedcommand` flag
-(`ENC_FLAG_RE`, `:57`, anchored to a token boundary so it can't fire
-mid-word inside `site-enc.com`); or two-or-more shell-punctuation tokens
-(`;`, `|`, backtick, `` $( `` — `SHELL_PUNCT_RE`, `:65`). `classifyCockpitInput`
-(`:87`) returns `'command'` the moment `looksLikeCommand` is true, before
-`detectType` runs at all; **command wins any tie** — a value that is both
-command- and indicator-shaped (`powershell.exe`) still resolves `'command'`.
-
-**`useCockpitInput`** (`web/src/components/cockpit/useCockpitInput.ts:68`)
-composes both downstream hooks unconditionally, per the rules of hooks:
-classify first, then call both `useLookup` and `usePsAnalysis`, feeding the
-*unselected* one `''` — which each hook already short-circuits to its own
-`idle` state for free (`:5`), so only the selected path's fetch or analysis
-actually runs. `resolveCockpitArgs` (`:40`) is the pure, unit-tested routing
-step; `resolveKind` (`:54`) applies a ModeChip correction **monotonically**
-— a value auto-detected as `'command'` can never be overridden back to
-`'indicator'`, because that would feed a raw script to `useLookup` →
-`/api/enrich`.
-
-**`ResultRegion`** (`web/src/components/cockpit/ResultRegion.tsx:44`)
-dispatches purely on `cockpit.kind`: `indicator` → `EscalationCard` (ok) or
-`LookupStatus` (checking/declined/unavailable/unsupported) plus a "Full
-analyst view →" link into `/lookup`; `command` → the same `AnalyzerResult`
-`/analyzer` renders, or an "Analyzing…"/error line; `unclassified` → an
-honest one-line hint naming both accepted input kinds, never a fabricated
-result. The caller keys the result wrapper on the *composite*
-`` `${cockpit.kind}:${submitted}` `` (`Overview.tsx:210`), not `submitted`
-alone — a ModeChip override can flip `kind` on the same committed string,
-and a key on `submitted` alone would fail to remount, which is what stops a
-stale `EscalationCard` compare-fetch from surviving a switch to the
-analyzer.
-
-**`CockpitOmnibox`** (`web/src/components/cockpit/CockpitOmnibox.tsx:38`)
-morphs a single-line `<input>` into an auto-growing, monospace `<textarea>`
-the moment the *live* (pre-submit) value becomes command-shaped, focus
-following the morph in both directions and height synced in a
-`useLayoutEffect` (`:63`) so a multi-line paste is sized correctly on the
-same paint. `ModeChip` (`web/src/components/cockpit/ModeChip.tsx:12`) shows
-the detected kind as a fact, not a verdict — `Chip variant="catalog"`
-(periwinkle), deliberately not `"neutral"` (which renders identically to the
-gray "unknown" verdict badge) — and is click-correctable, feeding
-`resolveKind`'s override under the same monotonic guard.
-
-**The globe suspend/resume yield.** `Overview.tsx`'s `isGeolessResult`
-(`:45`) is true for every `command` result, a non-empty `unclassified`
-submission, or an indicator resolved past `checking` with no geo. Two
-effects follow it: one flies the globe home or lands it on a pin
-(`:92`, keyed on `cockpit.kind`/`cockpit.state`); the other (`:110`) calls
-`GlobeApi.suspend()`/`.resume()` (`web/src/components/hero/
-useGlobe3.ts:878`/`885`) — not merely a CSS dim. The reason, per the code
-comment at `Overview.tsx:106`: IntersectionObserver-based render-loop
-gating doesn't see a CSS opacity change, so without an explicit suspend the
-WebGL loop would keep burning GPU behind the `.is-geoless` dim
-(`web/src/components/hero/globe.css:529`).
-
-**⚠ DATA BOUNDARY, verified live: a pasted command never reaches
-`/api/enrich`.** `classifyCockpitInput` guards every entry point, not just
-the cockpit's own submit:
-
-- the cockpit's auto-path (`useCockpitInput`, above);
-- the ModeChip override, monotonic in the command direction (`resolveKind`);
-- `palette/commands.ts::submitLookup` (`:111`) — the route every other
-  surface (the palette, `IocTable`'s pivot) uses to reach `/lookup` — checks
-  `classifyCockpitInput` first and redirects a command-shaped value to
-  `/analyzer` instead of writing the lookup hash;
-- `Lookup.tsx::runLookup` (`:170`), the form-submit handler, carries the
-  identical guard;
-- and `Lookup.tsx`'s own **hash reads** — both the initial-mount value
-  (`rawQuery`, `:132`, guarded at `:143`) and the `hashchange`/`popstate`
-  sync effect (`:153`, which re-derives `rawQuery`/`text` from the hash on
-  every navigation) — route a command-shaped `#q=` value to `/analyzer`
-  (`:150`) rather than ever constructing the query fed to `useLookup`. A
-  bookmarked or shared `/lookup#q=<command>` link therefore redirects to
-  `/analyzer` with zero calls to `/api/enrich`.
-
-`palette/classify.ts` was also consolidated in this pass: it now delegates
-all shape-detection to the shared `detectType` (`:26`) instead of carrying
-its own drifted copy, so the palette's live badge can't disagree with the
-data-boundary check or `useLookup` again.
-
-**Unified submit.** Every hook above receives only the *committed*
-(post-Enter) value, never the live-typed one — `useLookup` has no debounce
-of its own, so this is what stops `/api/enrich` (or the analyzer) firing on
-every keystroke (`useCockpitInput.ts:10`).
 
 ## Failure isolation, by layer
 

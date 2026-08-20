@@ -577,54 +577,13 @@ serving the `web/` app). See §0.
 
 ## 2. Architecture
 
-Three tiers, each independently degradable:
-
-- **Tier 1 — collection.** GitHub Actions cron (`:11`/`:41`) runs 5 Python
-  collectors → normalised JSON → schema gate with last-known-good fallback →
-  deploy. `data/state/` is committed (last-known-good + daily history
-  snapshots); `site/data/` is gitignored and regenerated every run.
-- **Tier 2 — brief (not built).** Framework Desktop will write `data/brief.json`
-  via local LLM; the pipeline already passes it through and the site already
-  renders an absent-state. Deploy-key pushes retrigger the workflow;
-  `GITHUB_TOKEN` state commits do not — that asymmetry is intentional.
-- **Tier 3 — site.** Static, vanilla ES modules, no framework, no build step.
-  GSAP (core + ScrambleText + DrawSVG) from `cdn.jsdelivr.net`; there is no d3,
-  and the three tags currently carry **no `integrity`/`crossorigin` attributes**
-  — adding SRI is open work, not a shipped property. Analyst state in
-  localStorage only.
-
-**Collectors (all keyless/public):** CISA KEV · NVD (recent-modified **plus the
-full KEV catalogue via `hasKev`**) · FIRST EPSS · Ransomware.live (group-level
-only) · RSS pool (9 feeds).
-
-**Aggregator rule (COMPLIANCE.md):** we publish only clearly-redistributable
-data. Reputation corpora (abuse.ch, VirusTotal, AbuseIPDB) are reached by
-**user-clicked deep links, never mirrored**. This is why there is no
-`iocs.json`.
+See docs/ARCHITECTURE.md — superseded restatement removed 2026-08-19.
 
 ---
 
 ## 3. Current state
 
-- **58 pytest + 49 Playwright** as of 2026-08-09 (counts drift as work lands;
-  run both). The browser suite is **flaky under parallel workers**: a full run
-  reported 47/2 with `csp.spec.js:29` and `degrade.spec.js:13` failing, both of
-  which pass in isolation, and the next full run passed 49/49.
-  `playwright.config.js` sets `retries: 0` — treat the flakiness as a bug.
-- Pipeline clean: `problems=[]`.
-- CSP is strict — `default-src 'none'`, **no `unsafe-inline`, no `unsafe-eval`**.
-  Served via `_headers`, with a `<meta>` copy as fallback. `csp.spec.js` fails
-  if the two drift apart.
-- Self-hosted fonts (no Google requests), PNG OG card, mug favicon.
-- Service worker gives offline capability.
-
-**Recently fixed, do not regress:**
-- **CVE join** — was 42 of 1,662 KEV rows with CVSS (2.5%); now **1,662/1,662**.
-  Root cause: NVD only fetched a 2-day modified window while KEV spans
-  2014-2026. Fixed with a second `hasKev` query in `collectors/nvd.py`.
-- **Feed relevance** — `pipeline/relevance.py` scores every item 0-100 with an
-  explainable `why` array, and groups repetitive ransomware victim-claim stubs.
-  594 items → 302.
+See docs/ARCHITECTURE.md — superseded restatement removed 2026-08-19.
 
 ---
 
@@ -652,34 +611,8 @@ payload currently ships unread. Wiring it is the cheapest remaining win.
 
 ## 5. Design law — ⚠️ SUPERSEDED (see §0)
 
-**Historical.** The owner pivoted away from Chart Room to the RADAR direction on
-2026-08-10; the fonts, the "settled — do not re-litigate" note, and the mug
-lockup rules below are being replaced (branding pass in flight). Do NOT apply
-this section to new design work — follow §0 and the RADAR mockups. Kept for
-context only.
-
-`design-system.md` v4 **"Chart Room"** — brutalist-editorial print.
-
-- Ink `#0F161C` · panel `#141D26` · line `#263644` / `#3C566C`
-- Paper/accent **bone `#E8E1CF`** (carries the brand; solid fills with dark text)
-- **Vermilion `#E2513A` at stamp scale ONLY** — seal, never illumination
-- Severity as desaturated print inks; **purple = AI content only**;
-  **gray = unknown, never green**
-- Archivo (variable, expanded caps) + IBM Plex Mono for all data values
-- **Zero border-radius. No shadows. No glows. No gradients on components.**
-- Motion is scarce and data-honest; the only ambient motion is the ticker,
-  status pings, and the mug's steam
-
-**The mark:** a pixel coffee mug, a deliberate sibling of the SoS logo (**no
-handle** — the parent has none). Agreed lockup law: *the seal always lives at
-the O.* Word ≤32px → the mug **is** the O (letter cut). Word >32px → the type O
-returns and the same-size mug is struck **inside its counter**. The mug never
-scales; the word does. Favicon = the seal alone.
-
-**Direction is settled — do not re-litigate.** An art-direction review
-confirmed Chart Room works and that a pivot would burn weeks. The owner's
-complaints were about *information architecture and data plumbing*, not the
-visual language.
+See `CLAUDE.md` (binding design law — periwinkle/warm for `web/`) and
+`design-system.md` (Chart Room v4 — historical, `site/` only).
 
 ---
 
@@ -787,61 +720,13 @@ Both now have regression tests.
 
 ## 9. Backlog — superseded by BACKLOG.md (updated 2026-08-11)
 
-Priorities were re-cut around the north star (§1): **P0 DONE** (Cloudflare Pages
-+ enrichment keys live); **P1** hammer the 99% loop (dogfood with real analysts,
-urlscan screenshot preview, Browserling link verification); **P2** the
-CVE/threat-intel feed as the second pillar. Two lanes were added on 2026-08-11
-(in `BACKLOG.md`):
-- **Analyst-utility expansion lane** — broaden the extension's select →
-  type-detect → focused-output gesture into an L1/L2 investigation copilot
-  (highlight→engine dispatcher): command-line deobfuscator (top pick), universal
-  decoder, event-ID/ATT&CK lookup, IOC-from-selection, and a vetted SIEM
-  table/query recommender (KQL/Sentinel first). **ACCURACY-FIRST** — deterministic
-  curated content, not on-the-fly LLM; additive, must not slow the core loop.
-- **Public-vs-private data boundary (HARD RULE)** — the public site's LLM only
-  processes public data and user input is a bare indicator; any LLM-on-internal-
-  data assist (escalation-draft, alert/log/phishing triage) is **PRIVATE-ONLY**
-  (a private instance or BASTION/CARL), never socdesk.io.
-
-Fuzzy search, CVE sharding, Phase C brief, honeypot (IP-gated), and wave-2
-collectors remain **parked** — see `BACKLOG.md` for the full map. Historical
-notes remain valid (enrichment worker spec:
-`docs/superpowers/specs/2026-08-07-enrichment-worker-spec.md`; honeypot
-non-negotiables in BACKLOG history / git).
+See `BACKLOG.md` for the current priorities, lanes, and parked-work map.
 
 ---
 
 ## 10. Key documents
 
-| File | What it holds |
-|---|---|
-| `README.md` | The front door: what SOCDesk is, capabilities, quickstart, link map |
-| `CLAUDE.md` | Repository conventions, commands, load-bearing rules, commit policy |
-| `docs/ARCHITECTURE.md` | The system end to end: tiers, contracts, schema gate, failure isolation, known gaps |
-| `docs/OPERATIONS.md` | Runbook: local runs, cron, reading health, collector triage, deploy, rollback, SW version bump |
-| `docs/DATA-SOURCES.md` | Per-source terms, cadence, republished vs link-only, governing R-numbers |
-| `docs/ANALYST-GUIDE.md` | User-facing: lookups, verdict meaning, scoring, escalation, handoff, limits |
-| `docs/RELATIONSHIPS.md` | The relationship index and why there is no node-link graph |
-| `docs/AUTOMATION.md` | The autonomous build loop, Definition of Done, hard gates |
-| `COMPLIANCE.md` | Licensing/legal findings + launch gates. **Read before adding any data source.** |
-| `docs/VERDICT-LANGUAGE.md` | **BINDING** — the consensus-tally model ("N of M flagged"), per-source attribution, escalation card (no recs, COPY), CVE language |
-| `docs/superpowers/specs/2026-08-10-analyst-reach-scope.md` | Bookmarklet / context-menu / MV3 extension reach roadmap |
-| `docs/superpowers/specs/2026-08-02-frontend-elevation-charter.md` | Front-end elevation research (motion engines, native APIs, stack) |
-| `extension/` | MV3 browser extension v1 (`README.md` = load/test/ship; `PRIVACY.md`) |
-| `site/privacy.html` | Hosted privacy policy (the store submission URL) |
-| `design/mockups/rebuild-radar-v{1,2,3}.html` | The RADAR direction iterations (superseded by the in-tree evolved site, §0) |
-| `design/mockups/verdict-graphic-{explore,radar-round2}.html` | Verdict-graphic explorations — **DECIDED: Core radar + range-gate companion** (§0 session 2) |
-| `design/mockups/palette-explore.html` | 3-way palette comparison — **CONFIRMED #1 warm + periwinkle** (§0 session 2) |
-| `design/mockups/sd_logo.svg` | **THE LOCKED LOGO** — SD Monogram, theme-aware, on existing tokens; committed `c4cd6fd`. Not yet wired into `site/` (§0 session 3) |
-| `design/mockups/hero-sd-preview.*` | SD-monogram-in-topbar + hero-lockup preview, both themes, CSP-clean (§0 session 3) |
-| `design/mockups/logo-v{2,3}.html`, `favicon-v3.svg`, `brand-systemmug-preview.*` | Superseded logo/brand explorations — historical; the mug-as-primary and System-Mug paths were both rejected (§0 session 3) |
-| `design-system.md` | Chart Room v4 — ⚠️ SUPERSEDED by the RADAR/periwinkle direction (see §0) |
-| `design/brand.md` | Brand book — partly stale; the mug is being refined in the branding pass |
-| `BACKLOG.md` | Wave-2 collectors, knock-knock review, honeypot architecture + security review, CARL port notes |
-| `docs/INFRASTRUCTURE-OPTIONS.md` | What each infra tier unlocks and costs |
-| `docs/superpowers/plans/` | Phase A (pipeline, done) and Phase B (site) plans |
-| `design/mockups/g-chartroom.html` | The approved visual reference |
-| `design/mockups/h-sensor.html` | Honeypot dashboard mockup w/ 3 globe styles |
+See the Documentation table in README.md (the single source for the doc map).
 
 **Attribution policy:** all commits are SaltyCarl with **no AI attribution**
 anywhere, including automated ones. Non-negotiable.

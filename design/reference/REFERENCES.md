@@ -1,5 +1,7 @@
 # SOCDesk — Design references & animation libraries
 
+> **Historical** — describes the `site/` vanilla-ES-modules / no-build-step model. The live `web/` app is Vite + React with a build step; its hero/globe is a separate, later implementation — see `docs/ARCHITECTURE.md` (polymorphic cockpit).
+
 Owner-provided references for elevating the site — especially the **globe hero + glassmorphism + Apple-style scroll**. Persisted here so they are never lost again (owner had to supply these ≥2× before they were saved — 2026-08-11).
 
 ## Constraint lens — READ FIRST

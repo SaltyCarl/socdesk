@@ -1,5 +1,7 @@
 # SOCDesk — UX Direction & Build Spec: Home Hero (globe + omnibox)
 
+> **Historical** — the `site/` home-hero build spec. The live `web/` hero (three.js globe + cockpit) is a separate, later implementation; see `docs/ARCHITECTURE.md`.
+
 **Status:** Authoritative. Synthesis of the 4-researcher swarm; divergences resolved below.
 **Scope:** The home / triage surface hero — globe showpiece, search omnibox, live-stat strip, scroll-melt, glass. Reduced-motion is first-class, both themes ship together.
 **Governs over:** `design-system.md` v4 "Chart Room" **for the home hero specifically** — see the Reconciliation note. Palette source of truth remains `site/css/tokens.css`.

@@ -1,5 +1,7 @@
 # SOCDESK Design System — v4 "Chart Room" (APPROVED 2026-07-29)
 
+> **Historical** — this "Chart Room" system is binding only for the legacy `site/` app. The live `web/` app follows the periwinkle/warm direction documented in `CLAUDE.md`'s Design-law section (no standalone `web/` design doc yet).
+
 The approved visual identity. Reference implementation (source of truth):
 `design/mockups/g-chartroom.html`. Lineage: editorial-brutalist structure
 derived from the Vantage reference (`design/reference/`), divergent identity

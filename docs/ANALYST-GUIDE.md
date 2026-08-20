@@ -57,6 +57,9 @@ is a shareable link to that exact result, and a **Recent** row keeps your last
 
 ## Looking something up without leaving the page you are on
 
+> Legacy — this exists only in the older `site/` app, not in the live tool at
+> socdesk.io.
+
 Switching tabs to paste an indicator is most of the friction in using a tool
 like this, so there is a bookmarklet that removes it. Open **Toolbelt**, find
 the *Bookmarklet* card at the bottom, and drag the **SOCDesk lookup** button
@@ -291,6 +294,9 @@ pure PowerShell is a reason for more scrutiny, not less.
 
 ## Bulk lookup
 
+> Legacy — this exists only in the older `site/` app, not in the live tool at
+> socdesk.io.
+
 Paste more than one indicator — separated by spaces, newlines, commas,
 semicolons or pipes — and you get a table instead of a single verdict. Up to
 200 at a time. Anything that is not a recognised indicator type is silently
@@ -392,6 +398,10 @@ deployment there is nothing to compare against, and the panel says so rather
 than inventing movement.
 
 ## The toolbelt
+
+> Partial — only Base64 decode is live today, via the PowerShell analyzer
+> (below). Defang/refang and indicator typing are planned but not built in the
+> live tool; the rest of this section describes the older `site/` app.
 
 Five utilities that run entirely in your browser. Nothing you paste there is
 transmitted anywhere — there is a test in the suite that asserts the toolbelt

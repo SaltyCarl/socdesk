@@ -105,7 +105,8 @@ the flakiness itself as a bug to fix, not a fact of life.
 
 **Steps, in order:** checkout → set up Python 3.12 with pip cache → install
 requirements → `pytest tests/ -q` → `run_pipeline.py` → commit `data/state` →
-configure Pages → upload `site/` as the Pages artifact → deploy.
+set up Node 20 → `npm run build` in `web/` (Vite) → `wrangler pages deploy
+web/dist` to Cloudflare Pages.
 
 Note the ordering consequence: **pytest gates the scheduled run.** A broken
 unit test stops collection and deployment entirely, so the site freezes on the
@@ -191,15 +192,20 @@ loosen the schema just to make a warning go away.
 
 ## Deploying
 
-Push to `main`. The workflow uploads `site/` to Cloudflare Pages on every run,
-scheduled or manual.
+Push to `main`. The workflow builds `web/` with Vite and deploys `web/dist` to
+Cloudflare Pages on every run, scheduled or manual. `site/` is legacy and the
+workflow never touches it.
 
 To deploy without waiting for cron: Actions → **collect-and-deploy** → Run
 workflow.
 
-Because `site/data/` is gitignored, a deploy always ships payloads generated
-*in that run*. You cannot deploy a stale local `site/data/` by accident, and
-you cannot deploy shell changes without also refreshing data.
+`run_pipeline.py` dual-writes into `web/public/data/state/`, which is
+gitignored; the Vite build copies that — along with `web/public/_headers` and
+`_redirects` — into `web/dist`. Because neither `web/public/data/state/` nor
+`web/dist` is committed, a deploy always ships payloads generated *in that
+run*. You cannot deploy stale local data by accident, and you cannot deploy
+shell changes without also refreshing data, because the pipeline step always
+runs first.
 
 ### Why direct upload rather than the Git integration
 
@@ -220,11 +226,13 @@ The project must exist before the workflow's first run — `wrangler pages
 deploy` will not create one non-interactively.
 
 From the dashboard: Workers & Pages → **Create application** → **Get started**
-→ **Drag and drop your files**, name it `socdesk`, and drop in your local
-`site/` directory. That single upload both creates the project and publishes a
-first production deployment. What you upload does not matter much — the next
-scheduled run replaces it wholesale — so there is no need to run the pipeline
-first just to have fresh `site/data/`.
+→ **Drag and drop your files**, name it `socdesk`, and drop in a local
+`web/dist` — run `npm --prefix web ci && npm --prefix web run build` once to
+produce it, since it's gitignored and won't exist on a fresh checkout. That
+single upload both creates the project and publishes a first production
+deployment. What you upload does not matter much — the next scheduled run
+replaces it wholesale — so there is no need to run the pipeline first just to
+have fresh data.
 
 **The production-branch trap.** `--branch` in the workflow has to equal the
 project's production branch, or the upload succeeds, lands as a *preview* on a
@@ -298,7 +306,10 @@ no CNAME file, no grey-cloud caveat, and no certificate dance.
    you.
 2. Add `www.socdesk.io` the same way if you want it, and redirect one to the
    other with a Bulk Redirect or a Page Rule.
-3. Bump `VERSION` in `site/sw.js` — see below.
+3. Nothing to bump for the live app: `web/public/sw.js` is a one-time
+   tombstone that clears every cache and unregisters itself, with no
+   `VERSION` to track. The `VERSION`-bump ritual below applies only to the
+   legacy `site/sw.js`, and only if `site/` is ever redeployed.
 
 Two conditions have to hold, and both already do here: the domain must be a
 zone on the **same Cloudflare account** as the Pages project, and for an apex

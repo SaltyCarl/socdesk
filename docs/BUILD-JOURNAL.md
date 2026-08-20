@@ -1,8 +1,10 @@
 # SOCDesk — Build Journal
 
+> ⚠ **DEPRECATED 2026-08-19** — superseded by `docs/HANDOFF.md` (its §0 dated blocks are the live session log). This journal stopped being updated 2026-08-14, predates `web/` going live, and is stale. Do **not** read this as current state — read `docs/HANDOFF.md` first. Kept for history only.
+
 Maintained by **NT** (the note-taking agent, `.claude/agents/nt.md`). A dated,
 newest-first record of feature work shipped, so context survives across sessions
-and compaction. **Read this first** at the start of a SOCDesk session (a
+and compaction. **(deprecated — read docs/HANDOFF.md instead)** (a
 SessionStart hook also injects it; after compaction it is re-injected).
 
 **How NT works:** invoked at feature checkpoints and before wrapping/compaction,
