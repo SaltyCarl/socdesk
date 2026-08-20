@@ -6,6 +6,7 @@ import { extractIocs } from './extract'
 import { resolve, normalize } from './resolve'
 import { buildContext, classify, RULES } from './techniques'
 import { decodeNumericCharCodes } from './wsh'
+import { deriveBullets } from './bullets'
 
 const WRAPPER_INTERPRETERS = new Set<Interpreter>(['cmd', 'mshta', 'wscript', 'cscript'])
 const WSH_INTERPRETERS = new Set<Interpreter>(['mshta', 'wscript', 'cscript'])
@@ -201,12 +202,13 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   const corpus = [input, ...reentryContext, script, ...scan.map((s) => s.text)].filter(Boolean).join('\n')
   const signals = classify(buildContext(corpus, flags, interpreter))
   const characterization = deriveCharacterization(signals)
+  const bullets = deriveBullets(buildContext(corpus, flags, interpreter), layers, iocs, signals)
 
   const fullyDecoded = layers.filter((l) => l.state === 'fully-decoded').length
   const state = layers.length === 0 || fullyDecoded === layers.length ? 'fully-decoded' : 'partial'
   const fractionAccounted = layers.length === 0 ? 1 : fullyDecoded / layers.length
   const decodedScript = [...layers].reverse().find((l) => l.text != null)?.text ?? script
-  const copyText = composeCopyText(layers, iocs, signals, characterization, decodedScript)
+  const copyText = composeCopyText(layers, iocs, signals, characterization, bullets, decodedScript)
 
   return {
     input,
@@ -215,7 +217,7 @@ export async function analyze(input: string): Promise<AnalysisResult> {
     iocs,
     signals,
     characterization,
-    bullets: [],
+    bullets,
     confidence: { fractionAccounted, state },
     copyText,
     checkedAt: new Date().toISOString(),
@@ -299,10 +301,17 @@ function composeCopyText(
   iocs: AnalysisResult['iocs'],
   signals: Signal[],
   characterization: Characterization | null,
+  bullets: AnalysisResult['bullets'],
   decodedScript: string,
 ): string {
   const lines: string[] = ['PowerShell static analysis — STATIC analysis, script was NOT executed', '']
   if (characterization) lines.push(characterization.read, '')
+  const confidentBullets = bullets.filter((b) => b.confidence !== 'opaque')
+  if (confidentBullets.length) {
+    lines.push('What it did:')
+    confidentBullets.forEach((b) => lines.push(`  ${b.order}. [${b.confidence}] ${b.text}`))
+    lines.push('')
+  }
   if (signals.length) {
     lines.push('Behaviour signals:')
     signals.forEach((s) => lines.push(`  [${BASE_SPECIFICITY.get(s.id) ?? s.specificity}] ${s.label} (${s.techniqueIds.join(', ')})`))

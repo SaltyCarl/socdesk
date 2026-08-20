@@ -1,6 +1,6 @@
 // shared/analyzer/__tests__/resolve.test.ts
 import { describe, expect, it } from 'vitest'
-import { foldConcat, resolveVars, resolveVarsWithFacts, resolve, resolveWithFacts, normalize } from '../resolve'
+import { foldConcat, resolveVars, resolve, normalize } from '../resolve'
 
 describe('foldConcat', () => {
   it('collapses a chain of string-literal concatenations', () => {
@@ -75,40 +75,5 @@ describe('resolve output cap', () => {
     let src = `$v0 = '${base}'`
     for (let k = 1; k <= 12; k++) src += ` ; $v${k} = $v${k - 1} + $v${k - 1}`
     expect(resolve(src).length).toBeLessThanOrEqual(1 << 20)
-  })
-})
-
-describe('resolveVarsWithFacts / resolveWithFacts — the D4 poisoned-fact surface', () => {
-  it('resolveVars (the existing string-returning call) is byte-identical to before', () => {
-    expect(resolveVars("$u = 'http://a/x' ; IEX $u")).toContain("IEX 'http://a/x'")
-    expect(resolveVars("$u = 'a' ; $u = 'b' ; IEX $u")).toContain('IEX $u')
-    expect(resolveVars('IEX $undefined')).toContain('IEX $undefined')
-  })
-
-  it('resolveVarsWithFacts reports no poisoned names when every var resolves to a literal', () => {
-    const r = resolveVarsWithFacts("$u = 'http://a/x' ; IEX $u")
-    expect(r.text).toContain("IEX 'http://a/x'")
-    expect(r.poisoned).toEqual([])
-  })
-
-  it('resolveVarsWithFacts reports a poisoned name for a variable reassigned (ambiguous)', () => {
-    const r = resolveVarsWithFacts("$u = 'a' ; $u = 'b' ; IEX $u")
-    expect(r.poisoned).toContain('$u')
-  })
-
-  it('resolveVarsWithFacts reports a poisoned name for a variable with no literal binding at all', () => {
-    const r = resolveVarsWithFacts('IEX $undefined')
-    expect(r.poisoned).toContain('$undefined')
-  })
-
-  it('resolveWithFacts.hadUnresolvedOperand is false for a fully-resolvable cradle', () => {
-    const r = resolveWithFacts("$a = 'http://ev' ; $b = 'il.test/x' ; $u = $a + $b ; IEX $u")
-    expect(r.text).toContain("IEX 'http://evil.test/x'")
-    expect(r.hadUnresolvedOperand).toBe(false)
-  })
-
-  it('resolveWithFacts.hadUnresolvedOperand is true when the fetch target never resolves', () => {
-    const r = resolveWithFacts("IEX (New-Object Net.WebClient).DownloadString($u)")
-    expect(r.hadUnresolvedOperand).toBe(true)
   })
 })

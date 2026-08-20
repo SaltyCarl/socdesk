@@ -29,7 +29,6 @@ export interface DecodedLayer {
   text: string | null
   state: DecodeState
   residual?: { bytes: number; entropy: number; note: string }
-  hadUnresolvedOperand?: boolean  // D4: this layer's resolve pass saw an operand that never resolved to a literal
 }
 
 export interface ExtractedIoc {
