@@ -11,7 +11,7 @@
 // static Tailwind strings (CSP: no inline styles).
 
 import type { Band, SourceClass, SourceVerdict, VerdictData, VerdictSource } from '../verdict'
-import { CAVEAT, classTag, coverageHeadline, isStale, predicate } from '../verdict'
+import { CAVEAT, classTag, coverageState, isStale, predicate } from '../verdict'
 import { cx } from '../lib/cx'
 import { Chip, MicroLabel, type ChipVariant } from '../ui'
 import { gaugeCaption, gaugeSegments } from '../card/model'
@@ -108,22 +108,27 @@ export function IndicatorLine({ data }: { data: VerdictData }) {
   )
 }
 
-/** Tally-as-coverage: leads with the count in the band ink, worded as coverage
- *  (a low/quiet tally reads "thin coverage", never "probably fine"). */
+/** Tally-as-coverage: a terse count in the band ink, plus a `thin coverage`
+ *  chip when the sample is small or has no-record gaps. The old paragraph's
+ *  honesty now rides the chip + the gauge (SHOW, don't tell); never "probably
+ *  fine". */
 export function TallyHeadline({ data }: { data: VerdictData }) {
-  const text = coverageHeadline(data.sources)
-  const m = text.match(/^(\d+)(.*)$/s)
+  const cov = coverageState(data.sources)
+  const m = cov.headline.match(/^(\d+)(.*)$/s)
   return (
-    <p className="font-display text-base font-bold leading-snug text-paper">
-      {m ? (
-        <>
-          <b className={cx('font-black', BAND_INK[data.band])}>{m[1]}</b>
-          {m[2]}
-        </>
-      ) : (
-        text
-      )}
-    </p>
+    <div className="flex flex-wrap items-center gap-2">
+      <p className="font-display text-base font-bold leading-snug text-paper">
+        {m ? (
+          <>
+            <b className={cx('font-black', BAND_INK[data.band])}>{m[1]}</b>
+            {m[2]}
+          </>
+        ) : (
+          cov.headline
+        )}
+      </p>
+      {cov.thinCoverage && <Chip variant="neutral">thin coverage</Chip>}
+    </div>
   )
 }
 

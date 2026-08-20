@@ -196,34 +196,47 @@ export function isStale(recency: string | null | undefined, now: Date = new Date
 
 /* ---------- tally-as-coverage headline (spec §3.1) ----------------------- */
 
-/** The on-screen gauge headline. Read as COVERAGE, never a threat score: a
- *  low/quiet tally reads "thin coverage; sources have no record — absence of
- *  data is not evidence of safety," and NEVER "probably fine." */
-export function coverageHeadline(sources: VerdictSource[]): string {
-  const { consulted: m, flagged: n } = consensus(sources);
-  if (m === 0)
-    return 'No reputation data available from consulted sources — absence of data is not evidence of safety.';
-  if (n === 0) {
-    const noRecord = sources.filter((s) => s.verdict === 'unknown').length;
-    const base = `0 of ${m} consulted sources flagged this — no adverse findings. Not a clearance.`;
-    if (noRecord > 0 || m < THIN_COVERAGE)
-      return (
-        `${base} Thin coverage — ${noRecord} of ${m} have no record on file; ` +
-        'absence of data is not evidence of safety.'
-      );
-    return base;
-  }
-  return `${n} of ${m} consulted sources flagged this as adverse.`;
+/** Structured coverage read for the escalation card's terse assessment. The old
+ *  three-sentence paragraph carried the honesty inline; that same honesty now
+ *  travels as a `thinCoverage` chip + a short `guard` caption, so the segmented
+ *  gauge does the SHOWING and the words don't repeat it (spec §3.1: a quiet
+ *  tally is COVERAGE, never "probably fine"). */
+export interface CoverageState {
+  consulted: number;
+  flagged: number;
+  noRecord: number;
+  /** Fewer than THIN_COVERAGE consulted, or some returned no record. */
+  thinCoverage: boolean;
+  /** The count line, band-inked by the caller. No caveat prose. */
+  headline: string;
+  /** The green≠safe guard, present only for a quiet all-clear tally. */
+  guard: string | null;
 }
 
-/** The escalation ASSESSMENT line (§4). Worded "consulted sources" to match the
- *  coverageHeadline noun (this travels into a ticket), distinct from the
- *  on-screen gauge headline. */
-export function assessmentLine(sources: VerdictSource[]): string {
+export function coverageState(sources: VerdictSource[]): CoverageState {
   const { consulted: m, flagged: n } = consensus(sources);
-  if (m === 0)
-    return 'No reputation data available from consulted sources — not evidence of safety.';
-  return `${n} of ${m} consulted sources flagged this as adverse.`;
+  const noRecord = sources.filter((s) => s.verdict === 'unknown').length;
+  const thinCoverage = m > 0 && (noRecord > 0 || m < THIN_COVERAGE);
+  const headline =
+    m === 0
+      ? 'No reputation data — not evidence of safety'
+      : n === 0
+        ? `0 of ${m} sources flagged`
+        : `${n} of ${m} sources flagged this as adverse`;
+  const guard = m > 0 && n === 0 ? 'coverage, not a clearance' : null;
+  return { consulted: m, flagged: n, noRecord, thinCoverage, headline, guard };
+}
+
+/** The on-screen count headline — terse; coverage nuance rides the chip/guard
+ *  (see coverageState). Read as COVERAGE, never a threat score. */
+export function coverageHeadline(sources: VerdictSource[]): string {
+  return coverageState(sources).headline;
+}
+
+/** The escalation ASSESSMENT line — the same terse headline, so the client card
+ *  and the copy-card canvas read identically. */
+export function assessmentLine(sources: VerdictSource[]): string {
+  return coverageState(sources).headline;
 }
 
 /* ---------- hash carve-out (spec §3.1) ----------------------------------- */

@@ -52,14 +52,17 @@ export function verdictCounts(data: VerdictData): VerdictCounts {
   }
 }
 
-/** The gauge caption halves ("4 malicious · 1 suspicious" / "1 not flagged"). */
+/** The gauge caption halves ("4 malicious · 1 suspicious" / "1 no record"). The
+ *  right half surfaces the coverage GAP — how many sources had no record — when
+ *  there is one, the honest counterweight to a quiet tally; else the clean count. */
 export function gaugeCaption(data: VerdictData): { left: string; right: string } {
   const c = verdictCounts(data)
   const left: string[] = []
   if (c.malicious) left.push(`${c.malicious} malicious`)
   if (c.suspicious) left.push(`${c.suspicious} suspicious`)
   if (!left.length) left.push('none flagged')
-  return { left: left.join(' · '), right: `${c.notFlagged} not flagged` }
+  const right = c.unknown > 0 ? `${c.unknown} no record` : `${c.notFlagged} not flagged`
+  return { left: left.join(' · '), right }
 }
 
 /* ---------- hash — malware identity (spec §3.4) --------------------------- */

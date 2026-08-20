@@ -12,8 +12,8 @@
 
 import { useState } from 'react'
 import type { VerdictData } from '../verdict'
-import { dualUseTag, hashHeadline, leadFact } from '../verdict'
-import { Chip, MicroLabel } from '../ui'
+import { coverageState, dualUseTag, hashHeadline, leadFact } from '../verdict'
+import { Chip, MicroLabel, type ChipVariant } from '../ui'
 import { cveLead, isBannerLed } from '../card/model'
 import { Hero } from './heroes'
 import { CompareIp, type CompareResult } from './CompareIp'
@@ -34,6 +34,28 @@ function networkChip(data: VerdictData): string | null {
   const usage =
     data.sources.find((s) => s.name === 'AbuseIPDB')?.facts?.find((f) => /usage type/i.test(f[0]))?.[1] ?? ''
   return /data ?cent(er|re)|hosting|vpn|cdn|transit|cloud/i.test(usage) ? 'hosting / datacenter' : null
+}
+
+/** Pulse count at which OTX community attention graduates from a neutral note to
+ *  an amber "worth a look". Below it, periwinkle; at zero, no chip at all. */
+const OTX_ATTENTION_MIN = 10
+
+/** OTX community-pulse attention chip — surfaces the pulse count where the eye
+ *  lands so a 50-report signal isn't buried as a neutral context row, WITHOUT
+ *  entering the "N of M flagged" tally (pulse counts are community-submitted;
+ *  this is attention, not a verdict). Graduates by count — periwinkle for a few,
+ *  amber past OTX_ATTENTION_MIN. Null at zero (OTX stays a quiet context row).
+ *  Owner-approved (2026-08-20), extending the reserved-colour evolution — amber
+ *  reads "worth a look", never "flagged". */
+function otxSignal(data: VerdictData): { label: string; variant: ChipVariant } | null {
+  const otx = data.context.find((c) => /otx|alienvault/i.test(c.name))
+  const raw = otx?.facts?.find((f) => /pulses/i.test(f[0]))?.[1]
+  const count = parseInt(String(raw ?? '').replace(/[^\d]/g, ''), 10)
+  if (!Number.isFinite(count) || count < 1) return null
+  return {
+    label: `OTX · ${count} pulse${count === 1 ? '' : 's'}`,
+    variant: count >= OTX_ATTENTION_MIN ? 'suspicious' : 'accent',
+  }
 }
 
 export function EscalationCard({
@@ -62,6 +84,8 @@ export function EscalationCard({
   const bannerHeadline = data.identityLed ? hashHeadline(data) : data.type === 'cve' ? cveLead(data) : ''
   const dualUseChip = dualUseTag(data.sources)
   const network = networkChip(data)
+  const cov = coverageState(data.sources)
+  const otx = otxSignal(data)
 
   return (
     <div className="overflow-hidden rounded-lg border border-line-bright bg-panel shadow-e2">
@@ -85,11 +109,13 @@ export function EscalationCard({
             <TallyHeadline data={data} />
           )}
           {!banner && <SegGauge data={data} />}
-          {(dualUseChip || network || data.band === 'grayware') && (
+          {!banner && cov.guard && <p className="font-mono text-micro text-faint">{cov.guard}</p>}
+          {(dualUseChip || network || otx || data.band === 'grayware') && (
             <div className="flex flex-wrap items-center gap-1.5">
               {dualUseChip && <Chip variant="suspicious">{dualUseChip}</Chip>}
               {data.band === 'grayware' && <Chip variant="grayware">grayware — not malware</Chip>}
               {network && <Chip variant="neutral">{network}</Chip>}
+              {otx && <Chip variant={otx.variant}>{otx.label}</Chip>}
             </div>
           )}
           {showStrongest && lead && (

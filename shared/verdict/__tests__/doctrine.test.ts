@@ -5,6 +5,7 @@ import {
   composeEscalation,
   consensus,
   coverageHeadline,
+  coverageState,
   defang,
   deriveBand,
   detectPua,
@@ -215,39 +216,49 @@ describe('detectPua', () => {
   });
 });
 
-describe('coverageHeadline (tally-as-coverage, spec §3.1 — never "probably fine")', () => {
-  it('greys with an absence-of-data caveat when nothing was consulted', () => {
+describe('coverageState + coverageHeadline (terse tally-as-coverage, spec §3.1 — never "probably fine")', () => {
+  it('greys with an absence-of-data guard in the headline when nothing was consulted', () => {
     const h = coverageHeadline([]);
-    expect(h).toMatch(/absence of data is not evidence of safety/i);
+    expect(h).toMatch(/not evidence of safety/i);
     expect(h.toLowerCase()).not.toContain('probably fine');
   });
 
-  it('reads thin coverage (not a clearance) when N = 0 with no-record sources', () => {
+  it('is a terse count line — no caveat prose in the headline', () => {
     const h = coverageHeadline([src({ verdict: 'benign' }), src({ verdict: 'unknown' })]);
-    expect(h).toMatch(/thin coverage/i);
-    expect(h).toMatch(/absence of data is not evidence of safety/i);
-    expect(h).toMatch(/not a clearance/i);
+    expect(h).toBe('0 of 2 sources flagged');
+    // The honesty moved out of the sentence and onto the chip/guard fields.
+    expect(h.toLowerCase()).not.toMatch(/thin coverage|not a clearance|absence of data/);
     expect(h.toLowerCase()).not.toContain('probably fine');
   });
 
-  it('a healthy clean sweep still says "not a clearance", no thin-coverage caveat', () => {
-    const clean = [src({ verdict: 'benign' }), src({ verdict: 'benign' }), src({ verdict: 'benign' })];
-    const h = coverageHeadline(clean);
-    expect(h).toBe('0 of 3 consulted sources flagged this — no adverse findings. Not a clearance.');
+  it('carries thin-coverage + the green≠safe guard as fields, not prose (N = 0 with a no-record source)', () => {
+    const cov = coverageState([src({ verdict: 'benign' }), src({ verdict: 'unknown' })]);
+    expect(cov.headline).toBe('0 of 2 sources flagged');
+    expect(cov.thinCoverage).toBe(true);
+    expect(cov.noRecord).toBe(1);
+    expect(cov.guard).toBe('coverage, not a clearance');
   });
 
-  it('states the plain N of M once anything is flagged', () => {
-    expect(coverageHeadline([src({ verdict: 'malicious' }), src(), src(), src()])).toBe(
-      '1 of 4 consulted sources flagged this as adverse.',
-    );
+  it('a healthy clean sweep of 3 keeps the guard but is not thin coverage', () => {
+    const clean = [src({ verdict: 'benign' }), src({ verdict: 'benign' }), src({ verdict: 'benign' })];
+    const cov = coverageState(clean);
+    expect(cov.headline).toBe('0 of 3 sources flagged');
+    expect(cov.thinCoverage).toBe(false);
+    expect(cov.guard).toBe('coverage, not a clearance');
+  });
+
+  it('drops the guard and states the plain N of M once anything is flagged', () => {
+    const cov = coverageState([src({ verdict: 'malicious' }), src(), src(), src()]);
+    expect(cov.headline).toBe('1 of 4 sources flagged this as adverse');
+    expect(cov.guard).toBeNull();
   });
 });
 
-describe('assessmentLine (escalation register)', () => {
-  it('uses "consulted sources" wording (matches the coverageHeadline noun)', () => {
-    expect(assessmentLine([src({ verdict: 'malicious' }), src()])).toBe(
-      '1 of 2 consulted sources flagged this as adverse.',
-    );
+describe('assessmentLine (escalation register — identical wording to the card)', () => {
+  it('matches coverageHeadline so both registers read the same', () => {
+    const sources = [src({ verdict: 'malicious' }), src()];
+    expect(assessmentLine(sources)).toBe(coverageHeadline(sources));
+    expect(assessmentLine(sources)).toBe('1 of 2 sources flagged this as adverse');
     expect(assessmentLine([])).toMatch(/not evidence of safety/i);
   });
 });
@@ -337,7 +348,7 @@ describe('composeEscalation (plain-text §4 — travels with the image)', () => 
   it('emits the ordered sections with attributed, class-tagged evidence', () => {
     const text = composeEscalation(richData(), NOW);
     expect(text).toContain('INDICATOR: 185[.]220[.]101[.]42  (IPV4)');
-    expect(text).toContain('ASSESSMENT: 1 of 2 consulted sources flagged this as adverse.');
+    expect(text).toContain('ASSESSMENT: 1 of 2 sources flagged this as adverse');
     expect(text).toContain('EVIDENCE (attributed to public sources):');
     expect(text).toContain('AbuseIPDB reports 98% abuse confidence [reputation-score] (as of 2026-08-10)');
     expect(text).toContain('CONTEXT (not a verdict):');

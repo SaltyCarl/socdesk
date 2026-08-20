@@ -36,6 +36,7 @@ export {
   composeEscalation,
   consensus,
   coverageHeadline,
+  coverageState,
   defang,
   deriveBand,
   detectPua,
@@ -54,6 +55,7 @@ export {
   sourceRank,
   toneClass,
 } from './doctrine';
+export type { CoverageState } from './doctrine';
 
 export type { EnrichResponse, RawSource } from './map';
 export { mapResponse } from './map';
