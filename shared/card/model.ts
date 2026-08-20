@@ -144,6 +144,9 @@ export interface DomainModel {
   registered: string
   ageDays: number
   ageLabel: string
+  /** Why the age is blank, when it is: the registry (RDAP) lookup failed rather
+   *  than there being no record. Web-only sub-line; the canvas ignores it. */
+  ageNote: string
   /** The tell: a domain registered inside the last month. */
   newlyRegistered: boolean
   registrar: string
@@ -176,8 +179,15 @@ export function domainModel(data: VerdictData, now: Date = new Date()): DomainMo
   const registered = pick(fm, 'registered', 'created', 'registration date')
   const explicitAge = parseInt(pick(fm, 'age', 'age (days)').replace(/[^\d]/g, ''), 10)
   const ageDays = Number.isFinite(explicitAge) && explicitAge > 0 ? explicitAge : daysSince(registered, now)
+  // A blank age has two causes worth telling apart: the registry lookup failed
+  // (timed out) vs. the record simply carries no registration date. Only the
+  // first gets the "unavailable" wording + the honest sub-line.
+  const rdapFailed = !Number.isFinite(ageDays) &&
+    (data.errors ?? []).some((e) => /rdap|whois|registr/i.test(e.source))
   const ageLabel = !Number.isFinite(ageDays)
-    ? 'Registration age unknown'
+    ? rdapFailed
+      ? 'Registration age unavailable'
+      : 'Registration age unknown'
     : ageDays < 45
       ? `${ageDays} days old`
       : ageDays < 730
@@ -188,6 +198,7 @@ export function domainModel(data: VerdictData, now: Date = new Date()): DomainMo
     registered: registered || '—',
     ageDays: Number.isFinite(ageDays) ? ageDays : NaN,
     ageLabel,
+    ageNote: rdapFailed ? 'Registry lookup timed out — not a finding' : '',
     newlyRegistered: Number.isFinite(ageDays) && ageDays <= 30,
     registrar: pick(fm, 'registrar') || '—',
     resolved: geoModel(data.context, data.sources),

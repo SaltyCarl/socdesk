@@ -74,6 +74,26 @@ describe('domainModel + domainAgeLevel (registration-age tell, spec §3.3)', () 
     expect(domainAgeLevel(4000)).toBe(5);
     expect(domainAgeLevel(NaN)).toBe(0);
   });
+
+  it('says "unavailable" with an honest note when the registry (RDAP) lookup failed', () => {
+    const dm = domainModel({
+      context: [],
+      sources: [],
+      errors: [{ source: 'RDAP', reason: 'The operation was aborted due to timeout' }],
+    } as unknown as Parameters<typeof domainModel>[0]);
+    expect(dm.ageLabel).toBe('Registration age unavailable');
+    expect(dm.ageNote).toMatch(/timed out/i);
+  });
+
+  it('says "unknown" with no note when there is simply no registration record', () => {
+    const dm = domainModel({
+      context: [],
+      sources: [],
+      errors: [],
+    } as unknown as Parameters<typeof domainModel>[0]);
+    expect(dm.ageLabel).toBe('Registration age unknown');
+    expect(dm.ageNote).toBe('');
+  });
 });
 
 describe('cveModel + cveLead (exploitation status, spec §5)', () => {

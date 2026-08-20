@@ -236,6 +236,7 @@ export function DomainHero({ data }: { data: VerdictData }) {
           </span>
           {dm.newlyRegistered && <Chip variant="suspicious">newly registered</Chip>}
         </div>
+        {dm.ageNote && <span className="font-mono text-micro text-faint">{dm.ageNote}</span>}
         <div className="flex items-center gap-2">
           <span className="flex gap-1" aria-hidden="true">
             {[1, 2, 3, 4, 5].map((i) => (
