@@ -1,10 +1,115 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-19 (session 6 — analyzer Phase 3 signatures + polymorphic cockpit SHIPPED LIVE) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-19 (session 7 — multi-interpreter analyzer, doc-scoping, kill-chain bullets SHIPPED LIVE) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-19 (session 6 — analyzer Phase 3 + polymorphic cockpit SHIPPED LIVE)
+## 0. LATEST — 2026-08-19 (session 7 — multi-interpreter analyzer, doc-scoping, kill-chain bullets — all SHIPPED LIVE)
+
+> Newest block. Supersedes §0-RECENT (session 6) — three more units shipped
+> and verified live since: the analyzer's multi-interpreter increment, a
+> documentation-scoping pass, and the kill-chain "EXPLAINED" action-bullets
+> (the analyzer's headline output, previously `bullets:[]`). `origin/main` =
+> local `main` = `36ce3cb`, working tree clean.
+
+**Three units shipped and verified live since the last checkpoint.**
+
+### 1. Multi-interpreter analyzer increment (`/analyzer`, LIVE)
+- cmd.exe, mshta, and wscript/cscript are now first-class interpreters, not
+  just PowerShell: `detectInterpreter()` (`fd6389d`) + per-interpreter body
+  extraction (`extractCmdBody`/`extractMshtaBody`/`extractWshBody`,
+  `6c6d384`) + recursive depth-capped nested re-entry that decodes a
+  cmd/mshta wrapper's inner `powershell -enc` payload (`c3d57a0`).
+- `shared/analyzer/cmdlex.ts::deobfuscateCaret` — cmd caret deobfuscation,
+  cmd-gated (`b3ff7c8`). `shared/analyzer/wsh.ts` — WSH/HTA numeric
+  char-code decode + honesty signals (`f0e6353`).
+- Interpreter-aware signature rules (`8c8c927`): `cmd-cradle` (`for /f` +
+  finger/curl/certutil/bitsadmin/powershell co-occurrence — closes the
+  finger-cradle gap flagged at the end of session 6 — T1059.003/T1105),
+  `mshta-interpreter` (T1218.005, +T1059.005 when an inline script is
+  present), `wsh-script-exec` (T1059.005 for VBS / T1059.007 for JS). Fixed
+  the ClickFix `--Verify` decoy false-positive against `gpg --verify`
+  (`82e902d`).
+- `extract.ts` binary-filename→domain IOC-leak fix (`abde7d9`).
+- 8-task SDD (`docs/superpowers/plans/2026-08-19-multi-interpreter-analyzer.md`,
+  `.superpowers/sdd/2026-08-19-multi-interpreter-analyzer/`) + whole-branch
+  review caught 2 cross-task defects, both fixed in `1db775e`
+  (`fix(analyzer): non-anchored nested launcher detection + dedupe evasion
+  flags`): the non-anchored nested-launcher fallback was truncating corpus
+  text a signal rule depended on (the `for /f`+`finger` cradle), and evasion
+  flags could duplicate. End-to-end integration + determinism tests:
+  `f6bcffc`. 264/264 `shared/analyzer` tests green post-fix.
+
+### 2. Documentation-scoping pass (`3e049c8`, `aff3063`, `e9740d9`)
+- `docs/OPERATIONS.md`: Deploying section rewritten for the real `web/dist`
+  Vite build + `wrangler pages deploy` (previously still described `site/`
+  uploads).
+- `docs/AUTOMATION.md`: scope note; historical markers on the old `site/`
+  Definition-of-Done bullets (process doctrine §2-6 unchanged).
+- `docs/ARCHITECTURE.md`: reordered so the live `web/` analyzer + cockpit
+  land right after "End to end" (not seventh); diagram gets a `web/` node +
+  a Tier-3 skip pointer; analyzer section updated for the multi-interpreter
+  increment.
+- `docs/HANDOFF.md` itself trimmed (847→732 lines per the commit message,
+  pre-this-edit) — stale §2/§3/§5/§9/§10 reduced to pointers; `## 0` session
+  history untouched.
+- `README.md`: capability table split into Live-in-`web/` vs
+  Legacy-`site/`-only, correcting stale `site/js/*` paths for the 7
+  capabilities rebuilt in `web/`.
+- `docs/BUILD-JOURNAL.md` marked deprecated in favor of `docs/HANDOFF.md`
+  (the `nt` agent definition already points here, not there).
+- New `docs/REPO-MAP.md` — canonical `web/src` + `shared/` module map;
+  `CLAUDE.md` and `README.md` now point to it instead of duplicating it.
+- `web/src/App.tsx`: Gallery dropped from the public top-nav — routable-only
+  internal design ref, matching `/privacy` (`e9740d9`).
+- `docs/SOCDesk-Overview.{html,pdf}` regenerated for `web/`-live state
+  (analyzer block, `/desk` pillars, real deploy steps).
+- `BACKLOG.md` synced: command-line deobfuscator marked SHIPPED, Analyzer
+  roadmap section added.
+
+### 3. Kill-chain / "EXPLAINED" action-bullets (`/analyzer`, LIVE)
+- The analyzer's headline output (spec §7 `ActionBullet`, previously
+  `bullets:[]`): `shared/analyzer/bullets.ts` — 28 execution-ordered
+  `ActionRule`s → `ActionBullet[]` (`aa67f20`), wired into `analyze()` and
+  `copyText` (`de72496`), rendered by
+  `web/src/components/analyzer/ActionBullets.tsx` between the technique
+  tally and the decode ladder, plus a copyText "What it did" section
+  (`b4e3db2`).
+- Verb-first plain-English actions; three-tier honesty (resolved ● /
+  inferred ~ / opaque ○ quarantined); never invents intent (machine-guarded
+  banned-word sweep, tested in `dfe2cb0`); per-behavior IOC attribution — no
+  cross-behavior misattribution (`abdbd4c`; `d53cc8c` scoped the
+  beacon-loop host to its own loop body to fix a cross-brace
+  misattribution). `4ff4f25`: mshta/WSH entry-vector bullet surfaced,
+  raw-socket beacon host named, clearer evasion wording.
+- Built via 5-task SDD (`.superpowers/sdd/2026-08-19-analyzer-bullets/`) +
+  whole-branch review (4 findings fixed, re-reviewed APPROVED) + a SOC
+  output-quality pass on real samples (3 must-fixes, follow-ups logged in
+  `BACKLOG.md` by `36ce3cb`). **375 tests green.**
+
+**All three verified live on socdesk.io** — `origin/main` = local `main` =
+`36ce3cb`, working tree clean; live bundle `index-CS8J7t-q.js` fetched
+directly from socdesk.io matches this build.
+
+### Analyzer roadmap follow-ups (logged in `BACKLOG.md`, not yet built)
+- `clickfix` "paste-and-run" label leaks into the top-line characterization
+  on the generic hidden+nop+fetch+IEX branch when no decoy text is present
+  (the bullets themselves stay correctly silent — it's a `techniques.ts`
+  label issue on that branch).
+- `EMBEDDED_LAUNCHER_RE` `WScript.Shell` false-match burns depth-cap hops
+  (mislabels an `mshta→wscript` decode-layer transition).
+- Deep WSH deobfuscation (VBScript/JScript concat-fold + `Execute`/`eval`
+  recursion); cmd env-var obfuscation (`%COMSPEC:~x,y%`, `set`/`%a%`
+  reassembly).
+- Broader gaps: PowerShell deobfusc breadth (`-join`/`-f`/`[char]`/
+  `-replace`/`FromBase64String`/`.Invoke()` sink); technique-family
+  expansion (credential-access/LSASS, ransomware shadow-delete, UAC bypass,
+  lateral, DNS exfil); LOLBin table (9 of ~200 LOLBAS); honesty layer (real
+  entropy/`wall`/`fractionAccounted`).
+
+---
+
+## 0-RECENT. 2026-08-19 (session 6 — analyzer Phase 3 + polymorphic cockpit SHIPPED LIVE)
 
 > Newest block. Supersedes §0-RECENT (session 5) on analyzer status — Phase 3
 > interpretation now IS built, tested, and live, not just the Phase 1/2a
