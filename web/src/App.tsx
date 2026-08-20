@@ -52,7 +52,7 @@ const ROUTES: Route[] = [
   { path: '/analyzer', label: 'Analyzer', size: 'default', el: <PowerShellAnalyzer /> },
   { path: '/desk', label: 'Desk', size: 'default', el: <DataDeskRoute /> },
   { path: '/actor', label: 'Profiles', size: 'default', el: <ActorProfileRoute /> },
-  { path: '/gallery', label: 'Gallery', size: 'default', el: <Gallery /> },
+  { path: '/gallery', label: 'Gallery', size: 'default', el: <Gallery />, nav: false },
   { path: '/privacy', label: 'Privacy', size: 'default', el: <Privacy />, nav: false },
 ]
 
