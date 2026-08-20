@@ -431,7 +431,7 @@ export function Gallery() {
         id="chips"
         eyebrow="Primitives"
         title="Chips &amp; badges"
-        intro="Verdict-severity chips are the only place red/amber/green appear (color + word + dot, a redundant encoding). Grayware is a distinct amber — flagged, not confirmed malware. Unknown is grey, never green. Source-class chips are facts about a source, ranked by ink weight — periwinkle/neutral, never a verdict hue."
+        intro="Verdict-severity chips are a source's confirmed read on an indicator (color + word + dot, a redundant encoding). Grayware is a distinct amber — flagged, not confirmed malware. Unknown is grey, never green. The analyzer's signal-specificity chips share the same red/amber hues for a different claim — a technique signal's risk tier, not a confirmed verdict; weak stays plain periwinkle. Source-class chips are facts about a source, ranked by ink weight — periwinkle/neutral, never a verdict hue."
       >
         <div className="flex flex-col gap-6">
           <div>
@@ -442,6 +442,14 @@ export function Gallery() {
               <Chip variant="grayware" />
               <Chip variant="benign" />
               <Chip variant="unknown" />
+            </div>
+          </div>
+          <div>
+            <Label>Analyzer · signal specificity</Label>
+            <div className="flex flex-wrap gap-2">
+              <Chip variant="signal-near-dispositive">no legitimate use</Chip>
+              <Chip variant="signal-strong">corroborated</Chip>
+              <Chip variant="technique">weak</Chip>
             </div>
           </div>
           <div>

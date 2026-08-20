@@ -45,14 +45,44 @@ function hasAny(ctx: RuleContext, needles: string[]): boolean {
 function flagSet(ctx: RuleContext): Set<string> {
   return new Set(ctx.flags.map((f) => f.flag))
 }
-/** First token whose value contains any needle → its raw slice (audit trigger). */
+const TRIGGER_MAX = 64
+
+/** A short, single-line context snippet around a match at `start` in `text` —
+ *  never crosses a newline. `text` here is `analyze()`'s scan corpus: the raw
+ *  input plus every decode layer, joined with '\n'. Deriving a trigger from a
+ *  matched TOKEN's raw span used to be unsafe: an unterminated quote in one
+ *  joined fragment lexes straight through the newline into the next, so the
+ *  "matching" token could span two unrelated layers and its raw slice spliced
+ *  fragments from both into one garbled run-on string (e.g. a mshta wrapper's
+ *  closing quote fusing with a later decoded-layer copy of the same script).
+ *  Anchoring the window to the line containing `start`, with a hard length
+ *  cap, makes that structurally impossible — the result is always one clean
+ *  fragment. */
+function triggerWindow(text: string, start: number): string {
+  const lineStart = text.lastIndexOf('\n', Math.max(start - 1, 0)) + 1
+  const lineEndIdx = text.indexOf('\n', start)
+  const lineEnd = lineEndIdx === -1 ? text.length : lineEndIdx
+  const windowStart = Math.max(lineStart, start - 8)
+  const windowEnd = Math.min(lineEnd, start + TRIGGER_MAX)
+  const snippet = text.slice(windowStart, windowEnd).trim()
+  return windowEnd < lineEnd ? snippet + '…' : snippet
+}
+
+/** Audit trigger for the first needle that matches. Searches the plain
+ *  corpus text first (cheap, and immune to the corpus-join issue
+ *  triggerWindow guards against); falls back to a token's parsed VALUE only
+ *  for a match that exists solely in de-obfuscated form (e.g. a backtick-
+ *  split keyword) — either way the returned snippet is windowed, never a raw
+ *  token span. */
 function triggerFor(ctx: RuleContext, needles: string[]): string {
   for (const n of needles) {
     const k = n.toLowerCase()
+    const idx = ctx.lower.indexOf(k)
+    if (idx !== -1) return triggerWindow(ctx.text, idx)
     const tok = ctx.tokens.find(
       (t) => (t.type === 'bareword' || t.type === 'string') && t.value.toLowerCase().includes(k),
     )
-    if (tok) return tok.raw.slice(0, 80)
+    if (tok) return triggerWindow(ctx.text, tok.start)
   }
   return needles[0]
 }

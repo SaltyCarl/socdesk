@@ -1,13 +1,16 @@
 import type { Characterization, Signal } from '@socdesk/shared/analyzer'
+import type { ChipVariant } from '@socdesk/shared/ui'
 import { Chip, MicroLabel } from '@socdesk/shared/ui'
 
 /** The technique-signal tally — the analyzer's headline. Renders a count line
- *  (or the gated characterization when present), then one periwinkle chip per
- *  signal — a tier-tagged fact, sorted strongest-first — each citing the
- *  substring that fired it. Chips stay periwinkle facts; the gated
- *  characterization callout is the analyzer's one *considered* severity read,
- *  and it alone carries a verdict-severity hue: red for high-confidence
- *  malicious, amber for suspicious. */
+ *  (or the gated characterization when present), then one chip per signal,
+ *  sorted strongest-first, each citing the substring that fired it. Chip
+ *  colour graduates by specificity (reserved-colour EVOLUTION, owner-approved
+ *  2026-08-19): near-dispositive reads red, strong reads amber, weak stays
+ *  the plain periwinkle `technique` treatment — anti-cry-wolf preserved, only
+ *  the tier that has earned it goes loud. The gated characterization callout
+ *  remains the analyzer's one *considered* severity read, same red/amber
+ *  hues, one level up from a per-signal fact. */
 
 const CALLOUT: Record<Characterization['level'], { box: string; eyebrowClass: string; label: string }> = {
   'high-confidence-malicious': {
@@ -23,7 +26,12 @@ const CALLOUT: Record<Characterization['level'], { box: string; eyebrowClass: st
 }
 
 const RANK: Record<Signal['specificity'], number> = { 'near-dispositive': 0, strong: 1, weak: 2 }
-const TIER_LABEL: Record<Signal['specificity'], string> = { 'near-dispositive': 'near-disp', strong: 'strong', weak: 'weak' }
+// Signal specificity -> chip colour tier (reserved-colour evolution — see Chip.tsx).
+const CHIP_VARIANT: Record<Signal['specificity'], ChipVariant> = {
+  'near-dispositive': 'signal-near-dispositive',
+  strong: 'signal-strong',
+  weak: 'technique',
+}
 
 export function TechniqueTally({
   signals,
@@ -49,16 +57,15 @@ export function TechniqueTally({
         </div>
       ) : (
         <p className="font-mono text-micro uppercase tracking-label text-faint">
-          {signals.length} technique {signals.length === 1 ? 'signal' : 'signals'} across {techniqueCount} ATT&amp;CK{' '}
-          {techniqueCount === 1 ? 'technique' : 'techniques'} — not a synthesized verdict
+          {signals.length} signal{signals.length === 1 ? '' : 's'} · {techniqueCount} ATT&amp;CK{' '}
+          technique{techniqueCount === 1 ? '' : 's'} — not a synthesized verdict
         </p>
       )}
 
       <ul className="flex flex-col gap-1.5">
         {sorted.map((s) => (
           <li key={s.id} className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-micro text-faint">[{TIER_LABEL[s.specificity]}]</span>
-            <Chip variant="technique">{s.label}</Chip>
+            <Chip variant={CHIP_VARIANT[s.specificity]}>{s.label}</Chip>
             <span className="font-mono text-micro text-faint">{s.techniqueIds.join(' · ')}</span>
             {s.trigger && (
               <code className="min-w-0 truncate font-mono text-micro text-muted">{s.trigger}</code>
