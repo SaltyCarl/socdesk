@@ -15,7 +15,7 @@ The loop, mapped to what exists:
 
 | Step | SOCDesk feature | Status |
 |---|---|---|
-| Paste indicator | Omnibox, type auto-detect, refang, bulk, bookmarklet | Shipped |
+| Paste indicator | Omnibox, type auto-detect, refang (bulk + bookmarklet are legacy `site/` only) | Shipped |
 | Get reputation | `/api/enrich` Pages Function → AbuseIPDB + VT + GreyNoise + **ipinfo geo/ASN** (IP), VT + MalwareBazaar (hash), VT + **urlscan verdict** (URL/domain) | **Live** — socdesk.io, keys set 2026-08-18; multi-source verified in prod |
 | Screenshot for the email | Evidence card rendered to canvas → copy as PNG | Shipped |
 | Paste into email | Copy image / markdown / text / .md download | Shipped |
@@ -36,6 +36,13 @@ and the **de-wordify** doctrine change (the card + copy-out are now a clean,
 factual artifact — see `docs/VERDICT-LANGUAGE.md`). Remaining gap: the
 **Preview** env scope still lacks enrich keys (Production-only) — see Polish &
 ops below.
+
+**Also shipped 2026-08-19:** the **polymorphic cockpit** (intent-routing omnibox —
+indicator→enrich, command→analyzer, one surface); the PowerShell / **multi-interpreter
+analyzer** at `/analyzer` (see the Analyzer roadmap below); the `/analyzer#q=` prefill +
+in-place IOC pivot; Gallery → internal-only (dropped from the public nav); and a full
+**documentation-scoping pass** (docs now `web/`-first, `site/`-as-current traps removed,
+`docs/REPO-MAP.md` added, BUILD-JOURNAL deprecated in favour of HANDOFF).
 
 ## P1 — hammer the loop (after P0, before anything else)
 1. Live dogfood: 2-3 analysts run real alerts through it for a shift; fix
@@ -133,11 +140,13 @@ tool + the home LLM + its Langfuse traces. Preserves the public-until-employer-I
 and never-leak posture.
 
 Candidate engines (deterministic unless noted), by value:
-1. **Command-line deobfuscator** (v1.2 top pick) — highlight a PS/cmd line →
-   decode `-EncodedCommand`/Base64, expand aliases, flag switches
-   (`-nop -w hidden -ep bypass`), name LOLBins, extract embedded URLs/IPs/hashes
-   (each one-click into enrich). Client-side, deterministic. Reuses BASTION's
-   PS-analyzer technique, rebuilt from public sources.
+1. **Command-line deobfuscator** — ✅ **SHIPPED as `/analyzer` + the polymorphic
+   cockpit** (2026-08-19): decode `-enc`/Base64/gzip, deobfuscate, extract IOCs
+   (each one-click into enrich), a MITRE technique tally + specificity-gated
+   characterization, and **multi-interpreter** support (cmd.exe + mshta +
+   wscript/cscript, nested re-entry, caret + WSH decode). Client-side,
+   deterministic, never executes input. Rebuilt from public sources. **Its
+   forward roadmap is the "Analyzer roadmap" block below.**
 2. **Universal decoder** — highlight a blob → auto-detect + decode
    Base64/hex/URL/gzip. Client-side.
 3. **Event ID + ATT&CK lookup** — highlight `4625` / `T1059.001` → what it is +
@@ -147,6 +156,23 @@ Candidate engines (deterministic unless noted), by value:
    highlight-driven cousin — confirm it's different enough before building.)
 5. **"Explain this" LLM gloss** — local-LLM plain-English layer for messy
    obfuscated chains only; labelled AI + verify; grounded on the deterministic parse.
+
+### Analyzer roadmap (`/analyzer`, active — owner-sequenced)
+
+The command-line deobfuscator (candidate #1) shipped and is the live `/analyzer`
++ cockpit. Next, in order:
+- **★ Kill-chain / "EXPLAINED" narrative** (`shared/analyzer` §7 `ActionBullet` /
+  `bullets.ts`, currently `bullets:[]`) — the numbered, execution-ordered
+  plain-English "what did it do." Owner-endorsed as THE next analyzer headline
+  ("what did it do IS the product").
+- **Multi-interpreter follow-ups** (deferred from the 2026-08-19 increment): deep
+  WSH deobfuscation (VBScript/JScript concat-fold + `Execute`/`eval` recursion);
+  cmd env-var obfuscation (`%COMSPEC:~x,y%`, `set`/`%a%` reassembly); tighten the
+  `EMBEDDED_LAUNCHER_RE` `WScript.Shell` false-match (burns depth-cap hops).
+- **Broader gaps:** PS deobfusc breadth (`-join`/`-f`/`[char]`/`-replace`/
+  `FromBase64String`/`.Invoke()` sink); technique-family expansion (cred-access /
+  LSASS, ransomware shadow-delete, UAC bypass, lateral, DNS exfil); LOLBin table
+  (9 of ~200 LOLBAS); honesty layer (real entropy / `wall` / `fractionAccounted`).
 
 **Bigger arc — analyst recommendations / relevant SIEM tables + queries (owner
 idea 2026-08-11).** Highlight an artifact (event ID, entity, technique) →

@@ -85,11 +85,11 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
 
 <div class="mast">
   <h1>SOC<span>·</span>DESK</h1>
-  <div class="sub">PRODUCT OVERVIEW &amp; ROADMAP<br>EDITION <b>2026-08-14</b><br>github.com/SaltyCarl/<b>socdesk</b></div>
+  <div class="sub">PRODUCT OVERVIEW &amp; ROADMAP<br>EDITION <b>2026-08-19</b><br>github.com/SaltyCarl/<b>socdesk</b></div>
 </div>
 
 <div class="tagline">The analyst's first stop for any indicator.</div>
-<p class="lede">A free, public, static threat-intelligence console for a T1/T2 SOC analyst. Paste an IP, hash, URL, domain, CVE or email and get one screen back: a verdict grounded in public reputation and vulnerability data, a ticket-ready escalation write-up, and one-click pivots to the services worth checking. Zero infrastructure, zero cost, zero accounts.</p>
+<p class="lede">A free, public threat-intelligence console for a T1/T2 SOC analyst. Paste an IP, hash, URL, domain, CVE or email and get one screen back: a live multi-source reputation verdict, a ticket-ready escalation card, and one-click pivots to the services worth checking. Paste a PowerShell, cmd, mshta, or WSH command instead and the same box runs it through a deterministic, client-side decode-and-characterize pipeline — never executed, never leaving the browser. Zero infrastructure, zero cost, zero accounts.</p>
 
 <div class="niche"><b>Positioning.</b> The heavyweight open-source CTI platforms (OpenCTI, MISP, IntelOwl) need servers and databases. SOCDesk sits deliberately beneath them: the zero-infra, public-URL, analyst-speed layer an analyst actually opens mid-shift.</div>
 
@@ -102,7 +102,7 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
 <li><b>No secrets in the repo.</b> Collectors are keyless; enrichment keys live server-side in Cloudflare, never in git or the browser.</li>
 <li><b>Privacy by default.</b> Analyst state (reviewed, watchlist, notable) is localStorage only. No accounts, no analytics, no tracking.</li>
 <li><b>Strict CSP + defence in depth.</b> <span class="mono">default-src 'none'</span>, no inline script; every upstream string sanitised at collection and escaped again at render.</li>
-<li><b>RADAR visual direction.</b> Dark warm-espresso / warm-paper, search-first, <b>periwinkle</b> accent + SD monogram; distinctive, not AI-slop. Now rebuilt on <b>Vite + React + Tailwind + Motion</b> (strict CSP kept) for an AAA craft ceiling — the live site still serves the vanilla build; the React build is staged for deploy. (Chart Room superseded.)</li>
+<li><b>RADAR visual direction.</b> Cool-slate ground, search-first, <b>periwinkle</b> accent + SD monogram; distinctive, not AI-slop. Live on <b>Vite + React + Tailwind + Motion</b> (strict CSP) — the legacy vanilla <span class="mono">site/</span> build is superseded, kept in-repo for history only. (Chart Room superseded.)</li>
 </ul>
 </div>
 
@@ -110,44 +110,55 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
 <div class="kicker now">Leg 1 · Current sprint</div>
 <div class="leg">
   <div class="leghead">
-    <h2><span class="n">01</span> Indicator Lookup &amp; Escalation</h2>
+    <h2><span class="n">01</span> Indicator Lookup, Escalation &amp; Analyzer</h2>
     <span class="status st-now">CORE · LIVE</span>
   </div>
-  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:6px">The 99% workflow: paste an indicator → live reputation verdict → screenshot-grade evidence card → paste into the escalation email. This Leg is the product.</p>
+  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:6px">The 99% workflow: paste an indicator → live reputation verdict → screenshot-grade evidence card → paste into the escalation email. Paste a PowerShell, cmd, mshta, or WSH command instead and the same box decodes and characterises it, deterministically and entirely client-side. One omnibox, two paths — this Leg is the product.</p>
   <div class="grid2">
     <div>
       <div class="sub-h">Input &amp; detection</div>
       <ul>
-        <li class="done"><b>Omnibox</b> with type auto-detect + refang <span class="t">(evil[.]com, hxxp)</span></li>
-        <li class="done"><b>Bulk lookup</b> — many indicators, one table, CSV/JSON/defanged export</li>
-        <li class="done"><b>Bookmarklet</b> — fire a lookup from any page</li>
-        <li class="done"><b>Shareable <span class="mono">#q=</span> deep links</b> — "look at this" is a URL</li>
+        <li class="done"><b>Polymorphic cockpit</b> — one omnibox at <span class="mono">/</span> classifies an indicator vs. a command and routes inline (escalation card or analyzer) beside the 3D globe, which yields (dims + suspends its render loop) for the analyzer</li>
+        <li class="done">Type auto-detect + refang <span class="t">(IPv4, IPv6, domain, URL, MD5/SHA-1/SHA-256, CVE, email)</span></li>
+        <li class="done"><b>Shareable <span class="mono">#q=</span> deep links</b> for both <span class="mono">/lookup</span> and <span class="mono">/analyzer</span> — "look at this" is a URL, including a pasted command</li>
+        <li>Bulk lookup (200 indicators, CSV/JSON/defanged export) + the in-context bookmarklet <span class="t">— legacy site/ only, not yet rebuilt in web/</span></li>
       </ul>
       <div class="sub-h">Live enrichment · <span class="mono">/api/enrich</span></div>
       <ul>
-        <li class="done"><b>IP</b> → AbuseIPDB · VirusTotal · GreyNoise · <b>ipinfo</b> geo/ASN</li>
+        <li class="done"><b>IP</b> (incl. <b>IPv6</b>) → AbuseIPDB · VirusTotal · GreyNoise <span class="t">(IPv4-only)</span> · ipinfo geo/ASN</li>
         <li class="done"><b>Hash</b> → VirusTotal · MalwareBazaar</li>
-        <li class="done"><b>URL / domain</b> → VirusTotal · <b>urlscan</b> verdict + screenshot</li>
+        <li class="done"><b>URL / domain</b> → VirusTotal · urlscan verdict + existing-scan screenshot · keyless <b>RDAP</b> registration age (domain)</li>
         <li class="done"><b>Consensus tally</b> — "N of M sources flagged"; SOCDesk counts, never asserts a verdict</li>
       </ul>
     </div>
     <div>
       <div class="sub-h">Output — the differentiator</div>
       <ul>
-        <li class="done"><b>Escalation card</b> — copied into the ticket as a PNG image (Copy card) or text; no SOCDesk recommendation (the analyst's call)</li>
-        <li class="done"><b>Type-aware pivots</b>, trimmed to the T1 workflow set (no fluff vendors)</li>
-        <li class="done"><b>CVE</b> — authoritative, attributed: CISA-confirmed exploited (KEV) + CVSS + EPSS</li>
-        <li class="done">Honest states — "0 of M flagged" is never dressed as a clearance</li>
+        <li class="done"><b>Escalation card</b> — a clean, factual artifact: source-class labels + per-source recency, signals as chips, no disclaimer prose. Copied as a PNG (<b>Copy card</b>) or <b>Copy text</b> — the analyst owns the nuance in the email</li>
+        <li class="done"><b>Compare-IP / impossible-travel</b> — great-circle miles + implied mph + an honest plausibility read, from real coordinates only, drawn as an arc on the globe and in the copy-card PNG</li>
+        <li class="done"><b>URL safe-view</b> — urlscan screenshot preview (click-to-expand) + a <b>Browserling</b> disposable-browser pivot; existing scans only, never submits</li>
+        <li class="done">Type-aware pivots, trimmed to the T1 workflow set (no fluff vendors)</li>
       </ul>
-      <div class="sub-h">Reach — the Recorded-Future move</div>
+      <div class="sub-h">Reach</div>
       <ul>
-        <li class="done"><b>Browser extension</b> — own React/MV3 build reusing the web escalation cards via a shared package; right-click lookup + popup over the live API. Final parity QA (load unpacked → context-menu handoff) pending</li>
-        <li class="plan"><b>v2 · inline page annotation</b> — highlight indicators on any page <span class="t">(broad perms — later)</span></li>
-        <li class="plan"><b>Bookmarklet selection-capture</b> — no-install fallback</li>
+        <li class="done"><b>Browser extension</b> (manifest v0.2.0) — the toolbar popup renders the same full <b>EscalationCard</b> as the web app, sharing detection + the enrich pipeline, so IPv6/RDAP/URL flow through</li>
+        <li>Inline page annotation, broader selection-capture <span class="t">— not built</span></li>
       </ul>
     </div>
   </div>
-  <p class="note">LIVE at socdesk.io (vanilla build). Built in-tree, staged for deploy: the AAA React rebuild (web/ — Overview, Lookup, Data Desk, Gallery routes; three.js globe hero with a real light mode; per-entity escalation cards) and the extension parity uplift (shared card package, own MV3 build). Deploy flip site/ → web/ is gated. Verdict output is the consensus tally — see docs/VERDICT-LANGUAGE.md.</p>
+  <div class="sub-h">PowerShell / multi-interpreter analyzer · <span class="mono">/analyzer</span></div>
+  <ul>
+    <li class="done">Deterministic, client-side decode ladder, never executes the input — <span class="mono">-enc</span> Base64→UTF-16LE, gzip/raw-DEFLATE inflate, string-concat folding, single-assignment variable substitution, <span class="mono">IEX</span>/<span class="mono">&amp;</span>-sink recursion</li>
+    <li class="done"><b>Multi-interpreter</b> — detects and decodes <span class="mono">cmd.exe</span> (caret deobfuscation), <span class="mono">mshta</span>, and <span class="mono">wscript</span>/<span class="mono">cscript</span> (numeric char-code decode) alongside PowerShell, with depth-capped nested re-entry (<span class="mono">cmd /c powershell -enc …</span> decodes the inner layer too) and always-on honesty signals when WSH/HTA coverage is thin</li>
+    <li class="done">IOC extraction across every decode layer, one-click "Look up →" pivot that resolves in place in the cockpit — no navigating away</li>
+    <li class="done"><b>17 MITRE ATT&amp;CK-mapped signature rules</b> — download cradle, cmd-cradle/finger, evasion-flag cluster, AMSI reflection/memory-patch, ETW tamper, Defender tamper, ClickFix, beaconing, reverse shell, fileless loader, persistence, mshta/WSH execution, a 9-binary LOLBins table — with a co-occurrence upgrade</li>
+    <li class="done"><b>Specificity-gated characterization</b> — a RED "high-confidence malicious" callout only for intrinsically near-dispositive signals; an AMBER "suspicious" tier for corroborated co-occurrence; otherwise just the periwinkle technique tally. Never a synthesized score</li>
+    <li class="done"><span class="mono">/analyzer#q=</span> deep-link prefill — a command routed from the palette or <span class="mono">/lookup</span> lands pre-filled and auto-analyzed</li>
+    <li class="plan">The "explained" / kill-chain breakdown — a numbered, execution-ordered plain-English "what did it do" narrative (specced, not yet built)</li>
+    <li class="plan">Deobfuscation breadth — <span class="mono">-join</span>/<span class="mono">-f</span>/<span class="mono">[char]</span>/<span class="mono">-replace</span>/<span class="mono">[Convert]::FromBase64String</span>/<span class="mono">.Invoke()</span> sink</li>
+    <li class="plan">Technique-family expansion (credential access, ransomware, UAC bypass, lateral movement, DNS exfil), a wider LOLBin table <span class="t">(9 of ~200 LOLBAS)</span>, and a real entropy/honesty layer</li>
+  </ul>
+  <p class="note">LIVE at socdesk.io — the <span class="mono">web/</span> React app (Vite + Tailwind + Motion) under a strict CSP; the legacy vanilla <span class="mono">site/</span> app is superseded, kept in-repo for history. 138 vitest specs cover <span class="mono">shared/analyzer</span>. Verdict output is always a consensus tally or a gated characterization, never a synthesized score — see docs/VERDICT-LANGUAGE.md.</p>
 </div>
 
 <!-- LEG 2 -->
@@ -155,37 +166,31 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
 <div class="leg">
   <div class="leghead">
     <h2><span class="n">02</span> Threat Intelligence Feed</h2>
-    <span class="status st-next">CORE · EVOLVE, DON'T REBUILD</span>
+    <span class="status st-next">CORE · SHARPEN, DON'T REBUILD</span>
   </div>
-  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:6px">Situational awareness for the shift: what's happening, what's exploited, what's relevant to us. The pipeline is already strong and tested — Leg 2 is additive, not a rewrite.</p>
+  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:6px">Situational awareness for the shift: what's happening, what's exploited, what's relevant to us. The pipeline and the <span class="mono">/desk</span> views are live in <span class="mono">web/</span> — per the owner's north star, Leg 2 stays dogfood-driven sharpening until Leg 1's loop is excellent, not a rewrite.</p>
   <div class="grid2">
     <div>
-      <div class="sub-h">Already built (the foundation)</div>
+      <div class="sub-h">Live in web/ today</div>
       <ul>
         <li class="done"><b>Collector pipeline</b> — KEV, NVD, EPSS, Ransomware.live, RSS pool; fault-isolated, schema-gated with last-known-good</li>
-        <li class="done"><b>CVE triage</b> — full KEV catalogue joined with CVSS + EPSS, risk-sorted</li>
-        <li class="done"><b>Feed work-queue</b> — explainable relevance scoring, claim grouping</li>
-        <li class="done"><b>ATT&amp;CK actor/malware profiles</b> + <b>RELATED</b> entity index</li>
-        <li class="done">Collection health, source registry, trends</li>
+        <li class="done"><b>Vulnerability triage</b> — full KEV catalogue joined with CVSS + EPSS, watchlist, KEV filter, sortable columns</li>
+        <li class="done"><b>Feed</b> — explainable 0–100 relevance score with a <span class="mono">why</span> per item</li>
+        <li class="done"><b>ATT&amp;CK actor/malware profiles</b>, resolvable by name or alias, + the RELATED entity index</li>
+        <li class="done">Collection health + source registry</li>
       </ul>
     </div>
     <div>
-      <div class="sub-h">Planned evolution (additive)</div>
+      <div class="sub-h">Next (P1 dogfood findings + P2)</div>
       <ul>
-        <li class="plan"><b>AI Daily Brief</b> — Framework local LLM writes the shift brief <span class="t">(passthrough already wired)</span></li>
-        <li class="plan"><b>Client / sector relevance</b> — "affects our clients" filter, the MSSP differentiator</li>
-        <li class="plan"><b>Wave-2 collectors</b> — FeodoTracker, C2IntelFeeds, PhishTank, APTnotes</li>
-        <li class="plan"><b>Push / alerting</b> — shift digest to Slack/email</li>
-        <li class="plan"><b>Decouple data-refresh from site-deploy</b> for higher cadence</li>
-      </ul>
-      <div class="sub-h">Design decisions to lock first</div>
-      <ul>
-        <li class="build">What the feed is <i>for</i> (brief vs. relevance-filter vs. hunt-feed)</li>
-        <li class="build">Data backbone (static vs. KV/R2) · watchlist location · alerting scope</li>
+        <li class="plan"><b>Reputation-quality fixes</b> — drop MalwareBazaar from IP cards, add AbuseIPDB abuse categories, surface the resolved A-record IP on domain cards</li>
+        <li class="plan">CVE patch/fixed-version + an "overdue" chip when action-due &lt; today; wire <span class="mono">NVD_API_KEY</span></li>
+        <li class="plan">OTX AlienVault as an enrich source; AbuseIPDB blacklist → an ambient reported-IP globe layer</li>
+        <li class="plan">Client / sector relevance filter — the MSSP differentiator, unscheduled</li>
       </ul>
     </div>
   </div>
-  <p class="note">Approach: a proper design pass before building, on top of the existing pipeline. The early "garbage" was the UI/identity — long since fixed — not the data layer.</p>
+  <p class="note">Owner's north star (2026-08-10): the paste→reputation→email loop is 99% of a T1/T2 analyst's day, and everything else — CVE features included — is secondary until that loop is excellent. Live dogfood (2-3 analysts, a real shift) is the P1 gate before Leg 2 gets new construction.</p>
 </div>
 
 <!-- LEG 3 -->
@@ -226,10 +231,10 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
 <div class="leg" style="border-color:var(--line-bright)">
   <div class="kicker">Sequencing &amp; current status</div>
   <ul>
-    <li class="done"><b>Done:</b> Leg 1 is LIVE at socdesk.io — multi-source enrichment, the consensus tally, live /api/enrich. AAA rebuild built in-tree: Vite + React + Tailwind + Motion under strict CSP (phases 1–4 + site effects), a three.js globe hero with a real light mode, per-entity escalation cards, and extension parity (shared card package + own MV3 build, phases 0–2). Spec: docs/superpowers/specs/2026-08-12-aaa-modern-stack-design.md.</li>
-    <li class="build"><b>Now:</b> Overview board rework (per-lane selection over the score-sort artifact; ransomware-activity leaderboard + named-actor lane; de-LARP voice), then the deploy flip site/ → web/ (gated), then extension final parity QA in Chrome.</li>
-    <li class="plan"><b>Then:</b> settle the employer-IP question → repo public vs. private; Leg 2 threat-intel feed on the existing pipeline (dedup + prioritisation first, then scale article volume).</li>
-    <li class="plan"><b>Later:</b> Leg 3 sensor, once the IP gate clears.</li>
+    <li class="done"><b>Done:</b> Leg 1 is LIVE at socdesk.io on the <span class="mono">web/</span> React app — the polymorphic cockpit, multi-source enrichment + Compare-IP + URL safe-view, the escalation card, the browser extension at full-card parity, and the PowerShell/multi-interpreter analyzer (PowerShell, cmd, mshta, WSH) with 17 signature rules and specificity-gated characterization. Verified live 2026-08-19.</li>
+    <li class="build"><b>Now:</b> P1 — hammer the loop. Live dogfood (2-3 analysts, a real shift), the reputation-quality fixes from the UX/SOC review, and the analyzer's "explained" kill-chain narrative are next up.</li>
+    <li class="plan"><b>Then:</b> P2 — sharpen Leg 2 (CVE patch/overdue chips, OTX, client-relevance filter) once the loop is excellent; the analyst-utility expansion lane (a vetted command-line deobfuscator, universal decoder, event-ID/ATT&amp;CK lookup, a curated KQL query library) as an additive, accuracy-gated lane behind it.</li>
+    <li class="plan"><b>Later:</b> Leg 3 sensor, gated on the employer-IP-assignment question.</li>
   </ul>
 </div>
 
@@ -242,7 +247,7 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
     <h2><span class="n">04</span> Hosting &amp; CI/CD</h2>
     <span class="status st-now">AS SHIPPED</span>
   </div>
-  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:6px">Two app trees live in one repo. <span class="mono">site/</span> is the legacy vanilla ES-module app and is <b style="color:var(--green)">what serves socdesk.io today</b>. <span class="mono">web/</span> is the new Vite + React + TS + Tailwind + Motion "AAA" app — built clean in-tree but <b style="color:var(--blue)">not yet deployed</b>. The flip is planned, not done.</p>
+  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:6px">Two app trees live in the repo. <span class="mono">web/</span> — Vite + React + TS + Tailwind + Motion — is <b style="color:var(--green)">what serves socdesk.io today</b>, built and deployed by CI on every run. <span class="mono">site/</span>, the legacy vanilla ES-module app, is superseded and kept in-repo for history only; it is no longer part of the deploy path.</p>
   <div class="grid2">
     <div>
       <div class="sub-h">Host &amp; deploy method</div>
@@ -258,14 +263,14 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
       <div class="sub-h">Workflow · <span class="mono">.github/workflows/collect-and-deploy.yml</span></div>
       <ul>
         <li class="done"><b>Triggers:</b> cron <span class="mono">11,41 * * * *</span> · <span class="mono">workflow_dispatch</span> · push to <span class="mono">main</span> touching <span class="mono">data/brief.json</span></li>
-        <li class="done"><b>Steps:</b> checkout → setup-python 3.12 → <span class="mono">pip install</span> → <span class="mono">pytest tests/</span> → <span class="mono">python run_pipeline.py</span> → commit <span class="mono">data/state</span> + pull-rebase-push → <span class="mono">wrangler pages deploy site</span></li>
+        <li class="done"><b>Steps:</b> checkout → setup-python 3.12 → <span class="mono">pip install</span> → <span class="mono">pytest tests/</span> → <span class="mono">python run_pipeline.py</span> (dual-writes <span class="mono">site/data</span> + <span class="mono">data/state</span> + <span class="mono">web/public/data/state</span>) → commit <span class="mono">data/state</span> + pull-rebase-push → setup Node 20 → <span class="mono">npm ci</span> + <span class="mono">vite build</span> in <span class="mono">web/</span> → <span class="mono">wrangler pages deploy web/dist</span></li>
         <li class="done"><b>No self-trigger loop:</b> the state commit uses <span class="mono">GITHUB_TOKEN</span>, whose pushes can't retrigger Actions</li>
         <li class="done"><b>Intentional asymmetry:</b> the Framework's <span class="mono">brief.json</span> pushes use a deploy key, so <i>those</i> DO trigger this workflow</li>
       </ul>
     </div>
   </div>
-  <div class="flowline"><span class="mark">deploy →</span> <b>wrangler pages deploy site</b> --project-name=<b>socdesk</b> --branch=<b>${{ vars.CF_PRODUCTION_BRANCH || 'main' }}</b></div>
-  <p class="note">The Cloudflare "documented example" gitHubToken/deployments-write path is deliberately omitted — at ~1,440 runs/mo it would file that many GitHub Deployment records. Consistent with docs/OPERATIONS.md §"Why direct upload rather than the Git integration".</p>
+  <div class="flowline"><span class="mark">deploy →</span> <b>wrangler pages deploy web/dist</b> --project-name=<b>socdesk</b> --branch=<b>${{ vars.CF_PRODUCTION_BRANCH || 'main' }}</b></div>
+  <p class="note">Cloudflare Pages Functions are read from the repo-root <span class="mono">functions/</span> dir (project-root-relative, not deploy-dir-relative), so <span class="mono">/api/enrich</span> co-deploys alongside <span class="mono">web/dist</span> without a separate step. The Cloudflare "documented example" gitHubToken/deployments-write path is deliberately omitted — at ~1,440 runs/mo it would file that many GitHub Deployment records.</p>
 </div>
 
 <!-- INFRA 2 -->
@@ -279,30 +284,24 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
     <div>
       <div class="sub-h">Pipeline output · <span class="mono">run_pipeline.py</span></div>
       <ul>
-        <li class="done"><span class="mono">run(...)</span> writes each payload to <b>both</b> <span class="mono">out_dir</span> and <span class="mono">state_dir</span></li>
-        <li class="done"><b><span class="mono">__main__</span> pins</b> <span class="mono">out_dir="site/data"</span>, <span class="mono">state_dir="data/state"</span></li>
+        <li class="done"><span class="mono">run(...)</span> dual-writes each payload to <span class="mono">site/data</span>, <span class="mono">data/state</span>, and <span class="mono">web/public/data/state</span> — the target the deployed <span class="mono">web/</span> app fetches at runtime</li>
         <li class="done">Rolling <span class="mono">data/state/*.json</span> (+ <span class="mono">history/</span> series) are committed each run — last-known-good survives an upstream outage</li>
         <li class="done">Payloads: <span class="mono">feed · cves · health · actors · malware · relations · sources · trends</span>; <span class="mono">brief.json</span> passed through if present (Tier 2)</li>
-        <li class="done"><b>No IOC corpus published</b> — reputation data is reached by user-clicked deep links at render, never mirrored (COMPLIANCE.md)</li>
-      </ul>
-      <div class="sub-h" style="color:var(--red)">⚠ Data gap for the flip</div>
-      <ul>
-        <li class="build"><b><span class="mono">web/public/data/state/*.json</span> is a SEPARATE committed copy</b> that the pipeline does <b>not</b> refresh — it only writes <span class="mono">site/data</span> + <span class="mono">data/state</span>. Deploy <span class="mono">web/</span> as-is and its data freezes at whatever was last hand-committed.</li>
+        <li class="done"><b>No IOC corpus published</b> — reputation data is reached by user-clicked deep links or the same-origin enrich function at render, never mirrored (COMPLIANCE.md)</li>
       </ul>
     </div>
     <div>
       <div class="sub-h">Enrichment function · <span class="mono">/api/enrich</span></div>
       <ul>
         <li class="done"><b>Cloudflare Pages Function</b> at <span class="mono">functions/api/enrich.js</span> → logic in <span class="mono">lib/enrich.mjs</span></li>
-        <li class="done"><b>Types:</b> <span class="mono">ipv4 · domain · url · md5 · sha1 · sha256</span></li>
-        <li class="done"><b>Sources:</b> AbuseIPDB · VirusTotal · GreyNoise · MalwareBazaar · ipinfo · urlscan</li>
+        <li class="done"><b>Types:</b> <span class="mono">ipv4 · ipv6 · domain · url · md5 · sha1 · sha256</span></li>
+        <li class="done"><b>Sources:</b> AbuseIPDB · VirusTotal · GreyNoise (IPv4-only) · MalwareBazaar · ipinfo · urlscan · keyless <b>RDAP</b> (domain registration age)</li>
         <li class="done"><b>Same-origin by design</b> — a Function on the site's own domain keeps CSP <span class="mono">connect-src 'self'</span>; no <span class="mono">api.*</span> origin, no CORS layer</li>
-        <li class="done"><b>Keys in Pages project secrets</b> (<span class="mono">ABUSEIPDB_API_KEY · VIRUSTOTAL · GREYNOISE_API_KEY · IPINFO_TOKEN · URLSCAN_API_KEY</span>) — never in git or the browser; MalwareBazaar is keyless</li>
-        <li class="done"><b>Co-deployed</b> with the Pages project: <span class="mono">functions/</span> sits at the repo root, picked up alongside the deployed asset dir</li>
+        <li class="done"><b>Keys in Pages project secrets</b> (<span class="mono">ABUSEIPDB_API_KEY · VIRUSTOTAL · GREYNOISE_API_KEY · IPINFO_TOKEN · URLSCAN_API_KEY</span>) — never in git or the browser; MalwareBazaar and RDAP are keyless</li>
       </ul>
     </div>
   </div>
-  <div class="flowline"><b>collectors</b> (keyless) <span class="mark">→</span> run_pipeline.py <span class="mark">→</span> <b>site/data/*.json</b> + commit <b>data/state/*.json</b> <span class="mark">→</span> wrangler deploy <b>site</b> <span class="mark">→</span> socdesk.io &nbsp;&nbsp;·&nbsp;&nbsp; browser <span class="mark">→</span> <b>/api/enrich</b> <span class="mark">→</span> AbuseIPDB / VT / GreyNoise / MalwareBazaar / ipinfo / urlscan</div>
+  <div class="flowline"><b>collectors</b> (keyless) <span class="mark">→</span> run_pipeline.py <span class="mark">→</span> <b>site/data</b> + <b>data/state</b> + <b>web/public/data/state</b> <span class="mark">→</span> vite build <span class="mark">→</span> wrangler deploy <b>web/dist</b> <span class="mark">→</span> socdesk.io &nbsp;&nbsp;·&nbsp;&nbsp; browser <span class="mark">→</span> <b>/api/enrich</b> <span class="mark">→</span> AbuseIPDB / VT / GreyNoise / MalwareBazaar / ipinfo / urlscan / RDAP</div>
 </div>
 
 <!-- INFRA 3 -->
@@ -316,80 +315,66 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding-top:10px;
       <div class="sub-h">Content-Security-Policy &amp; headers</div>
       <ul>
         <li class="done"><b>Strict CSP, no inline anything.</b> Core across both trees: <span class="mono">default-src 'none'; script-src 'self'; style-src 'self'</span></li>
-        <li class="done"><b>Live (<span class="mono">site/_headers</span>)</b> extends it with <span class="mono">img-src 'self' data:</span>, <span class="mono">font-src 'self'</span>, <span class="mono">connect-src 'self'</span>, <span class="mono">worker/manifest-src 'self'</span>, <span class="mono">base-uri/form-action/object-src 'none'</span>, <span class="mono">frame-ancestors 'none'</span>, <span class="mono">upgrade-insecure-requests</span> — plus Permissions-Policy, COOP, X-Frame-Options: DENY</li>
+        <li class="done"><b>Live (<span class="mono">web/public/_headers</span>)</b> extends it with <span class="mono">img-src 'self' data: https://urlscan.io</span> (the one third-party exception, for the urlscan screenshot preview), <span class="mono">font-src 'self'</span>, <span class="mono">connect-src 'self'</span>, <span class="mono">worker/manifest-src 'self'</span>, <span class="mono">base-uri/form-action/object-src 'none'</span>, <span class="mono">frame-ancestors 'none'</span>, <span class="mono">upgrade-insecure-requests</span> — plus Permissions-Policy, COOP, X-Frame-Options: DENY</li>
+        <li class="done"><span class="mono">web/public/_redirects</span> — <span class="mono">/* /index.html 200</span>, the SPA deep-link fallback for the path router (<span class="mono">/lookup · /desk · /actor · /analyzer</span>); Functions and static assets match first</li>
         <li class="done">Keys never reach the browser; collectors carry none. Analyst state is <span class="mono">localStorage</span> only — no accounts, no analytics</li>
-      </ul>
-      <div class="sub-h" style="color:var(--red)">⚠ Header parity gap</div>
-      <ul>
-        <li class="build"><b><span class="mono">web/public/_headers</span> is looser than the live one</b>: it omits <span class="mono">frame-ancestors 'none'</span>, <span class="mono">upgrade-insecure-requests</span>, Permissions-Policy, COOP and X-Frame-Options. Bring to parity before the flip.</li>
       </ul>
     </div>
     <div>
-      <div class="sub-h">Palette divergence — intentional, until the flip</div>
+      <div class="sub-h">Palette — intentionally divergent</div>
       <ul>
-        <li class="done"><b><span class="mono">web/</span> moved to cool-slate tokens</b> (2026-08-14, <span class="mono">shared/tokens.css</span>) — the old warm-espresso ground clashed with the periwinkle accent</li>
-        <li class="done"><b><span class="mono">site/</span> + the Copy-card PNG stay WARM</b> (<span class="mono">site/css/tokens.css</span> RADAR + <span class="mono">drawVerdict</span>) — a follow-up retune, deliberately divergent until <span class="mono">site/</span> is superseded</li>
-        <li class="done">One token source now feeds web app + extension (<span class="mono">shared/tokens.css</span>) so those two can't drift</li>
+        <li class="done"><b><span class="mono">web/</span> is cool-slate</b> (<span class="mono">shared/tokens.css</span>) — the old warm-espresso ground clashed with the periwinkle accent</li>
+        <li class="done"><b><span class="mono">site/</span> (legacy) + the Copy-card PNG stay WARM</b> (<span class="mono">site/css/tokens.css</span> RADAR + <span class="mono">drawVerdict</span>) — deliberately divergent; <span class="mono">site/</span> is history-only, so this is a closed decision, not a pending flip</li>
+        <li class="done">One token source feeds the web app + the extension (<span class="mono">shared/tokens.css</span>) so those two can't drift</li>
       </ul>
-      <p class="note">Role split held in both: warm/cool neutrals = the room; periwinkle = the product (never a verdict); red/amber/green = verdict &amp; severity meaning only.</p>
+      <p class="note">Role split held: cool/warm neutrals = the room; periwinkle = the product (never a verdict); red/amber/green = verdict &amp; severity meaning only. The analyzer's one gated characterization callout is the sole place a verdict-severity hue appears in analyzer output — every technique chip stays periwinkle.</p>
     </div>
   </div>
 </div>
 
-<!-- DEPLOY FLIP -->
+<!-- INFRA FOLLOW-UPS -->
 <div class="leg" style="border-color:var(--line-bright)">
   <div class="leghead">
-    <h2><span class="n">07</span> Deploy-flip Requirements <span style="font-size:9pt;color:var(--muted);font-weight:400">— site/ → web/</span></h2>
-    <span class="status st-next">PLANNED · NOT DONE</span>
+    <h2><span class="n">07</span> Infrastructure Follow-ups <span style="font-size:9pt;color:var(--muted);font-weight:400">— the site/ → web/ deploy flip is DONE</span></h2>
+    <span class="status st-next">OPEN · OPPORTUNISTIC</span>
   </div>
-  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:8px">What must change to point socdesk.io from the vanilla <span class="mono">site/</span> at the React <span class="mono">web/</span> build. None of this is done — the flip is gated on an explicit go.</p>
-  <ul>
-    <li class="plan"><b>Dual-write fresh data.</b> The pipeline must also publish to <span class="mono">web/public/data/state</span> (or the deploy must build from a dir the pipeline refreshes). Today it only refreshes <span class="mono">site/data</span> — deploy <span class="mono">web/</span> without this and the live app's data freezes.</li>
-    <li class="plan"><b>Add <span class="mono">web/public/_redirects</span></b> with <span class="mono">/* /index.html 200</span> (excluding <span class="mono">/api/*</span> and <span class="mono">/data/*</span>) for SPA deep-link fallback. The React app uses <b>PATH routing</b> (<span class="mono">/lookup · /desk · /actor · /gallery</span>) — unlike <span class="mono">site/</span>'s hash routing, a hard refresh on a deep path 404s without this.</li>
-    <li class="plan"><b>Build step in the workflow.</b> Add Node setup + <span class="mono">npm ci</span> + <span class="mono">vite build</span> in <span class="mono">web/</span>, and deploy <span class="mono">web/dist</span> instead of <span class="mono">site</span>. Verify the repo-root <span class="mono">functions/</span> still co-deploys so <span class="mono">/api/enrich</span> keeps working.</li>
-    <li class="plan"><b>De-risk with a preview.</b> Push a Cloudflare Pages <b>preview</b> (non-production branch) deploy and validate it before flipping production — the live domain is the only current target.</li>
-  </ul>
+  <p style="font-size:9.5pt;color:var(--muted);margin-bottom:8px">The migration this section used to track — dual-write to <span class="mono">web/public/data/state</span>, the <span class="mono">_redirects</span> SPA fallback, the CI build step, and header parity — has shipped and is confirmed live (see §§04–06). What is left is opportunistic ops polish, non-blocking to the north-star loop.</p>
   <table class="cf">
     <thead><tr><th style="width:19%">Concern</th><th style="width:29%">Current state</th><th style="width:26%">Gap</th><th style="width:26%">Fix</th></tr></thead>
     <tbody>
       <tr>
-        <td><b>Live data</b></td>
-        <td>Pipeline writes <span class="mono">site/data</span> + commits <span class="mono">data/state</span></td>
-        <td class="gap"><span class="mono">web/public/data/state</span> is a stale committed copy the pipeline never refreshes</td>
-        <td class="fix">Dual-write fresh payloads to <span class="mono">web/public/data/state</span></td>
+        <td><b>Copy-card PNG</b></td>
+        <td>urlscan screenshot renders on-card with a click-to-expand lightbox</td>
+        <td class="gap">Cross-origin urlscan image taints the copy canvas — the screenshot isn't composited into the PNG</td>
+        <td class="fix">Same-origin <span class="mono">/api/shot</span> proxy — not built</td>
       </tr>
       <tr>
-        <td><b>Deep links</b></td>
-        <td><span class="mono">web/</span> uses path routing; <span class="mono">site/</span> uses hash routing</td>
-        <td class="gap">No <span class="mono">web/public/_redirects</span> → hard-refresh on a deep path 404s</td>
-        <td class="fix">Add <span class="mono">/* /index.html 200</span>, excluding <span class="mono">/api/*</span> &amp; <span class="mono">/data/*</span></td>
+        <td><b>Preview env</b></td>
+        <td>Production Cloudflare Pages scope has all enrich keys set</td>
+        <td class="gap">Preview scope is still GreyNoise-only</td>
+        <td class="fix">Add the remaining enrich keys to the Preview scope</td>
       </tr>
       <tr>
-        <td><b>Build</b></td>
-        <td>Workflow deploys static <span class="mono">site/</span> as-is</td>
-        <td class="gap">No Node / <span class="mono">npm ci</span> / <span class="mono">vite build</span> step; <span class="mono">web/dist</span> not produced in CI</td>
-        <td class="fix">Add Node + <span class="mono">npm ci</span> + <span class="mono">vite build</span>; deploy <span class="mono">web/dist</span></td>
+        <td><b>Deploy scripts</b></td>
+        <td><span class="mono">tools/deploy-*.ps1</span> drive manual deploy/rollback</td>
+        <td class="gap">A PowerShell 5.1 quirk can report false success</td>
+        <td class="fix">Fix the false-success path — not yet done</td>
       </tr>
       <tr>
-        <td><b>Enrich fn</b></td>
-        <td><span class="mono">functions/</span> at repo root co-deploys with <span class="mono">site</span></td>
-        <td class="gap">Co-deploy unverified when the asset dir becomes <span class="mono">web/dist</span></td>
-        <td class="fix">Confirm <span class="mono">/api/enrich</span> after switching the deploy dir</td>
+        <td><b>Evidence-line visual</b></td>
+        <td>The ledger lists source, class, and recency as text</td>
+        <td class="gap">No per-source metric or icon</td>
+        <td class="fix">Visual pass — not built</td>
       </tr>
       <tr>
-        <td><b>Header parity</b></td>
-        <td><span class="mono">site/_headers</span> adds frame-ancestors, upgrade-insecure-requests, Permissions-Policy, COOP, X-Frame-Options</td>
-        <td class="gap"><span class="mono">web/public/_headers</span> omits all of those</td>
-        <td class="fix">Bring <span class="mono">web/public/_headers</span> to parity first</td>
-      </tr>
-      <tr>
-        <td><b>Rollout</b></td>
-        <td>Production is the only deploy target</td>
-        <td class="gap">Flipping blind risks the live domain</td>
-        <td class="fix">Preview (non-prod branch) deploy &amp; validate before flip</td>
+        <td><b>Privacy contact</b></td>
+        <td>The privacy page ships a contact email</td>
+        <td class="gap">Address needs a currency check</td>
+        <td class="fix">Owner action — verify it's current</td>
       </tr>
     </tbody>
   </table>
+  <p class="note">Deploy hygiene reminder, unchanged: the cron commits <span class="mono">data: refresh snapshots</span> constantly, so a plain <span class="mono">git push</span> is non-fast-forward — always <span class="mono">git pull --rebase origin main</span> first.</p>
 </div>
 
 <footer>

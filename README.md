@@ -67,7 +67,7 @@ capabilities now live in `web/`, `shared/`, and `lib/`.
 | **Compare-IP / impossible-travel** — great-circle miles + implied mph + an honest plausibility read + a map arc, from real coordinates only | `shared/card/travel.ts`, `shared/verdict-cards/CompareIp.tsx` |
 | Copy-out — clean factual **"Copy card"** (PNG) + **"Copy text"**, no branding, no disclaimer prose | `shared/verdict-cards/copy.ts`, `shared/card/drawVerdict.ts` |
 | Browser extension — the toolbar popup renders the **same full escalation card** (manifest v0.2.0), sharing detection + the enrich pipeline | `extension/` |
-| **PowerShell analyzer** (`/analyzer`) — deterministic, client-side decode ladder (`-enc` Base64, gzip/raw-DEFLATE inflate, variable substitution, `IEX`/`&`/`.Invoke()` recursion) + typed, deduped IOC extraction with one-click reputation pivots + a MITRE ATT&CK technique tally + a specificity-gated malicious/suspicious characterization. Never executes the input | `shared/analyzer/`, `web/src/routes/PowerShellAnalyzer.tsx` |
+| **PowerShell analyzer** (`/analyzer`) — deterministic, client-side decode ladder (`-enc` Base64, gzip/raw-DEFLATE inflate, variable substitution, `IEX`/`&`-sink recursion) + typed, deduped IOC extraction with one-click reputation pivots + a MITRE ATT&CK technique tally + a specificity-gated malicious/suspicious characterization. Never executes the input | `shared/analyzer/`, `web/src/routes/PowerShellAnalyzer.tsx` |
 
 | Authoritative CVE verdict — CISA KEV × NVD CVSS × FIRST EPSS | `web/src/routes/lookupModel.ts` (`cveToVerdict`), `shared/verdict/doctrine.ts` |
 | Honest "not in corpus" for a CVE outside the corpus, plus type-aware pivots | `web/src/components/lookup/useLookup.ts`, `web/src/components/lookup/LookupStates.tsx` |
@@ -225,6 +225,7 @@ design/         brand book, approved mockups, visual reference
 | Document | What it holds |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The system end to end: tiers, data contracts, schema gate, failure isolation, what static costs |
+| [docs/REPO-MAP.md](docs/REPO-MAP.md) | Where things live: a file/directory → responsibility index for `web/src` and `shared/` (fast orientation) |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Runbook — local runs, cron, reading health, collector failures, deploy, rollback, service-worker versioning |
 | [docs/DATA-SOURCES.md](docs/DATA-SOURCES.md) | Every source: what it gives, its terms, why it is redistributed or link-only, cadence, governing finding |
 | [docs/ANALYST-GUIDE.md](docs/ANALYST-GUIDE.md) | How to use the tool, what a verdict does and does not mean, and the tool's limits |

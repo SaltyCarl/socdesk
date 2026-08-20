@@ -273,7 +273,8 @@ function deriveCharacterization(signals: Signal[]): Characterization | null {
   return null
 }
 
-// Return the literal string an IEX/&/.Invoke() executes, if it resolved to one.
+// Return the literal string an IEX/& sink executes, if it resolved to one.
+// (.Invoke() as a recursion sink is not handled yet — see the analyzer roadmap.)
 function iexStringTarget(text: string): string | null {
   const toks = tokenize(text)
   for (let i = 0; i < toks.length; i++) {
