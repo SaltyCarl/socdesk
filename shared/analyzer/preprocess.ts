@@ -4,7 +4,12 @@ import { deobfuscateCaret } from './cmdlex'
 // PowerShell accepts unambiguous prefixes of parameter names; match the ones
 // that carry evasion meaning. Each entry: canonical flag → { regex, technique }.
 const FLAG_RULES: { flag: string; re: RegExp; techniqueIds: string[] }[] = [
-  { flag: '-enc', re: /(?:^|\s)-e(?:c|nc|ncodedcommand)?\s+([A-Za-z0-9+/=]{8,})/i, techniqueIds: ['T1027', 'T1140'] },
+  // Capture group tolerates interior whitespace (spaces/newlines) so a
+  // line-wrapped -enc blob pasted out of an EDR/Sysmon log — routinely
+  // wrapped at console width — is captured whole; fold.ts strips it before
+  // decoding. A bare `[A-Za-z0-9+/=]{8,}` here would silently truncate the
+  // capture at the first wrap point.
+  { flag: '-enc', re: /(?:^|\s)-e(?:c|nc|ncodedcommand)?\s+([A-Za-z0-9+/=\s]{8,})/i, techniqueIds: ['T1027', 'T1140'] },
   { flag: '-nop', re: /(?:^|\s)-nop(?:rofile)?\b/i, techniqueIds: ['T1059.001'] },
   { flag: '-w', re: /(?:^|\s)-w(?:indowstyle)?\s+(?:hidden|h|1|minimized)\b/i, techniqueIds: ['T1564.003'] },
   { flag: '-ep', re: /(?:^|\s)-e(?:p|xec(?:utionpolicy)?)\s+(?:bypass|unrestricted)\b/i, techniqueIds: ['T1059.001'] },
