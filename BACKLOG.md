@@ -161,10 +161,21 @@ Candidate engines (deterministic unless noted), by value:
 
 The command-line deobfuscator (candidate #1) shipped and is the live `/analyzer`
 + cockpit. Next, in order:
-- **★ Kill-chain / "EXPLAINED" narrative** (`shared/analyzer` §7 `ActionBullet` /
-  `bullets.ts`, currently `bullets:[]`) — the numbered, execution-ordered
-  plain-English "what did it do." Owner-endorsed as THE next analyzer headline
-  ("what did it do IS the product").
+- **★ Kill-chain / "EXPLAINED" narrative** — ✅ **SHIPPED LIVE 2026-08-19**
+  (`shared/analyzer/bullets.ts` — 28 execution-ordered `ActionRule`s → `ActionBullet[]`,
+  rendered by `web/src/components/analyzer/ActionBullets.tsx` between the technique tally
+  and the decode ladder + a copyText "What it did" section). Verb-first plain-English
+  actions; three-tier honesty (resolved ● / inferred ~ / opaque ○ quarantined); NEVER
+  invents intent (machine-guarded banned-word sweep); per-behavior IOC attribution (no
+  cross-behavior misattribution). Built via 5-task SDD + whole-branch review (4 findings
+  fixed + re-reviewed APPROVED) + a SOC output-quality pass on real samples (3 must-fixes).
+  375 tests green.
+- **Analyzer follow-ups** (from the kill-chain SOC output-quality pass): the `clickfix`
+  "paste-and-run" label leaks into the top-line characterization on the generic
+  hidden+nop+fetch+IEX branch when NO decoy text is present (the bullets themselves
+  correctly stay silent — it's the `techniques.ts` signal label) → qualify/genericize that
+  branch's label. (The `mshta→wscript` decode-layer mislabel is the `EMBEDDED_LAUNCHER_RE`
+  `WScript.Shell` false-match already listed under Multi-interpreter follow-ups.)
 - **Multi-interpreter follow-ups** (deferred from the 2026-08-19 increment): deep
   WSH deobfuscation (VBScript/JScript concat-fold + `Execute`/`eval` recursion);
   cmd env-var obfuscation (`%COMSPEC:~x,y%`, `set`/`%a%` reassembly); tighten the
