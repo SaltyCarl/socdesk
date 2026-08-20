@@ -113,14 +113,34 @@ function reverseShellHostPort(ctx: BulletContext): { host: HostRef; port: string
   return { host: hostRefFromRaw(ctx, raw), port: m[2] }
 }
 
-// beacon-loop: a fetch/URL resolvable inside the loop's own text window —
+// beacon-loop: a fetch/URL resolvable inside the loop's own BRACED BODY —
 // never the flat first IOC (which might be an unrelated behavior's host,
-// e.g. a reverse-shell target that also happens to sit inside the loop).
+// e.g. a reverse-shell target that also happens to sit inside the loop), and
+// never a naive forward window either: a window can cross the loop's closing
+// brace and pick up an unrelated construct's host that merely sits nearby in
+// the corpus (the same cross-behavior misattribution class as F1, caught on
+// scoped re-review). Find the `{` that opens the loop body after `while`,
+// balanced-scan to its matching `}`, and only accept a host found strictly
+// within that body. An unbalanced/absent brace pair degrades honestly rather
+// than guessing a window.
 function beaconLoopHost(ctx: BulletContext): HostRef | null {
   const whileIdx = ctx.lower.indexOf('while')
   if (whileIdx === -1) return null
-  const window = ctx.text.slice(whileIdx, whileIdx + 400)
-  const m = window.match(/https?:\/\/[^\s'"()<>]+/i)
+  const openBrace = ctx.text.indexOf('{', whileIdx)
+  if (openBrace === -1) return null
+  let depth = 0
+  let closeBrace = -1
+  for (let i = openBrace; i < ctx.text.length; i++) {
+    const c = ctx.text[i]
+    if (c === '{') depth++
+    else if (c === '}') {
+      depth--
+      if (depth === 0) { closeBrace = i; break }
+    }
+  }
+  if (closeBrace === -1) return null // unbalanced — never guess past it
+  const body = ctx.text.slice(openBrace, closeBrace + 1)
+  const m = body.match(/https?:\/\/[^\s'"()<>]+/i)
   if (!m) return null
   return hostRefFromRaw(ctx, m[0])
 }

