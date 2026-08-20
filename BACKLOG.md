@@ -94,9 +94,11 @@ in-place IOC pivot; Gallery → internal-only (dropped from the public nav); and
 CVE / Threat-Intel feed as the second pillar (feed, KEV/EPSS triage — already
 built, needs dogfood-driven sharpening rather than new construction). Review
 adds: CVE patch/fixed-version + an "overdue" chip when action-due < today; wire
-`NVD_API_KEY` into `collectors/nvd.py`. Adjacent enrich/globe candidates: OTX
-AlienVault as an enrich source; AbuseIPDB blacklist → ambient reported-IP globe
-layer. *(The impossible-travel tool — two IPs → great-circle distance/velocity →
+`NVD_API_KEY` into `collectors/nvd.py`. Adjacent enrich/globe candidates:
+~~OTX AlienVault as an enrich source~~ **(shipped 2026-08-20 — 8th enrich
+source, `kind:context` community pulse attribution, `OTX_API_KEY`; OTX throttles
+CF egress so it carries a dedicated 9s timeout, same pattern as RDAP's 7s)**;
+AbuseIPDB blacklist → ambient reported-IP globe layer. *(The impossible-travel tool — two IPs → great-circle distance/velocity →
 plausibility read — **shipped 2026-08-18 as Compare-IP**; the globe-arc render is
 landing now, see Polish & ops.)*
 
