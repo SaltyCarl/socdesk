@@ -11,7 +11,7 @@
 // static Tailwind strings (CSP: no inline styles).
 
 import type { Band, SourceClass, SourceVerdict, VerdictData, VerdictSource } from '../verdict'
-import { CAVEAT, classTag, coverageState, isStale, predicate } from '../verdict'
+import { CAVEAT, classTag, coverageState, isStale } from '../verdict'
 import { cx } from '../lib/cx'
 import { Chip, MicroLabel, type ChipVariant } from '../ui'
 import { gaugeCaption, gaugeSegments } from '../card/model'
@@ -191,7 +191,10 @@ export function SourceLedger({ data, now }: { data: VerdictData; now?: Date }) {
             <ClassChip source={s} />
           </span>
           <span className="flex min-w-0 flex-1 flex-col gap-0.5 font-mono text-micro text-muted">
-            <span className="min-w-0">{predicate(s)}</span>
+            {/* Bare finding, no "reports"/"classifies" verb — the name cell above
+                already attributes it, so the verb only repeats the source. The
+                copy-TEXT keeps the verb (no columns there to do the attributing). */}
+            <span className="min-w-0">{s.finding || '— no finding reported'}</span>
             {s.recency && <RecencyTag source={s} now={now} />}
           </span>
         </li>
@@ -203,7 +206,10 @@ export function SourceLedger({ data, now }: { data: VerdictData; now?: Date }) {
 /** Context rows (geo/ASN) + named not-consulted sources. Never in the tally —
  *  silence about an unconsulted source would lie by omission. */
 export function ContextList({ data }: { data: VerdictData }) {
-  if (!data.context.length && !data.errors.length) return null
+  // OTX is surfaced as the assessment attention chip (EscalationCard.otxSignal),
+  // so it is dropped here — the same pulse count must not appear twice.
+  const rows = data.context.filter((c) => !/otx|alienvault/i.test(c.name))
+  if (!rows.length && !data.errors.length) return null
   // Same fixed left-cell width as the ledger (item 2): a dot-width spacer + name
   // in a 168px cell (context carries no source-class chip), so every context /
   // not-consulted finding aligns with the evidence findings above.
@@ -211,7 +217,7 @@ export function ContextList({ data }: { data: VerdictData }) {
     <div className="flex flex-col gap-2">
       <MicroLabel tone="muted">Context — not a verdict</MicroLabel>
       <ul className="overflow-hidden rounded-md border border-line">
-        {data.context.map((c) => (
+        {rows.map((c) => (
           <li key={c.name} className="flex items-start gap-3 border-b border-line px-3 py-2 last:border-0">
             <span className="flex w-[168px] shrink-0 items-center gap-2">
               <span aria-hidden="true" className="inline-block size-1.5 shrink-0" />
