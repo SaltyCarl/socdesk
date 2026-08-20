@@ -1,5 +1,6 @@
 import { Chip } from '@socdesk/shared/ui'
 import type { AnalysisResult } from '@socdesk/shared/analyzer'
+import { ActionBullets } from './ActionBullets'
 import { DecodeLadder } from './DecodeLadder'
 import { IocTable } from './IocTable'
 import { TechniqueTally } from './TechniqueTally'
@@ -29,6 +30,7 @@ export function AnalyzerResult({
         </div>
       )}
       <TechniqueTally signals={result.signals} characterization={result.characterization} />
+      <ActionBullets bullets={result.bullets} />
       <DecodeLadder layers={result.layers} />
       <IocTable iocs={result.iocs} onLookup={onLookup} />
     </div>
