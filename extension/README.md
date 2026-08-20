@@ -28,13 +28,13 @@ Inline page annotation is deliberately deferred to v2.
    full SOCDesk report: decode ladder, technique tally, kill-chain bullets,
    and any extracted IOCs — all computed **in the browser**. The script text
    itself is never sent anywhere; only an IOC you subsequently click is
-   enriched via `/api/enrich`, exactly like the popup flow below. Opening a
+   enriched via `/api/enrich`, exactly like the popup flow below. Opening the
    side panel from a context-menu click requires **Chrome 116+**
-   (`chrome.sidePanel` API). On an older Chrome, or a browser without side
-   panel support (e.g. some Edge builds), it falls back to the toolbar popup
-   for a single indicator, or the full SOCDesk report tab for a longer
-   script — the same local-first analysis, just rendered on the site instead
-   of in-panel.
+   (`chrome.sidePanel.open`); on an older Chrome, or a browser without side
+   panel support, it falls back straight to the full SOCDesk report tab —
+   the same local-first analysis, just rendered on the site instead of
+   in-panel. (The toolbar popup has its own, later fallback gate — see
+   below.)
 
 3. **Toolbar popup** — paste an indicator, press Enter. It classifies the input,
    calls `GET https://<origin>/api/enrich?type=<t>&q=<indicator>`, and shows the
