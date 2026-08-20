@@ -55,6 +55,11 @@ const TYPE_LABEL: Record<Exclude<IndicatorType, ''>, string> = {
 /** The one-shot lookup handed over by the background service worker. */
 interface Pending {
   q?: string
+  /** Present on every handoff since the side-panel analyzer shipped (Task 3
+   *  routes `analyze` to the panel instead) — the popup only ever receives a
+   *  `lookup` handoff, so this is read for shape-compatibility only and does
+   *  not change behaviour here. */
+  mode?: 'lookup'
   /** Epoch ms the context-menu click happened; used to ignore a stale handoff
    *  left behind when chrome.action.openPopup was unavailable and the click
    *  fell back to a report tab instead of opening this popup. */

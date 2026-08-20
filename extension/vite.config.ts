@@ -47,11 +47,12 @@ export default defineConfig({
     // an external file so the default MV3 page policy holds cleanly.
     assetsInlineLimit: 0,
     rollupOptions: {
-      // MULTI-ENTRY: the two extension pages (loaded as HTML) + the background
+      // MULTI-ENTRY: the extension pages (loaded as HTML) + the background
       // service worker (a bare JS entry, referenced by manifest.json).
       input: {
         popup: join(here, 'popup.html'),
         options: join(here, 'options.html'),
+        panel: join(here, 'panel.html'),
         background: join(here, 'src', 'background.ts'),
       },
       output: {
