@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SOCDesk — Indicator Lookup",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Right-click or paste an IP, domain, URL or file hash to get a live multi-source reputation verdict from your SOCDesk instance.",
   "icons": {
     "16": "icons/icon16.png",

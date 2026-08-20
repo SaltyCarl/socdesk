@@ -21,7 +21,22 @@ Inline page annotation is deliberately deferred to v2.
    If it's a CVE, an email, or anything else, it opens the full SOCDesk report
    in a new tab (`https://<origin>/#q=<indicator>`).
 
-2. **Toolbar popup** — paste an indicator, press Enter. It classifies the input,
+2. **Analyze a script → the side panel.** Highlight a suspicious command in a
+   browser console (DevTools, a paste site, a ticket) → right-click →
+   **Check in SOCDesk**. If it looks like a script rather than a bare
+   indicator, the side panel opens and runs the same local analyzer as the
+   full SOCDesk report: decode ladder, technique tally, kill-chain bullets,
+   and any extracted IOCs — all computed **in the browser**. The script text
+   itself is never sent anywhere; only an IOC you subsequently click is
+   enriched via `/api/enrich`, exactly like the popup flow below. Opening a
+   side panel from a context-menu click requires **Chrome 116+**
+   (`chrome.sidePanel` API). On an older Chrome, or a browser without side
+   panel support (e.g. some Edge builds), it falls back to the toolbar popup
+   for a single indicator, or the full SOCDesk report tab for a longer
+   script — the same local-first analysis, just rendered on the site instead
+   of in-panel.
+
+3. **Toolbar popup** — paste an indicator, press Enter. It classifies the input,
    calls `GET https://<origin>/api/enrich?type=<t>&q=<indicator>`, and shows the
    **source-consensus tally** — `N / M flagged` (status-colored by the ratio)
    and the headline "N of M consulted sources flagged this as adverse" — then one
@@ -36,7 +51,7 @@ Inline page annotation is deliberately deferred to v2.
    the count and each source's attribution. An **Open full report ↗** button
    jumps to the full SOCDesk report for the same indicator.
 
-3. **Options** — set the SOCDesk origin (default `https://socdesk.io`), stored
+4. **Options** — set the SOCDesk origin (default `https://socdesk.io`), stored
    in `chrome.storage.sync`. Every fetch and every link uses this origin, so a
    self-hosted instance can be targeted without editing code.
 
@@ -108,6 +123,7 @@ extension/
 |---|---|
 | `contextMenus` | Adds the "Check in SOCDesk" item and receives the selected text. This is how the extension reads a selection **without** a content script. |
 | `storage` | Persists the configured origin (`sync`) and the one-shot pending lookup handed from the context menu to the popup (`session`, trusted-contexts only). |
+| `sidePanel` | Opens the analyzer side panel for a right-clicked script selection (Chrome 116+). The panel runs the analyzer locally; it does not by itself grant any additional page access. |
 | `host_permissions: https://socdesk.io/*` | The enrich fetch target. Required so the popup can `fetch()` the verdict cross-origin. |
 | `host_permissions: https://socdesk.pages.dev/*` | The Cloudflare Pages deploy alias (used for testing / while the custom domain propagates). Two specific origins — no wildcards. |
 
