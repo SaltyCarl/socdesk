@@ -185,14 +185,17 @@ import { validateReport, CATEGORIES } from '../validate.mjs'
 const base = { ioc_type: 'ipv4', ioc_value: '45.9.148.20', category: 'scanner', evidence: 'hit my honeypot on 22/tcp' }
 
 describe('validateReport', () => {
-  it('accepts a well-formed report and normalizes the ioc', () => {
-    const r = validateReport({ ...base, ioc_value: '45[.]9[.]148[.]20', comment: 'x' })
+  it('accepts a well-formed report (ioc arrives already-clean from the card)', () => {
+    const r = validateReport({ ...base, comment: 'x' })
     expect(r.ok).toBe(true)
-    expect(r.clean.ioc_value).toBe('45.9.148.20') // refanged/normalized by enrich validate
+    expect(r.clean.ioc_value).toBe('45.9.148.20')
     expect(r.clean.category).toBe('scanner')
   })
   it('rejects an ioc that does not match its type', () => {
     expect(validateReport({ ...base, ioc_value: 'not-an-ip' }).ok).toBe(false)
+  })
+  it('rejects a defanged ioc — validate does not refang; the card supplies clean values', () => {
+    expect(validateReport({ ...base, ioc_value: '45[.]9[.]148[.]20' }).ok).toBe(false)
   })
   it('rejects a private/reserved ip (enrich validate)', () => {
     expect(validateReport({ ...base, ioc_value: '10.0.0.1' }).ok).toBe(false)
