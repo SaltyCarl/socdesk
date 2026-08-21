@@ -155,7 +155,10 @@ scanner, spam, exploited-host, other`. Rendered as friendly labels client-side.
 - **Report form** (a small modal/inline panel): the IOC (prefilled, read-only),
   a **category** select, a **required evidence** field, an optional comment, the
   invisible Turnstile widget, submit → "Queued for review — thanks." Honest
-  states for 401/403/429/400.
+  states for 401/403/429/400. The evidence field carries a quiet **"don't paste
+  sensitive/internal data"** hint (security review — analysts may paste logs with
+  internal IPs/hostnames; the field is owner-moderated and never public
+  pre-approval, but the hint is the cheap control).
 - **`/reports` (nav:false)** — the signed-in user's submissions with status
   chips (`queued` for now; `approved`/`rejected` become meaningful in Phase 2).
   This is the "reporters need to see their status" mitigation both reviewers
@@ -216,8 +219,14 @@ ends when a `queued` report exists in D1 and its author can see it.
 
 - **Owner one-time setup** (documented, not automatable): a GitHub OAuth App
   (client id/secret), a D1 database + Pages binding, Turnstile site/secret keys,
-  and the `SESSION_SECRET`/`OWNER_GITHUB_LOGIN` Pages secrets. The spec's
+  and the `SESSION_SECRET`/`OWNER_GITHUB_ID` Pages secrets. The spec's
   implementation is inert until these exist — same posture as the enrich API keys.
+- **Admin identity is gated on the numeric `OWNER_GITHUB_ID`, NEVER the login
+  string** (security review, 2026-08-21). GitHub logins are mutable and
+  reclaimable — gating `/admin` (Phase 2) on a handle means a freed/renamed
+  handle could inherit owner access; the numeric id is immutable. The session
+  cookie already carries `github_id`, so the owner check is `github_id ===
+  Number(env.OWNER_GITHUB_ID)`.
 - **D1 + Pages Functions binding** must be confirmed working on a preview deploy
   before the write path is trusted (a bad binding fails only at runtime).
 - **Session-secret rotation** invalidates all cookies (acceptable — users re-auth).
