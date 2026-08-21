@@ -1,6 +1,6 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-21 (session 8 — escalation-card redesign + OTX/AbuseIPDB/GreyNoise enrich LIVE, analyzer-in-extension MERGED, IOC-reporting Phase 0+1 MERGED + DEPLOYED live, interactive dogfood pending) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-21 (session 8 — escalation-card redesign + OTX/AbuseIPDB/GreyNoise enrich LIVE, analyzer-in-extension MERGED, IOC-reporting Phase 0+1 MERGED + DEPLOYED live, interactive dogfood PASSED — acceptance gate met; next = reporting UX polish) · **Read §0 first.**
 
 ---
 
@@ -94,6 +94,21 @@
   gate — GitHub sign-in → submit report → lands `queued` in D1 → shows on
   `/reports`; needs owner GitHub login, not yet run. (Supersedes §-block Open/next
   "merge decision" + "owner Cloudflare setup" — both now done.)
+
+### 5. Interactive dogfood PASSED — reporting acceptance gate met; next = UX polish (this session; no code commits, brainstorming only)
+- **Interactive dogfood PASSED (acceptance gate met).** Owner signed in via GitHub
+  on socdesk.io and submitted a test report; the report form confirmed a successful
+  submission. IOC-reporting Phase 0+1 is now fully live and accepted end-to-end
+  (sign in → submit → queued). **Supersedes §4's "interactive dogfood is the only
+  remaining acceptance gate"** Open/next — that gate is now met.
+- **UX gap identified → next phase = reporting UX polish.** Write path is functional
+  but under-discoverable by design of the Phase 0+1 spec: the "Report this indicator"
+  affordance is mounted ONLY on the `/lookup` resolved card (`web/src/routes/Lookup.tsx`
+  + `ReportButton.tsx`), not the home cockpit, and styled as a faint micro text-link;
+  sign-in has no top-nav entry (`/reports` is `nav:false`, per §3). Next work: a
+  design-system-driven UX pass — visible account/sign-in entry in the top nav, a
+  discoverable report affordance in the card action row, and a polished report form.
+  Brainstorming started this session (no code commits yet).
 
 **Verified:** escalation-card + enrich and analyzer-in-extension are on `main`/live
 — all cited commits are ancestors of `origin/main` `043601a` (confirmed via

@@ -230,11 +230,23 @@ check (logon types, source host, account).
   YES, employment-IP gate LIFTED; generates real telemetry to report scanners
   (AbuseIPDB/GreyNoise) + submit samples (MalwareBazaar). (2) open-source the
   analyzer engine as a standalone lib — later / well down the line.
-- **★ IOC reporting (crowdsourced abuse reporting) — HIGH PRIO, TO SCOPE.**
-  Report an IP/domain/etc. AbuseIPDB/VT-style. Dangerous under SOCDesk's public,
-  no-account model (false reports, poisoning, defamation liability). Account-gating
-  is one candidate solution but reverses the "zero-account" differentiator. Needs a
-  proper design doc — see `docs/superpowers/specs/` (in progress 2026-08-20).
+- **★ IOC reporting (crowdsourced abuse reporting) — Phase 0+1 SHIPPED + LIVE ✅ (2026-08-21).**
+  Report an IP/domain/etc., AbuseIPDB/VT-style. Resolved the public-model risk with the
+  **narrow contributor-identity account model**: the read/lookup path stays 100%
+  no-account; only the *report/write path* is auth-gated (GitHub OAuth + Turnstile +
+  per-account daily cap + owner moderation before any publish). Live + dogfooded; see
+  `docs/superpowers/specs/2026-08-20-ioc-reporting-phase01-design.md` (Phases 2–6:
+  moderation → publish community verdicts → ISP/ASN leaderboard → trends → upstream push).
+  **Next:** reporting UX polish (visible contributor sign-in entry, discoverable report
+  affordance on the card, polished form) — UX-Team-reviewed, in progress 2026-08-21.
+- **Deferred / future ambition — broader user account (doctrine change, NOT now).**
+  The account is deliberately a **narrow contributor identity** (report → my-reports →
+  later reputation / corroboration-vote / contributor-profile) and **never touches the
+  read loop**. A broader "user account" unlocking read-side conveniences — **watchlists /
+  saved indicators, change-alerts & subscriptions, higher enrich rate-limit tiers** — is a
+  genuine future direction but a **reversal of the no-account-read north-star doctrine**.
+  Decide it deliberately as its own spec if/when pursued; do not back into it via a UX
+  pass. (Owner-noted 2026-08-21.)
 
 ## Parked (fluff until further notice)
 - Wave-2 collectors (C2IntelFeeds, APTnotes) — *(URLhaus/ThreatFox/PhishTank/Feodo
