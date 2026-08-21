@@ -337,10 +337,16 @@ no-account either way.
    reclaimable) is **not needed for Phase 0+1** — only the Phase 2 moderation
    console (`/admin`) reads it. Set it when Phase 2 lands.
 
-   Plus one **build-time** public variable for the `web/` build:
-   `VITE_TURNSTILE_SITEKEY` — the Turnstile *site* key from step 3, public and
-   embedded in the bundle. The GitHub client id is never needed client-side,
-   since `/api/auth/github/start` is a server Function.
+   `VITE_TURNSTILE_SITEKEY` is different — a **build-time** value Vite inlines
+   into the bundle (`import.meta.env`), and the production build runs in **GitHub
+   Actions**, not Cloudflare (this is a direct-upload Pages project — see
+   `collect-and-deploy.yml`). So it does **not** go in the Cloudflare dashboard;
+   a value set there is inert. Set it as a GitHub **Actions variable** (public
+   site key → a variable, not a secret): repo → Settings → Secrets and variables
+   → **Actions** → **Variables** → New variable → `VITE_TURNSTILE_SITEKEY` = the
+   Turnstile *site* key from step 3. The workflow's Vite build step passes it
+   through via `env:`. (The GitHub client id is never needed client-side, since
+   `/api/auth/github/start` is a server Function.)
 5. **Apply the D1 migration** — SKIP if you already ran `0001_init.sql` in the
    dashboard Console in step 2. With wrangler:
    ```

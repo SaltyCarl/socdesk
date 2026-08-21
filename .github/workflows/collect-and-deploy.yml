@@ -66,6 +66,15 @@ jobs:
         # web/public/data/state is fresh; Vite copies it into web/dist/data/state,
         # along with web/public/_headers + _redirects. The strict CSP + the SPA
         # deep-link fallback ship with the build output.
+        # VITE_TURNSTILE_SITEKEY is inlined at build time (import.meta.env) into
+        # the report form's Turnstile widget. This is a PUBLIC site key, so it
+        # lives as an Actions *variable* (Settings -> Secrets and variables ->
+        # Actions -> Variables), not a secret and NOT a Cloudflare Pages var
+        # (this is a direct-upload project — Cloudflare never runs the build).
+        # Empty is harmless on builds predating the reporting setup: the widget
+        # simply doesn't render.
+        env:
+          VITE_TURNSTILE_SITEKEY: ${{ vars.VITE_TURNSTILE_SITEKEY }}
         run: |
           npm --prefix web ci
           npm --prefix web run build
