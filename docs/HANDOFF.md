@@ -1,10 +1,10 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-21 (session 8 — escalation-card redesign + OTX/AbuseIPDB/GreyNoise enrich LIVE, analyzer-in-extension MERGED, IOC-reporting Phase 0+1 built on branch [unmerged]) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-21 (session 8 — escalation-card redesign + OTX/AbuseIPDB/GreyNoise enrich LIVE, analyzer-in-extension MERGED, IOC-reporting Phase 0+1 MERGED + DEPLOYED live, interactive dogfood pending) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-21 (session 8 — escalation-card + enrich sources LIVE, analyzer-in-extension MERGED, IOC-reporting Phase 0+1 built [branch, unmerged])
+## 0. LATEST — 2026-08-21 (session 8 — escalation-card + enrich sources LIVE, analyzer-in-extension MERGED, IOC-reporting Phase 0+1 MERGED + DEPLOYED live)
 
 > Newest block. Two units shipped to `main`/live since session 7 (escalation-card
 > redesign + three enrich-source changes; the analyzer lifted into the browser
@@ -69,6 +69,31 @@
   `docs/superpowers/plans/2026-08-21-ioc-reporting-phase01.md`;
   `docs/superpowers/research/2026-08-20-reporting-{storage,auth,integration}.md`;
   `docs/competitive-landscape.md`.
+
+### 4. IOC-reporting Phase 0+1 — MERGED to `main` + DEPLOYED live (supersedes §3's branch/unmerged status)
+- **Merged + deployed** (2026-08-21). `feat/ioc-reporting-p01` rebased onto
+  `origin/main`, fast-forwarded, pushed — `main` tip `e72760d` (= `origin/main`,
+  git-confirmed). Deploy run **32473705287** (collect-and-deploy,
+  `workflow_dispatch`) green per invoker: pytest → collectors → Vite build →
+  Cloudflare Pages direct-upload.
+- **Deploy fix** (`704c51b`, on `main`): `VITE_TURNSTILE_SITEKEY` is a build-time
+  Vite inline and the prod build runs in **GitHub Actions** (direct-upload), NOT on
+  Cloudflare — so it must be a GitHub **Actions variable** fed into the workflow's
+  Vite step (added), not a Cloudflare Pages var. `docs/OPERATIONS.md` corrected.
+- **From-here live verification** (per invoker; no account needed): socdesk.io →
+  200; `GET /api/auth/github/start` → 302 to github.com/login/oauth/authorize with
+  `client_id=Ov23li3sw0imGDGok8Gx`, exact `redirect_uri`
+  `/api/auth/github/callback`, empty scope, signed HMAC `state` (⇒ `GITHUB_CLIENT_ID`
+  + `SESSION_SECRET` live); `POST /api/report` + `GET /api/report/mine` with no
+  session → 401 (Functions deployed, auth guard live); deployed bundle
+  `index-CJ63pfQI.js` has the Turnstile sitekey inlined (`0x4AAAAAAE…`) ⇒ build-var
+  chain confirmed end-to-end.
+- Owner created a **GitHub App** (`Ov23li…`-format client_id), not a classic OAuth
+  App — works identically with the standard OAuth web flow.
+- **Reporting Open / next:** interactive dogfood is the only remaining acceptance
+  gate — GitHub sign-in → submit report → lands `queued` in D1 → shows on
+  `/reports`; needs owner GitHub login, not yet run. (Supersedes §-block Open/next
+  "merge decision" + "owner Cloudflare setup" — both now done.)
 
 **Verified:** escalation-card + enrich and analyzer-in-extension are on `main`/live
 — all cited commits are ancestors of `origin/main` `043601a` (confirmed via
