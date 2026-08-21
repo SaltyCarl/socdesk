@@ -38,21 +38,25 @@ export function ReportForm({
   const [comment, setComment] = useState('')
   const [state, setState] = useState<'idle' | 'sending' | 'done' | string>('idle')
   const tokenRef = useRef<string>('')
+  const widgetIdRef = useRef<string>('')
   const widgetRef = useRef<HTMLDivElement>(null)
 
   // Load Turnstile + render the (invisible/managed) widget once signed in.
   useEffect(() => {
     if (session.status !== 'in' || !widgetRef.current) return
-    const s = document.createElement('script')
-    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
-    s.async = true
-    document.head.appendChild(s)
+    // A retry (open/cancel/reopen) must not stack a second <script> tag.
+    if (!document.querySelector('script[src^="https://challenges.cloudflare.com/turnstile"]')) {
+      const s = document.createElement('script')
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+      s.async = true
+      document.head.appendChild(s)
+    }
     const id = setInterval(() => {
       // @ts-expect-error injected global
       if (window.turnstile && widgetRef.current && !widgetRef.current.dataset.rendered) {
         widgetRef.current.dataset.rendered = '1'
         // @ts-expect-error injected global
-        window.turnstile.render(widgetRef.current, {
+        widgetIdRef.current = window.turnstile.render(widgetRef.current, {
           sitekey: import.meta.env.VITE_TURNSTILE_SITEKEY,
           callback: (t: string) => {
             tokenRef.current = t
@@ -83,6 +87,11 @@ export function ReportForm({
     else {
       const b = await r.json().catch(() => ({}))
       setState(b.reason || `error ${r.status}`)
+      // A Turnstile token is single-use — a rejected submit must not resend
+      // the same spent token, so reset the widget and clear it here.
+      // @ts-expect-error injected global
+      if (window.turnstile && widgetIdRef.current) window.turnstile.reset(widgetIdRef.current)
+      tokenRef.current = ''
     }
   }
 

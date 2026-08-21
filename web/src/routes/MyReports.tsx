@@ -10,6 +10,7 @@ type Row = { id: string; ioc_type: string; ioc_value: string; category: string; 
 export function MyReports() {
   const [rows, setRows] = useState<Row[] | null>(null)
   const [auth, setAuth] = useState(true)
+  const [error, setError] = useState(false)
   useEffect(() => {
     fetch('/api/report/mine', { credentials: 'same-origin' })
       .then(async (r) => {
@@ -17,10 +18,14 @@ export function MyReports() {
           setAuth(false)
           return
         }
+        if (!r.ok) {
+          setError(true)
+          return
+        }
         const b = await r.json()
         setRows(b.reports ?? [])
       })
-      .catch(() => setRows([]))
+      .catch(() => setError(true))
   }, [])
   if (!auth)
     return (
@@ -32,6 +37,7 @@ export function MyReports() {
         .
       </p>
     )
+  if (error) return <p className="p-4 text-xs text-muted">Couldn't load your reports — try again.</p>
   if (!rows) return <p className="p-4 text-xs text-faint">…</p>
   if (!rows.length) return <p className="p-4 text-xs text-muted">No reports yet.</p>
   return (

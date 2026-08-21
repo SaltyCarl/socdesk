@@ -17,7 +17,7 @@
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
-import { refang } from '@socdesk/shared/indicators'
+import { isEnrichable, refang } from '@socdesk/shared/indicators'
 import { classifyCockpitInput } from '@socdesk/shared/intent'
 import type { VerdictData } from '@socdesk/shared/verdict'
 import {
@@ -261,7 +261,7 @@ export function Lookup() {
       {state.kind === 'idle' ? (
         <ExamplesGallery theme={theme} />
       ) : state.kind === 'ok' ? (
-        <CardTriptych data={state.data} theme={theme} reportable />
+        <CardTriptych data={state.data} theme={theme} reportable={isEnrichable(state.data.type)} />
       ) : (
         <LookupStatus state={state} />
       )}
