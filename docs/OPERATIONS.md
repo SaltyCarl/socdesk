@@ -307,32 +307,42 @@ no-account either way.
    OAuth Apps → **New OAuth App**. Homepage URL `https://socdesk.io`,
    Authorization callback URL `https://socdesk.io/api/auth/github/callback`.
    Copy the client ID and generate a client secret.
-2. **Create the D1 database, then bind it to the Pages project:**
-   ```
-   wrangler d1 create socdesk_reports
-   ```
-   Bind the resulting database to the `socdesk` Pages project as `DB` — either
-   dashboard → the Pages project → Settings → Functions → D1 database
-   bindings, or a `wrangler.toml` binding.
+2. **Create the D1 database, then bind it to the Pages project.** `wrangler` is
+   NOT installed on this machine by default (verified 2026-08-21 — not on PATH,
+   not in npm global). Two options:
+   - **Dashboard-only (no wrangler):** Cloudflare → D1 → Create database
+     `socdesk_reports`; open its **Console** tab and paste + run the contents of
+     `migrations/0001_init.sql`. (This also does step 5 — skip it.)
+   - **Or wrangler** (`npm i -g wrangler` first): `wrangler d1 create
+     socdesk_reports`, then apply the migration in step 5.
+   Either way, **bind** the database to the `socdesk` Pages project as `DB` —
+   dashboard → the Pages project → Settings → Functions → D1 database bindings.
 3. **Create a Turnstile widget** (Cloudflare dashboard → Turnstile → Add
    widget, **Managed** mode, for `socdesk.io`). Copy the site key and the
    secret key.
 4. **Set the Pages Function secrets** — same place as the enrichment keys
    above (Settings → Environment variables, Production):
 
+   The Phase 0+1 code references exactly these four (verified against
+   `functions/` 2026-08-21):
+
    | Secret | Value |
    |---|---|
    | `GITHUB_CLIENT_ID` | from step 1 |
    | `GITHUB_CLIENT_SECRET` | from step 1 |
-   | `SESSION_SECRET` | 32+ random bytes — signs the session cookie and the OAuth `state` |
+   | `SESSION_SECRET` | 32+ random bytes (`openssl rand -hex 32`) — signs the session cookie and the OAuth `state` |
    | `TURNSTILE_SECRET` | from step 3 |
-   | `OWNER_GITHUB_ID` | your numeric GitHub user id, never the login — logins are reclaimable |
+
+   `OWNER_GITHUB_ID` (your numeric GitHub id, never the login — logins are
+   reclaimable) is **not needed for Phase 0+1** — only the Phase 2 moderation
+   console (`/admin`) reads it. Set it when Phase 2 lands.
 
    Plus one **build-time** public variable for the `web/` build:
    `VITE_TURNSTILE_SITEKEY` — the Turnstile *site* key from step 3, public and
    embedded in the bundle. The GitHub client id is never needed client-side,
    since `/api/auth/github/start` is a server Function.
-5. **Apply the D1 migration:**
+5. **Apply the D1 migration** — SKIP if you already ran `0001_init.sql` in the
+   dashboard Console in step 2. With wrangler:
    ```
    wrangler d1 migrations apply socdesk_reports           # local
    wrangler d1 migrations apply socdesk_reports --remote  # prod
