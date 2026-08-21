@@ -31,7 +31,7 @@ export async function onRequestGet({ request, env }) {
     { github_id: gh.id, login: gh.login, exp: Math.floor(Date.now() / 1000) + SESSION_TTL }, env.SESSION_SECRET)
 
   // Return only to a same-origin path (never an open redirect).
-  const dest = st.return && st.return.startsWith('/') ? st.return : '/'
+  const dest = st.return && st.return.startsWith('/') && !st.return.startsWith('//') ? st.return : '/'
   return new Response(null, {
     status: 302,
     headers: { location: dest, 'set-cookie': sessionCookie(session, SESSION_TTL) },
