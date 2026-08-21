@@ -29,6 +29,7 @@ export interface RawSource {
   url?: string;
   screenshot?: string;
   tags?: string[];
+  observed?: boolean;
 }
 
 /** The raw /api/enrich response body. */
@@ -102,6 +103,7 @@ function mapSource(row: RawSource): VerdictSource {
     url: row.url ?? '',
     facts: row.facts,
     pua: rowIsPua(row),
+    observed: row.observed === true,
     screenshot: row.screenshot,
   };
 }

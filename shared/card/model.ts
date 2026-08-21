@@ -6,7 +6,7 @@
 // KEV/CVSS, …) out of the attributed source facts.
 
 import type { FactRow, SourceVerdict, VerdictData } from '../verdict'
-import { isAdverse, phraseFinding } from '../verdict'
+import { coverageState, isAdverse, phraseFinding } from '../verdict'
 import { geoModel, type GeoModel } from './geo'
 
 /** Case-insensitive fact lookup for a source's [label, value] rows. */
@@ -61,7 +61,10 @@ export function gaugeCaption(data: VerdictData): { left: string; right: string }
   if (c.malicious) left.push(`${c.malicious} malicious`)
   if (c.suspicious) left.push(`${c.suspicious} suspicious`)
   if (!left.length) left.push('none flagged')
-  const right = c.unknown > 0 ? `${c.unknown} no record` : `${c.notFlagged} not flagged`
+  // "no record" counts only genuine blanks — an observed-but-unverdicted source
+  // (GreyNoise scanner) is excluded via coverageState, matching the headline.
+  const noRecord = coverageState(data.sources).noRecord
+  const right = noRecord > 0 ? `${noRecord} no record` : `${c.notFlagged} not flagged`
   return { left: left.join(' · '), right }
 }
 

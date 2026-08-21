@@ -252,6 +252,23 @@ describe('coverageState + coverageHeadline (terse tally-as-coverage, spec §3.1 
     expect(cov.headline).toBe('1 of 4 sources flagged this as adverse');
     expect(cov.guard).toBeNull();
   });
+
+  it('does NOT count an observed source (GreyNoise scanner) as a no-record gap', () => {
+    const cov = coverageState([
+      src({ verdict: 'benign' }),
+      src({ verdict: 'benign' }),
+      src({ verdict: 'unknown', observed: true }), // seen, but no malicious/benign call
+    ]);
+    expect(cov.noRecord).toBe(0);
+    expect(cov.thinCoverage).toBe(false); // 3 consulted, none an actual gap
+    expect(cov.headline).toBe('0 of 3 sources flagged');
+  });
+
+  it('still counts a genuine blank (unknown, not observed) as a no-record gap', () => {
+    const cov = coverageState([src({ verdict: 'benign' }), src({ verdict: 'unknown' })]);
+    expect(cov.noRecord).toBe(1);
+    expect(cov.thinCoverage).toBe(true);
+  });
 });
 
 describe('assessmentLine (escalation register — identical wording to the card)', () => {

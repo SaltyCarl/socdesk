@@ -65,6 +65,11 @@ export interface VerdictSource {
   facts?: FactRow[];
   /** PUA/grayware flag — the finding is "flagged" but not confirmed malware. */
   pua?: boolean;
+  /** The source OBSERVED the indicator (returned real data) but assigned no
+   *  malicious/benign verdict — e.g. GreyNoise seeing a known opportunistic
+   *  scanner. Distinguishes "seen, no verdict" from a genuine "no record"
+   *  coverage gap, so an observation never inflates the thin-coverage read. */
+  observed?: boolean;
   /** KEV / authoritative-catalog membership — top of the confidence ladder. */
   kev?: boolean;
   /** A same-origin screenshot preview (urlscan), when present. */

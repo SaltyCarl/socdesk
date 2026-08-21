@@ -215,7 +215,9 @@ export interface CoverageState {
 
 export function coverageState(sources: VerdictSource[]): CoverageState {
   const { consulted: m, flagged: n } = consensus(sources);
-  const noRecord = sources.filter((s) => s.verdict === 'unknown').length;
+  // A source that OBSERVED the indicator without a malicious/benign verdict
+  // (GreyNoise seeing a scanner) is NOT a coverage gap — only a true blank is.
+  const noRecord = sources.filter((s) => s.verdict === 'unknown' && !s.observed).length;
   const thinCoverage = m > 0 && (noRecord > 0 || m < THIN_COVERAGE);
   const headline =
     m === 0

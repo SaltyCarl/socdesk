@@ -30,6 +30,22 @@ describe('gaugeSegments + gaugeCaption (shared by card + console)', () => {
     expect(typeof cap.left).toBe('string');
     expect(cap.right).toMatch(/not flagged$/);
   });
+
+  it('does not caption an observed source (GreyNoise scanner) as "no record"', () => {
+    const s = (over: object) => ({
+      name: 'x', verdict: 'benign', class: 'score', finding: '', recency: null, url: '', ...over,
+    });
+    const data = {
+      sources: [
+        s({ name: 'AbuseIPDB' }),
+        s({ name: 'VirusTotal' }),
+        s({ name: 'GreyNoise', verdict: 'unknown', class: 'behavioral', observed: true }),
+      ],
+      consulted: 3,
+    } as unknown as Parameters<typeof gaugeCaption>[0];
+    // observed scanner is not a gap → right half is the clean count, not "1 no record"
+    expect(gaugeCaption(data).right).toBe('3 not flagged');
+  });
 });
 
 describe('isBannerLed (identity + CVE lead their hero, not a tally)', () => {
