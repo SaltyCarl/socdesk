@@ -295,6 +295,54 @@ deploy is safe and obvious. Set them incrementally; IP and hash (AbuseIPDB +
 VirusTotal + ipinfo, VirusTotal + MalwareBazaar) are the 99% path — key those
 first.
 
+### Owner one-time setup — IOC reporting (D1 + GitHub OAuth + Turnstile)
+
+The report/write path (`/api/auth/github/*`, `/api/report`,
+`/api/report/mine`) is **inert until this is done** — the manual dogfood pass
+below is the acceptance gate for the feature, not the automated suites. None
+of it touches the read/lookup path: `/api/enrich` and the analyzer stay
+no-account either way.
+
+1. **Create a GitHub OAuth App.** GitHub → Settings → Developer settings →
+   OAuth Apps → **New OAuth App**. Homepage URL `https://socdesk.io`,
+   Authorization callback URL `https://socdesk.io/api/auth/github/callback`.
+   Copy the client ID and generate a client secret.
+2. **Create the D1 database, then bind it to the Pages project:**
+   ```
+   wrangler d1 create socdesk_reports
+   ```
+   Bind the resulting database to the `socdesk` Pages project as `DB` — either
+   dashboard → the Pages project → Settings → Functions → D1 database
+   bindings, or a `wrangler.toml` binding.
+3. **Create a Turnstile widget** (Cloudflare dashboard → Turnstile → Add
+   widget, **Managed** mode, for `socdesk.io`). Copy the site key and the
+   secret key.
+4. **Set the Pages Function secrets** — same place as the enrichment keys
+   above (Settings → Environment variables, Production):
+
+   | Secret | Value |
+   |---|---|
+   | `GITHUB_CLIENT_ID` | from step 1 |
+   | `GITHUB_CLIENT_SECRET` | from step 1 |
+   | `SESSION_SECRET` | 32+ random bytes — signs the session cookie and the OAuth `state` |
+   | `TURNSTILE_SECRET` | from step 3 |
+   | `OWNER_GITHUB_ID` | your numeric GitHub user id, never the login — logins are reclaimable |
+
+   Plus one **build-time** public variable for the `web/` build:
+   `VITE_TURNSTILE_SITEKEY` — the Turnstile *site* key from step 3, public and
+   embedded in the bundle. The GitHub client id is never needed client-side,
+   since `/api/auth/github/start` is a server Function.
+5. **Apply the D1 migration:**
+   ```
+   wrangler d1 migrations apply socdesk_reports           # local
+   wrangler d1 migrations apply socdesk_reports --remote  # prod
+   ```
+6. **Dogfood it.** With `wrangler pages dev` (or the deployed site) and all of
+   the above in place: `/api/auth/github/start` redirects to GitHub; the
+   callback upserts an `accounts` row and sets an `sd_session` cookie; a
+   submitted report lands as `queued` and shows up at `/reports`. Confirm the
+   lookup/analyzer flow is unaffected while doing this.
+
 ### Custom domain
 
 `socdesk.io` is registered at Cloudflare, which is also where the site is

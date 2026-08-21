@@ -405,7 +405,7 @@ Column definitions (kept strict — a tool only gets a full ✓ if it genuinely 
 
 Five candidate differentiators, each checked against the closest thing found in this research rather than asserted on faith.
 
-**1. No account, zero setup, for a genuine multi-source consensus lookup.**
+**1. Zero-account lookup, zero setup, for a genuine multi-source consensus read — opt-in GitHub sign-in only to contribute a report.**
 *Closest competitors:* VT4Browsers (100k+ users, free, no visible account requirement) and the small right-click extensions (SOCMaster, Ahtapot, SOC Toolkit, IOChaser).
 *Verdict — stands apart, precisely.* VT4Browsers has the install base but is a single-vendor (Google/Mandiant/VT) data pipe, not cross-vendor consensus. Every multi-source extension found (SOCMaster, Ahtapot, SOC Toolkit) requires the analyst to obtain and paste in their own API key per vendor before it works — real setup friction SOCDesk avoids by fronting the keys itself through its own Cloudflare Pages Function. IOChaser and OZZI are closer to no-setup, but IOChaser still needs locally-stored keys and OZZI doesn't unify results (it opens separate tabs per source, not a consensus card). No tool found does "paste an indicator, zero account, zero keys, one unified cross-vendor view" simultaneously — SOCDesk is alone on that exact combination.
 

@@ -63,6 +63,37 @@ stored" story that is currently a genuine differentiator.
 **Verdict: only if the team actually asks for it, and only as a second
 auth-gated deployment.** Do not merge it into the public site.
 
+**2026-08-21 update — this ruling is consciously reversed for IOC reporting.**
+The IOC-reporting feature (`/api/auth/github/*`, `/api/report*`) adds exactly
+the D1 + authenticated-user shape this section warned against, and it is
+bolted onto the existing public Pages project rather than shipped as a
+separate deployment. Reasons, weighed explicitly against the original ruling:
+
+- **Portfolio scale.** This is a solo, non-commercial project with no team and
+  no shift handoff to protect — the "shared team state" risk this section was
+  guarding against does not apply. What's being added is one analyst's own
+  report queue, not cross-analyst shared metadata.
+- **One deploy.** A second authenticated deployment doubles the infrastructure
+  (a second Pages project, a second domain or subpath, a second CI leg) for a
+  feature that is, in practice, a handful of auth-gated Functions plus a small
+  React form. That cost was never worth paying at this scale.
+- **A clean seam, not a blurred one.** The reversal is disciplined, not a
+  quiet erosion of the original guarantee: D1 is touched *only* by the new
+  auth + report Functions (`functions/api/auth/*`, `functions/api/report*`).
+  The public read path — `/api/enrich`, the analyzer, the lookup/escalation
+  card — is unmodified and stays no-account; nothing in it queries D1 or
+  checks a session. A later `/admin` moderation view (`nav:false`, same
+  pattern as `/reports`) extends the same seam rather than opening a new one.
+
+The "zero-account lookup, zero cost" story this section (and §4.2 below) calls
+a differentiator still holds for the thing it actually describes — the
+lookup/analyzer loop. What no longer holds, and was never meant to be
+absolute, is "no accounts anywhere in the project": reporting is opt-in,
+GitHub-authenticated, and scoped to a write path the read path never touches.
+See `docs/competitive-landscape.md` §4.1 for the same distinction applied to
+the competitive claim, and `docs/OPERATIONS.md` for the owner setup that
+activates it.
+
 ## 3. Tier 4 — Real compute (Framework Desktop, or a VPS)
 
 **Infra:** the Framework (128GB, already running LiteLLM/Ollama, reachable via
