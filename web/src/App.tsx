@@ -6,6 +6,7 @@ import { PowerShellAnalyzer } from './routes/PowerShellAnalyzer'
 import { DataDeskRoute } from './routes/DataDeskRoute'
 import { ActorProfileRoute } from './routes/ActorProfileRoute'
 import { Gallery } from './routes/Gallery'
+import { MyReports } from './routes/MyReports'
 import { Privacy } from './routes/Privacy'
 
 /**
@@ -53,6 +54,7 @@ const ROUTES: Route[] = [
   { path: '/desk', label: 'Desk', size: 'default', el: <DataDeskRoute /> },
   { path: '/actor', label: 'Profiles', size: 'default', el: <ActorProfileRoute /> },
   { path: '/gallery', label: 'Gallery', size: 'default', el: <Gallery />, nav: false },
+  { path: '/reports', label: 'My reports', size: 'default', el: <MyReports />, nav: false },
   { path: '/privacy', label: 'Privacy', size: 'default', el: <Privacy />, nav: false },
 ]
 

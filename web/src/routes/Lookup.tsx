@@ -32,6 +32,7 @@ import { Button, MicroLabel } from '../components/ui'
 import { lookupHash, navigate } from '../components/palette/commands'
 import { useLookup } from '../components/lookup/useLookup'
 import { LookupStatus } from '../components/lookup/LookupStates'
+import { ReportButton } from '../components/report/ReportButton'
 import { readLookupQuery } from './lookupModel'
 
 /** A few worked examples — a Tor exit IP, a young phishing domain, a real KEV
@@ -54,14 +55,30 @@ function Label({ children }: { children: ReactNode }) {
 
 /** Both registers over one VerdictData: the client escalation card + its
  *  deterministic copy-card PNG (left), the dense analyst console (right).
- *  EscalationCard embeds the copy-card / copy-text CardActions itself. */
-function CardTriptych({ data, theme }: { data: VerdictData; theme?: EffectiveTheme }) {
+ *  EscalationCard embeds the copy-card / copy-text CardActions itself.
+ *  `reportable` mounts the low-key report affordance under the escalation
+ *  card footer — set only by the real resolved-lookup call site, never by
+ *  the static ExamplesGallery (reporting a canned stub makes no sense). */
+function CardTriptych({
+  data,
+  theme,
+  reportable,
+}: {
+  data: VerdictData
+  theme?: EffectiveTheme
+  reportable?: boolean
+}) {
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       <div className="flex flex-col gap-8">
         <div>
           <Label>Client register — escalation card</Label>
           <EscalationCard data={data} theme={theme} />
+          {reportable && (
+            <div className="mt-2">
+              <ReportButton iocType={data.type} iocValue={data.indicator} />
+            </div>
+          )}
         </div>
         <div>
           <Label>Copy card — deterministic PNG on the clipboard</Label>
@@ -244,7 +261,7 @@ export function Lookup() {
       {state.kind === 'idle' ? (
         <ExamplesGallery theme={theme} />
       ) : state.kind === 'ok' ? (
-        <CardTriptych data={state.data} theme={theme} />
+        <CardTriptych data={state.data} theme={theme} reportable />
       ) : (
         <LookupStatus state={state} />
       )}
