@@ -447,8 +447,9 @@ export async function onRequestGet({ request, env }) {
   const session = await signPayload(
     { github_id: gh.id, login: gh.login, exp: Math.floor(Date.now() / 1000) + SESSION_TTL }, env.SESSION_SECRET)
 
-  // Return only to a same-origin path (never an open redirect).
-  const dest = st.return && st.return.startsWith('/') ? st.return : '/'
+  // Same-origin path only: one leading '/', not '//' or '/\' (both of which
+  // browsers normalize to an absolute off-site URL). Else fall back to '/'.
+  const dest = /^\/($|[^/\\])/.test(st.return || '') ? st.return : '/'
   return new Response(null, {
     status: 302,
     headers: { location: dest, 'set-cookie': sessionCookie(session, SESSION_TTL) },

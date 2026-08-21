@@ -1,10 +1,105 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-19 (session 7 — multi-interpreter analyzer, doc-scoping, kill-chain bullets SHIPPED LIVE) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-21 (session 8 — escalation-card redesign + OTX/AbuseIPDB/GreyNoise enrich LIVE, analyzer-in-extension MERGED, IOC-reporting Phase 0+1 built on branch [unmerged]) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-19 (session 7 — multi-interpreter analyzer, doc-scoping, kill-chain bullets — all SHIPPED LIVE)
+## 0. LATEST — 2026-08-21 (session 8 — escalation-card + enrich sources LIVE, analyzer-in-extension MERGED, IOC-reporting Phase 0+1 built [branch, unmerged])
+
+> Newest block. Two units shipped to `main`/live since session 7 (escalation-card
+> redesign + three enrich-source changes; the analyzer lifted into the browser
+> extension), plus a third **built but not merged**: the IOC-reporting Phase 0+1
+> crowdsourced-abuse write path on branch `feat/ioc-reporting-p01` (12 commits
+> ahead of `main`). `main` = `origin/main` = `043601a` (reporting spec/plan/
+> research docs only, not the implementation); branch HEAD `23d6a22`.
+
+### 1. Escalation-card redesign + enrich sources (`main`, LIVE)
+- GreyNoise honesty: an *observed* source is no longer treated as a no-record
+  coverage gap (`eda8ed1`).
+- AbuseIPDB attack-category chips on the IP card (`31f053f`, dogfooded live).
+- AlienVault OTX added as an enrich source — `kind:context`, **excluded from the
+  independent-sources tally** (`133a460`; 9s timeout for its Cloudflare-egress
+  throttling `b7f1e84`; backlog marked shipped `2a631ea`).
+- `coverageState` terse "show, don't tell" assessment + OTX attention chip
+  (`98f7dc4`); redundant source verb dropped + OTX deduped to the chip
+  (`41053c2`); `splitLead` evidence-lead-figure highlight + **Context section
+  removed** (`0b0c708`). Supporting run: risk-graduated signal chips + declutter
+  (`b147fe5`), IP-literal URL hosts as their own IOC (`eb7ffd9`), RDAP reg-age
+  honesty + blank-state (`cb1d9e0`), technique-signal trigger labeled an audit
+  fact (`52c3d38`), inline-expand IOC lookup (`f794ac4`), `-enc` whitespace
+  tolerance (`8cef3e1`), cockpit routes cmd/mshta/wscript/LOLBin to the analyzer
+  (`3964b4c`).
+
+### 2. Analyzer lifted into the browser extension (`main`, MERGED + deployed)
+- Analyzer now runs in the extension side panel with right-click routing to
+  analyze / lookup / report. Built via a 5-task SDD (spec `2151aab`, plan
+  `14d75e0`); **7 impl commits**: shared card-theme hook + inline-enrich resolver
+  (`1786a60`), analyzer UI lifted into `shared/analyzer-ui` decoupled from inline
+  lookup (`aaf3a7c`), right-click selection routing (`a139e3e`), side-panel
+  analyzer surface (`fecb48f`), side panel + v0.3.0 bump (`ec8f458`), README
+  fallback-gate fix (`0e85a45`), panel-handoff/effect cleanup + type tightening
+  (`7d563af`). Whole-branch review clean; merged to `main`.
+
+### 3. IOC-reporting Phase 0+1 — crowdsourced abuse-report write path (branch `feat/ioc-reporting-p01`, 12 commits, NOT merged)
+- Foundation + write path for authenticated abuse reporting. Stack: Cloudflare D1
+  (`socdesk_reports`, bind `DB`) + hand-rolled GitHub OAuth (write-path only, no
+  PII, HMAC-signed session cookie) + `POST /api/report` (guard order:
+  session→turnstile→validate→ban→daily-cap→dedupe→queued) + `GET /api/report/mine`
+  + web report form + `/reports` view (`nav:false`) + docs reframe (no-account
+  READ path, auth-gated WRITE path). Read path / `/api/enrich` / analyzer
+  unchanged.
+- Commits: HMAC session sign/verify (`96a7310`), validation + daily-cap policy
+  (`d2786f6`), D1 schema + parameterized DAL (`a5d5b83`), GitHub OAuth
+  start/callback + `requireSession` (`2494b5c`), open-redirect guards (`776309b`,
+  `bdb3752`), `POST /api/report` + `/mine` (`f70c184`), report button + form +
+  `/reports` + Turnstile CSP (`03cd0ad`), identity reframe (`68b27df`),
+  report-button type gate + Turnstile retry/dedup + list error state (`d5ca902`),
+  OPERATIONS owner-setup correction (`23d6a22`); plan-test correction (`b816c1a`).
+  Branch HEAD `23d6a22`.
+- Key files: `lib/reporting/{session,validate,policy,db}.mjs`;
+  `functions/_lib/session.mjs`; `functions/api/auth/github/{start,callback}.js` +
+  `functions/api/auth/logout.js`; `functions/api/report.js`;
+  `functions/api/report/mine.js`; `migrations/0001_init.sql`;
+  `web/src/components/report/{useSession,ReportButton,ReportForm}.tsx`;
+  `web/src/routes/MyReports.tsx`; `web/src/routes/Lookup.tsx`;
+  `web/public/_headers` + `web/index.html` (CSP adds `challenges.cloudflare.com`);
+  `docs/OPERATIONS.md`.
+- Artifacts already on `main` (`f70b571`, `c47b14e`, `043601a`):
+  `docs/superpowers/specs/2026-08-20-ioc-reporting-phase01-design.md`;
+  `docs/superpowers/plans/2026-08-21-ioc-reporting-phase01.md`;
+  `docs/superpowers/research/2026-08-20-reporting-{storage,auth,integration}.md`;
+  `docs/competitive-landscape.md`.
+
+**Verified:** escalation-card + enrich and analyzer-in-extension are on `main`/live
+— all cited commits are ancestors of `origin/main` `043601a` (confirmed via
+`git merge-base --is-ancestor`); AbuseIPDB chips dogfooded live per invoker.
+IOC-reporting branch confirmed **12 commits ahead of `main`** (`git rev-list
+--count`); cited key files spot-checked present on disk. Whole-branch review =
+APPROVE-WITH-FOLLOW-UPS (all 8 invariants held); final gate green per invoker (web
+build + 434 shared/lib/src tests + all Functions `node --check`) — gate not
+re-run here. Working tree on branch: only
+`docs/superpowers/plans/2026-08-21-ioc-reporting-phase01.md` modified + untracked
+`node_modules/`.
+
+**Open / next:**
+- Merge decision on `feat/ioc-reporting-p01` (merge-local / push+PR / keep).
+- Optional ship-dark gate: hide report button until `VITE_TURNSTILE_SITEKEY` set.
+- Owner Cloudflare setup then dogfood-verify (`docs/OPERATIONS.md`): GitHub OAuth
+  App; D1 create + bind `DB` + run `migrations/0001_init.sql` (wrangler NOT
+  installed → dashboard D1 Console); Turnstile widget; 4 Function secrets
+  (`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `SESSION_SECRET`,
+  `TURNSTILE_SECRET`) + build var `VITE_TURNSTILE_SITEKEY`. `OWNER_GITHUB_ID` =
+  Phase 2 only.
+- Parked branch minors (non-blocking): cap→dedupe→insert TOCTOU; OAuth state has
+  no single-use nonce + `SESSION_SECRET` reused for state+session; `readCookie`
+  unescaped regex (const-only); no comment-truncation test; banned-check ordering.
+- Deferred: abuse-hardening (Turnstile + rate-limit + KV budget on `/api/enrich`),
+  own OSINT dataset, ISP/ASN abuse-leaderboard (Phase 4), P1.5c domain→IP hero
+  pivot.
+
+---
+
+## 0-RECENT. 2026-08-19 (session 7 — multi-interpreter analyzer, doc-scoping, kill-chain bullets — all SHIPPED LIVE)
 
 > Newest block. Supersedes §0-RECENT (session 6) — three more units shipped
 > and verified live since: the analyzer's multi-interpreter increment, a
