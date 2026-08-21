@@ -206,9 +206,39 @@ check (logon types, source host, account).
 - Largest and most accuracy-sensitive lane; scope as its own phase after the
   smaller deterministic engines prove the dispatcher pattern.
 
+## Sustainability, dataset & community lane (owner-directed 2026-08-20)
+
+- **★ Abuse hardening (`/api/enrich`)** — the public keyed proxy is currently
+  protected ONLY by the 15-min edge cache; a script over novel indicators burns
+  free-tier quota / risks a key ToS-revocation. Harden with: **Cloudflare
+  Turnstile** (free, invisible — UX-transparent, gates the web app; extension
+  needs a separate story), **per-IP rate limit** (CF free tier), and a **per-source
+  daily budget circuit-breaker in CF KV** that degrades honestly ("quota reached —
+  source not consulted") near a source's free quota. Owner: rate-limiting must NOT
+  hamper real UX; reasonable added cost acceptable. Needs its own spec.
+- **★ Own OSINT dataset (redistributable-only)** — high interest. Pull
+  redistributable feeds (abuse.ch URLhaus/ThreatFox/Feodo, Spamhaus DROP/EDROP,
+  FireHOL, CINSscore, blocklist.de, Tor exit list, OpenPhish/PhishTank) via the
+  existing collector→pipeline→committed-data machinery; **check it FIRST** on
+  lookup so keyed APIs become deep-enrichment fallback only (cuts key spend, works
+  keyless/offline for covered indicators). Stays "aggregator not mirror" —
+  redistributable feeds only, attributed. **Derived analytics it unlocks:** ISP /
+  ASN **abuse-leaderboard rankings**, trend views, cross-feed dedup — original,
+  publishable content. Bigger architectural direction → own design/spec.
+- **Give back to OSINT** — (1) **publish the curated cross-feed dataset** (dedup +
+  joined + attributed) as a community resource — YES; (3) **honeypot sensor** —
+  YES, employment-IP gate LIFTED; generates real telemetry to report scanners
+  (AbuseIPDB/GreyNoise) + submit samples (MalwareBazaar). (2) open-source the
+  analyzer engine as a standalone lib — later / well down the line.
+- **★ IOC reporting (crowdsourced abuse reporting) — HIGH PRIO, TO SCOPE.**
+  Report an IP/domain/etc. AbuseIPDB/VT-style. Dangerous under SOCDesk's public,
+  no-account model (false reports, poisoning, defamation liability). Account-gating
+  is one candidate solution but reverses the "zero-account" differentiator. Needs a
+  proper design doc — see `docs/superpowers/specs/` (in progress 2026-08-20).
+
 ## Parked (fluff until further notice)
-- Wave-2 collectors (FeodoTracker, C2IntelFeeds, PhishTank, APTnotes)
+- Wave-2 collectors (C2IntelFeeds, APTnotes) — *(URLhaus/ThreatFox/PhishTank/Feodo
+  now promoted into the dataset lane above)*
 - Relationship-index enhancements beyond the shipped RELATED block
 - Client-side fuzzy search; CVE corpus sharding
 - Phase C Framework brief loop
-- Honeypot sensor (also gated on the employment-IP question)
