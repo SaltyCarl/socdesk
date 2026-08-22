@@ -274,3 +274,17 @@ The harness (`lib/__tests__/enrich.test.mjs`) injects a mock `fetch` (no network
 - Keep the four assembler phases separately exported via `_internals` so B2/B3 extend rather than rewrite.
 - Every non-blocking promise MUST carry a terminal rejection handler (the `graceRace` wrapper) — a dropped source that later rejects must not surface as an unhandled rejection in the Worker.
 ```
+
+---
+
+## Panel review amendments (APPROVED 2026-08-22 — binding for the plan)
+
+Panel: Infrastructure (Opus, approve-with-changes — core `partial`/cache decoupling verified correct + cache-safe + no unhandled-rejection risk), SOC Analyst (approve-with-changes). Scope-drift clean; no re-architecture. Fold ALL of the following:
+
+- **GRACE_MS = 0 (OWNER-APPROVED).** Collect-anchored: start the grace AFTER `await Promise.allSettled(blocking)`. With grace 0, context sources ride along ONLY if already resolved by verdict-settle (free, no dead wait); everything else drops. The mechanism keeps a tunable GRACE_MS knob, but the SHIPPED default is 0 (OTX/RDAP are reliably >1s from CF, so any positive grace is mostly dead wait — the speed mandate wins).
+- **Observability / honesty (SOC Analyst + Infra):** add an ADDITIVE `skipped_context: string[]` field listing non-blocking sources dropped for slowness (PENDING past grace). It MUST NOT touch `errors` or `partial` and needs NO client change (client ignores unknown fields). Makes a speed-drop measurable (dogfood measures the real drop rate) and honors the enrich.mjs "don't lie by omission" doctrine.
+- **Fast-fail honesty (Infra I-3):** an in-grace `ok:false` (a FAST, real error — e.g. a fat-fingered OTX key -> 401) is routed into `errors` WITHOUT setting `partial` (mirrors the not-configured case) — do NOT silently cache-clean a broken key. Only genuinely-slow (PENDING) drops stay silent -> `skipped_context`.
+- **Broaden consumer/test surface (Infra I-1, I-2):**
+  - OWNER-ACCEPTED consequence: `shared/card/model.ts` — a dropped RDAP no longer lands in `errors`, so `rdapFailed` -> false and the card shows "Registration age unknown" instead of "Registration age unavailable / Registry lookup timed out". Accepted (speed-first; skipped_context preserves observability; a future "+RDAP pending" affordance is left open).
+  - The plan MUST run `site-tests/specs/enrich.spec.js` (Playwright, exercises the real assembler) at the gate; its `fakeFetch` throws on an unrouted URL, so any new domain test must route rdap.org / otx.alienvault.com.
+- **Guardrails (Infra M-1/M-2/M-3):** ipinfo must be emitted BEFORE OTX in `sources` (the globe pin reads the FIRST `kind:"context"` row via `parseCoords`) — order preservation is load-bearing; compute `partial` from the `blocking` axis, NEVER `kind` (ipinfo is context-but-blocking); fix citations (`map.ts:143` not `:147`; `parseCoords` not `coordsFrom`).

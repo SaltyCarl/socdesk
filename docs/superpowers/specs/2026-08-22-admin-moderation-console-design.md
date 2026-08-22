@@ -641,3 +641,18 @@ D1 are build-gated + a manual pass**, not integration-tested in CI.
 - **Every new SQL string in `db.mjs` must use positional `?N` bindings.** No
   exceptions, no "just this once" string interpolation of a value that
   touches `ioc_value`, `id`, `status`, or anything else request-derived.
+
+---
+
+## Panel review amendments (APPROVED 2026-08-22 — binding for the plan)
+
+Panel: SOC Analyst (approve), Infrastructure (approve), AppSec (approve-with-changes), Frontend (approve-with-changes). Scope-drift clean on all four; no architecture change. Fold ALL of the following into the plan:
+
+- **Legibility (must-fix):** the row meta caption (`ioc_type / reported by / date`) and the reporter `comment` use `text-muted`, NEVER `text-faint` (meaning-bearing; matches MyReports.tsx + DESIGN-TOKENS Part E). contrast.test does not catch per-usage, so this is enforced by the frontend reviewer.
+- **AppSec (Important):** validate the report `id` as a UUID shape (e.g. `/^[0-9a-f-]{36}$/i`) in `POST /api/admin/moderate` before the D1 call -> 400 on malformed; add a unit test.
+- **AppSec (Minor, hardening):** `isOwner` must reject a whitespace-only `OWNER_GITHUB_ID` (trim / `/^\d+$/` before `Number()`, since `Number('   ')===0`); add an `isOwner(0,'   ')===false` test case.
+- **Reserved-colour (Frontend):** the transient row-error ("Action failed - try again") uses `text-muted` (NOT `text-verdict-amber` — amber is reserved for persistent policy states), inside a `role="status" aria-live="polite"` region.
+- **a11y (Frontend):** Approve/Reject buttons carry contextual `aria-label`s (`Approve ${ioc_value}` / `Reject ${ioc_value}`).
+- **+Value (SOC Analyst, in-scope — navigation only):** each queue row gets a deep-link to `/?q=<ioc_value>` (or `/lookup#q=`) so the owner can check the indicator's live reputation without leaving `/admin`. No enrich/read-path edit.
+
+Deferred WITH rationale (NOT this phase): corroboration grouping by ioc_value; rejection reasons; reporter trust history; pagination beyond LIMIT 200; category Chip-vs-MicroLabel consistency; in-flight button text; focus placement on optimistic row removal. Citation nit: drop the false `Gallery.tsx:411` "danger" precedent (reasoning for `danger` on Reject still holds).
