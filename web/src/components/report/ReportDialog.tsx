@@ -19,6 +19,7 @@ import type { IndicatorType } from '@socdesk/shared/indicators'
 import { Button, MicroLabel } from '../ui'
 import { useSession } from '../../lib/useSession'
 import { dialogView } from './dialogView'
+import { saveDraft, type ReportDraft } from './draft'
 import { reportOutcome, type ReportOutcome } from './reportOutcome'
 import { SUCCESS_ICON_CLASS, SUCCESS_TEXT_CLASS } from './reportChrome'
 
@@ -34,6 +35,7 @@ export interface ReportDialogProps {
   iocValue: string
   open: boolean
   onClose: () => void
+  initialDraft?: ReportDraft
 }
 
 function CheckGlyph() {
@@ -49,7 +51,7 @@ function counterClass(n: number, max: number): string {
   return n > max * 0.9 ? 'text-verdict-amber' : 'text-muted'
 }
 
-export function ReportDialog({ iocType, iocValue, open, onClose }: ReportDialogProps) {
+export function ReportDialog({ iocType, iocValue, open, onClose, initialDraft }: ReportDialogProps) {
   const session = useSession()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -57,9 +59,9 @@ export function ReportDialog({ iocType, iocValue, open, onClose }: ReportDialogP
   const tokenRef = useRef<string>('')
   const widgetIdRef = useRef<string>('')
 
-  const [category, setCategory] = useState('')
-  const [evidence, setEvidence] = useState('')
-  const [comment, setComment] = useState('')
+  const [category, setCategory] = useState(() => initialDraft?.category ?? '')
+  const [evidence, setEvidence] = useState(() => initialDraft?.evidence ?? '')
+  const [comment, setComment] = useState(() => initialDraft?.comment ?? '')
   const [touchedEvidence, setTouchedEvidence] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [outcome, setOutcome] = useState<ReportOutcome | null>(null)
@@ -148,6 +150,10 @@ export function ReportDialog({ iocType, iocValue, open, onClose }: ReportDialogP
   }
 
   const signInHref = `/api/auth/github/start?return=${encodeURIComponent(location.pathname + location.hash)}`
+  const goSignIn = () => {
+    saveDraft(iocType, iocValue, { category, evidence, comment, pendingOpen: true })
+    location.href = signInHref
+  }
   const evidenceEmpty = touchedEvidence && !evidence.trim()
 
   return (
@@ -174,7 +180,7 @@ export function ReportDialog({ iocType, iocValue, open, onClose }: ReportDialogP
                 : 'Reporting needs a quick GitHub sign-in (so reports are attributable). Look-ups never do.'}
             </p>
             <div className="flex items-center gap-2">
-              <Button variant="primary" size="sm" onClick={() => (location.href = signInHref)}>
+              <Button variant="primary" size="sm" onClick={goSignIn}>
                 Sign in with GitHub
               </Button>
               <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>

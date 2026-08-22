@@ -4,10 +4,11 @@
 // Report. Opens the report form, which itself gates on GitHub sign-in; the
 // lookup/analyzer read path is unaffected.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { IndicatorType } from '@socdesk/shared/indicators'
 import { markContributorSeen } from '../../lib/contributorSeen'
 import { Button } from '../ui'
+import { clearDraft, loadDraft, type ReportDraft } from './draft'
 import { ReportDialog } from './ReportDialog'
 
 function FlagGlyph() {
@@ -26,6 +27,20 @@ function FlagGlyph() {
 
 export function ReportButton({ iocType, iocValue }: { iocType: IndicatorType; iocValue: string }) {
   const [open, setOpen] = useState(false)
+  const [restored, setRestored] = useState<ReportDraft | null>(null)
+
+  // Restore a draft stashed before the GitHub OAuth round trip: if the user
+  // typed a report, hit sign-in, and came back, re-open the dialog with what
+  // they had instead of losing it silently.
+  useEffect(() => {
+    const d = loadDraft(iocType, iocValue)
+    if (d?.pendingOpen) {
+      setRestored(d)
+      setOpen(true)
+      clearDraft(iocType, iocValue)
+    }
+  }, [iocType, iocValue])
+
   return (
     <>
       <Button
@@ -41,7 +56,13 @@ export function ReportButton({ iocType, iocValue }: { iocType: IndicatorType; io
         Report
       </Button>
       {open && (
-        <ReportDialog iocType={iocType} iocValue={iocValue} open={open} onClose={() => setOpen(false)} />
+        <ReportDialog
+          iocType={iocType}
+          iocValue={iocValue}
+          open={open}
+          initialDraft={restored ?? undefined}
+          onClose={() => setOpen(false)}
+        />
       )}
     </>
   )
