@@ -45,6 +45,28 @@ primitives. **All work composes from existing primitives** — `Button`/`buttonC
 is reverse-engineered from primitives each time. Write a short `web/`-scoped tokens reference
 (`docs/DESIGN-TOKENS.md` or similar) as part of this work so it isn't re-derived next time.
 
+**Legibility (owner constraint, 2026-08-22):** grey-on-dark text must stay readable.
+Measured against the dark palette, `--muted` (#98A3B4) clears WCAG AA on `--panel`/`--ink`
+(~6.7:1 / ~7.3:1), but **`--faint` (#697486) is only ~3.6–4.0:1 — below the 4.5:1 normal-text
+AA bar** (it meets only the 3:1 large-text bar), and it is frequently used at `text-micro`
+(11px). Rule for this work: any text the user must actually **read** — field labels, the
+indicator value, evidence/comment, meaning-bearing counters, error/success copy, menu items —
+uses **`--muted` or `--paper`, never `--faint`**. `--faint` is allowed only for genuinely
+incidental adornment, and never at `text-micro` for anything meaning-bearing. A dedicated
+**eye-test / contrast task** (Part E below) verifies this on the built UI. A global `--faint`
+retune (raising its luminance app-wide) is a separate, out-of-scope call — flag it to the owner,
+don't change the shared token in this work.
+
+## Part E — Legibility / eye-test pass
+
+A verification task, run against the built reporting UI (all four surfaces):
+- Compute the contrast ratio of every grey text token used, against its actual background
+  surface (`--ink`/`--panel`/`--panel-soft`/`--raised`/`--field`), in **both** themes.
+- Fail any readable (meaning-bearing) text below 4.5:1 (normal) / 3:1 (large ≥24px or ≥19px-bold).
+- Fix by swapping the **usage** to `--muted`/`--paper` (not by editing the shared token).
+- Visual eye-test: render each surface/state and confirm nothing reads as illegibly faint,
+  especially `text-micro` labels, counters, and menu/identity rows.
+
 ---
 
 ## Part A — Account control (nav): quiet-until-relevant
