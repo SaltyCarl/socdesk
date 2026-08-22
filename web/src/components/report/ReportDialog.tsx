@@ -144,7 +144,7 @@ export function ReportDialog({ iocType, iocValue, open, onClose }: ReportDialogP
     const next = reportOutcome(status, body)
     setSubmitting(false)
     setOutcome(next)
-    if (next.kind === 'turnstile' || next.kind === 'error') resetTurnstile()
+    if (next.kind === 'turnstile' || next.kind === 'error' || next.kind === 'invalid') resetTurnstile()
   }
 
   const signInHref = `/api/auth/github/start?return=${encodeURIComponent(location.pathname + location.hash)}`
