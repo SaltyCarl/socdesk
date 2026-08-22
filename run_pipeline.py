@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import sys
 from datetime import datetime, timedelta, timezone
@@ -6,6 +7,7 @@ from pathlib import Path
 
 from collectors import CACHED_COLLECTORS, COLLECTORS, attack
 from collectors.base import iso, run_all
+from pipeline.community import build_community_reports
 from pipeline.cves import build_cve_rows, enrich_epss
 from pipeline.history import (build_trends, daily_snapshot, prune_history,
                               snapshot_name)
@@ -48,7 +50,8 @@ def _attack_is_fresh(state, now):
     return gen >= iso(now - timedelta(days=attack.CACHE_DAYS))
 
 
-def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None):
+def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
+        env=None):
     out_dir, state_dir = Path(out_dir), Path(state_dir)
     web_dir = Path(web_dir) if web_dir else None
     state = _load_state(state_dir)
@@ -79,6 +82,19 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None)
     payloads["trends.json"] = dict(
         build_trends(snapshots, cve_rows, now),
         generated_at=iso(now), schema_version=1)
+
+    # Community reports (Phase 3): D1 approved rows -> committed JSON, consulted
+    # by the enrich read path as a kind:"context" source. On any D1 failure the
+    # builder returns None and we re-publish the prior snapshot (the committed
+    # seed guarantees one exists from run 1), so the layer degrades to
+    # last-known-good and the served asset is never blanked. NO D1 read path,
+    # NO DB binding on /api/enrich (Option A invariant).
+    community = build_community_reports(fetch=fetch, now=now, env=env or {})
+    if community is not None:
+        payloads["community_reports.json"] = community
+    elif "community_reports.json" in state:
+        payloads["community_reports.json"] = dict(
+            state["community_reports.json"], generated_at=iso(now))
 
     published, problems = gate(payloads, state, schemas_dir)
     if problems:
@@ -126,5 +142,5 @@ if __name__ == "__main__":
     _, problems = run(fetch=http_fetch, now=datetime.now(timezone.utc),
                       out_dir="site/data", state_dir="data/state",
                       schemas_dir="schemas", sources_path="data/sources.json",
-                      web_dir="web/public/data/state")
+                      web_dir="web/public/data/state", env=os.environ)
     sys.exit(0)   # upstream problems are health data, never a CI failure
