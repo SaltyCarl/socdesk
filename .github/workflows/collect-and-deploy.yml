@@ -40,6 +40,14 @@ jobs:
         env:
           ABUSECH_API_KEY: ${{ secrets.ABUSECH_API_KEY }}
           IPINFO_TOKEN: ${{ secrets.IPINFO_TOKEN }}
+          # Phase 3 community export: D1 REST *query* (read-only). ACCOUNT_ID
+          # already exists as a secret but was previously referenced only in the
+          # deploy step, so it must be added here for the D1 URL. The DB id and a
+          # dedicated D1-Read-only token are new secrets; absent, the builder
+          # no-ops to last-known-good (the site behaves exactly as today).
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+          CF_D1_READ_TOKEN: ${{ secrets.CF_D1_READ_TOKEN }}
         run: python run_pipeline.py
 
       - name: Commit state snapshots

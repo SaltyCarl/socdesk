@@ -1,0 +1,9 @@
+[
+  { "type": "ipv4",   "value": "203.0.113.4", "key": "ipv4|203.0.113.4" },
+  { "type": "ipv6",   "value": "2001:db8::1", "key": "ipv6|2001:db8::1" },
+  { "type": "domain", "value": "evil.example", "key": "domain|evil.example" },
+  { "type": "url",    "value": "https://evil.example/a", "key": "url|https://evil.example/a" },
+  { "type": "md5",    "value": "D41D8CD98F00B204E9800998ECF8427E", "key": "md5|d41d8cd98f00b204e9800998ecf8427e" },
+  { "type": "sha1",   "value": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709", "key": "sha1|da39a3ee5e6b4b0d3255bfef95601890afd80709" },
+  { "type": "sha256", "value": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855", "key": "sha256|e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" }
+]

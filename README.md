@@ -220,6 +220,12 @@ design/         brand book, approved mockups, visual reference
 .github/workflows/collect-and-deploy.yml
 ```
 
+Phase-3 community layer: `run_pipeline.py` exports approved crowdsourced abuse
+reports from D1 (read-only REST query) to the committed `data/state/community_reports.json`,
+which the enrich read path consults as a `kind:"context"` `SOCDESK_COMMUNITY`
+row. The read path serves that committed JSON as a static asset — `/api/enrich`
+gains no D1 binding and never reads D1 per lookup.
+
 ## Documentation
 
 | Document | What it holds |
