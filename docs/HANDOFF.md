@@ -1,6 +1,6 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-22 (session — TWO parallel features MERGED + DEPLOYED via first PM-orchestrated dual-worktree SDD pipeline: Track A `/admin` owner moderation console + Track B1 non-blocking enrich context; `main` = `1c8095f`, deploy run `32571347054`; 543 unit tests + Playwright 17 green. Earlier same day: IOC reporting UX polish live) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-22 (session — TWO parallel features MERGED + DEPLOYED via first PM-orchestrated dual-worktree SDD pipeline: Track A `/admin` owner moderation console + Track B1 non-blocking enrich context; `main` = `1c8095f`, deploy run `32571347054`; 543 unit tests + Playwright 17 green. Earlier same day: IOC reporting UX polish live. Also same day: Phase 3 community-reports-publish BUILT on branch `feat/community-reports-publish`, NOT merged) · **Read §0 first.**
 
 ---
 
@@ -137,6 +137,61 @@ inaccurate OPERATIONS "callback logs" doc line; owner-accepted B1 behaviors
 moderation is dogfooded; enrich cluster B2 (abuse-hardening: Turnstile +
 rate-limit + KV budget) then B3 (own-OSINT dataset check-first); the deferred
 a11y/doc minors; Node-20→24 CI bump.
+
+### APPENDED — Phase 3 community-reports-publish (branch, NOT merged)
+
+> Separate work item, same day. Built on branch `feat/community-reports-publish`
+> (base `dc0cf44`) via 7-task subagent-driven development + per-task reviews + a
+> clean whole-branch Opus review (verdict SHIP). **NOT merged** — owner
+> finish-menu decision pending.
+
+**What it does:** approved D1 reports (`status='approved'`) are exported by a new
+Python pipeline step to a committed static JSON
+(`data/state/community_reports.json`), consulted by the enrich read path via a
+synchronous in-memory lookup, emitting one attributed `kind:"context"`
+`SOCDESK_COMMUNITY` row (out of the verdict tally) on a match. Option A: no
+per-lookup D1, no `DB` binding on `/api/enrich` — reads the committed asset via
+`env.ASSETS.fetch`.
+
+**Key decision (owner-approved):** rendered metric is `COUNT(DISTINCT github_id)`
+→ "Reported by N contributor(s)" — **never** raw `COUNT(*)` (one re-reporting
+accuser could otherwise read as N independent corroborations; no
+`(github_id,ioc_value)` unique constraint, dedup only fires on still-queued
+same-author rows). Raw volume kept only in the non-rendered envelope
+`report_count`. No minimum-reporter threshold.
+
+**Privacy fence (twice-enforced):** SQL projects no `id`/`evidence`/`comment`/
+`login`, reads `github_id` only inside `COUNT(DISTINCT …)`; builder whitelists
+exactly 6 keys/indicator; schema `additionalProperties:false` (both levels) fails
+closed. No reporter PII in the published dataset.
+
+**Files:** created `pipeline/community.py`, `schemas/community_reports.schema.json`,
+`data/state/community_reports.json` (empty seed),
+`tests/fixtures/community/{key_parity,categories}.json`,
+`lib/__tests__/{community,community_loader}.test.mjs`. Modified `lib/enrich.mjs`
+(`communityKey` + `SOCDESK_COMMUNITY` source), `functions/api/enrich.js`
+(`loadCommunity` memoize-successes-only + derived-env inject), `run_pipeline.py`
+(import os, thread env, payload before gate + last-known-good re-stamp on None),
+`pipeline/validate.py` (`SCHEMA_FOR` reg), `.github/workflows/collect-and-deploy.yml`
+(D1 secrets into "Run collectors" step), `tests/{test_community,test_pipeline}.py`,
+`README.md`, `lib/__tests__/enrich.test.mjs` (planSources expectation update).
+(`CLAUDE.md` is gitignored — not committed.)
+
+**Commits (base `dc0cf44`):** `75c3e10`, `2a7ee17`, `58d37c6`, `ad0a953`,
+`83d70c1`, `db17a37`, `70569c2`, `bd79174`.
+
+**Verified:** pytest 90 · vitest 553 · `npm --prefix web run build` green.
+
+**Open / next:** NOT merged — owner-config still needed to activate (inert until
+set — ships dark): Actions secrets `CLOUDFLARE_D1_DATABASE_ID` +
+`CF_D1_READ_TOKEN` (D1 Read-only); confirm `CLOUDFLARE_ACCOUNT_ID` reaches the
+collectors step; publish the `/about#community-reports` transparency page
+(count-not-verdict framing + dispute/removal contact). Spec:
+`docs/superpowers/specs/2026-08-22-community-reports-publish-design.md` (§10
+amendments); plan:
+`docs/superpowers/plans/2026-08-22-community-reports-publish.md`. Local dev
+note: pytest needs `./.venv/Scripts/python.exe -m pytest` (bare python/py lack
+deps).
 
 ---
 
