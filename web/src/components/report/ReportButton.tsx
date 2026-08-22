@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import type { IndicatorType } from '@socdesk/shared/indicators'
+import { markContributorSeen } from '../../lib/contributorSeen'
 import { Button } from '../ui'
 import { ReportForm } from './ReportForm'
 
@@ -31,7 +32,10 @@ export function ReportButton({ iocType, iocValue }: { iocType: IndicatorType; io
         variant="tertiary"
         size="sm"
         aria-label="Report this indicator"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          markContributorSeen()
+          setOpen(true)
+        }}
       >
         <FlagGlyph />
         Report

@@ -4,6 +4,7 @@
 // read path stays no-account.
 
 import { useEffect, useState } from 'react'
+import { markContributorSeen } from './contributorSeen'
 
 export type SessionState = { status: 'loading' | 'in' | 'out'; login?: string }
 
@@ -21,7 +22,11 @@ export function useSession(): SessionState {
     fetch('/api/report/mine', { credentials: 'same-origin' })
       .then(async (r) => {
         const body = await r.json().catch(() => null)
-        if (live) setS(sessionStateFrom(r.status, body))
+        if (live) {
+          const next = sessionStateFrom(r.status, body)
+          if (next.status === 'in') markContributorSeen()
+          setS(next)
+        }
       })
       .catch(() => {
         if (live) setS({ status: 'out' })

@@ -4,6 +4,7 @@
 // rendering of report/category/status fields.
 
 import { useEffect, useState } from 'react'
+import { markContributorSeen } from '../lib/contributorSeen'
 
 type Row = { id: string; ioc_type: string; ioc_value: string; category: string; status: string; created_at: string }
 
@@ -12,6 +13,7 @@ export function MyReports() {
   const [auth, setAuth] = useState(true)
   const [error, setError] = useState(false)
   useEffect(() => {
+    markContributorSeen()
     fetch('/api/report/mine', { credentials: 'same-origin' })
       .then(async (r) => {
         if (r.status === 401) {
