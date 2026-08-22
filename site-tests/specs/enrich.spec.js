@@ -146,7 +146,10 @@ test.describe("enrichment", () => {
     expect(r.consulted).toBe(0);
     expect(r.flagged).toBe(0);
     expect(r.tone).toBe("grey");
-    expect(r.errors.map(e => e.source).sort()).toEqual(["MalwareBazaar", "VirusTotal"]);
+    // VirusTotal + MalwareBazaar are key-gated; OTX (a context source that also
+    // applies to hashes) is likewise not configured — all three are named, never
+    // silently omitted.
+    expect(r.errors.map(e => e.source).sort()).toEqual(["AlienVault OTX", "MalwareBazaar", "VirusTotal"]);
     expect(r.partial).toBe(true);
   });
 
@@ -218,7 +221,7 @@ test.describe("enrichment", () => {
       "mb-api.abuse.ch": { body: { query_status: "hash_not_found" } },
     }), "sha256", "a".repeat(64), KEYS);
 
-    expect(r.errors).toEqual([]);                      // no source failed
+    expect(r.errors).toEqual([{ source: "AlienVault OTX", reason: "not configured" }]); // OTX applies to hashes, key absent
     expect(r.sources.length).toBe(2);
     // "no data on record" is consulted (counts in M) but never flagged (N):
     // 0 of 2 → green, and the green headline states it is not a clearance.
