@@ -8,7 +8,7 @@ import { useState } from 'react'
 import type { IndicatorType } from '@socdesk/shared/indicators'
 import { markContributorSeen } from '../../lib/contributorSeen'
 import { Button } from '../ui'
-import { ReportForm } from './ReportForm'
+import { ReportDialog } from './ReportDialog'
 
 function FlagGlyph() {
   return (
@@ -40,7 +40,9 @@ export function ReportButton({ iocType, iocValue }: { iocType: IndicatorType; io
         <FlagGlyph />
         Report
       </Button>
-      {open && <ReportForm iocType={iocType} iocValue={iocValue} onClose={() => setOpen(false)} />}
+      {open && (
+        <ReportDialog iocType={iocType} iocValue={iocValue} open={open} onClose={() => setOpen(false)} />
+      )}
     </>
   )
 }
