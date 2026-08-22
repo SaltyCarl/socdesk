@@ -120,6 +120,13 @@ verified LIVE: cold lookups now verdict-gated (~0.78s IP / 1.0s domain, warm cac
 interactive dogfood (activates moderation) — checklist in `docs/OPERATIONS.md`;
 (2) B1 latency dogfood = DONE (verified from here).
 
+**Acceptance CLOSED (2026-08-22) — `/admin` interactive dogfood PASSED; both
+features fully accepted.** Owner set `OWNER_GITHUB_ID` + a deploy bound it (run
+`32571697164`), then ran the live loop end-to-end: sign in as owner → queued
+report visible → approve/reject → status flip. Flips acceptance item (1) above →
+DONE. Track A `/admin` moderation console + Track B1 non-blocking enrich context
+now both fully accepted (owner-reported dogfood; not a git-visible artifact).
+
 **Deferred (non-blocking):** the "Check reputation" deep-link aria-label; an
 inaccurate OPERATIONS "callback logs" doc line; owner-accepted B1 behaviors
 (dropped-RDAP shows "Registration age unknown"; fast-fail context error caches
