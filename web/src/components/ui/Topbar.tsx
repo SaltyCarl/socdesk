@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { SdMonogram } from '@socdesk/shared/ui'
+import { AccountControl } from './AccountControl'
 import { ThemeToggle } from './ThemeToggle'
 
 /**
@@ -74,6 +75,7 @@ export function Topbar({
         <Nav items={items} />
         <div className="ml-auto flex items-center gap-3">
           {right}
+          <AccountControl />
           <ThemeToggle />
         </div>
       </div>

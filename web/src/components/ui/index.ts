@@ -24,3 +24,4 @@ export type {
 export { ThemeToggle } from './ThemeToggle'
 export { AppShell, Topbar } from './Topbar'
 export type { NavItem } from './Topbar'
+export { AccountControl } from './AccountControl'
