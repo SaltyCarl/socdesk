@@ -56,8 +56,8 @@ function Label({ children }: { children: ReactNode }) {
 /** Both registers over one VerdictData: the client escalation card + its
  *  deterministic copy-card PNG (left), the dense analyst console (right).
  *  EscalationCard embeds the copy-card / copy-text CardActions itself.
- *  `reportable` mounts the low-key report affordance under the escalation
- *  card footer — set only by the real resolved-lookup call site, never by
+ *  `reportable` mounts the Report button in the card's own action row via
+ *  `reportSlot` — set only by the real resolved-lookup call site, never by
  *  the static ExamplesGallery (reporting a canned stub makes no sense). */
 function CardTriptych({
   data,
@@ -73,12 +73,13 @@ function CardTriptych({
       <div className="flex flex-col gap-8">
         <div>
           <Label>Client register — escalation card</Label>
-          <EscalationCard data={data} theme={theme} />
-          {reportable && (
-            <div className="mt-2">
-              <ReportButton iocType={data.type} iocValue={data.indicator} />
-            </div>
-          )}
+          <EscalationCard
+            data={data}
+            theme={theme}
+            reportSlot={
+              reportable ? <ReportButton iocType={data.type} iocValue={data.indicator} /> : undefined
+            }
+          />
         </div>
         <div>
           <Label>Copy card — deterministic PNG on the clipboard</Label>

@@ -1,23 +1,41 @@
-// ReportButton — the low-key "report this indicator" affordance mounted on
-// the resolved escalation card. Opens the report form inline (which itself
-// gates on GitHub sign-in); the lookup/analyzer read path is unaffected —
-// this is purely additive.
+// ReportButton — the real "report this indicator" affordance. Mounted in the
+// EscalationCard header action row (via Lookup's reportSlot), at a quieter
+// weight than the Copy-text ghost so hierarchy reads Copy card > Copy text >
+// Report. Opens the report form, which itself gates on GitHub sign-in; the
+// lookup/analyzer read path is unaffected.
 
 import { useState } from 'react'
 import type { IndicatorType } from '@socdesk/shared/indicators'
+import { Button } from '../ui'
 import { ReportForm } from './ReportForm'
+
+function FlagGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-4 shrink-0" aria-hidden="true">
+      <path
+        d="M5 21V4m0 0h11l-2 4 2 4H5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
 export function ReportButton({ iocType, iocValue }: { iocType: IndicatorType; iocValue: string }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <button
-        type="button"
+      <Button
+        variant="tertiary"
+        size="sm"
+        aria-label="Report this indicator"
         onClick={() => setOpen(true)}
-        className="font-mono text-micro text-faint transition-colors hover:text-paper"
       >
-        Report this indicator
-      </button>
+        <FlagGlyph />
+        Report
+      </Button>
       {open && <ReportForm iocType={iocType} iocValue={iocValue} onClose={() => setOpen(false)} />}
     </>
   )
