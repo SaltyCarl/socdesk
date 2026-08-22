@@ -10,10 +10,10 @@
 // leads with the tally-as-coverage headline + the segmented gauge, then the hero.
 // All wording/banding comes from the verdict-lib doctrine.
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { VerdictData } from '../verdict'
 import { coverageState, dualUseTag, hashHeadline, leadFact } from '../verdict'
-import { Chip, MicroLabel, type ChipVariant } from '../ui'
+import { Chip, Divider, MicroLabel, type ChipVariant } from '../ui'
 import { cveLead, isBannerLed } from '../card/model'
 import { Hero } from './heroes'
 import { CompareIp, type CompareResult } from './CompareIp'
@@ -63,6 +63,10 @@ export function EscalationCard({
   theme,
   baseUrl,
   onCompare,
+  /** Web-only reporting affordance (a ReportButton). Rendered in the header
+   *  action row after CardActions, behind a vertical Divider. Only Lookup.tsx
+   *  passes it; every other consumer omits it and renders unchanged. */
+  reportSlot,
 }: {
   data: VerdictData
   theme?: CanvasTheme
@@ -73,6 +77,7 @@ export function EscalationCard({
    *  null on clear). The landing page uses this to draw the two-IP great-circle
    *  arc on the hero globe; other surfaces omit it. */
   onCompare?: (c: CompareResult | null) => void
+  reportSlot?: ReactNode
 }) {
   // A successful inline Compare-IP lifts its result here so the geo hero draws the
   // arc + second pin and the copy-card PNG bundles the same compare. Null for every
@@ -94,8 +99,14 @@ export function EscalationCard({
         <div className="flex flex-wrap items-center gap-2">
           <MicroLabel tone="accent">Escalation draft</MicroLabel>
           <span className="font-mono text-micro text-faint">SOCDESK · TRIAGE</span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-stretch gap-2">
             <CardActions data={data} theme={theme} compare={compare} />
+            {reportSlot && (
+              <>
+                <Divider orientation="vertical" className="self-stretch" />
+                <div className="flex items-center">{reportSlot}</div>
+              </>
+            )}
           </div>
         </div>
 
