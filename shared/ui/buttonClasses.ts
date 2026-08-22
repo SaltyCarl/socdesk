@@ -7,10 +7,12 @@ import { cx } from '../lib/cx'
  *
  *   primary  · filled periwinkle — the one loud CTA
  *   ghost    · hairline neutral — the recessive workhorse
+ *   tertiary · borderless/muted → hover reveals — "discoverable but not
+ *              competing" actions (e.g. Report in the card action row)
  *   danger   · quiet tinted red — DESTRUCTIVE actions only (meaning-bearing,
  *              never decorative; stays a tint, not a fill, per the verdict rule)
  */
-export type ButtonVariant = 'primary' | 'ghost' | 'danger'
+export type ButtonVariant = 'primary' | 'ghost' | 'tertiary' | 'danger'
 export type ButtonSize = 'sm' | 'md'
 
 const BASE =
@@ -23,6 +25,8 @@ const VARIANT: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-ink-on-accent hover:bg-accent-dim',
   ghost:
     'border border-line bg-transparent text-paper hover:border-line-bright hover:bg-panel-soft',
+  tertiary:
+    'border border-transparent bg-transparent text-muted hover:border-line hover:bg-panel-soft hover:text-paper',
   danger:
     'border border-[var(--edge-red)] bg-transparent text-verdict-red hover:bg-[var(--tint-red)]',
 }
