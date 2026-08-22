@@ -7,6 +7,7 @@ import { DataDeskRoute } from './routes/DataDeskRoute'
 import { ActorProfileRoute } from './routes/ActorProfileRoute'
 import { Gallery } from './routes/Gallery'
 import { MyReports } from './routes/MyReports'
+import { Admin } from './routes/Admin'
 import { Privacy } from './routes/Privacy'
 
 /**
@@ -55,6 +56,7 @@ const ROUTES: Route[] = [
   { path: '/actor', label: 'Profiles', size: 'default', el: <ActorProfileRoute /> },
   { path: '/gallery', label: 'Gallery', size: 'default', el: <Gallery />, nav: false },
   { path: '/reports', label: 'My reports', size: 'default', el: <MyReports />, nav: false },
+  { path: '/admin', label: 'Admin', size: 'default', el: <Admin />, nav: false },
   { path: '/privacy', label: 'Privacy', size: 'default', el: <Privacy />, nav: false },
 ]
 
