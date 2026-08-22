@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { animate } from 'motion'
 import { cx } from '@socdesk/shared/lib/cx'
 import { DUR, EASE, prefersReducedMotion } from '@socdesk/shared/lib/motion'
-import { Card, Divider, MicroLabel } from '../ui'
+import { Card, Divider, MicroLabel } from '@socdesk/shared/ui'
 import { navigate } from '../palette/commands'
 import { useSession } from '../../lib/useSession'
 import { isContributorSeen } from '../../lib/contributorSeen'
@@ -51,6 +51,7 @@ function AccountMenu() {
     const onPointer = (e: PointerEvent) => {
       if (wrapRef.current?.contains(e.target as Node)) return
       setOpen(false)
+      triggerRef.current?.focus()
     }
     document.addEventListener('keydown', onKey)
     document.addEventListener('pointerdown', onPointer)
