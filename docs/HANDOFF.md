@@ -1,10 +1,78 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-21 (session 8 — escalation-card redesign + OTX/AbuseIPDB/GreyNoise enrich LIVE, analyzer-in-extension MERGED, IOC-reporting Phase 0+1 MERGED + DEPLOYED live, interactive dogfood PASSED — acceptance gate met; next = reporting UX polish) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-22 (session — IOC reporting UX polish MERGED + DEPLOYED live: quiet AccountControl nav chip, real tertiary Report button, ReportDialog terminal state machine, OAuth draft preservation, My-reports redesign, WCAG contrast helper; live bundle `index-yNquSVOS.js`; next = Phase 2 owner moderation console `/admin`) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-21 (session 8 — escalation-card + enrich sources LIVE, analyzer-in-extension MERGED, IOC-reporting Phase 0+1 MERGED + DEPLOYED live)
+## 0. LATEST — 2026-08-22 (session — IOC reporting UX polish MERGED + DEPLOYED live)
+
+> Newest block. One unit shipped to `main`/live since session 8: the IOC-reporting
+> UX-polish surface. Built via a 12-task subagent-driven-development run on branch
+> `feat/reporting-ux-polish` (14 commits), rebased → fast-forwarded → pushed to
+> `main`, branch deleted. `main` = `origin/main` = **`824054d`**. Whole-branch
+> review (Opus) = CLEAN. 508 unit tests + `tsc` build + eslint green throughout.
+> Deploy run `32566011115` succeeded; live bundle `index-yNquSVOS.js`.
+
+### Shipped surfaces (`main`, LIVE)
+- **AccountControl** — quiet-until-relevant contributor nav chip. Anonymous users
+  render zero account DOM AND fire no `/api/report/mine` probe (gated on a
+  `sd_contributor` localStorage bit). Signed-out returning contributor sees a
+  "Sign in" link; signed-in sees an @handle chip + menu (My reports + Sign out →
+  `POST /api/auth/logout`). Commits: `c415de8` (AccountControl + menu), `f32b2d6`
+  (`contributorSeen` bit + three set-sites), `ca3418a` (focus return on
+  outside-click dismiss + shared-primitive imports).
+- **Real tertiary Report button** in the EscalationCard header action row (was a
+  near-invisible micro text-link): `81c4262`; `9834513` added the card's optional
+  `reportSlot`; `f33fbe9` added the `tertiary` Button variant.
+- **ReportDialog** — native `<dialog>` modal on the CommandPalette pattern, full
+  terminal state machine (queued/deduped/expired→gate/turnstile/invalid/banned/
+  capped/error; reserved-colour success = accent ✓, **not** verdict-green),
+  Turnstile reset on all resubmit paths, explicit category (dropped silent
+  `'scanner'`), evidence counter; replaces `ReportForm`. Commits: `353d9c0`
+  (dialog shell), `edce291` (fields + terminal state machine), `8447ab5`
+  (Turnstile reset on validation failure too — plan defect caught + fixed).
+- **OAuth draft preservation** — stash typed draft in `sessionStorage` before
+  sign-in, auto-reopen + restore on return (`39445aa`).
+- **My reports redesign** — ViewHeader / Panel / ledger rows / status Chip /
+  Notice (`e9af2b0`).
+- **Legibility** — `web/src/lib/contrast.ts` WCAG helper + AA matrix test
+  (muted/paper/accent pass, faint fails) + reserved-colour guard (`d672e54`).
+- **`docs/DESIGN-TOKENS.md`** web-scoped token reference (`824054d`).
+
+### Shared changes
+- `useSession` relocated to `web/src/lib` (SessionState gained `login`); `mine.js`
+  echoes `login`; EscalationCard gained optional `reportSlot`; new `tertiary`
+  Button variant. Base refactor commit `b688289`.
+
+### Verified
+- 508 unit tests + `tsc` build + eslint green throughout the run; whole-branch
+  Opus review CLEAN. HEAD/`origin/main` = `824054d` (confirmed).
+- **From-here live:** socdesk.io 200; bundle contains "Report this indicator" /
+  "Signed in with GitHub" / "Report indicator" / "Select a category";
+  `/api/auth/github/start` 302; `/api/report` + `/api/report/mine` 401.
+- **Not yet run:** interactive OAuth auto-reopen dogfood (needs owner GitHub
+  sign-in).
+
+### Rulings recorded
+- `CATEGORIES` hardcoded in ReportDialog vs `lib/reporting/validate.mjs`
+  (byte-identical today, accepted).
+- Turnstile reset extended to the `'invalid'` outcome (plan defect caught + fixed).
+
+### Follow-ups (backlog)
+- Shared `CATEGORIES` import + equality-guard test.
+- Two Task-8 cosmetics: redundant `aria-label` vs `<label>`; generic `'invalid'`
+  copy.
+- Node-20 → 24 CI deprecation bump.
+
+### Open / next
+- **Phase 2 owner moderation console** (`/admin`, gated on numeric
+  `OWNER_GITHUB_ID`) to action the queued reports — recommended next.
+- Or abuse-hardening on `/api/enrich` (Turnstile + rate-limit + KV budget) before
+  a public share.
+
+---
+
+## 0-RECENT — 2026-08-21 (session 8 — escalation-card + enrich sources LIVE, analyzer-in-extension MERGED, IOC-reporting Phase 0+1 MERGED + DEPLOYED live)
 
 > Newest block. Two units shipped to `main`/live since session 7 (escalation-card
 > redesign + three enrich-source changes; the analyzer lifted into the browser
