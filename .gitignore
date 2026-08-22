@@ -20,3 +20,6 @@ CLAUDE.md
 
 # SDD scratch (ledger, briefs, review packages)
 .superpowers/
+
+# SDD parallel-track worktrees (managed via git worktree)
+.worktrees/
