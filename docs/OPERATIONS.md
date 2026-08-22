@@ -333,9 +333,14 @@ no-account either way.
    | `SESSION_SECRET` | 32+ random bytes (`openssl rand -hex 32`) — signs the session cookie and the OAuth `state` |
    | `TURNSTILE_SECRET` | from step 3 |
 
-   `OWNER_GITHUB_ID` (your numeric GitHub id, never the login — logins are
-   reclaimable) is **not needed for Phase 0+1** — only the Phase 2 moderation
-   console (`/admin`) reads it. Set it when Phase 2 lands.
+   `OWNER_GITHUB_ID` — your numeric GitHub id (never the login; logins are
+   reclaimable). Find it via `https://api.github.com/users/<your-login>` →
+   the `id` field, or from the GitHub OAuth debug/callback logs. Add it as a
+   Pages Function secret alongside `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`
+   / `SESSION_SECRET` / `TURNSTILE_SECRET` (Cloudflare → Workers & Pages →
+   **socdesk** → Settings → Environment variables → Production). `/admin`
+   403s for every account, including the owner's, until this is set — the
+   gate fails closed on purpose (`lib/reporting/admin.mjs`'s `isOwner`).
 
    `VITE_TURNSTILE_SITEKEY` is different — a **build-time** value Vite inlines
    into the bundle (`import.meta.env`), and the production build runs in **GitHub
@@ -357,7 +362,11 @@ no-account either way.
    the above in place: `/api/auth/github/start` redirects to GitHub; the
    callback upserts an `accounts` row and sets an `sd_session` cookie; a
    submitted report lands as `queued` and shows up at `/reports`. Confirm the
-   lookup/analyzer flow is unaffected while doing this.
+   lookup/analyzer flow is unaffected while doing this. Then, signed in as the
+   owner (`OWNER_GITHUB_ID` set to your account's numeric id), open `/admin`:
+   confirm the report appears in the queue, approve or reject it, confirm it
+   disappears from the queue, and confirm `/reports` shows the updated status
+   for the reporting account.
 
 ### Custom domain
 
