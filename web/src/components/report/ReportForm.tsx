@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { IndicatorType } from '@socdesk/shared/indicators'
-import { useSession } from './useSession'
+import { useSession } from '../../lib/useSession'
 
 const CATEGORIES = [
   'brute-force',
