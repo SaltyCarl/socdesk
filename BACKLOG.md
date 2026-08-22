@@ -1,5 +1,10 @@
 # SOCDesk Backlog
 
+> _Refreshed 2026-08-22._ Recently shipped: reporting **UX polish** + **Phase 2 owner
+> moderation (`/admin`)** + **enrich non-blocking context** (all live). Active: reporting
+> **Phase 3** (publish approved reports as `SOCDESK_COMMUNITY`). Refresh this doc at every
+> feature close-out — it is the durable to-do alongside `docs/HANDOFF.md`.
+
 ## North star (owner-set, 2026-08-10 — read before adding ANYTHING)
 
 99% of a T1/T2 analyst's day is: paste an IP or hash into AbuseIPDB /
@@ -68,12 +73,13 @@ in-place IOC pivot; Gallery → internal-only (dropped from the public nav); and
    sharing indicator detection + the enrich pipeline, so IPv6 / RDAP / URL all
    flow through. Chrome Web Store upload (Unlisted) remains an owner action.
 5. **Reputation-quality fixes** (from the 2026-08-18 UX + SOC review — sharpen the
-   "get reputation" output the analyst actually reads): drop MalwareBazaar from IP
-   cards (it's hash-only and currently mis-leads the lead fact); add AbuseIPDB
-   abuse categories to the IP card; add the resolved A-record IP to domain cards
-   (enables the domain→IP pivot). *(Already shipped from that review: honest
-   source-class labels, ledger alignment, per-source recency on card+PNG, EPSS
-   attribution, the dual-use Tor chip, AA contrast.)*
+   "get reputation" output the analyst actually reads): **remaining** — drop
+   MalwareBazaar from IP cards (it's hash-only and currently mis-leads the lead
+   fact); domain→IP clickable pivot in the hero (P1.5c, investigation done ~15min,
+   parked). *(Shipped from that review: AbuseIPDB abuse categories on the IP card
+   `31f053f`+dogfooded; GreyNoise honesty fix `eda8ed1`; honest source-class labels,
+   ledger alignment, per-source recency on card+PNG, EPSS attribution, the dual-use
+   Tor chip, AA contrast.)*
 
 ## Polish & ops (opportunistic, non-blocking)
 - **Compare-IP globe arc** — the great-circle arc on the 3D globe (the shared-card
@@ -89,6 +95,12 @@ in-place IOC pivot; Gallery → internal-only (dropped from the public nav); and
   deploy scripts; add enrich keys to the CF **Preview** env scope (fixes the
   GreyNoise-only preview enrich).
 - Verify the privacy-page contact email.
+- **CI: Node-20→24 bump** — every deploy run warns "Node.js 20 is deprecated"
+  (checkout@v4/setup-node@v4/setup-python@v5/wrangler-action@v3 forced onto Node 24).
+  Pin `node-version: 24` (and refresh action majors) in `collect-and-deploy.yml`.
+- **Reporting deferred minors** (from the Phase-2 / UX-polish ships): "Check reputation"
+  deep-link `aria-label` on the `/admin` row pivot; an OPERATIONS callback-logs doc line;
+  shared `CATEGORIES` import + guard-test; the 2 Task-8 ReportDialog cosmetics.
 
 ## P2 — next core component (only once the loop is excellent)
 CVE / Threat-Intel feed as the second pillar (feed, KEV/EPSS triage — already
@@ -96,8 +108,9 @@ built, needs dogfood-driven sharpening rather than new construction). Review
 adds: CVE patch/fixed-version + an "overdue" chip when action-due < today; wire
 `NVD_API_KEY` into `collectors/nvd.py`. Adjacent enrich/globe candidates:
 ~~OTX AlienVault as an enrich source~~ **(shipped 2026-08-20 — 8th enrich
-source, `kind:context` community pulse attribution, `OTX_API_KEY`; OTX throttles
-CF egress so it carries a dedicated 9s timeout, same pattern as RDAP's 7s)**;
+source, `kind:context` community pulse attribution, `OTX_API_KEY`; OTX + RDAP are
+now NON-BLOCKING — pulled off the verdict path 2026-08-22, so their slow egress no
+longer gates the lookup)**;
 AbuseIPDB blacklist → ambient reported-IP globe layer. *(The impossible-travel tool — two IPs → great-circle distance/velocity →
 plausibility read — **shipped 2026-08-18 as Compare-IP**; the globe-arc render is
 landing now, see Polish & ops.)*
@@ -208,7 +221,13 @@ check (logon types, source host, account).
 
 ## Sustainability, dataset & community lane (owner-directed 2026-08-20)
 
-- **★ Abuse hardening (`/api/enrich`)** — the public keyed proxy is currently
+- **Enrich non-blocking context — SHIPPED ✅ (2026-08-22).** OTX/RDAP pulled off the
+  `/api/enrich` blocking path (4-phase assembler + collect-anchored grace-race, `GRACE_MS=0`;
+  `partial` recomputed from the BLOCKING axis = cache-safe; additive `skipped_context` honesty
+  field). Cold lookups now **verdict-gated** (~0.8s IP / 1.0s domain live) instead of the old
+  ~1.5s stopgap floor — context rides along free when ready, drops without gating when slow.
+  Supersedes the OTX/RDAP 9s/7s→1.5s timeout stopgap. `spec 2026-08-22-enrich-nonblocking-context-design.md`.
+- **★ Abuse hardening (`/api/enrich`) — B2, PENDING (wanted before a public share).** The public keyed proxy is currently
   protected ONLY by the 15-min edge cache; a script over novel indicators burns
   free-tier quota / risks a key ToS-revocation. Harden with: **Cloudflare
   Turnstile** (free, invisible — UX-transparent, gates the web app; extension
@@ -230,15 +249,23 @@ check (logon types, source host, account).
   YES, employment-IP gate LIFTED; generates real telemetry to report scanners
   (AbuseIPDB/GreyNoise) + submit samples (MalwareBazaar). (2) open-source the
   analyzer engine as a standalone lib — later / well down the line.
-- **★ IOC reporting (crowdsourced abuse reporting) — Phase 0+1 SHIPPED + LIVE ✅ (2026-08-21).**
-  Report an IP/domain/etc., AbuseIPDB/VT-style. Resolved the public-model risk with the
-  **narrow contributor-identity account model**: the read/lookup path stays 100%
-  no-account; only the *report/write path* is auth-gated (GitHub OAuth + Turnstile +
-  per-account daily cap + owner moderation before any publish). Live + dogfooded; see
-  `docs/superpowers/specs/2026-08-20-ioc-reporting-phase01-design.md` (Phases 2–6:
-  moderation → publish community verdicts → ISP/ASN leaderboard → trends → upstream push).
-  **Next:** reporting UX polish (visible contributor sign-in entry, discoverable report
-  affordance on the card, polished form) — UX-Team-reviewed, in progress 2026-08-21.
+- **★ IOC reporting (crowdsourced abuse reporting).** Report an IP/domain/etc., AbuseIPDB/VT-style.
+  Resolved the public-model risk with the **narrow contributor-identity account model**: the
+  read/lookup path stays 100% no-account; only the *report/write path* is auth-gated (GitHub OAuth
+  + Turnstile + per-account daily cap + owner moderation before any publish). Roadmap spec:
+  `docs/superpowers/specs/2026-08-20-ioc-reporting-phase01-design.md`.
+  - **Phase 0+1** (D1 + OAuth + report write path + my-reports) — ✅ SHIPPED + LIVE + dogfooded (2026-08-21).
+  - **Reporting UX polish** (quiet-until-relevant account nav chip, real Report button in the card
+    action row, ReportDialog modal + OAuth draft preservation, MyReports redesign, legibility) —
+    ✅ SHIPPED (2026-08-22, 12-task SDD).
+  - **Phase 2 — owner moderation console (`/admin`)** — ✅ SHIPPED + DOGFOOD-ACCEPTED (2026-08-22):
+    owner-gated (numeric `OWNER_GITHUB_ID` secret, set) approve/reject queue; atomic race-safe D1
+    write; fail-closed. `spec 2026-08-22-admin-moderation-console-design.md`.
+  - **Phase 3 — publish approved reports as a live `SOCDESK_COMMUNITY` context source** (Option A:
+    committed dataset built from D1 approved rows, no per-lookup D1; `kind:context`, OUT of the tally,
+    attributed, no reporter PII published) — **IN PROGRESS** (2026-08-22, spec
+    `2026-08-22-community-reports-publish-design.md`).
+  - **Phase 4** ISP/ASN abuse-leaderboard → **Phase 5** trends → **Phase 6** optional upstream push — pending.
 - **Deferred / future ambition — broader user account (doctrine change, NOT now).**
   The account is deliberately a **narrow contributor identity** (report → my-reports →
   later reputation / corroboration-vote / contributor-profile) and **never touches the
