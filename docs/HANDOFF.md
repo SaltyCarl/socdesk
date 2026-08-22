@@ -1,6 +1,6 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-22 (session — IOC reporting UX polish MERGED + DEPLOYED live: quiet AccountControl nav chip, real tertiary Report button, ReportDialog terminal state machine, OAuth draft preservation, My-reports redesign, WCAG contrast helper; live bundle `index-yNquSVOS.js`; next = Phase 2 owner moderation console `/admin`) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-22 (session — TWO parallel features MERGED + DEPLOYED via first PM-orchestrated dual-worktree SDD pipeline: Track A `/admin` owner moderation console + Track B1 non-blocking enrich context; `main` = `1c8095f`, deploy run `32571347054`; 543 unit tests + Playwright 17 green. Earlier same day: IOC reporting UX polish live) · **Read §0 first.**
 
 ---
 
@@ -69,6 +69,67 @@
   `OWNER_GITHUB_ID`) to action the queued reports — recommended next.
 - Or abuse-hardening on `/api/enrich` (Turnstile + rate-limit + KV budget) before
   a public share.
+
+### APPENDED — TWO parallel features shipped via first PM-orchestrated dual-worktree SDD pipeline
+
+> Second unit this session. `main` = `origin/main` = **`1c8095f`** (confirmed via
+> `git log`); deploy run **`32571347054`**. 543 unit tests + Playwright 17 green on
+> merged main; build clean. Zero branch-level fix waves.
+
+**Pipeline (first time):** brainstorm → design spec → 6-specialist panel review
+(SOC Analyst, Infra, AppSec, Frontend) + owner gate → writing-plans → TWO
+concurrent subagent-driven-development swarms in isolated git worktrees
+(file-ownership boundary enforced at the filesystem; `4bf130b` gitignores
+`.worktrees/`) → per-track whole-branch Opus review → merge. Plans:
+`c674ea5` (/admin, 9-task), `d9658c7` (enrich, 7-task); panel amendments folded
+into both specs `abb6822`.
+
+**Track A — `/admin` owner moderation console — MERGED + DEPLOYED.** Owner-gated
+queue console for the crowdsourced reports (Phase 2). Commits `6c245d5` (pure
+owner gate + action vocab + report-id shape guard), `6424314`
+(listQueuedReports/updateReportStatus D1), `b41df24` (GET /api/admin/reports),
+`2c621a9` (POST /api/admin/moderate), `9ac60f6` (adminModel QueuedReport +
+removeFromQueue), `b4b6ac5` (Admin route), `75a4823` (register /admin nav:false),
+`bccfbd2` (OWNER_GITHUB_ID setup doc). Files: `lib/reporting/admin.mjs` (pure
+isOwner fail-closed + whitespace-hardened / statusForAction / isValidReportId),
+`lib/reporting/db.mjs` (+listQueuedReports/updateReportStatus, atomic race-safe
+UPDATE), `functions/api/admin/{reports,moderate}.js`
+(401→403→[400 UUID/action]→200/404, cache-control:no-store),
+`web/src/routes/{Admin.tsx,adminModel.ts}` (design-system primitives,
+reserved-colour, legibility text-muted, aria-labels, `/lookup#q=` deep-link),
+`web/src/App.tsx` (/admin nav:false), `docs/OPERATIONS.md` (OWNER_GITHUB_ID
+setup). Gated on numeric `OWNER_GITHUB_ID` (Function secret). From-here verified:
+`/api/admin/*` → 401 fail-closed.
+
+**Track B1 — enrich non-blocking context — MERGED + DEPLOYED (same run).** OTX/RDAP
+pulled off the `/api/enrich` blocking path via a 4-phase assembler
+(plan/dispatch/collect/assemble) + collect-anchored grace-race (GRACE_MS=0);
+`partial` recomputed from the BLOCKING axis (cache-safe, `.kind` read nowhere in
+collect); additive `skipped_context` honesty field; fast-fail `ok:false`→errors.
+Commits `18078fb` (non-blocking scheduling axis + planSources), `629847f`
+(OTX-not-configured on unkeyed hash), `94bc956` (extract plan/dispatch/collect/
+assemble — no behavior change), `44c16d6` (grace-race GRACE_MS=0 collect-anchored),
+`39c530a` (skipped_context + fast-fail + partial-from-blocking-health), `1c8095f`
+(tally-invariance + ipinfo-before-OTX order lock). Files: `lib/enrich.mjs`,
+`lib/__tests__/enrich.test.mjs`, `site-tests/specs/enrich.spec.js`.
+`functions/api/enrich.js` / `shared/verdict/map.ts` UNCHANGED (additive). From-here
+verified LIVE: cold lookups now verdict-gated (~0.78s IP / 1.0s domain, warm cache
+0.11s) — down from the ~1.5s stopgap floor; `skipped_context` field present.
+
+**Remaining acceptance:** (1) owner sets `OWNER_GITHUB_ID` + runs the `/admin`
+interactive dogfood (activates moderation) — checklist in `docs/OPERATIONS.md`;
+(2) B1 latency dogfood = DONE (verified from here).
+
+**Deferred (non-blocking):** the "Check reputation" deep-link aria-label; an
+inaccurate OPERATIONS "callback logs" doc line; owner-accepted B1 behaviors
+(dropped-RDAP shows "Registration age unknown"; fast-fail context error caches
+≤15min).
+
+**Open / next (this unit):** Phase 3 — publish approved reports as the live
+`SOCDESK_COMMUNITY` context source (out of the independent-sources tally) once
+moderation is dogfooded; enrich cluster B2 (abuse-hardening: Turnstile +
+rate-limit + KV budget) then B3 (own-OSINT dataset check-first); the deferred
+a11y/doc minors; Node-20→24 CI bump.
 
 ---
 
