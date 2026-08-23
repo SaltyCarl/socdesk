@@ -3,6 +3,8 @@ import { EscalationCard, type CompareResult, type EffectiveTheme } from '@socdes
 import { lookupHash } from '../palette/commands'
 import { LookupStatus } from '../lookup/LookupStates'
 import { AnalyzerResult, type PsState } from '@socdesk/shared/analyzer-ui'
+import { isEnrichable } from '@socdesk/shared/indicators'
+import { ReportButton } from '../report/ReportButton'
 import type { CockpitResult } from './useCockpitInput'
 
 const FULL_VIEW_CLS =
@@ -57,7 +59,16 @@ export function ResultRegion({
     return (
       <div className="flex w-full max-w-md flex-col gap-3">
         {state.kind === 'ok' ? (
-          <EscalationCard data={state.data} theme={theme} onCompare={onCompare} />
+          <EscalationCard
+            data={state.data}
+            theme={theme}
+            onCompare={onCompare}
+            reportSlot={
+              isEnrichable(state.data.type) ? (
+                <ReportButton iocType={state.data.type} iocValue={state.data.indicator} />
+              ) : undefined
+            }
+          />
         ) : (
           <LookupStatus state={state} />
         )}
