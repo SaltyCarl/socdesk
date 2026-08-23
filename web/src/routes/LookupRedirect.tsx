@@ -1,17 +1,17 @@
 // LookupRedirect — /lookup is retired; the cockpit (/) is the single lookup
-// surface. Preserves bookmarked/shared `/lookup#q=<x>` links by rewriting to
-// `/#q=<x>` (replaceState leaves no /lookup entry in history) and handing off
-// to the cockpit, which reads the same `#q=` deep link (Overview.tsx sync).
+// surface. Preserves bookmarked/shared `/lookup#q=<x>` links by hard-redirecting
+// to `/#q=<x>` (a full reload), so the cockpit fresh-loads and its
+// useState(readLookupQuery) seed reads the hash — the same proven path as a
+// direct /#q= load. A synthetic popstate does NOT work at cold mount: App's
+// useRoute attaches its popstate listener in a parent useEffect that runs AFTER
+// this child effect, so the event would fire to zero listeners. `/lookup#q=` is
+// a rare external-bookmark path, so a reload is fine; `replace` (not assign)
+// leaves no /lookup entry in history.
 import { useLayoutEffect } from 'react'
 
 export function LookupRedirect(): null {
-  // useLayoutEffect (not useEffect): the rewrite runs BEFORE paint, so a
-  // cold-load `/lookup#q=x` bookmark never flashes a blank `default`-width main
-  // frame before Overview (wide) mounts — the only time this component renders.
   useLayoutEffect(() => {
-    const hash = window.location.hash // carries `#q=…` verbatim (or '')
-    window.history.replaceState({}, '', '/' + hash)
-    window.dispatchEvent(new PopStateEvent('popstate'))
+    window.location.replace('/' + window.location.hash)
   }, [])
   return null
 }
