@@ -26,7 +26,7 @@ Make the **cockpit** — the `/` Overview route (`web/src/routes/Overview.tsx`),
 ### 0.4 Owned files
 **Delete:** `web/src/routes/Lookup.tsx`; `shared/verdict-cards/AnalystVerdict.tsx`.
 **Create:** `web/src/routes/LookupRedirect.tsx`; `web/src/components/cockpit/CockpitExamples.tsx`; `web/src/routes/lookupModel.test.ts` (new pure-parse test).
-**Modify:** `web/src/routes/Overview.tsx`; `web/src/App.tsx`; `web/src/components/cockpit/ResultRegion.tsx`; `web/src/routes/Admin.tsx`; `web/src/components/palette/commands.ts`; `web/src/routes/lookupModel.ts` (extract a pure `parseQ`, update header comment); `shared/verdict-cards/index.ts` (drop the `AnalystVerdict` export); `web/src/routes/PowerShellAnalyzer.tsx` (stale-comment fix only).
+**Modify:** `web/src/routes/Overview.tsx`; `web/src/App.tsx`; `web/src/components/cockpit/ResultRegion.tsx`; `web/src/routes/Admin.tsx`; `web/src/components/palette/commands.ts` (remove `view:lookup` row, repoint `submitLookup`'s `navigate`, **and update its stale jsdoc at 102-110**); `web/src/routes/lookupModel.ts` (extract a pure `parseQ`, update header comment); `shared/verdict-cards/index.ts` (drop the `AnalystVerdict` export); `web/src/routes/PowerShellAnalyzer.tsx` (stale-comment fix only).
 **Keep untouched (load-bearing shared code):** `useLookup.ts`, `LookupStates.tsx`, `useCockpitInput.ts`, `useEffectiveTheme.ts`, `shared/verdict/client.ts`, `shared/verdict-cards/CardActions.tsx` (`CardCanvasPreview`), `shared/verdict-cards/stubs.ts` (`STUBS`), the whole `extension/` tree.
 
 ### 0.5 Interfaces (net-new / changed signatures)
@@ -53,7 +53,7 @@ export function ResultRegion(props: {
 ### 0.6 Acceptance criteria (see §10 for the full list)
 - `/#q=1.1.1.1` (fresh load) renders the escalation card in the cockpit; `/lookup#q=1.1.1.1` (bookmark) lands on the same cockpit result without a 404 and without a visible `/lookup` frame.
 - A command-shaped `#q=` value renders the analyzer inline in the cockpit and issues **zero** `/api/enrich` calls (data boundary held via the existing `useCockpitInput` guard).
-- No source file except `LookupRedirect.tsx` references the string `/lookup`; the top nav shows no "Lookup" tab.
+- No `/lookup` **navigation target** (`href={`/lookup…`}`, `navigate('/lookup…')`, or a route `path` other than the redirect stub) remains outside `LookupRedirect.tsx`. (Comments/import-paths that mention `/lookup` in kept shared files — `useLookup.ts`, `LookupStates.tsx`, `client.ts`, etc. — are NOT in scope and stay.) The top nav shows no "Lookup" tab.
 - `AnalystVerdict` has no remaining importer; the web bundle no longer ships it.
 - `npm --prefix web run build` is green; `npx vitest run` (from `web/`) is green including a new `parseQ` test.
 
@@ -158,9 +158,12 @@ Deferred (noted, not built): syncing the hash on in-cockpit submit for copy-URL 
 // surface. Preserves bookmarked/shared `/lookup#q=<x>` links by rewriting to
 // `/#q=<x>` (replaceState leaves no /lookup entry in history) and handing off
 // to the cockpit, which reads the same `#q=` deep link (Overview.tsx sync).
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 export function LookupRedirect(): null {
-  useEffect(() => {
+  // useLayoutEffect (not useEffect): the rewrite runs BEFORE paint, so a
+  // cold-load `/lookup#q=x` bookmark never shows a blank `default`-width main
+  // frame before Overview (wide) mounts — the only time this component renders.
+  useLayoutEffect(() => {
     const hash = window.location.hash            // carries `#q=…` verbatim (or '')
     window.history.replaceState({}, '', '/' + hash)
     window.dispatchEvent(new PopStateEvent('popstate'))
@@ -203,7 +206,7 @@ Every confirmed referrer to `/lookup`, with its exact new target. Each verified 
 | 3 | `Overview.tsx:134-140` (`openFullView`) | SPA-navigates to `/lookup` via `submitLookup` | **REMOVED** (dead once #2 is gone) | §6.2 |
 | 4 | `Admin.tsx:107` ("Check reputation →") | `href={`/lookup#q=${encodeURIComponent(r.ioc_value)}`}` | `href={`/#q=${encodeURIComponent(r.ioc_value)}`}` | Plain `<a>`; browser loads `/`, cockpit seeds from hash |
 | 5 | `commands.ts:26-33` (`view:lookup` palette command) | row with `href:'/lookup'` | **REMOVED**; fold its `keywords` (`lookup, verdict, escalation, ip, domain, url, hash, cve`) into `view:overview` (`commands.ts:24`) | Preserves palette discoverability without a duplicate `/` destination |
-| 6 | `commands.ts:119` (`submitLookup` indicator branch) | `navigate(`/lookup${lookupHash(q)}`)` | `navigate(`/${lookupHash(q)}`)` → `/#q=…` | `navigate` (`commands.ts:127-134`) pushState + synthetic popstate → cockpit's popstate sync (§2.2) |
+| 6 | `commands.ts:119` (`submitLookup` indicator branch) | `navigate(`/lookup${lookupHash(q)}`)` | `navigate(`/${lookupHash(q)}`)` → `/#q=…` | `navigate` (`commands.ts:127-134`) pushState + synthetic popstate → cockpit's popstate sync (§2.2). **Also** update the stale `submitLookup` jsdoc (`commands.ts:102-110`) that still says "routes to the live `/lookup` surface" to describe the cockpit `/#q=` target. |
 | 7 | `PowerShellAnalyzer.tsx:7` (comment) | `// palette/`/lookup`, Lookup.tsx` | comment corrected to reference the cockpit; **no code change** | The analyzer's `#q=` read + IOC pivots are unrelated to `/lookup` (see 0.3) |
 
 Notes:
@@ -229,26 +232,43 @@ import { MicroLabel } from '../ui'
 export function CockpitExamples({ theme }: { theme?: EffectiveTheme }) {
   const [sel, setSel] = useState(STUBS[0].id)
   const stub = STUBS.find((s) => s.id === sel) ?? STUBS[0]
+  // Wrapped in the <details> disclosure of §5.2 (collapsed by default):
+  // <summary>See a sample card</summary>
   // ... tablist (role="tablist"/"tab", aria-selected) copied from Lookup.tsx:113-136 ...
   // <EscalationCard data={stub.data} theme={theme} />   // no onCompare, no reportSlot
 }
 ```
 Renders **exactly** as the current gallery's card did: `CardTriptych` passed `reportable` defaulting to `false` for stubs, so `EscalationCard` mounted with no `reportSlot` and no `onCompare` (`Lookup.tsx:79-82,138`). Behavior is byte-identical for the card; only the copy-card PNG + analyst-console columns are dropped. **No idle network call:** `CompareIp`'s fetch is gated behind a user open + form submit (`CompareIp.tsx:55-58`, `open` starts `false`) — a static stub card issues nothing.
 
-### 5.2 Where it sits
-Render it as a distinct band **below the hero `</section>` and above `<SituationalBoard/>`**, gated on idle:
+### 5.2 Where it sits — **collapsed behind a disclosure** (owner decision, 2026-08-23)
+Render it as a **collapsed disclosure** below the hero `</section>` and above `<SituationalBoard/>`, gated on idle. `CockpitExamples` owns its own open/closed state and renders as a single quiet **"See a sample card ▾"** trigger by default; expanding it reveals the family tabs + the one `EscalationCard`:
 ```tsx
-// Overview.tsx, replacing the tail (after the hero </section>, ~line 238):
+// Overview.tsx tail (after the hero </section>, ~line 238):
       </section>
       {!isResult && <CockpitExamples theme={theme} />}
       <SituationalBoard />
 ```
-Rationale:
-- **The globe hero stays the centerpiece.** A full `EscalationCard` is `max-w-md` and would fight the absolutely-positioned globe if crammed into the hero's left column. A separate band below gives it room (the route container is `size: 'wide'`, `App.tsx:44`).
-- **It vanishes on first lookup.** `!isResult` hides it the moment anything is submitted (`isResult`, `Overview.tsx:78`), so the reference gallery never competes with a live result — the docked `ResultRegion` in the hero becomes the live equivalent.
-- **The "Try" demo chips stay** (`Overview.tsx:222-231`). They serve a different purpose (submit a real lookup, fly the globe) than the gallery (a static, per-family anatomy preview). `/lookup` showed both too (`Lookup.tsx:252-259` Try row + `ExamplesGallery`), so keeping both is consistent, not new clutter.
+```tsx
+// CockpitExamples.tsx — collapsed by default; a native <details> keeps it
+// keyboard-accessible and zero-JS-state. STUBS render only once opened.
+export function CockpitExamples({ theme }: { theme?: EffectiveTheme }) {
+  return (
+    <details className="mx-auto w-full max-w-md">
+      <summary className="cursor-pointer select-none font-mono text-xs text-muted">
+        See a sample card
+      </summary>
+      {/* family tablist (role=tablist/tab, aria-selected) + one <EscalationCard/> */}
+    </details>
+  )
+}
+```
+Rationale (resolves the frontend/UX review, finding 4):
+- **Collapsed by default → it never out-ranks the live board.** A one-line disclosure below the hero doesn't compete with `SituationalBoard`'s operational data for a returning visitor; a first-timer curious about "what a result looks like" opens it in one click.
+- **The globe hero stays the centerpiece.** The expanded `EscalationCard` (`max-w-md`) only appears on demand, so it never fights the absolutely-positioned globe. Route container is `size: 'wide'` (`App.tsx:44`).
+- **It vanishes on first lookup.** `!isResult` hides the whole disclosure the moment anything is submitted (`Overview.tsx:78`) — the docked `ResultRegion` becomes the live equivalent.
+- **The "Try" demo chips stay** (`Overview.tsx:222-231`) — they submit a real lookup + fly the globe (the more authentic teach), a different purpose from the static per-family anatomy the gallery previews.
 
-Reading order for a first-time visitor: globe hero + omnibox + Try chips → "what a result looks like" (examples, per indicator family) → situational board.
+Reading order for a returning visitor: globe hero + omnibox + Try chips → **live** situational board (the product) → (a first-timer may open "See a sample card" for the per-family reference).
 
 ---
 
@@ -329,7 +349,7 @@ The repo runs **vitest in a plain node environment** (`web/vitest.config.ts:26-2
 
 **Build gate (the only gate for JSX):** `npm --prefix web run build` green — proves `Overview.tsx`, `LookupRedirect.tsx`, `CockpitExamples.tsx`, `ResultRegion.tsx` (prop removed), `App.tsx`, `commands.ts`, `Admin.tsx`, and the `index.ts` export removal all typecheck with no unused imports.
 
-**Static assertion:** a grep proving no source file except `LookupRedirect.tsx` contains `/lookup`, and no importer of `AnalystVerdict` remains.
+**Static assertion:** a grep proving no `/lookup` **navigation target** (`href={`/lookup`, `navigate('/lookup`, route `path` other than the stub) remains outside `LookupRedirect.tsx` — comments and `components/lookup/` import paths in the kept shared files are expressly excluded; and no importer of `AnalystVerdict` remains.
 
 **Manual dogfood (prod build, per the repo's live-checkpoint convention):**
 1. `/#q=8.8.8.8` (fresh load) → escalation card docks in the cockpit, globe lands.
@@ -337,7 +357,7 @@ The repo runs **vitest in a plain node environment** (`web/vitest.config.ts:26-2
 3. `/#q=` + a pasted `powershell -enc …` → analyzer renders inline; **Network tab shows zero `/api/enrich`**.
 4. Palette "Escalation cards" search still finds the cockpit (folded keywords); selecting an indicator lands on `/#q=…`.
 5. Admin "Check reputation →" → cockpit card.
-6. Idle cockpit shows `CockpitExamples`; picking each family tab swaps the card; it disappears on first lookup.
+6. Idle cockpit shows `CockpitExamples` **collapsed** as a "See a sample card ▾" disclosure below the hero; opening it reveals the family tabs, and picking each swaps the card; the whole disclosure disappears on first lookup.
 7. Top nav shows no "Lookup" tab.
 
 ---
@@ -346,10 +366,10 @@ The repo runs **vitest in a plain node environment** (`web/vitest.config.ts:26-2
 
 1. Cockpit honors `#q=` on mount, `hashchange`, and `popstate`; `submitted` stays the committed value; no live-typed value reaches `useLookup`.
 2. `/lookup#q=x` resolves to the cockpit result via `LookupRedirect` (replaceState, no history orphan, no 404).
-3. Every `/lookup` referrer repointed per §4; the only remaining `/lookup` string is inside `LookupRedirect.tsx`.
+3. Every `/lookup` referrer repointed per §4; the only remaining `/lookup` **navigation target** is inside `LookupRedirect.tsx` (comments/import-paths in kept shared files excluded).
 4. A command-shaped `#q=` renders the analyzer inline with zero `/api/enrich` calls.
 5. `AnalystVerdict.tsx` deleted, export removed, no importer remains; `CardCanvasPreview` still exported and used by the extension only.
-6. `CockpitExamples` renders one `EscalationCard` per family in the idle cockpit, below the hero, hidden once a result shows; no idle network call.
+6. `CockpitExamples` renders **collapsed** (a "See a sample card" disclosure) below the hero in the idle cockpit, expanding to one `EscalationCard` per family; hidden entirely once a result shows; no idle network call.
 7. `lookupModel.ts` (with new pure `parseQ`) survives; `cveToVerdict` + `readLookupQuery` importers unbroken.
 8. Top nav shows no "Lookup" tab.
 9. `npm --prefix web run build` green; `npx vitest run` (from `web/`) green including the new `parseQ` test and all existing pure tests.
