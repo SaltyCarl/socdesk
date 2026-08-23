@@ -2,6 +2,8 @@
 //
 // Two side-effect-free helpers, kept out of Lookup.tsx so the route file exports
 // only its component (clean react-refresh):
+//   * parseQ          — pure parse of a hash string into the decoded `#q=` value
+//                       (unit-tested; readLookupQuery is the window wrapper).
 //   * readLookupQuery — decode the `#q=` deep link the omnibox + palette write.
 //   * cveToVerdict    — resolve a catalog CVE row into the shared VerdictData the
 //                       escalation-card system renders.
@@ -15,10 +17,12 @@ import type { FactRow, SourceVerdict, VerdictData, VerdictSource } from '@socdes
 import { consensus, deriveBand, isIdentityType } from '@socdesk/shared/verdict'
 import type { Cve } from '../components/views/types'
 
-/** Read the decoded `#q=<indicator>` from the current location hash; '' when
- *  absent. Mirror of the writer in palette/commands.ts::lookupHash. */
-export function readLookupQuery(): string {
-  const h = window.location.hash.replace(/^#/, '')
+/** Pure parse of a location-hash string into the decoded `#q=<indicator>`
+ *  value; '' when absent or malformed. Extracted from readLookupQuery so it is
+ *  unit-testable in the repo's node-env vitest (no `window`). Mirror of the
+ *  writer in palette/commands.ts::lookupHash. */
+export function parseQ(hash: string): string {
+  const h = hash.replace(/^#/, '')
   const m = h.match(/(?:^|&)q=([^&]*)/)
   if (!m) return ''
   try {
@@ -26,6 +30,12 @@ export function readLookupQuery(): string {
   } catch {
     return m[1].trim()
   }
+}
+
+/** Read the decoded `#q=<indicator>` from the current location hash; '' when
+ *  absent. Mirror of the writer in palette/commands.ts::lookupHash. */
+export function readLookupQuery(): string {
+  return parseQ(window.location.hash)
 }
 
 const SEVERITY_LABEL: Record<string, string> = {

@@ -1,14 +1,9 @@
-import type { MouseEvent } from 'react'
 import { EscalationCard, type CompareResult, type EffectiveTheme } from '@socdesk/shared/verdict-cards'
-import { lookupHash } from '../palette/commands'
 import { LookupStatus } from '../lookup/LookupStates'
 import { AnalyzerResult, type PsState } from '@socdesk/shared/analyzer-ui'
 import { isEnrichable } from '@socdesk/shared/indicators'
 import { ReportButton } from '../report/ReportButton'
 import type { CockpitResult } from './useCockpitInput'
-
-const FULL_VIEW_CLS =
-  'inline-flex w-fit items-center gap-1 font-mono text-xs font-semibold text-accent underline-offset-2 outline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent'
 
 /** A light "Analyzing…" line for the command path — the same honest-status
  *  register as LookupStatus's Checking, but for the (synchronous, near-
@@ -27,7 +22,7 @@ function PsStatus({ state }: { state: Extract<PsState, { kind: 'analyzing' } | {
  *
  *   indicator     -> EscalationCard (ok) | LookupStatus (checking/declined/
  *                    unavailable/unsupported), unchanged from the old
- *                    LandingResult, plus the "Full analyst view ->" deep link.
+ *                    LandingResult.
  *   command       -> AnalyzerResult (ok) | PsStatus (analyzing/error).
  *   unclassified  -> an honest one-line hint naming both accepted input kinds.
  *
@@ -44,18 +39,15 @@ function PsStatus({ state }: { state: Extract<PsState, { kind: 'analyzing' } | {
 export function ResultRegion({
   cockpit,
   theme,
-  onFullView,
   onCompare,
 }: {
   cockpit: CockpitResult
   theme: EffectiveTheme
-  onFullView: (e: MouseEvent<HTMLAnchorElement>, q: string) => void
   onCompare: (c: CompareResult | null) => void
 }) {
   if (cockpit.kind === 'indicator') {
     const { state } = cockpit
     if (state.kind === 'idle') return null
-    const indicator = 'indicator' in state ? state.indicator : ''
     return (
       <div className="flex w-full max-w-md flex-col gap-3">
         {state.kind === 'ok' ? (
@@ -71,15 +63,6 @@ export function ResultRegion({
           />
         ) : (
           <LookupStatus state={state} />
-        )}
-        {indicator && (
-          <a
-            href={`/lookup${lookupHash(indicator)}`}
-            onClick={(e) => onFullView(e, indicator)}
-            className={FULL_VIEW_CLS}
-          >
-            Full analyst view <span aria-hidden="true">→</span>
-          </a>
         )}
       </div>
     )

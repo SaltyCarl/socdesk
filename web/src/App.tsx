@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Shell, type ContainerSize } from './components/shell'
 import { Overview } from './routes/Overview'
-import { Lookup } from './routes/Lookup'
+import { LookupRedirect } from './routes/LookupRedirect'
 import { PowerShellAnalyzer } from './routes/PowerShellAnalyzer'
 import { DataDeskRoute } from './routes/DataDeskRoute'
 import { ActorProfileRoute } from './routes/ActorProfileRoute'
@@ -16,7 +16,7 @@ import { Privacy } from './routes/Privacy'
  * index.html, so client routing resolves from any deep link.
  *
  *   /         → the Overview (three.js globe hero + start-of-shift board)
- *   /lookup   → the escalation-card system (IP / domain / URL / hash / CVE)
+ *   /lookup   → redirect stub → /#q=<same hash> (the cockpit is the lookup surface)
  *   /desk     → the data desk (feed / vulns / actors / health / sources)
  *   /gallery  → the design-system gallery (craft-review surface)
  *
@@ -50,7 +50,7 @@ const ROUTES: Route[] = [
       />
     ),
   },
-  { path: '/lookup', label: 'Lookup', size: 'default', el: <Lookup /> },
+  { path: '/lookup', label: 'Lookup', size: 'default', el: <LookupRedirect />, nav: false },
   { path: '/analyzer', label: 'Analyzer', size: 'default', el: <PowerShellAnalyzer /> },
   { path: '/desk', label: 'Desk', size: 'default', el: <DataDeskRoute /> },
   { path: '/actor', label: 'Profiles', size: 'default', el: <ActorProfileRoute /> },

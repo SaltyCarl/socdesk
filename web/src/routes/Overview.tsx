@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import type { MouseEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../components/ui'
 import { SituationalBoard } from '../components/overview'
@@ -7,10 +7,11 @@ import { useEffectiveTheme, type CompareResult } from '@socdesk/shared/verdict-c
 import type { GlobeApi } from '../components/hero/useGlobe3'
 import { ENRICH_EVENT } from '../components/hero/enrichFly'
 import { geoPresent, type EnrichApiResult } from '../components/hero/heroLayers'
-import { submitLookup } from '../components/palette/commands'
 import { useCockpitInput, type CockpitResult } from '../components/cockpit/useCockpitInput'
 import { ResultRegion } from '../components/cockpit/ResultRegion'
 import { CockpitOmnibox } from '../components/cockpit/CockpitOmnibox'
+import { readLookupQuery } from './lookupModel'
+import { CockpitExamples } from '../components/cockpit/CockpitExamples'
 // The hero-shell classes (.sdh-hero / .sdh-atmos / .sdh-enter*) must be present
 // on FIRST paint — this route is synchronous, so importing the co-located CSS
 // here puts them in the main bundle even though the globe canvas itself streams
@@ -70,8 +71,8 @@ export function Overview({
   // retroactively change what already fired. useCockpitInput classifies the
   // pair and runs the matching hook; the unselected hook is fed '' internally,
   // so only ONE round-trip (or zero, for a command) ever fires per submit.
-  const [liveValue, setLiveValue] = useState('')
-  const [submitted, setSubmitted] = useState('')
+  const [liveValue, setLiveValue] = useState(readLookupQuery)
+  const [submitted, setSubmitted] = useState(readLookupQuery)
   const [submittedOverride, setSubmittedOverride] = useState<'indicator' | 'command' | null>(null)
   const theme = useEffectiveTheme()
   const cockpit = useCockpitInput(submitted, submittedOverride)
@@ -111,6 +112,27 @@ export function Overview({
     else apiRef.current?.resume()
   }, [resultIsGeoless])
 
+  // Honor `#q=` deep links the same way /lookup and /analyzer already do.
+  //   hashchange: a raw address-bar hash edit or a same-page `location.hash =`
+  //     resubmit (fires hashchange, not popstate).
+  //   popstate:   a cross-route SPA deep link — commands.ts::navigate does
+  //     pushState + a synthetic popstate for pathname targets, which does NOT
+  //     emit hashchange (commands.ts:127-134). The redirect stub fires this too.
+  useEffect(() => {
+    const sync = () => {
+      const q = readLookupQuery()
+      setLiveValue(q)
+      setSubmitted(q) // committed value — a deep link is an explicit navigation
+      setSubmittedOverride(null) // a fresh deep link auto-detects; drop any stale ModeChip override
+    }
+    window.addEventListener('hashchange', sync)
+    window.addEventListener('popstate', sync)
+    return () => {
+      window.removeEventListener('hashchange', sync)
+      window.removeEventListener('popstate', sync)
+    }
+  }, [])
+
   const submit = (value: string, kindOverride: 'indicator' | 'command' | null) => {
     const trimmed = value.trim()
     setSubmitted(trimmed)
@@ -129,14 +151,6 @@ export function Overview({
   const flyDemo = (v: string) => {
     setLiveValue(v)
     submit(v, null)
-  }
-
-  // The full analyst console lives at /lookup. Left-click SPA-navigates there;
-  // modified clicks keep the real href so it right-clicks / opens in a new tab.
-  const openFullView = (e: MouseEvent<HTMLAnchorElement>, q: string) => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
-    e.preventDefault()
-    submitLookup(q)
   }
 
   const onCompareArc = (c: CompareResult | null) => {
@@ -214,7 +228,6 @@ export function Overview({
               <ResultRegion
                 cockpit={cockpit}
                 theme={theme}
-                onFullView={openFullView}
                 onCompare={onCompareArc}
               />
             </div>
@@ -236,7 +249,7 @@ export function Overview({
           <GlobeStage3 apiRef={apiRef} />
         </Suspense>
       </section>
-
+      {!isResult && <CockpitExamples theme={theme} />}
       <SituationalBoard />
     </div>
   )

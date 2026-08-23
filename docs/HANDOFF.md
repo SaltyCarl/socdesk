@@ -1,10 +1,65 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-22 (session — TWO parallel features MERGED + DEPLOYED via first PM-orchestrated dual-worktree SDD pipeline: Track A `/admin` owner moderation console + Track B1 non-blocking enrich context; `main` = `1c8095f`, deploy run `32571347054`; 543 unit tests + Playwright 17 green. Earlier same day: IOC reporting UX polish live. Also same day: Phase 3 community-reports-publish BUILT on branch `feat/community-reports-publish`, NOT merged) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-23 (session — Lookup↔Cockpit consolidation BUILT on branch `feat/lookup-cockpit-consolidation` via 8-task SDD + whole-branch review, SHIP-clean, NOT merged — `/` cockpit becomes the single lookup surface, `/lookup` retired behind a hard redirect) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-22 (session — IOC reporting UX polish MERGED + DEPLOYED live)
+## 0. LATEST — 2026-08-23 (session — Lookup↔Cockpit consolidation BUILT, NOT merged)
+
+> Branch `feat/lookup-cockpit-consolidation` (base `1ec1c70`), built via 8-task
+> SDD + a whole-branch review. The `/` Overview cockpit is now the single lookup
+> surface; `/lookup` is retired. **NOT merged** — owner finish-menu decision
+> pending.
+
+**Shipped (branch, not merged):**
+- Cockpit honors `#q=` deep-links: `useState(readLookupQuery)` seed + a
+  hashchange/popstate sync effect. `Overview.tsx`, `0986bbf`.
+- `/lookup` is now a **hard-redirect stub** — `LookupRedirect.tsx` →
+  `window.location.replace('/'+hash)`, registered `nav:false` in `App.tsx`.
+  `17db7798`. Hardened in `8436359` after a synthetic-popstate SPA redirect
+  proved broken at cold mount (child `useLayoutEffect` fires before App's
+  parent `useEffect` popstate listener attaches → blank page); the hard
+  redirect reduces the cold-load path to the proven direct-`/#q=` load.
+- Every `/lookup` referrer repointed to `/#q=` (Admin moderation pivot, palette
+  `submitLookup`; removed the `view:lookup` palette row, folded its keywords
+  into `view:overview`) or removed (the "Full analyst view →" link +
+  `Overview.openFullView`). `09c0513`.
+- Examples gallery folded into a collapsed `<details>` "See a sample card"
+  disclosure in the cockpit idle state. `CockpitExamples.tsx`, `18e1a09`.
+- Deleted `Lookup.tsx` (redundant three-register triptych, `09d041a`) and
+  `AnalystVerdict.tsx` (strict subset of `EscalationCard`) + its `index.ts`
+  export (`c9c9193`).
+- `parseQ` extracted from `readLookupQuery` as a pure, unit-tested function
+  (`5e58b1c`).
+- **Also this session, already LIVE on `main`:** the cockpit Report button fix
+  (`ResultRegion` gained `reportSlot`, commit `271a7fd`, deployed) — preserved
+  by the consolidation.
+
+**Key decisions:** analyst console + copy-card PNG preview dropped from web as
+redundant (the escalation card is their superset); `CardCanvasPreview` kept for
+the extension. Examples gallery collapsed on an owner call so it never
+out-ranks the live SituationalBoard. `/lookup` retired behind a **hard**
+redirect, not a synthetic-popstate SPA redirect (broken at cold mount, above).
+
+**Verified:** whole-branch review (opus, browser-dogfooded) → FIX-THEN-SHIP:
+the one blocker (cold-load blank) fixed in `8436359` and re-dogfooded live in a
+browser (cold `/lookup#q=8.8.8.8` → `/#q=8.8.8.8`, full cockpit render,
+innerText 2624). Now SHIP-clean. Confirmed: cockpit Report button survived;
+data-boundary held (command `#q=` → zero `/api/enrich` calls); no
+doctrine/colour/extension/analyzer-logic drift. Gates: vitest 562,
+`npm --prefix web run build` clean, eslint 0.
+
+**Commits (base `1ec1c70`):** `5e58b1c`, `0986bbf`, `17db7798`, `09c0513`,
+`18e1a09`, `09d041a`, `c9c9193`, `8436359`.
+
+**Spec/plan:**
+`docs/superpowers/specs/2026-08-23-lookup-cockpit-consolidation-design.md`,
+`docs/superpowers/plans/2026-08-23-lookup-cockpit-consolidation.md`.
+
+**Open / next:** NOT merged — owner finish-menu decision pending on
+`feat/lookup-cockpit-consolidation`.
+
+## 0-RECENT — 2026-08-22 (session — IOC reporting UX polish MERGED + DEPLOYED live)
 
 > Newest block. One unit shipped to `main`/live since session 8: the IOC-reporting
 > UX-polish surface. Built via a 12-task subagent-driven-development run on branch
