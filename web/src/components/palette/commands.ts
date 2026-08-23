@@ -21,15 +21,7 @@ export const DEFAULT_VIEWS: CommandItem[] = [
     label: 'Overview',
     hint: '/',
     href: '/',
-    keywords: ['home', 'start', 'landing', 'globe', 'threat surface'],
-  },
-  {
-    id: 'view:lookup',
-    kind: 'view',
-    label: 'Escalation cards',
-    hint: '/lookup',
-    href: '/lookup',
-    keywords: ['lookup', 'verdict', 'escalation', 'ip', 'domain', 'url', 'hash', 'cve'],
+    keywords: ['home', 'start', 'landing', 'globe', 'threat surface', 'lookup', 'verdict', 'escalation', 'ip', 'domain', 'url', 'hash', 'cve'],
   },
   {
     id: 'view:analyzer',
@@ -100,13 +92,12 @@ export function lookupHash(query: string): string {
 }
 
 /**
- * Submit an indicator lookup. Records it as recent, then routes to the live
- * `/lookup` surface with the indicator on the `#q=` deep link — from ANY
- * route. A command-shaped value NEVER reaches `/lookup` (whose `useLookup`
- * calls `detectType` directly, with no command guard of its own — the exact
- * leak described in design spec §2.1/§2.2): it routes to the standalone
- * `/analyzer` instead, with the command prefilled via the same `#q=` deep
- * link so the paste is not lost.
+ * Submit an indicator lookup. Records it as recent, then routes to the cockpit
+ * (`/`) with the indicator on the `#q=` deep link — from ANY route; the cockpit
+ * seeds its omnibox from the hash (Overview.tsx sync). A command-shaped value
+ * NEVER takes the enrich path: it routes to the standalone `/analyzer` instead,
+ * with the command prefilled via the same `#q=` deep link so the paste is not
+ * lost.
  */
 export function submitLookup(query: string): void {
   const q = query.trim()
@@ -116,7 +107,7 @@ export function submitLookup(query: string): void {
     return
   }
   pushRecent(q, classifyIndicator(q))
-  navigate(`/lookup${lookupHash(q)}`)
+  navigate(`/${lookupHash(q)}`)
 }
 
 /**

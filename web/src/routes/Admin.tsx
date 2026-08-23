@@ -104,7 +104,7 @@ export function Admin() {
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <a
-                      href={`/lookup#q=${encodeURIComponent(r.ioc_value)}`}
+                      href={`/#q=${encodeURIComponent(r.ioc_value)}`}
                       className="font-mono text-micro text-accent underline underline-offset-2 hover:no-underline"
                     >
                       Check reputation <span aria-hidden="true">→</span>

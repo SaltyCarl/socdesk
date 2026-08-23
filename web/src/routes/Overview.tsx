@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import type { MouseEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../components/ui'
 import { SituationalBoard } from '../components/overview'
@@ -7,7 +7,6 @@ import { useEffectiveTheme, type CompareResult } from '@socdesk/shared/verdict-c
 import type { GlobeApi } from '../components/hero/useGlobe3'
 import { ENRICH_EVENT } from '../components/hero/enrichFly'
 import { geoPresent, type EnrichApiResult } from '../components/hero/heroLayers'
-import { submitLookup } from '../components/palette/commands'
 import { useCockpitInput, type CockpitResult } from '../components/cockpit/useCockpitInput'
 import { ResultRegion } from '../components/cockpit/ResultRegion'
 import { CockpitOmnibox } from '../components/cockpit/CockpitOmnibox'
@@ -153,14 +152,6 @@ export function Overview({
     submit(v, null)
   }
 
-  // The full analyst console lives at /lookup. Left-click SPA-navigates there;
-  // modified clicks keep the real href so it right-clicks / opens in a new tab.
-  const openFullView = (e: MouseEvent<HTMLAnchorElement>, q: string) => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
-    e.preventDefault()
-    submitLookup(q)
-  }
-
   const onCompareArc = (c: CompareResult | null) => {
     const api = apiRef.current
     if (!api) return
@@ -236,7 +227,6 @@ export function Overview({
               <ResultRegion
                 cockpit={cockpit}
                 theme={theme}
-                onFullView={openFullView}
                 onCompare={onCompareArc}
               />
             </div>

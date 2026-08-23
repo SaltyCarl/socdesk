@@ -4,9 +4,9 @@ import { readLookupQuery } from './lookupModel'
 
 export function PowerShellAnalyzer() {
   // Lazy-init from the `#q=` deep link so a command routed here from the
-  // palette/`/lookup` (commands.ts::submitLookup, Lookup.tsx) arrives
-  // prefilled and auto-analyzes for free — `input` already drives
-  // `usePsAnalysis` reactively, so no separate trigger is needed.
+  // palette or the cockpit (commands.ts::submitLookup) arrives prefilled and
+  // auto-analyzes for free — `input` already drives `usePsAnalysis`
+  // reactively, so no separate trigger is needed.
   const [input, setInput] = useState(readLookupQuery)
   const state = usePsAnalysis(input)
 
