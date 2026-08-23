@@ -11,6 +11,7 @@ import { useCockpitInput, type CockpitResult } from '../components/cockpit/useCo
 import { ResultRegion } from '../components/cockpit/ResultRegion'
 import { CockpitOmnibox } from '../components/cockpit/CockpitOmnibox'
 import { readLookupQuery } from './lookupModel'
+import { CockpitExamples } from '../components/cockpit/CockpitExamples'
 // The hero-shell classes (.sdh-hero / .sdh-atmos / .sdh-enter*) must be present
 // on FIRST paint — this route is synchronous, so importing the co-located CSS
 // here puts them in the main bundle even though the globe canvas itself streams
@@ -248,7 +249,7 @@ export function Overview({
           <GlobeStage3 apiRef={apiRef} />
         </Suspense>
       </section>
-
+      {!isResult && <CockpitExamples theme={theme} />}
       <SituationalBoard />
     </div>
   )
