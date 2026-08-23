@@ -8,7 +8,6 @@ export { useEffectiveTheme } from './useEffectiveTheme'
 export type { EffectiveTheme } from './useEffectiveTheme'
 export { EscalationCard } from './EscalationCard'
 export type { CompareResult } from './CompareIp'
-export { AnalystVerdict } from './AnalystVerdict'
 export { CardActions, CardCanvasPreview } from './CardActions'
 export { Hero, IpHero, DomainHero, UrlHero, HashHero, CveHero } from './heroes'
 export {
