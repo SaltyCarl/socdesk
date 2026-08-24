@@ -18,7 +18,7 @@
       "ransom_note": ["README.txt", "Cl0pReadme.txt"], "extensions": [".clop", ".Cl0p"]
     },
     {
-      "slug": "black basta", "name": "Black Basta", "aliases": [],
+      "slug": "blackbasta", "name": "Black Basta", "aliases": ["Black Basta"],
       "first_seen": "2022-04", "raas": true,
       "initial_access_cves": ["CVE-2024-1709"],
       "advisory": {"id": "AA24-131A", "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa24-131a"},
@@ -32,7 +32,8 @@
       "tools": ["TeamViewer", "AnyDesk", "Plink", "Splashtop", "Netscan", "MEGA", "Process Hacker", "PsExec", "MSHTA", "ScreenConnect"]
     },
     {
-      "slug": "alphv blackcat", "name": "ALPHV BlackCat",
+      "slug": "alphv", "name": "ALPHV BlackCat",
+      "aliases": ["BlackCat", "ALPHV BlackCat"],
       "raas": true,
       "advisory": {"id": "AA23-353A", "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-353a"},
       "tools": ["AnyDesk", "Mega", "Splashtop", "Plink", "Ngrok", "Brute Ratel C4", "Cobalt Strike", "Evilginx2", "Metasploit", "Dropbox", "POORTRY", "STONESTOP", "SimpleHelp", "MeshCentral", "ScreenConnect"],
