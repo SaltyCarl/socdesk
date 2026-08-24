@@ -23,7 +23,16 @@ from datetime import date
 
 def check_intel_staleness(groups, kev_ransomware_cves, reference_date, max_age_days=180):
     warnings = []
-    ref = date.fromisoformat(reference_date)
+    # The whole point of this guard is to never be the thing that breaks a
+    # build. A misconfigured caller (bad env var, wrong date format, None) must
+    # surface as a soft warning, not an uncaught raise.
+    try:
+        ref = date.fromisoformat(reference_date)
+    except (ValueError, TypeError):
+        return [
+            f"GUARD: staleness check skipped — invalid reference_date "
+            f"{reference_date!r} (expected ISO YYYY-MM-DD)"
+        ]
 
     seed_cves = set()
     for group in groups:

@@ -74,3 +74,12 @@ def test_never_raises_on_malformed_last_reviewed():
     groups = [_group("bad", "not-a-date")]
     warnings = check_intel_staleness(groups, set(), REF)
     assert warnings == []
+
+
+def test_never_raises_on_malformed_reference_date():
+    """The guard must not itself become the hard failure it exists to prevent:
+    a misconfigured CI-supplied reference_date returns a soft GUARD warning,
+    never an uncaught raise."""
+    for bad_ref in ("not-a-date", "", None):
+        warnings = check_intel_staleness([_group("akira", REF)], set(), bad_ref)
+        assert len(warnings) == 1 and warnings[0].startswith("GUARD:")
