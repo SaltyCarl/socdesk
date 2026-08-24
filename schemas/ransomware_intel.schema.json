@@ -2,12 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "required": ["generated_at", "schema_version", "groups"],
+  "additionalProperties": false,
   "properties": {
     "generated_at": {"type": "string", "maxLength": 40},
     "schema_version": {"type": "integer"},
     "groups": {"type": "array", "maxItems": 500, "items": {
       "type": "object",
       "required": ["slug", "name"],
+      "additionalProperties": false,
       "properties": {
         "slug": {"type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-z0-9 ._-]+$"},
         "name": {"type": "string", "minLength": 1, "maxLength": 64},

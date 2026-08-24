@@ -62,7 +62,7 @@ redistribution and doesn't touch their terms; a background `fetch()` would
 |---|------|-------|------|
 | R1 | Team adoption / shadow-IT | MEDIUM | Not mandated + no backend/retention shrinks it; colleague-pastes-live-IOC residual remains |
 | R2 | **Employer IP** | **HIGH — the gate** | "Personally owned" does NOT defeat a "relates-to-employer's-business" assignment clause; turns on the actual contract + whether any employer time/equipment/confidential-info was used. Unverifiable here. |
-| R3 | Ransomware.live republication | LOW / resolved | Link-out only, nothing mirrored |
+| R3 | Ransomware.live republication | LOW / resolved | Link-out only, nothing mirrored. Upholds for the ransomware group profile (`/actor#g=`) too: the initial-access/detection panel is a curated CISA #StopRansomware seed (public-domain facts, attributed), not anything mirrored from ransomware.live — leak-site activity there stays a link-out only. |
 | R4 | abuse.ch redistribution | LOW / resolved | No corpus held; deep-link ≠ redistribution |
 | R5 | Public verdicts | LOW-MED | KEV/EPSS = "known-exploited / probability", not "malicious" — smaller surface; keep sourced + timestamped |
 | R6 | Escalation template | **RE-OPENED MEDIUM** | Core function (b) revives it — must pass the generic test below |
