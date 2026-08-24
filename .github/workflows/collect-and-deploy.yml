@@ -19,9 +19,9 @@ jobs:
   collect-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -63,9 +63,9 @@ jobs:
         # trigger this workflow. That asymmetry is intentional.
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -97,10 +97,14 @@ jobs:
       # example assumes deploy-on-push; this workflow runs twice an hour, so it
       # would file ~1,440 deployment records a month. Deliberately omitted.
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Action bumped to v4 for the Node-24 runtime (clears the deprecation
+          # warning), but pin the Wrangler CLI to v3 so deploy behavior is
+          # unchanged — migrating the CLI to v4 is a separate deliberate step.
+          wranglerVersion: "3"
           # --branch decides whether this upload is routed as production or as
           # a preview: it has to equal the project's production branch. A
           # Direct Upload project created through the dashboard takes a default
