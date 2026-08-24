@@ -368,6 +368,65 @@ no-account either way.
    disappears from the queue, and confirm `/reports` shows the updated status
    for the reporting account.
 
+### Owner one-time setup — abuse hardening (B2)
+
+Both endpoints **ship dark**: with none of the below done, `/api/enrich` and
+`/api/report` behave exactly as before. The in-isolate per-IP latch on
+`/api/enrich` works with no config; everything else no-ops until `env.KV` is
+bound. All of this is fail-open — a KV outage never takes a lookup down.
+
+1. **Create a KV namespace and bind it as `KV`.** Cloudflare dashboard →
+   Workers & Pages → **socdesk** → Settings → Functions → **KV namespace
+   bindings** → create `socdesk_hardening`, bind it as variable name **`KV`**
+   (Production). Same dashboard-only pattern as the `DB` binding — there is no
+   `wrangler.toml` to edit. Until this binding exists, the per-source budget
+   (L2) and the per-IP report cap (L3) no-op.
+
+2. **Enable the WAF Rate-Limiting Rule (primary flood shield).** Security → WAF
+   → **Rate limiting rules** → create a rule:
+   - **Match:** `URI Path` **starts with** `/api/enrich`
+   - **Counting:** requests per client IP over the free-plan window (~10 s)
+   - **Action:** **Block** (returns a bare HTTP 429) — **NOT** Managed
+     Challenge (a challenge would break the frictionless no-account read path).
+   Verify the current free-plan rate-limiting allowances in the dashboard; the
+   shipped code does not depend on this rule existing, but it is the designated
+   distributed/volumetric shield (§11.1/§11.6). Optionally add a second Block
+   rule for `/api/report`.
+
+3. **No new secrets.** Budgets (`lib/enrich/budgets.mjs`), the per-IP window /
+   limit (`lib/enrich/ratelimit.mjs`), and the report cap
+   (`lib/reporting/ratelimit.mjs`) are code constants. `KV` is a binding, not a
+   secret.
+
+**KV budget:** all keys self-expire via `expirationTtl` — zero deletes, zero
+lists. Worst-case writes/day ≈ L2 (~250, coalesced 25×) + L3 (tens) « the free
+1,000/day, **independent of IP cardinality** (L1 does no KV writes, §11.1).
+
+#### Dogfood acceptance (manual — the real gate)
+
+Run against the deployed site once `env.KV` is bound and the WAF rule is on.
+
+- [ ] **Dark-ship regression (KV unbound):** temporarily with no `KV` binding, a
+      normal `/api/enrich` lookup and a normal `/api/report` submit behave
+      exactly as before. No CAPTCHA/login/cookie ever appears on a lookup.
+- [ ] **Normal lookup unaffected (KV bound):** a burst of a few dozen distinct
+      lookups in a few minutes all return 200; the card is byte-identical and no
+      slower.
+- [ ] **Abusive IP → silent 429:** a script exceeding the per-IP miss limit on
+      `/api/enrich` from one client gets a **bare 429** — assert no `Set-Cookie`,
+      no challenge HTML, no login redirect (`cache-control: no-store`).
+- [ ] **Spent source degrades honestly:** force a source's `budget:<key>:<utcday>`
+      counter to its budget in KV; that source shows a named
+      "daily budget reached" skip in `errors[]` while every other source renders
+      normally, the tone/band/wording is unchanged, and the answer is cacheable
+      (a second identical lookup is a cache hit).
+- [ ] **Report per-IP cap:** a normal report still succeeds; exceeding the
+      per-IP daily cap from one IP across multiple accounts yields the 429.
+- [ ] **Fail-open:** with `KV` bound but made to error, a lookup and a report
+      still serve.
+- [ ] **KV write budget sanity:** after a day of normal traffic, KV Analytics
+      shows writes far under 1,000/day.
+
 ### Custom domain
 
 `socdesk.io` is registered at Cloudflare, which is also where the site is
