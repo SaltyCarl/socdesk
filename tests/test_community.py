@@ -5,8 +5,16 @@ from pipeline.validate import SCHEMA_FOR, validate_payload
 
 FIXTURES = Path(__file__).parent / "fixtures" / "community"
 SCHEMA = json.loads(Path("schemas/community_reports.schema.json").read_text(encoding="utf-8"))
-SEED = json.loads(Path("data/state/community_reports.json").read_text(encoding="utf-8"))
+# The LIVE committed dataset — a living artifact the pipeline rewrites as reports
+# are approved, so it is NOT necessarily empty. Used only to assert it stays
+# schema-valid. Tests needing a known-clean base use EMPTY_ENVELOPE (a literal).
+COMMITTED = json.loads(Path("data/state/community_reports.json").read_text(encoding="utf-8"))
 CATEGORIES = json.loads((FIXTURES / "categories.json").read_text(encoding="utf-8"))
+
+EMPTY_ENVELOPE = {
+    "generated_at": "2026-08-22T00:00:00Z", "schema_version": 1,
+    "attribution": "test", "count": 0, "report_count": 0, "indicators": {},
+}
 
 
 def _schema_category_enum():
@@ -18,9 +26,17 @@ def test_schema_is_registered():
     assert SCHEMA_FOR["community_reports.json"] == "community_reports.schema.json"
 
 
-def test_committed_seed_validates_and_is_empty():
-    assert validate_payload("community_reports.json", SEED, "schemas") == []
-    assert SEED["indicators"] == {} and SEED["count"] == 0
+def test_committed_dataset_stays_schema_valid():
+    # The committed community_reports.json is a living artifact the pipeline
+    # rewrites as reports are approved — it may be empty OR populated. The
+    # invariant is that it always validates (a corrupt published file would
+    # break gate()'s last-known-good) — NOT that it is empty.
+    assert validate_payload("community_reports.json", COMMITTED, "schemas") == []
+
+
+def test_empty_envelope_is_valid():
+    assert validate_payload("community_reports.json", EMPTY_ENVELOPE, "schemas") == []
+    assert EMPTY_ENVELOPE["indicators"] == {} and EMPTY_ENVELOPE["count"] == 0
 
 
 def test_schema_category_enum_matches_shared_fixture():
@@ -32,7 +48,7 @@ def test_schema_category_enum_matches_shared_fixture():
 
 
 def test_extra_indicator_field_fails_the_privacy_fence():
-    bad = dict(SEED, indicators={"ipv4|203.0.113.4": {
+    bad = dict(EMPTY_ENVELOPE, indicators={"ipv4|203.0.113.4": {
         "type": "ipv4", "value": "203.0.113.4", "reporters": 1,
         "categories": ["ssh"], "first_reported": "2026-08-10",
         "latest_reported": "2026-08-10", "github_id": 42}})
