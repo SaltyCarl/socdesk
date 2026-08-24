@@ -17,6 +17,8 @@
         "epss_percentile": {"type": ["number", "null"]},
         "kev": {"type": "boolean"},
         "kev_date_added": {"type": "string"},
+        "kev_due_date": {"type": "string"},
+        "kev_required_action": {"type": "string"},
         "kev_ransomware": {"type": "boolean"},
         "vendors": {"type": "array", "items": {"type": "string"}},
         "products": {"type": "array", "items": {"type": "string"}},

@@ -13,6 +13,11 @@ def test_kev_rows(fake_fetch):
     rows = {row["cve"]: row for row in r.extra["kev"]}
     assert rows["CVE-2026-1111"]["kev_ransomware"] is True
     assert rows["CVE-2026-1111"]["vendor"] == "Fortinet"
+    assert rows["CVE-2026-1111"]["kev_due_date"] == "2026-08-15"
+    assert rows["CVE-2026-1111"]["kev_required_action"].startswith("Apply mitigations")
+    # a feed entry without dueDate/requiredAction degrades to "" (never KeyError)
+    assert rows["CVE-2020-9999"]["kev_due_date"] == ""
+    assert rows["CVE-2020-9999"]["kev_required_action"] == ""
     assert len(rows) == 2
 
 

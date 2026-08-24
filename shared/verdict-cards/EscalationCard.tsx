@@ -58,6 +58,19 @@ function otxSignal(data: VerdictData): { label: string; variant: ChipVariant } |
   }
 }
 
+/** "Remediation overdue" chip — the CVE has passed its CISA-set KEV due date.
+ *  The decision is made upstream in cveToVerdict (against the snapshot date) and
+ *  handed down as a ['Status','Overdue'] fact on the KEV source; the card does no
+ *  date math, it only surfaces the fact. Amber: an urgency signal on an already-
+ *  KEV CVE, not a fresh verdict. */
+function kevOverdue(data: VerdictData): boolean {
+  return (
+    data.sources
+      .find((s) => s.kev)
+      ?.facts?.some((f) => /status/i.test(f[0]) && /overdue/i.test(f[1])) ?? false
+  )
+}
+
 export function EscalationCard({
   data,
   theme,
@@ -91,6 +104,7 @@ export function EscalationCard({
   const network = networkChip(data)
   const cov = coverageState(data.sources)
   const otx = otxSignal(data)
+  const overdue = kevOverdue(data)
 
   return (
     <div className="overflow-hidden rounded-lg border border-line-bright bg-panel shadow-e2">
@@ -121,10 +135,11 @@ export function EscalationCard({
           )}
           {!banner && <SegGauge data={data} />}
           {!banner && cov.guard && <p className="font-mono text-micro text-faint">{cov.guard}</p>}
-          {(dualUseChip || network || otx || data.band === 'grayware') && (
+          {(dualUseChip || network || otx || overdue || data.band === 'grayware') && (
             <div className="flex flex-wrap items-center gap-1.5">
               {dualUseChip && <Chip variant="suspicious">{dualUseChip}</Chip>}
               {data.band === 'grayware' && <Chip variant="grayware">grayware — not malware</Chip>}
+              {overdue && <Chip variant="suspicious">KEV remediation overdue</Chip>}
               {network && <Chip variant="neutral">{network}</Chip>}
               {otx && <Chip variant={otx.variant}>{otx.label}</Chip>}
             </div>

@@ -87,6 +87,20 @@ export function cveToVerdict(cve: Cve, snapshotAt?: string): VerdictData {
   const sources: VerdictSource[] = []
 
   if (cve.kev) {
+    // "Overdue" is decided HERE (deterministically, against the snapshot date —
+    // the honest as-of reference), never in the card: the past-due remediation
+    // deadline is a CISA fact, so it travels as an attributed row + a clause on
+    // CISA's own finding, and the card only renders what it is handed.
+    const due = isoDate(cve.kev_due_date)
+    const ref = isoDate(snapshotAt)
+    const overdue = due != null && ref != null && due < ref
+
+    const kevFacts: FactRow[] = []
+    if (cve.kev_date_added) kevFacts.push(['Added', cve.kev_date_added])
+    if (due) kevFacts.push(['Remediation due', due])
+    if (overdue) kevFacts.push(['Status', 'Overdue'])
+    if (cve.kev_required_action) kevFacts.push(['Required action', cve.kev_required_action])
+
     sources.push({
       name: 'CISA KEV',
       verdict: 'malicious',
@@ -94,10 +108,11 @@ export function cveToVerdict(cve: Cve, snapshotAt?: string): VerdictData {
       kev: true,
       finding:
         'listing in the Known Exploited Vulnerabilities catalog; exploitation observed in the wild' +
-        (cve.kev_ransomware ? '; known use in ransomware campaigns' : ''),
+        (cve.kev_ransomware ? '; known use in ransomware campaigns' : '') +
+        (overdue ? `; past the CISA remediation due date of ${due}` : ''),
       recency: isoDate(cve.kev_date_added),
       url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
-      facts: cve.kev_date_added ? [['Added', cve.kev_date_added]] : undefined,
+      facts: kevFacts.length ? kevFacts : undefined,
     })
   }
 

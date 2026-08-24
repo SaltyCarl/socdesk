@@ -8,7 +8,8 @@ BATCH = 100
 
 _EMPTY = {"cve": "", "title": "", "cvss": None, "cvss_severity": None,
           "epss": None, "epss_percentile": None, "kev": False,
-          "kev_date_added": "", "kev_ransomware": False, "vendors": [],
+          "kev_date_added": "", "kev_due_date": "", "kev_required_action": "",
+          "kev_ransomware": False, "vendors": [],
           "products": [], "published_at": "", "last_modified": ""}
 
 
@@ -36,6 +37,8 @@ def build_cve_rows(results, prior_rows, now):
         row = merged.setdefault(k["cve"], dict(_EMPTY, cve=k["cve"]))
         row["kev"] = True
         row["kev_date_added"] = k["kev_date_added"]
+        row["kev_due_date"] = k.get("kev_due_date", "")
+        row["kev_required_action"] = k.get("kev_required_action", "")
         row["kev_ransomware"] = k["kev_ransomware"]
         if not row["title"]:
             row["title"] = k["name"]
