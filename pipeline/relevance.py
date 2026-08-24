@@ -103,6 +103,16 @@ def apply_scores(items, cve_rows, now_iso, watchlist=(), tracked_actors=()):
     return items
 
 
+def _sector_of(summary):
+    """Pull the sector label out of a claim summary of the form
+    '... Sector: <sector> — Country: <country>.' — robust to any prose prefix
+    before 'Sector:' (the claim summary now leads with an attribution clause)."""
+    if not summary or "Sector:" not in summary:
+        return ""
+    after = summary.split("Sector:", 1)[1]
+    return after.split("—", 1)[0].strip().rstrip(".").strip()
+
+
 def group_repetitive(items, source, key_fn, threshold=4):
     """Collapse a run of near-identical items from one source into a digest.
 
@@ -123,9 +133,8 @@ def group_repetitive(items, source, key_fn, threshold=4):
             continue
         head = dict(group[0])
         head["title"] = f"{key} posted {len(group)} victim claims"
-        head["summary"] = ("Grouped: " + ", ".join(
-            sorted({(g.get('summary') or '').split('—')[0].replace('Sector:', '').strip()
-                    for g in group if g.get('summary')})[:6]))[:400]
+        sectors = sorted({s for g in group if (s := _sector_of(g.get("summary") or ""))})
+        head["summary"] = ("Grouped: " + ", ".join(sectors[:6]))[:400]
         head["grouped"] = len(group)
         head["score"] = max(g.get("score", 0) for g in group)
         head["why"] = [f"{len(group)} claims in window"]

@@ -84,17 +84,23 @@ def test_apply_scores_annotates_every_item():
 def test_repetitive_claims_are_grouped_not_dropped():
     """~55% of the feed was near-identical victim-claim stubs; grouped they
     inform, individually they drown everything else."""
+    sectors = ["Manufacturing", "Retail", "Manufacturing", "Healthcare",
+               "Retail", "Manufacturing"]
     claims = [item(source="ransomwarelive", title=f"akira claim {n}",
-                   summary="Sector: Manufacturing — Country: US",
+                   summary=(f"Unverified claim by akira, per its leak site. "
+                            f"Sector: {sectors[n]} — Country: US."),
                    entities={"actors": ["akira"], "malware": [], "vendors": [],
                              "cves": []}) for n in range(6)]
     news = [item(title="real story")]
     out = group_repetitive(claims + news, "ransomwarelive",
                            lambda i: i["entities"]["actors"][0])
-    titles = [o["title"] for o in out]
-    assert "akira posted 6 victim claims" in titles
-    assert "real story" in titles
+    by_title = {o["title"]: o for o in out}
+    assert "akira posted 6 victim claims" in by_title
+    assert "real story" in by_title
     assert len(out) == 2                     # 6 stubs collapsed to 1
+    # digest names the distinct sectors, NOT the leading attribution prose
+    digest = by_title["akira posted 6 victim claims"]["summary"]
+    assert digest == "Grouped: Healthcare, Manufacturing, Retail"
 
 
 def test_small_groups_are_left_alone():
