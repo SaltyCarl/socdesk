@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "groups"],
+  "properties": {
+    "generated_at": {"type": "string", "maxLength": 40},
+    "schema_version": {"type": "integer"},
+    "groups": {"type": "array", "maxItems": 500, "items": {
+      "type": "object",
+      "required": ["slug", "name"],
+      "properties": {
+        "slug": {"type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-z0-9 ._-]+$"},
+        "name": {"type": "string", "minLength": 1, "maxLength": 64},
+        "aliases": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 64}},
+        "first_seen": {"type": "string", "maxLength": 10},
+        "raas": {"type": "boolean"},
+        "initial_access_cves": {"type": "array", "maxItems": 32,
+          "items": {"type": "string", "pattern": "^CVE-\\d{4}-\\d{4,7}$"}},
+        "advisory": {"type": "object", "required": ["id", "url"],
+          "properties": {
+            "id": {"type": "string", "maxLength": 32},
+            "url": {"type": "string", "maxLength": 256, "pattern": "^https://www\\.cisa\\.gov/"}
+          }},
+        "tools": {"type": "array", "maxItems": 40, "items": {"type": "string", "maxLength": 64}},
+        "ransom_note": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 128}},
+        "extensions": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 32}}
+      }
+    }}
+  }
+}

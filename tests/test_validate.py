@@ -65,3 +65,20 @@ def test_gate_skips_invalid_with_no_prior():
     published, problems = gate({"feed.json": BAD_FEED}, {}, "schemas")
     assert "feed.json" not in published
     assert problems
+
+
+def test_ransomware_intel_seed_validates():
+    """The committed seed validates against its schema (shape/rules, not content)."""
+    import json
+    from pathlib import Path
+    seed = json.loads(Path("data/ransomware_intel.json").read_text(encoding="utf-8"))
+    payload = dict(seed, generated_at="2026-08-24T00:00:00Z")
+    assert validate_payload("ransomware_intel.json", payload, "schemas") == []
+
+
+def test_ransomware_intel_rejects_bad_cve_and_nonhost_advisory():
+    bad = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "x", "name": "X", "initial_access_cves": ["not-a-cve"],
+         "advisory": {"id": "A", "url": "https://evil.example/x"}}]}
+    errs = validate_payload("ransomware_intel.json", bad, "schemas")
+    assert errs != []

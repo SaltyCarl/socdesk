@@ -30,7 +30,7 @@ def test_end_to_end_with_one_source_down(fake_fetch, tmp_path):
 
     published = {p.name for p in out.iterdir()}
     assert {"feed.json", "cves.json", "health.json", "sources.json",
-            "actors.json", "malware.json"} <= published
+            "actors.json", "malware.json", "ransomware_intel.json"} <= published
     assert "iocs.json" not in published        # aggregator model, no corpus
 
     health = json.loads((out / "health.json").read_text(encoding="utf-8"))

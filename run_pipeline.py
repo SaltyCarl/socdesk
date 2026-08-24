@@ -79,6 +79,15 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
     sources = json.loads(Path(sources_path).read_text(encoding="utf-8"))
     payloads["sources.json"] = dict(sources, generated_at=iso(now))
 
+    # Curated ransomware-intel seed (CISA-sourced, public-domain facts) —
+    # published like sources.json: read the committed file, envelope it, gate it.
+    # No collector: it is curation, not a fetch. Path derived from sources_path so
+    # tests that point sources_path at a fixture dir pick up a sibling seed too.
+    intel_path = Path(sources_path).parent / "ransomware_intel.json"
+    if intel_path.exists():
+        payloads["ransomware_intel.json"] = dict(
+            json.loads(intel_path.read_text(encoding="utf-8")), generated_at=iso(now))
+
     feed_count = len(payloads.get("feed.json", {}).get("items", []))
     snapshots, history_files = _history(state_dir, cve_rows, feed_count, now)
     payloads["trends.json"] = dict(
