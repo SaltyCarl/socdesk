@@ -31,6 +31,21 @@ def test_claim_carries_attributed_victim_and_domain(fake_fetch):
     assert "unverified" in it["summary"].lower()
 
 
+def test_victim_and_domain_are_inert(fake_fetch):
+    """victim/domain are attacker-influenced: victim goes through clean_text
+    (markup stripped), domain is held to a bare hostname charset — a group can
+    post anything as a 'victim' name, and domain may become a link target."""
+    fetch = lambda url, **kw: [
+        {"victim": "<img src=x onerror=alert(1)>Evil Corp</img>", "group": "akira",
+         "discovered": "2026-08-08 02:15:00", "country": "US",
+         "activity": "Manufacturing", "domain": "WWW.Evil-Corp.com/<script>",
+         "claim_url": "https://x.test/1"}]
+    it = ransomwarelive.collect(fetch, FIXED_NOW).items[0]
+    assert "<" not in it["victim"] and ">" not in it["victim"]
+    assert "Evil Corp" in it["victim"]
+    assert it["domain"] == "evil-corp.com"          # www-stripped, lowered, charset-guarded
+
+
 def test_offset_aware_timestamps_do_not_become_invalid(fake_fetch):
     """Regression: an offset-aware upstream value plus our 'Z' produced
     '...+00:00Z', which Date.parse rejects — the UI showed '—' for age."""

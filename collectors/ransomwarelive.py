@@ -1,4 +1,6 @@
-from collectors.base import CollectorResult, iso, make_item
+import re
+
+from collectors.base import CollectorResult, clean_text, iso, make_item
 
 SOURCE = "ransomwarelive"
 URL = "https://api.ransomware.live/v2/recentvictims"
@@ -40,8 +42,16 @@ def collect(fetch, now):
             published + "Z" if published else iso(now), now,
             entities={"actors": [group], "malware": [], "vendors": [], "cves": []},
         )
-        victim = (v.get("victim") or "").strip()
+        # victim is attacker-influenced free text — inert-clean it like every
+        # other upstream string (title/summary go through clean_text via
+        # make_item; these fields are set post-call so must do it explicitly).
+        victim = clean_text(v.get("victim") or "").strip()
+        # domain becomes a possible link target downstream — hold it to a bare
+        # hostname (a real domain never carries a path, markup, or entities):
+        # take the authority up to the first slash/space, then charset-guard.
         domain = (v.get("domain") or "").strip().lower().removeprefix("www.")
+        domain = re.split(r"[/\s]", domain, 1)[0]
+        domain = re.sub(r"[^a-z0-9.-]", "", domain)
         if victim:
             item["victim"] = victim[:200]
         if domain:
