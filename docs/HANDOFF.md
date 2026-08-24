@@ -1,10 +1,64 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-23 (session — Lookup↔Cockpit consolidation BUILT on branch `feat/lookup-cockpit-consolidation` via 8-task SDD + whole-branch review, SHIP-clean, NOT merged — `/` cockpit becomes the single lookup surface, `/lookup` retired behind a hard redirect) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — B2 enrich/write-path abuse-hardening BUILT on branch `feat/enrich-abuse-hardening` via 8-task SDD + clean whole-branch review, SHIP, NOT merged — in-isolate rate-limit + KV budget + report cap, all fail-open, ships dark) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-23 (session — Lookup↔Cockpit consolidation BUILT, NOT merged)
+## 0. LATEST — 2026-08-24 (session — B2 enrich abuse-hardening BUILT, NOT merged)
+
+> Branch `feat/enrich-abuse-hardening` (base `7a19730`), built via 8-task SDD +
+> a clean whole-branch review (opus) = SHIP. **NOT merged** — owner finish-menu
+> decision pending. Ships dark until owner activates KV binding + WAF rule.
+
+**Shipped (branch, not merged):** three defense layers on the enrich/report
+write paths, everything fail-open (KV unbound/throws → serves normally).
+- **L1** — in-isolate per-IP rate-limit on `/api/enrich`. Module-scope `Map`s,
+  zero KV writes, bare 429 on flood; cache-hits bypass the limiter entirely.
+  `lib/enrich/ratelimit.mjs`.
+- **L2** — per-source daily KV write budget. Writes coalesced (~1 per 25
+  calls); a spent source degrades to `blocking:false` (cacheable) rather than
+  failing; counted only for sources actually dispatched, not from `errors[]`.
+  `lib/enrich/budgets.mjs`; threaded through `planSources`/`enrich()` in
+  `lib/enrich.mjs` as an additive `budgetBlocked` field.
+- **L3** — per-IP daily report cap on `/api/report`, defense-in-depth atop
+  existing Turnstile + account-cap + dedupe; counts only genuine inserts.
+  `lib/reporting/ratelimit.mjs`.
+- Wrappers: `functions/api/enrich.js`, `functions/api/report.js`.
+- Docs: `docs/OPERATIONS.md` — owner KV + WAF setup and dogfood steps.
+
+**Key decision (caught in spec review, `fc019df`):** original design used a
+per-IP KV latch, which is self-defeating — a rotating-IP botnet would exhaust
+the shared free-tier KV write quota (1,000/day) via per-distinct-IP writes,
+fail-opening the L2 budget counter and exposing every upstream API key. Fixed:
+**L1 moved in-isolate-only**, a **Cloudflare WAF Block rule** on
+`/api/enrich` added as the primary distributed-flood shield, **L2 as the real
+upstream guarantee**. Total KV writes now bounded (~250-300/day) regardless of
+IP cardinality.
+
+**Owner-config required to activate (currently dark):** bind a Cloudflare KV
+namespace as `env.KV`; add a WAF Rate-Limiting Block rule on
+`path starts_with /api/enrich` (Block, ~10s window). Both steps documented in
+`docs/OPERATIONS.md`.
+
+**Deferred minors (non-blocking, whole-branch review):** dead `nameToKey`
+helper; unbounded in-isolate maps in `ratelimit.mjs` (opportunistic-prune is a
+future tune, not a leak at current traffic).
+
+**Verified:** vitest 592 green, `npm --prefix web run build` clean, eslint 0,
+wrapper files pass `node --check`.
+
+**Commits (base `7a19730`):** `0241b64`, `93aba6f`, `680ef07`, `64b9667`,
+`2cbd35b`, `449515a`, `2f138cc`, `36970f0`.
+
+**Spec/plan:**
+`docs/superpowers/specs/2026-08-24-enrich-abuse-hardening-design.md` (§11
+amendments), `docs/superpowers/plans/2026-08-24-enrich-abuse-hardening.md`.
+
+**Open / next:** NOT merged — owner finish-menu decision pending on
+`feat/enrich-abuse-hardening`. Once merged: bind KV + add WAF rule per
+`docs/OPERATIONS.md` to take it live.
+
+## 0-RECENT — 2026-08-23 (session — Lookup↔Cockpit consolidation BUILT, NOT merged)
 
 > Branch `feat/lookup-cockpit-consolidation` (base `1ec1c70`), built via 8-task
 > SDD + a whole-branch review. The `/` Overview cockpit is now the single lookup
