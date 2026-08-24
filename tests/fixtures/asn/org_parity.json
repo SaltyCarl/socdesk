@@ -1,0 +1,8 @@
+[
+  { "org": "AS60729 Zwiebelfreunde e.V.", "asn": "AS60729", "isp": "Zwiebelfreunde e.V." },
+  { "org": "AS14061 DigitalOcean, LLC", "asn": "AS14061", "isp": "DigitalOcean, LLC" },
+  { "org": "AS13335 Cloudflare, Inc.", "asn": "AS13335", "isp": "Cloudflare, Inc." },
+  { "org": "AS60729  Extra Spaces Inc", "asn": "AS60729", "isp": "Extra Spaces Inc" },
+  { "org": "Cloudflare, Inc.", "asn": null, "isp": null },
+  { "org": "", "asn": null, "isp": null }
+]
