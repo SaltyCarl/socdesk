@@ -226,6 +226,15 @@ which the enrich read path consults as a `kind:"context"` `SOCDESK_COMMUNITY`
 row. The read path serves that committed JSON as a static asset — `/api/enrich`
 gains no D1 binding and never reads D1 per lookup.
 
+Phase-4 abuse-by-network leaderboard: `run_pipeline.py` aggregates the already-
+published, PII-stripped `community_reports.json` and `threat_ips.json` by network
+(ASN + ISP) into the committed `data/state/asn_leaderboard.json`, resolving each
+distinct abusive IP via IPinfo's `org` field (cache-first, `data/state/asn_cache.json`).
+It is rendered read-only in the Data Desk "Networks" tab (`/desk#networks`) as a
+static-asset view — still no account, no per-lookup D1, and no change to the
+enrich read path. Reported/blocklisted abuse volume hosted on a network, not a
+verdict on the operator.
+
 ## Documentation
 
 | Document | What it holds |

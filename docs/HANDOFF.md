@@ -1,6 +1,6 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — B2 enrich/write-path abuse-hardening BUILT on branch `feat/enrich-abuse-hardening` via 8-task SDD + clean whole-branch review, SHIP, NOT merged — in-isolate rate-limit + KV budget + report cap, all fail-open, ships dark) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — B2 enrich/write-path abuse-hardening BUILT on branch `feat/enrich-abuse-hardening` via 8-task SDD + clean whole-branch review, SHIP, NOT merged — in-isolate rate-limit + KV budget + report cap, all fail-open, ships dark; also IOC-reporting Phase 4 ASN abuse-leaderboard BUILT on branch `feat/asn-abuse-leaderboard` via 7-task SDD + clean whole-branch review, SHIP, NOT merged) · **Read §0 first.**
 
 ---
 
@@ -57,6 +57,67 @@ amendments), `docs/superpowers/plans/2026-08-24-enrich-abuse-hardening.md`.
 **Open / next:** NOT merged — owner finish-menu decision pending on
 `feat/enrich-abuse-hardening`. Once merged: bind KV + add WAF rule per
 `docs/OPERATIONS.md` to take it live.
+
+---
+
+**Also shipped 2026-08-24 (branch `feat/asn-abuse-leaderboard`, base
+`0556790`) — IOC-reporting Phase 4: ISP/ASN abuse-leaderboard.** Built via SDD
+(7 tasks) + clean whole-branch review = SHIP. **NOT merged** — owner
+finish-menu decision pending. Goes LIVE-visible on the first pipeline run
+after deploy (no owner-config required).
+
+**Shipped:**
+- `pipeline/asn.py` — resolves ASN+ISP per abusive IP from IPinfo's `org`
+  field, **reusing the geolocation call the pipeline already makes**
+  (`geo.py` fetched `org` and discarded it — no new API cost beyond new-IP
+  cache misses). Cache-first via committed `data/state/asn_cache.json`
+  (mirrors `geo_cache.json`).
+- Aggregates the UNION of `community_reports.json` ∪ `threat_ips.json`
+  abusive IPs into committed `data/state/asn_leaderboard.json` (networks
+  ranked by distinct-abusive-IP count; per-row asn/isp/country/ip_count/
+  report_count/categories/sources/examples).
+- Read-only **"Networks" tab** in the Data Desk (`/desk#networks`) —
+  `AsnLeaderboardView.tsx` + `AsnLeaderboardRoute.tsx`, static-asset via
+  `useStateData`, no D1/API/account.
+- Wiring: `run_pipeline.py` builds the leaderboard after community+threat,
+  before the gate; asn_cache load/persist. Schema registration:
+  `pipeline/validate.py`.
+- Hard no-PII: twice-fenced — `asn.py` never touches D1/github_id; inputs are
+  already PII-stripped; schema `additionalProperties:false` at both envelope
+  and row levels.
+- OSINT framing: "reported/blocklisted abuse volume hosted on a network, NOT
+  a verdict on the operator"; per-network `sources[]` keeps a community
+  allegation distinguishable from an abuse.ch published blocklist.
+- Free-tier: reuses `IPINFO_TOKEN`, no new secret; cost bounded to new
+  distinct IPs.
+- Honest degradation: unresolvable IP → `unattributed`, never a fabricated
+  ASN; builder returns `None` → gate keeps last-known-good, re-stamped.
+
+**Files created:** `pipeline/asn.py`, `schemas/asn_leaderboard.schema.json`,
+`data/state/asn_leaderboard.json` (empty seed), `data/state/asn_cache.json`
+(`{}`), `tests/test_asn_leaderboard.py`, `tests/fixtures/asn/org_parity.json`,
+`web/src/components/views/AsnLeaderboardView.tsx`,
+`web/src/routes/AsnLeaderboardRoute.tsx`.
+**Modified:** `run_pipeline.py`, `pipeline/validate.py`,
+`web/src/components/views/types.ts`, `web/src/routes/DataDeskRoute.tsx`
+(Networks tab), `README.md`.
+
+**Commits (base `0556790`):** `8a4e52c`, `5e72310`, `603e3ed`, `cbed940`,
+`e4d7238`, `7f4d8bf`, `6a971b6`.
+
+**Verified:** pytest 118 · `npm --prefix web run build` clean · eslint 0 ·
+vitest 592.
+
+**Deferred minor (non-blocking):** schema `sources.maxItems` is 3
+(intentional; values drawn from a 2-item enum via a set, non-exploitable);
+optional `uniqueItems` hardening on sources/categories.
+
+**Spec/plan:**
+`docs/superpowers/specs/2026-08-24-asn-abuse-leaderboard-design.md`,
+`docs/superpowers/plans/2026-08-24-asn-abuse-leaderboard.md`.
+
+**Open / next:** NOT merged — owner finish-menu decision pending on
+`feat/asn-abuse-leaderboard`.
 
 ## 0-RECENT — 2026-08-23 (session — Lookup↔Cockpit consolidation BUILT, NOT merged)
 

@@ -105,3 +105,51 @@ def test_community_keeps_last_known_good_on_none(fake_fetch, tmp_path, monkeypat
     kept = json.loads((out / "community_reports.json").read_text(encoding="utf-8"))
     assert kept["indicators"] == {}                          # prior retained (not blanked)
     assert kept["generated_at"] != prior["generated_at"]     # re-stamped this run
+
+
+def test_asn_leaderboard_published_and_token_threaded(fake_fetch, tmp_path, monkeypatch):
+    import run_pipeline
+    payload = {"generated_at": "seed", "schema_version": 1, "attribution": "a",
+               "count": 1, "total_abusive_ips": 1, "unattributed_ips": 0,
+               "cap": 200, "truncated": False,
+               "networks": [{"asn": "AS64500", "isp": "Example", "country": "US",
+                             "ip_count": 1, "report_count": 1,
+                             "categories": ["ssh"], "sources": ["community"],
+                             "examples": ["1.2.3.4"]}]}
+    seen = {}
+
+    def fake_build(community, threat_ips, cache, fetch, now, token):
+        seen["token"] = token
+        cache["1.2.3.4"] = {"asn": "AS64500", "isp": "Example", "country": "US"}
+        return payload
+    monkeypatch.setattr(run_pipeline, "build_asn_leaderboard", fake_build)
+
+    out, state = tmp_path / "o", tmp_path / "s"
+    run(fetch=_pipeline_fetch(fake_fetch), now=FIXED_NOW, out_dir=out, state_dir=state,
+        schemas_dir="schemas", sources_path="data/sources.json",
+        env={"IPINFO_TOKEN": "tok"})
+
+    assert seen["token"] == "tok"                     # threaded via run()'s env
+    written = json.loads((out / "asn_leaderboard.json").read_text(encoding="utf-8"))
+    assert written["networks"][0]["asn"] == "AS64500"
+    cache = json.loads((state / "asn_cache.json").read_text(encoding="utf-8"))
+    assert cache["1.2.3.4"]["asn"] == "AS64500"        # cache persisted
+
+
+def test_asn_leaderboard_keeps_last_known_good_on_none(fake_fetch, tmp_path, monkeypatch):
+    import run_pipeline
+    monkeypatch.setattr(run_pipeline, "build_asn_leaderboard",
+                        lambda community, threat_ips, cache, fetch, now, token: None)
+    out, state = tmp_path / "o", tmp_path / "s"
+    state.mkdir(parents=True)
+    prior = {"generated_at": "2020-01-01T00:00:00Z", "schema_version": 1,
+             "attribution": "a", "count": 0, "total_abusive_ips": 0,
+             "unattributed_ips": 0, "cap": 200, "truncated": False, "networks": []}
+    (state / "asn_leaderboard.json").write_text(json.dumps(prior), encoding="utf-8")
+
+    run(fetch=_pipeline_fetch(fake_fetch), now=FIXED_NOW, out_dir=out, state_dir=state,
+        schemas_dir="schemas", sources_path="data/sources.json", env={})
+
+    kept = json.loads((out / "asn_leaderboard.json").read_text(encoding="utf-8"))
+    assert kept["networks"] == []                      # prior retained (not blanked)
+    assert kept["generated_at"] != prior["generated_at"]   # re-stamped this run
