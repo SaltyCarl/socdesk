@@ -103,9 +103,27 @@ in-place IOC pivot; Gallery → internal-only (dropped from the public nav); and
 - **CI: Node-20→24 bump** — every deploy run warns "Node.js 20 is deprecated"
   (checkout@v4/setup-node@v4/setup-python@v5/wrangler-action@v3 forced onto Node 24).
   Pin `node-version: 24` (and refresh action majors) in `collect-and-deploy.yml`.
+- **CI: `concurrency:` group on `collect-and-deploy`** — overlapping runs (a cron
+  + a manual `workflow_dispatch`) both regenerate `data/state/*.json` and the commit
+  step's `git pull --rebase` CONFLICTS, failing one run (killed the Track-A cap-fix
+  deploy 2026-08-24; a clean re-run landed it). Add
+  `concurrency: {group: collect-and-deploy, cancel-in-progress: false}`.
+- **CVE catalog growth** — `cves.json` is ~8 MB and hovers near the (now per-file
+  16 MB) publish cap because it carries the 180-day window PLUS every KEV entry
+  forever. Needs a windowing/pruning strategy (cap the KEV-forever accumulation)
+  before it re-approaches the cap. Noted in `pipeline/validate.py`.
+- **CVE `product` data-artifact** — some CVE rows carry `product: 'pipeline\'`
+  (a backslash path fragment from the NVD products extraction); cosmetic, shows
+  ugly in the trends/vuln surfaces. Fix the extraction in `collectors/nvd.py`.
 - **Reporting deferred minors** (from the Phase-2 / UX-polish ships): "Check reputation"
   deep-link `aria-label` on the `/admin` row pivot; an OPERATIONS callback-logs doc line;
   shared `CATEGORIES` import + guard-test; the 2 Task-8 ReportDialog cosmetics.
+
+### Ransomware / TI-uplift follow-ups (owner-directed 2026-08-24)
+_Shipped this lane: **Track A** CVE cheap-wins (what-changed panel, KEV due-date, relevance de-inflation, watchlist, doc fixes) + hardening → LIVE. **Track B-A′** the CISA-sourced ransomware **triage profile** (`data/ransomware_intel.json` → "Initial access & detection" panel, CVE→lookup pivot) → LIVE. Specs/plans in `docs/superpowers/`._
+- **Ransomware COVERAGE — the long tail (the "still no Nitrogen" gap).** A group is listed only if feed-active OR in ATT&CK OR in the CISA seed (10 groups). Nitrogen (and most of ransomware.live's ~150) has no CISA advisory, no recent leak-site claim, no ATT&CK id → not listed. Two paths, **owner decision needed** (R3 gates them): (a) a **name-only coverage layer** — list ransomware.live group names as directory entries that LINK OUT to ransomware.live (names + link-out are arguably not a "mirror"; rank curated/active first to avoid a ~150-entry flood); (b) **broaden the intel seed beyond CISA** to authoritative vendor reporting (Trend Micro / Unit 42 / Mandiant), so a Nitrogen-type group gets a real triage panel from attributed public reporting. (a) fixes "listed" cheaply; (b) gives depth per group.
+- **Seed expansion** — add more groups to `data/ransomware_intel.json` as CISA publishes new #StopRansomware advisories (hand-curated, each field CISA-traceable).
+- **Approach C — campaign-report / TI-parity page** — the shareable per-campaign report (CVEs + KEV due-dates + named TTPs + hunting-query links + targeting), rendering on the same group→CVE data layer A′ built. **HARD PREREQUISITE:** the **CARL KQL library must be vetted (strongest model) + QA'd** before any hunting-query links ship (CARL is a separate repo; KQL flagged stale/buggy). Its own phase.
 
 ## P2 — next core component (only once the loop is excellent)
 CVE / Threat-Intel feed as the second pillar (feed, KEV/EPSS triage — already
