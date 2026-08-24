@@ -1,9 +1,11 @@
 # SOCDesk Backlog
 
-> _Refreshed 2026-08-22._ Recently shipped: reporting **UX polish** + **Phase 2 owner
-> moderation (`/admin`)** + **enrich non-blocking context** (all live). Active: reporting
-> **Phase 3** (publish approved reports as `SOCDESK_COMMUNITY`). Refresh this doc at every
-> feature close-out — it is the durable to-do alongside `docs/HANDOFF.md`.
+> _Refreshed 2026-08-24._ Recently shipped + LIVE: reporting **Phase 3** (community reports,
+> dogfood-verified) + **`/about`** transparency page + the **cockpit Report button** + the
+> **Lookup↔Cockpit consolidation** (single lookup surface, `/lookup` retired). The report →
+> moderate → publish loop is now closed end-to-end. **Top of the queue:** enrich **B2**
+> abuse-hardening (before the reporting surface scales), then reporting **Phase 4** (ISP/ASN
+> leaderboard). Refresh this doc at every feature close-out — the durable to-do alongside `docs/HANDOFF.md`.
 
 ## North star (owner-set, 2026-08-10 — read before adding ANYTHING)
 
@@ -261,11 +263,16 @@ check (logon types, source host, account).
   - **Phase 2 — owner moderation console (`/admin`)** — ✅ SHIPPED + DOGFOOD-ACCEPTED (2026-08-22):
     owner-gated (numeric `OWNER_GITHUB_ID` secret, set) approve/reject queue; atomic race-safe D1
     write; fail-closed. `spec 2026-08-22-admin-moderation-console-design.md`.
-  - **Phase 3 — publish approved reports as a live `SOCDESK_COMMUNITY` context source** (Option A:
-    committed dataset built from D1 approved rows, no per-lookup D1; `kind:context`, OUT of the tally,
-    attributed, no reporter PII published) — **IN PROGRESS** (2026-08-22, spec
-    `2026-08-22-community-reports-publish-design.md`).
-  - **Phase 4** ISP/ASN abuse-leaderboard → **Phase 5** trends → **Phase 6** optional upstream push — pending.
+  - **Phase 3 — publish approved reports as a live `SOCDESK_COMMUNITY` context source** — ✅ SHIPPED +
+    LIVE + DOGFOOD-VERIFIED (2026-08-24). Option A committed dataset (D1 approved rows → Python export →
+    served static JSON, no per-lookup D1); metric = `COUNT(DISTINCT github_id)` "reported by N
+    contributor(s)"; `kind:context`, OUT of tally; twice-enforced no-PII fence (verified clean in prod).
+    Live dogfood passed end-to-end (report → approve → export → row renders). 8-task SDD.
+  - **`/about#community-reports` transparency page** — ✅ SHIPPED (2026-08-24): the verify-link target
+    for community rows; dispute contact `abuse@socdesk.io` (Cloudflare Email Routing, inbound-only —
+    removal-is-the-response); footer now "About · Privacy" + palette-discoverable.
+  - **Phase 4** ISP/ASN abuse-leaderboard → **Phase 5** trends → **Phase 6** optional upstream push — pending
+    (the now-populated community dataset is Phase 4's substrate).
 - **Deferred / future ambition — broader user account (doctrine change, NOT now).**
   The account is deliberately a **narrow contributor identity** (report → my-reports →
   later reputation / corroboration-vote / contributor-profile) and **never touches the
