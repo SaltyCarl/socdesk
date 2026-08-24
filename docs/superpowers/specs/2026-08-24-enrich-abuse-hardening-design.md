@@ -300,3 +300,32 @@ Matches the repo split — **pure logic in node-vitest, Functions build-gated + 
 - **Scope:** no change to verdict doctrine, the no-account read model, or the source set — restated as anti-drift guardrails (§0) and re-checked against each per-endpoint change. `lib/enrich.mjs` gets exactly one additive, pure signature change.
 - **Ambiguity:** the one real owner decision (limit aggressiveness + WAF-rule enablement) is isolated in §9 and not guessed; the uncertain external fact (free-plan WAF params) is flagged, and the shipped deliverable is designed not to depend on it.
 - **Citations:** every load-bearing claim about current behavior cites `file:line`.
+
+---
+
+## 11. Review amendments (APPROVED 2026-08-24)
+
+Infra/security spec review returned REVISE-THEN-PLAN. These corrections are BINDING and override any earlier body text they touch. The plan argues from §§1–10 as corrected here.
+
+### 11.1 [BLOCKER fix] The per-IP limit (L1) is IN-ISOLATE-ONLY — no KV write. The WAF rule is the DESIGNATED primary distributed-flood shield.
+The original L1 KV latch wrote one key per distinct offending IP. Under the exact IP-rotation/botnet flood the layer exists to stop, distinct IPs = thousands → L1 alone exhausts the shared 1,000/day KV **write** pool → the L2 per-source budget counter's `put`s then fail → L2 fails open → every free-tier upstream key is exposed. The write-frugal shield disabled the aggregate guarantee. **Fix (owner-approved):**
+- **L1 becomes an in-isolate soft latch ONLY** — an in-memory per-IP cache-miss counter/latch within the Worker isolate, **zero KV writes**. It still returns a silent 429 on a local flood; its lost cross-isolate persistence is near-worthless against rotating IPs and was the sole source of the write-quota blow-up.
+- **The Cloudflare WAF Rate-Limiting Rule (Block) on `path starts_with /api/enrich` is the designated PRIMARY distributed/volumetric shield** (owner approved to enable it — §11.6). It is no longer "optional/recommended"; it is the flood layer of record. Block returns a bare 429 (frictionless — NOT Managed Challenge).
+- **L2 (per-source daily KV budget) is the real upstream-quota guarantee.** With L1 off the KV write pool, total KV writes = L2 (~250/day coalesced) + L3 report per-IP counter (tens/day) « 1,000/day **regardless of IP cardinality**. The §5 math is corrected accordingly: the ≤~400/day figure now holds for ALL flood shapes, not only low-IP-cardinality ones.
+
+### 11.2 [MAJOR fix] L2 budget write-count predicate = only sources ACTUALLY DISPATCHED.
+Counting "each source present in `result.sources` OR `result.errors`" over-counts: budget-blocked AND not-configured skips both land in `errors[]` (collectResults pushes all skips there, enrich.mjs:715-716), so a budget-blocked source keeps incrementing → coalesced flush every 25 → volume-proportional writes on an already-blocked source under a novel-indicator flood. **Fix:** the wrapper increments the budget counter ONLY for sources it actually dispatched an upstream call for — i.e. `dispatched = applicable − budgetBlocked − notConfigured`, both computable in the wrapper. Never infer "did we call it" from `errors[]` (a 429/timeout that DID call and a budget/not-configured skip that did NOT both look like `{source, reason}`).
+
+### 11.3 [minor] `enrich()` signature changes too — not "one additive change".
+Threading `budgetBlocked` into `planSources` requires editing `enrich()`'s signature (enrich.mjs:774) + its internal `planSources(type, env)` call (enrich.mjs:779) to accept/forward the arg. The plan MUST pick one: (a) add the 6th `budgetBlocked` param through `enrich()`→`planSources`; OR (b) have the Function wrapper orchestrate the phases via the exported `_internals` and never touch `enrich()`. Recommend (a) — smaller, keeps one entry point. The §0 "exactly one additive, pure signature change" is corrected to "additive changes to `planSources` + `enrich()` signatures; behavior additive."
+
+### 11.4 [minor] Budgets keyed by source `.key`, but rows carry `.name`.
+`result.sources`/`errors` rows carry `.name` ("AbuseIPDB"), not `.key`. The wrapper builds a `name→key` map from `_internals.SOURCES` to attribute a dispatched source to its budget key.
+
+### 11.5 [minor] NAT/shared-egress caveat + cite fix.
+A SOC behind one corporate NAT triaging many DISTINCT novel indicators in a burst could approach `IP_LIMIT` on one IP. Mitigated by cache-miss-only counting (re-checking the same IOC is a cache hit, uncounted) + the generous default + WAF-primary (the in-isolate L1 is a soft backstop, not the main gate). Keep the default generous; tune from telemetry, never pre-emptively. Cite fix: OTX `key` is enrich.mjs:495 (not :494).
+
+### 11.6 Owner decisions (LOCKED)
+- **WAF rule: INCLUDED** as the primary flood shield. Owner enables it in the Cloudflare dashboard: a single Rate-Limiting Rule, `path starts_with /api/enrich`, **Block** action (bare 429, not Managed Challenge), the free-plan ~10s counting window. Code ships independently and does NOT depend on the rule existing (ships dark).
+- **Per-IP in-isolate limit default:** 60 cache-misses / 10-min window / IP, 15-min soft block. Generous by design; tunable later.
+- **Ships dark:** the KV-dependent layers (L2 budget, L3 report per-IP) no-op until an `env.KV` namespace is bound in the dashboard; the in-isolate L1 works with no config. New owner-config: bind one KV namespace as `env.KV` + enable the WAF rule.
