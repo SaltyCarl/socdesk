@@ -8,7 +8,12 @@ import { buildProfileIndex, profileFor } from '../components/views/profiles'
 import { useStateData, type AsyncStatus } from '../components/views/useStateData'
 import { rel } from '../components/views/format'
 import { navigate } from '../components/palette/commands'
-import type { FeedPayload, ProfilePayload, RelationsPayload } from '../components/views/types'
+import type {
+  FeedPayload,
+  ProfilePayload,
+  RansomIntelPayload,
+  RelationsPayload,
+} from '../components/views/types'
 
 /**
  * /actor — the URL-addressable profile system.
@@ -41,6 +46,7 @@ export function ActorProfileRoute() {
   const malware = useStateData<ProfilePayload>('malware')
   const feed = useStateData<FeedPayload>('feed')
   const relations = useStateData<RelationsPayload>('relations')
+  const intel = useStateData<RansomIntelPayload>('ransomware_intel')
 
   const [slug, setSlug] = useState<string>(readSlug)
   useEffect(() => {
@@ -58,10 +64,11 @@ export function ActorProfileRoute() {
   const actorList = useMemo(() => actors.data?.profiles ?? [], [actors.data])
   const malwareList = useMemo(() => malware.data?.profiles ?? [], [malware.data])
   const feedItems = useMemo(() => feed.data?.items ?? [], [feed.data])
+  const intelList = useMemo(() => intel.data?.groups ?? [], [intel.data])
 
   const index = useMemo(
-    () => buildProfileIndex(actorList, malwareList, feedItems),
-    [actorList, malwareList, feedItems],
+    () => buildProfileIndex(actorList, malwareList, feedItems, intelList),
+    [actorList, malwareList, feedItems, intelList],
   )
   const slugSet = useMemo(() => new Set(index.map((e) => e.slug)), [index])
 
@@ -73,9 +80,10 @@ export function ActorProfileRoute() {
             malware: malwareList,
             feed: feedItems,
             relations: relations.data,
+            intel: intelList,
           })
         : null,
-    [slug, actorList, malwareList, feedItems, relations.data],
+    [slug, actorList, malwareList, feedItems, relations.data, intelList],
   )
 
   const loading =
@@ -89,7 +97,8 @@ export function ActorProfileRoute() {
       (profile.fingerprint ||
         profile.ransomware ||
         profile.reporting.length ||
-        profile.related.length),
+        profile.related.length ||
+        profile.intel),
   )
 
   const backToDirectory = (e: React.MouseEvent) => {
