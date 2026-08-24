@@ -290,4 +290,16 @@ describe('intel fusion', () => {
     const akira = idx.find((e) => e.slug === 'akira')
     expect(akira?.hasIntel).toBe(true)
   })
+
+  it('merges onto an existing actor row rather than duplicating it (existing.hasIntel branch)', () => {
+    const akiraActor: Profile[] = [
+      { name: 'Akira', attack_id: 'G1024', aliases: [], description: '', techniques: [], software: [] },
+    ]
+    const idx = buildProfileIndex(akiraActor, [], [], INTEL)
+    const akiraEntries = idx.filter((e) => e.slug === 'akira')
+    expect(akiraEntries).toHaveLength(1)
+    expect(akiraEntries[0].kind).toBe('actor')
+    expect(akiraEntries[0].hasMitre).toBe(true)
+    expect(akiraEntries[0].hasIntel).toBe(true)
+  })
 })

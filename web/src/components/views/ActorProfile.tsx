@@ -223,6 +223,7 @@ function IntelPanel({ intel }: { intel: RansomIntel }) {
   const tools = intel.tools ?? []
   const notes = intel.ransom_note ?? []
   const exts = intel.extensions ?? []
+  const advisoryHref = safeUrl(intel.advisory?.url)
   return (
     <div className="flex flex-col gap-5">
       <p className="text-xs leading-relaxed text-muted">
@@ -273,8 +274,8 @@ function IntelPanel({ intel }: { intel: RansomIntel }) {
         </div>
       )}
 
-      {intel.advisory && (
-        <ExternalLink href={intel.advisory.url}>
+      {intel.advisory && advisoryHref && (
+        <ExternalLink href={advisoryHref}>
           CISA advisory {intel.advisory.id}
         </ExternalLink>
       )}
