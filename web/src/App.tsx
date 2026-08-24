@@ -9,6 +9,7 @@ import { Gallery } from './routes/Gallery'
 import { MyReports } from './routes/MyReports'
 import { Admin } from './routes/Admin'
 import { Privacy } from './routes/Privacy'
+import { About } from './routes/About'
 
 /**
  * App router — a tiny pathname read (no router dependency) drives a small
@@ -58,6 +59,7 @@ const ROUTES: Route[] = [
   { path: '/reports', label: 'My reports', size: 'default', el: <MyReports />, nav: false },
   { path: '/admin', label: 'Admin', size: 'default', el: <Admin />, nav: false },
   { path: '/privacy', label: 'Privacy', size: 'default', el: <Privacy />, nav: false },
+  { path: '/about', label: 'About', size: 'default', el: <About />, nav: false },
 ]
 
 function useRoute(): string {

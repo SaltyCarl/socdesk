@@ -63,6 +63,14 @@ export const DEFAULT_VIEWS: CommandItem[] = [
     href: '/privacy',
     keywords: ['privacy', 'disclosure', 'data', 'tracking', 'cookies', 'policy', 'legal'],
   },
+  {
+    id: 'view:about',
+    kind: 'view',
+    label: 'About',
+    hint: '/about',
+    href: '/about',
+    keywords: ['about', 'community reports', 'contributors', 'moderation', 'dispute', 'transparency'],
+  },
 ]
 
 export const DEFAULT_ACTIONS: CommandItem[] = [

@@ -50,10 +50,13 @@ export function Shell({ items, children, views, containerSize = 'default' }: She
   )
 }
 
+const FOOTER_LINK_CLS =
+  'font-mono text-micro font-semibold uppercase tracking-label text-faint outline-offset-2 transition-colors duration-150 ease-brand hover:text-paper focus-visible:outline-2 focus-visible:outline-accent'
+
 /**
  * Recessive site footer — a single hairline over a quiet attribution line and
- * the disclosure link (the app's only legal surface). Kept in the shell so it
- * appears on every route.
+ * the disclosure links (the app's legal / transparency surface). Kept in the
+ * shell so it appears on every route.
  */
 function SiteFooter() {
   return (
@@ -62,12 +65,14 @@ function SiteFooter() {
         <span className="text-xs text-faint">
           SOCDesk — a non-commercial personal portfolio project.
         </span>
-        <a
-          href="/privacy"
-          className="font-mono text-micro font-semibold uppercase tracking-label text-faint outline-offset-2 transition-colors duration-150 ease-brand hover:text-paper focus-visible:outline-2 focus-visible:outline-accent"
-        >
-          Privacy
-        </a>
+        <nav className="flex items-center gap-5">
+          <a href="/about" className={FOOTER_LINK_CLS}>
+            About
+          </a>
+          <a href="/privacy" className={FOOTER_LINK_CLS}>
+            Privacy
+          </a>
+        </nav>
       </div>
     </footer>
   )
