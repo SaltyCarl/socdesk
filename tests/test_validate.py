@@ -82,3 +82,47 @@ def test_ransomware_intel_rejects_bad_cve_and_nonhost_advisory():
          "advisory": {"id": "A", "url": "https://evil.example/x"}}]}
     errs = validate_payload("ransomware_intel.json", bad, "schemas")
     assert errs != []
+
+
+def test_ransomware_intel_seed_dates_are_isoish():
+    """Every advisory_date/last_reviewed on the committed seed matches YYYY-MM-DD —
+    a shape/rule assertion, never the group list or count."""
+    import json
+    import re
+    from pathlib import Path
+    seed = json.loads(Path("data/ransomware_intel.json").read_text(encoding="utf-8"))
+    date_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    for group in seed["groups"]:
+        for field in ("advisory_date", "last_reviewed"):
+            if field in group:
+                assert date_re.match(group[field]), f"{group['slug']}.{field}={group[field]!r}"
+
+
+def test_ransomware_intel_seed_note_images_are_cisa_hosted():
+    """Every note_image on the committed seed points at cisa.gov — shape/rule only."""
+    import json
+    from urllib.parse import urlsplit
+    from pathlib import Path
+    seed = json.loads(Path("data/ransomware_intel.json").read_text(encoding="utf-8"))
+    for group in seed["groups"]:
+        if "note_image" in group:
+            host = urlsplit(group["note_image"]).netloc
+            assert host.endswith("cisa.gov"), f"{group['slug']}.note_image host={host!r}"
+
+
+def test_ransomware_intel_schema_rejects_non_cisa_note_image():
+    bad = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "x", "name": "X", "note_image": "https://evil.example/note.png"}]}
+    errs = validate_payload("ransomware_intel.json", bad, "schemas")
+    assert errs != []
+
+
+def test_ransomware_intel_schema_accepts_provenance_fields():
+    """Schema shape check: advisory_date/last_reviewed/note_image/sources[] are
+    accepted when well-formed (independent of what the seed currently contains)."""
+    good = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "xx", "name": "X",
+         "advisory_date": "2026-08-24", "last_reviewed": "2026-08-24",
+         "note_image": "https://www.cisa.gov/sites/default/files/foo.png",
+         "sources": [{"id": "ic3-flash", "url": "https://www.ic3.gov/CSA/2026/260824.pdf"}]}]}
+    assert validate_payload("ransomware_intel.json", good, "schemas") == []
