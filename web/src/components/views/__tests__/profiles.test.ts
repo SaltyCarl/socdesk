@@ -238,6 +238,20 @@ describe('profileFor — associatedMalware: ATT&CK software + feed co-occurrence
     const p = profileFor('kimsuky', data)
     expect(p.associatedMalware).toEqual([])
   })
+
+  it('does not surface feed-co-occurrence malware for a common-word slug not established', () => {
+    // Same doctrine as reportsFor: a bare feed mention of an unestablished slug
+    // (no fingerprint/intel/claims) must NOT manufacture malware chips, even when
+    // the item carries entities.malware. "Play" (a "Google Play" mention) is the
+    // canonical false-positive.
+    const feed: FeedItem[] = [
+      { id: 'p'.repeat(40), source: 'rss', category: 'apt', title: 'Google Play update',
+        summary: '', url: '', entities: { actors: ['Play'], malware: ['Cobalt Strike'] },
+        published_at: '2026-08-24T00:00:00Z' },
+    ]
+    const p = profileFor('play', { actors: [], malware: [], feed, relations: null, intel: [], trackedActors: new Set() })
+    expect(p.associatedMalware).toEqual([])
+  })
 })
 
 /* ---------------- buildProfileIndex: the directory ------------------------ */

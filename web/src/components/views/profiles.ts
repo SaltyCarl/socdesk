@@ -490,11 +490,20 @@ function claimedVictimsFor(slug: string, feed: FeedItem[]): ClaimedVictim[] {
  *  folded into the map first and a later case-insensitive dupe is dropped.
  *  Sorted case-insensitively for a deterministic, render-stable order — this
  *  list has no natural time axis (unlike claims/reporting) to sort by
- *  instead. Honest [] when neither source names anything — never a guess. */
+ *  instead. Honest [] when neither source names anything — never a guess.
+ *
+ *  `keep` is the same established-entity GATE `reportsFor` applies: ATT&CK
+ *  `software` is unconditional (a fingerprint already means the slug is an
+ *  established entity), but a bare FEED co-occurrence only counts when the slug
+ *  is established (or dictionary-tracked). Without this, a common-word slug like
+ *  "play" (a "Google Play" feed mention) could surface malware chips while
+ *  `reportsFor` correctly suppresses its report — the same false-positive, one
+ *  doctrine. */
 function associatedMalwareFor(
   slug: string,
   fingerprint: MitreFingerprint | null,
   feed: FeedItem[],
+  keep: boolean,
 ): string[] {
   const byLower = new Map<string, string>()
 
@@ -503,12 +512,14 @@ function associatedMalwareFor(
     const key = name.toLowerCase()
     if (!byLower.has(key)) byLower.set(key, name)
   }
-  for (const it of feed) {
-    if (!(it.entities?.actors ?? []).some((a) => a?.toLowerCase() === slug)) continue
-    for (const m of it.entities?.malware ?? []) {
-      if (!m) continue
-      const key = m.toLowerCase()
-      if (!byLower.has(key)) byLower.set(key, m)
+  if (keep) {
+    for (const it of feed) {
+      if (!(it.entities?.actors ?? []).some((a) => a?.toLowerCase() === slug)) continue
+      for (const m of it.entities?.malware ?? []) {
+        if (!m) continue
+        const key = m.toLowerCase()
+        if (!byLower.has(key)) byLower.set(key, m)
+      }
     }
   }
 
@@ -626,7 +637,7 @@ export function profileFor(
   const relNames = fingerprint ? [fingerprint.name, ...fingerprint.aliases] : [name]
   const related = relatedFor(index, relNames)
 
-  const associatedMalware = associatedMalwareFor(s, fingerprint, data.feed)
+  const associatedMalware = associatedMalwareFor(s, fingerprint, data.feed, keep)
 
   return {
     slug: s, name, fingerprint, ransomware, reporting, related, intel, claimedVictims, activity,
