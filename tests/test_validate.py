@@ -117,6 +117,16 @@ def test_ransomware_intel_schema_rejects_non_cisa_note_image():
     assert errs != []
 
 
+def test_ransomware_intel_note_image_host_is_anchored_not_substring():
+    """The note_image pattern must anchor the HOST as www.cisa.gov, not merely
+    contain 'cisa.gov' anywhere — a path-injected URL that carries the string in
+    its path must be rejected (the pattern is the R3 public-domain-host gate)."""
+    bad = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "x", "name": "X",
+         "note_image": "https://evil.example/cisa.gov/note.png"}]}
+    assert validate_payload("ransomware_intel.json", bad, "schemas") != []
+
+
 def test_ransomware_intel_schema_accepts_provenance_fields():
     """Schema shape check: advisory_date/last_reviewed/note_image/sources[] are
     accepted when well-formed (independent of what the seed currently contains)."""

@@ -28,7 +28,7 @@
         "extensions": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 32}},
         "advisory_date": {"type": "string", "maxLength": 10},
         "last_reviewed": {"type": "string", "maxLength": 10},
-        "note_image": {"type": "string", "maxLength": 256, "pattern": "^https://.*cisa\\.gov/"},
+        "note_image": {"type": "string", "maxLength": 256, "pattern": "^https://www\\.cisa\\.gov/"},
         "sources": {"type": "array", "maxItems": 8, "items": {
           "type": "object", "additionalProperties": false, "required": ["id", "url"],
           "properties": {
