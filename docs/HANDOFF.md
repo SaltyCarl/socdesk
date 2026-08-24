@@ -1,10 +1,79 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — program complete: Node 20→24 CI bump, B2 enrich/write-path abuse-hardening, IOC-reporting Phase 4 ASN/ISP leaderboard, and domain→IP reputation pivot all MERGED to `main`, deployed, and (B2 + Phase 4) fully ACTIVATED by owner + verified live) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — TI-uplift Track A: 5 cheap decoupled TI-parity wins — "what changed" Overview panel, KEV due-date/overdue flag, tracked-adversary bonus gated to the curated dict, per-browser vuln watchlist, analyst-guide drift fix — built on branch `feat/ti-uplift-track-a`, full suite green, NOT merged) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-24 (session — program complete: B2 + Phase 4 merged, deployed, activated + verified live)
+## 0. LATEST — 2026-08-24 (session — TI-uplift Track A: 5 cheap decoupled TI-parity wins, branch built, NOT merged)
+
+**Lane:** TI-analytics uplift toward MS Threat Intel parity — **Track A** = 5 cheap,
+decoupled, owner-approved wins (see memory `socdesk-ti-uplift`). Branch
+`feat/ti-uplift-track-a` (base `main`), **5 commits, NOT merged**. Extension analyzer
+parity re-verified (dist rebuilt this session — bundles the same shared
+`@socdesk/shared` analyzer + the updated shared `EscalationCard`).
+
+**Shipped (branch `feat/ti-uplift-track-a`, not merged):**
+- **Overview "what changed" panel** — `c17684e`. `pipeline/history.py` already emitted
+  `epss_movers`/`new_kev` but only totals/volume rendered. New `WhatChanged.tsx` (two
+  `BoardPanel`s) on the Overview/`SituationalBoard` under the stat strip; `trendRows.ts`
+  pure helpers (+test). Fixed the WRONG `EpssMover` type in `web/src/components/views/types.ts`
+  (declared `{epss,prev}` + stale "emits empty array" comment; producer actually emits
+  `{from,to,delta,kev}`). Files: `web/src/components/overview/{WhatChanged.tsx,trendRows.ts,trendRows.test.ts,SituationalBoard.tsx}`,
+  `web/src/components/views/types.ts`.
+- **KEV due-date + required-action → overdue flag** — `4a018eb`. `collectors/kev.py` now
+  carries `dueDate`/`requiredAction` → `pipeline/cves.py` → `schemas/cves.schema.json` →
+  `Cve` type. `cveToVerdict` (`web/src/routes/lookupModel.ts`) decides "overdue"
+  deterministically vs the snapshot date, emits `['Remediation due',…]`/`['Status','Overdue']`/
+  `['Required action',…]` facts + an overdue clause on CISA's finding; `EscalationCard` renders
+  an amber "KEV remediation overdue" chip (`kevOverdue` helper). Lit up PRE-BUILT dead slots:
+  CVE hero "Action due" cell (`heroes.tsx:511`, `cardModel.due` = pick `'action due'|'due'|'remediation due'`,
+  `model.ts:287`) and copy-card PNG "ACTION DUE" (`drawVerdict.ts:904`). Closes the KEV
+  due-date gap open in `BACKLOG.md` since 2026-08-18. Files: `collectors/kev.py`,
+  `pipeline/cves.py`, `schemas/cves.schema.json`, `tests/fixtures/kev/feed.json`,
+  `tests/test_kev.py`, `tests/test_cves.py`, `web/src/components/views/types.ts`,
+  `web/src/routes/lookupModel.ts`, `web/src/routes/lookupModel.test.ts`,
+  `shared/verdict-cards/EscalationCard.tsx`.
+- **Gate the "tracked adversary" bonus on the curated dict** — `250ae72`. `relevance.py`
+  awarded +8 for ANY non-empty `entities.actors`; `ransomwarelive.py` injects every leak-site
+  group there (kept — digest grouping in `publish.py:61` depends on it), so ~half the feed
+  inflated by 8 + the why-row mislabelled unknown groups as tracked. Now `score_item`/`apply_scores`
+  take a `tracked_actors` set (new `pipeline/entities.py::tracked_actor_set`, lowercased
+  `data/entities/actors.json`, 30 names); `publish.py` passes it. Text-extracted actors
+  unaffected (already dictionary-sourced); only untracked ransomware groups lose the boost;
+  majors in the dict (Akira/ALPHV) keep it. Files: `pipeline/relevance.py`,
+  `pipeline/entities.py`, `pipeline/publish.py`, `tests/test_relevance.py`.
+- **Per-browser vuln watchlist** — `d1dfe18`. `localStorage` vendor/product list on
+  `VulnsView`: periwinkle marker on matching rows, "Watchlist only" filter, inline
+  removable-chip editor, SSR-safe (mirrors `lib/contributorSeen.ts`), never re-ranks, no
+  PII/never transmitted (COMPLIANCE bars server-side SHARED watchlists only). Pure helpers
+  unit-tested. Files: `web/src/components/views/{watchlist.ts,watchlist.test.ts,VulnsView.tsx}`.
+- **Analyst-guide drift fix** — `9095aa4`. Reframed "The feed" around the live briefing
+  `FeedView` (was described as the legacy `site/` keyboard-triage work queue); Legacy-bannered
+  the removed interactions (Newest toggle + "N new since last visit", j/k/r/n triage, right
+  detail panel, Export JSON) and the shift-handoff section; watchlist paragraph now true via
+  `d1dfe18`; relocated the "what changed"/trends description to the Overview per `c17684e`.
+  File: `docs/ANALYST-GUIDE.md`.
+
+**Verified:** full suite green at HEAD `9095aa4` — pytest **122**, vitest **614** (52→53
+files), `npm --prefix web run build` + lint OK, extension build OK. Per-commit file lists
+cross-checked against `git show --stat` (all match). Working tree clean.
+
+**Decisions worth recording:**
+- Extension is at analyzer parity **by construction** (renders the same shared
+  `AnalyzerResult`/`usePsAnalysis` as web `/analyzer` + cockpit); dist rebuilt this session.
+- Overdue is computed **at assembly** (`cveToVerdict`, which has the snapshot as the honest
+  as-of ref), **never in the card** (no clock); the card only reads the fact → renders the
+  chip. Copy-card PNG intentionally omits the chip cluster (surfaces the date via its
+  ACTION DUE fact cell) — no parity gap.
+- **Track B** (ransomware coverage — e.g. Nitrogen missing in `ransomwarelive.py` — richer
+  profiles, the campaign-report/TI-parity page, and the CARL-KQL vetting prerequisite) is
+  **NOT started**; needs its own brainstorm→spec. See memory `socdesk-ti-uplift`.
+
+**Open / next:** merge decision on `feat/ti-uplift-track-a` (owner). Then Track B (above).
+
+---
+
+## 0-RECENT — 2026-08-24 (session — program complete: B2 + Phase 4 merged, deployed, activated + verified live)
 
 **Supersedes** the `## 0-RECENT` B2/Phase 4 blocks below, which described them as
 "BUILT, NOT merged" — that is now stale. Both merged to `main`, deployed, and
