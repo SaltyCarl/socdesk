@@ -5,7 +5,10 @@ import { MonoTag } from './Badges'
 import { rel, safeUrl, num } from './format'
 import { PIVOTABLE, provenance, techniqueUrl } from './relations'
 import { ActorLink, BoardPanel } from '../overview/board-ui'
+import { navigate } from '../palette/commands'
+import { cveLookupHref } from './intelHref'
 import type { ProfileResult } from './profiles'
+import type { RansomIntel } from './types'
 
 /**
  * ActorProfile — the fused info-card for one threat actor / ransomware group /
@@ -185,6 +188,95 @@ function MitreFingerprintPanel({
             )}
           </div>
         </>
+      )}
+    </div>
+  )
+}
+
+/* ---------------- initial access & detection (CISA intel seed) ---------------- */
+
+/** In-app CVE link — plain <a> (⌘/middle-click opens a tab) with a left-click
+ *  intercepted into SPA navigation, mirroring board-ui's DeskLink. */
+function CveLink({ cve }: { cve: string }) {
+  const href = cveLookupHref(cve)
+  return (
+    <a
+      href={href}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+        e.preventDefault()
+        navigate(href)
+      }}
+      className="rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-accent underline-offset-2 transition-colors duration-150 ease-brand hover:border-line-bright hover:underline"
+    >
+      {cve}
+    </a>
+  )
+}
+
+/** CISA-sourced triage block: initial-access CVEs (pivot into our lookup), the
+ *  #StopRansomware advisory, tools as hunting pivots, in-hand attribution
+ *  signals, and a RaaS flag. Every fact attributed to CISA; nothing synthesised.
+ *  Absent entirely when the group is unseeded. */
+function IntelPanel({ intel }: { intel: RansomIntel }) {
+  const cves = intel.initial_access_cves ?? []
+  const tools = intel.tools ?? []
+  const notes = intel.ransom_note ?? []
+  const exts = intel.extensions ?? []
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="text-xs leading-relaxed text-muted">
+        Initial access, tooling and detection signals below are drawn from the group&rsquo;s CISA
+        #StopRansomware advisory — attributed facts, not a SOCDesk assessment.
+      </p>
+
+      {cves.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <SectionLabel accent>Known initial-access CVEs</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            {cves.map((c) => (
+              <CveLink key={c} cve={c} />
+            ))}
+          </div>
+          <p className="text-micro text-faint">Check whether these are exposed on the affected customer.</p>
+        </div>
+      )}
+
+      {intel.raas && (
+        <MonoTag tone="accent">RaaS — affiliate TTPs vary per intrusion</MonoTag>
+      )}
+
+      {tools.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <SectionLabel>Tooling — hunt for these in telemetry</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            {tools.map((t) => (
+              <MonoTag key={t} tone="ghost">{t}</MonoTag>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(notes.length > 0 || exts.length > 0) && (
+        <div className="flex flex-col gap-2">
+          <SectionLabel>In-hand signatures</SectionLabel>
+          {notes.length > 0 && (
+            <p className="font-mono text-micro text-muted">
+              ransom note: <span className="text-paper">{notes.join(', ')}</span>
+            </p>
+          )}
+          {exts.length > 0 && (
+            <p className="font-mono text-micro text-muted">
+              extension: <span className="text-paper">{exts.join(', ')}</span>
+            </p>
+          )}
+        </div>
+      )}
+
+      {intel.advisory && (
+        <ExternalLink href={intel.advisory.url}>
+          CISA advisory {intel.advisory.id}
+        </ExternalLink>
       )}
     </div>
   )
@@ -449,6 +541,13 @@ export function ActorProfile({
             )}
           </BoardPanel>
 
+          {/* initial access & detection (CISA intel seed) */}
+          {profile.intel && (
+            <BoardPanel eyebrow="Initial access & detection" accent>
+              <IntelPanel intel={profile.intel} />
+            </BoardPanel>
+          )}
+
           {/* recent activity */}
           <BoardPanel eyebrow="Recent activity">
             <div className="flex flex-col gap-4">
@@ -467,6 +566,11 @@ export function ActorProfile({
                   <SectionLabel>Also in reporting</SectionLabel>
                   <ReportingList reporting={reporting} />
                 </div>
+              )}
+              {ransomware && (
+                <ExternalLink href={`https://www.ransomware.live/group/${encodeURIComponent(profile.slug)}`}>
+                  Full profile at ransomware.live
+                </ExternalLink>
               )}
             </div>
           </BoardPanel>
