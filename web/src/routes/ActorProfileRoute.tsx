@@ -98,7 +98,9 @@ export function ActorProfileRoute() {
         profile.ransomware ||
         profile.reporting.length ||
         profile.related.length ||
-        profile.intel),
+        profile.intel ||
+        profile.claimedVictims.length ||
+        profile.activity),
   )
 
   const backToDirectory = (e: React.MouseEvent) => {

@@ -1,14 +1,15 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../ui'
 import { MonoTag } from './Badges'
 import { rel, safeUrl, num } from './format'
+import { faviconSrc, monogram } from './logo'
 import { PIVOTABLE, provenance, techniqueUrl } from './relations'
-import { ActorLink, BoardPanel } from '../overview/board-ui'
+import { ActorLink, BoardPanel, PanelEmpty } from '../overview/board-ui'
 import { navigate } from '../palette/commands'
 import { cveLookupHref } from './intelHref'
-import type { ProfileResult } from './profiles'
-import type { RansomIntel } from './types'
+import type { ProfileResult, TimelineBucket } from './profiles'
+import type { ClaimedVictim, RansomIntel } from './types'
 
 /**
  * ActorProfile — the fused info-card for one threat actor / ransomware group /
@@ -17,7 +18,9 @@ import type { RansomIntel } from './types'
  * Honesty doctrine (shared/verdict/doctrine.ts): SOCDesk emits no verdict of its
  * own and never synthesises intelligence. Every section degrades to a DISTINCT
  * honest empty — no fingerprint, no leak-site activity, no reporting, no
- * relations are each stated in their own words rather than hidden or faked.
+ * relations are each stated in their own words rather than hidden or faked. The
+ * claimed-victim list is UNVERIFIED, republished leak-site attribution — framed
+ * as the group's own claim, never a SOCDesk finding.
  */
 
 /* ---------------- small building blocks ---------------- */
@@ -96,16 +99,436 @@ function AliasChips({ aliases }: { aliases: string[] }) {
   )
 }
 
-/* ---------------- fingerprint (MITRE or activity) ---------------- */
+/* ---------------- identity header ---------------- */
+
+/** One key/value fact on the identity rail — mono, terse, analyst-grade. */
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="font-mono text-micro uppercase tracking-label text-faint">{label}</span>
+      <span className="font-mono text-xs text-paper">{children}</span>
+    </div>
+  )
+}
+
+function KindBadges({ profile }: { profile: ProfileResult }) {
+  const fp = profile.fingerprint
+  const isApt = !fp && !profile.ransomware && profile.reporting.length > 0
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {profile.ransomware && <MonoTag tone="accent">Ransomware group</MonoTag>}
+      {profile.intel && <MonoTag tone="accent">CISA seeded</MonoTag>}
+      {fp?.kind === 'actor' && <MonoTag tone="muted">ATT&amp;CK {fp.attack_id}</MonoTag>}
+      {fp?.kind === 'malware' && <MonoTag tone="muted">Malware {fp.attack_id}</MonoTag>}
+      {isApt && <MonoTag tone="muted">APT · reported</MonoTag>}
+    </div>
+  )
+}
+
+/** The identity block: classification badges, name, aliases, a headline claim
+ *  tally for an active group, the ATT&CK deep-link, and a rail of status FACTS
+ *  (first-seen, RaaS, ATT&CK id, victim count, slug) — each stated only when
+ *  known, never synthesised. */
+function IdentityHeader({ profile }: { profile: ProfileResult }) {
+  const { fingerprint, ransomware, intel, activity } = profile
+  const attackHref = safeUrl(fingerprint?.attackUrl)
+  const aliases = fingerprint?.aliases ?? intel?.aliases ?? []
+
+  return (
+    <header className="flex flex-col gap-4 rounded-lg border border-line bg-raised p-5 shadow-e1">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-2">
+          <KindBadges profile={profile} />
+          <h1 className="font-display text-xl font-extrabold tracking-tight text-paper">
+            {profile.name}
+          </h1>
+          {aliases.length > 0 && <AliasChips aliases={aliases} />}
+        </div>
+
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {ransomware && (
+            <div className="flex flex-col items-end">
+              <span className="font-display text-2xl font-extrabold tabular-nums leading-none text-accent">
+                {num(activity?.victimCount ?? ransomware.totalClaims)}
+              </span>
+              <span className="font-mono text-micro uppercase tracking-label text-faint">
+                claims · window
+              </span>
+            </div>
+          )}
+          {attackHref && (
+            <a
+              href={attackHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-micro text-accent underline-offset-2 hover:underline"
+            >
+              {fingerprint?.attack_id} on ATT&amp;CK ↗
+            </a>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-x-6 gap-y-3 border-t border-line pt-4">
+        {intel?.first_seen && <Fact label="First seen">{intel.first_seen}</Fact>}
+        {intel && <Fact label="RaaS">{intel.raas ? 'Yes · affiliate model' : 'No'}</Fact>}
+        {fingerprint?.attack_id && <Fact label="ATT&CK">{fingerprint.attack_id}</Fact>}
+        {aliases.length > 0 && <Fact label="Aliases">{num(aliases.length)}</Fact>}
+        <Fact label="Slug">g={profile.slug}</Fact>
+      </div>
+    </header>
+  )
+}
+
+/* ---------------- leak-site activity (timeline + geography) ---------------- */
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** ISO `YYYY-MM-DD` → terse `Mon D`, from the string parts only (deterministic,
+ *  no Date/locale — the timeline weeks are already UTC Monday keys). */
+function weekLabel(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (!m) return iso
+  return `${MONTHS[Number(m[2]) - 1] ?? m[2]} ${Number(m[3])}`
+}
+
+/** Deterministic inline-SVG column chart of weekly claim volume — no chart
+ *  dependency. One periwinkle bar per week (accent is the established claim-
+ *  VOLUME colour, per ClaimsChip — a count, never a verdict). The peak week
+ *  reads at full strength, the rest recede; each bar carries a native <title>
+ *  for hover/keyboard, and the whole chart carries an aria summary. Static by
+ *  design (no entrance animation) so it renders identically every time and needs
+ *  no reduced-motion guard. */
+function TimelineChart({ buckets }: { buckets: TimelineBucket[] }) {
+  const data = buckets.filter((b) => b.week !== 'unknown')
+  const W = 320
+  const H = 76
+  const padTop = 6
+  const padBottom = 12
+  const plotH = H - padTop - padBottom
+  const max = Math.max(1, ...data.map((d) => d.count))
+  const peak = data.reduce((a, b) => (b.count > a.count ? b : a), data[0])
+  const slot = W / data.length
+  const barW = Math.min(slot * 0.68, 20)
+  const total = data.reduce((s, d) => s + d.count, 0)
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        className="h-[76px] w-full"
+        role="img"
+        aria-label={`Weekly claim volume across ${data.length} weeks, peaking at ${peak.count} in the week of ${weekLabel(peak.week)}. ${total} claims total.`}
+      >
+        {/* baseline */}
+        <line
+          x1={0}
+          y1={padTop + plotH + 0.5}
+          x2={W}
+          y2={padTop + plotH + 0.5}
+          className="stroke-line"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
+        {data.map((d, i) => {
+          const h = Math.max(d.count > 0 ? 2 : 0, (d.count / max) * plotH)
+          const x = i * slot + (slot - barW) / 2
+          const y = padTop + plotH - h
+          const isPeak = d.week === peak.week
+          return (
+            <rect
+              key={d.week}
+              x={x}
+              y={y}
+              width={barW}
+              height={h}
+              rx={1.5}
+              className="fill-accent"
+              fillOpacity={isPeak ? 1 : 0.55}
+            >
+              <title>{`Week of ${weekLabel(d.week)}: ${d.count} claim${d.count === 1 ? '' : 's'}`}</title>
+            </rect>
+          )
+        })}
+      </svg>
+      <div className="flex items-center justify-between font-mono text-micro text-faint">
+        <span>{weekLabel(data[0].week)}</span>
+        <span className="text-accent">peak {num(peak.count)}</span>
+        <span>{weekLabel(data[data.length - 1].week)}</span>
+      </div>
+    </div>
+  )
+}
+
+/** Sectors / countries the leak site attributed for a group — honest-empty per
+ *  field, and countries carry the digest-partiality caveat the source forces. */
+function GeoTags({ label, values, partial }: { label: string; values: string[]; partial?: boolean }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <SectionLabel>{label}</SectionLabel>
+      {values.length ? (
+        <>
+          <div className="flex flex-wrap gap-1.5">
+            {values.map((v) => (
+              <MonoTag key={v} tone="ghost">
+                {v}
+              </MonoTag>
+            ))}
+          </div>
+          {partial && (
+            <p className="text-micro text-faint">
+              Partial — rolled-up digest claims omit country, so more may be affected.
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="text-xs text-muted">None attributed by the source.</p>
+      )}
+    </div>
+  )
+}
+
+function ActivityPanel({ activity }: { activity: NonNullable<ProfileResult['activity']> }) {
+  const weeks = activity.timeline.filter((b) => b.week !== 'unknown')
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-end justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <SectionLabel>Victim claims · window</SectionLabel>
+          <span className="font-display text-2xl font-extrabold tabular-nums text-paper">
+            {num(activity.victimCount)}
+          </span>
+        </div>
+        {weeks.length >= 2 && (
+          <span className="font-mono text-micro text-faint">{num(weeks.length)} weeks</span>
+        )}
+      </div>
+
+      {weeks.length >= 2 ? (
+        <TimelineChart buckets={activity.timeline} />
+      ) : (
+        <p className="text-xs text-muted">
+          Too few weeks in the window to chart a trend — the tally above is the window total.
+        </p>
+      )}
+
+      <GeoTags label="Target sectors" values={activity.sectors} />
+      <GeoTags label="Target countries" values={activity.countries} partial />
+    </div>
+  )
+}
+
+/* ---------------- initial access & detection (CISA intel seed) ---------------- */
+
+/** In-app CVE link — plain <a> (⌘/middle-click opens a tab) with a left-click
+ *  intercepted into SPA navigation, mirroring board-ui's DeskLink. */
+function CveLink({ cve }: { cve: string }) {
+  const href = cveLookupHref(cve)
+  return (
+    <a
+      href={href}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+        e.preventDefault()
+        navigate(href)
+      }}
+      className="rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-accent underline-offset-2 transition-colors duration-150 ease-brand hover:border-line-bright hover:underline"
+    >
+      {cve}
+    </a>
+  )
+}
+
+/** CISA-sourced triage block: initial-access CVEs (pivot into our lookup), the
+ *  #StopRansomware advisory, tools as hunting pivots, in-hand attribution
+ *  signals, the advisory ransom-note figure (linked, public-domain), and a
+ *  provenance footer. Every fact attributed to CISA; nothing synthesised. Absent
+ *  entirely when the group is unseeded. */
+function IntelPanel({ intel }: { intel: RansomIntel }) {
+  const cves = intel.initial_access_cves ?? []
+  const tools = intel.tools ?? []
+  const notes = intel.ransom_note ?? []
+  const exts = intel.extensions ?? []
+  const sources = intel.sources ?? []
+  const advisoryHref = safeUrl(intel.advisory?.url)
+  const figureHref = safeUrl(intel.note_image)
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="text-xs leading-relaxed text-muted">
+        Initial access, tooling and detection signals below are drawn from the group&rsquo;s CISA
+        #StopRansomware advisory — attributed facts, not a SOCDesk assessment.
+      </p>
+
+      {cves.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <SectionLabel accent>Known initial-access CVEs</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            {cves.map((c) => (
+              <CveLink key={c} cve={c} />
+            ))}
+          </div>
+          <p className="text-micro text-faint">Check whether these are exposed on the affected customer.</p>
+        </div>
+      )}
+
+      {intel.raas && <MonoTag tone="accent">RaaS — affiliate TTPs vary per intrusion</MonoTag>}
+
+      {tools.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <SectionLabel>Tooling — hunt for these in telemetry</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            {tools.map((t) => (
+              <MonoTag key={t} tone="ghost">
+                {t}
+              </MonoTag>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(notes.length > 0 || exts.length > 0) && (
+        <div className="flex flex-col gap-2">
+          <SectionLabel>In-hand signatures</SectionLabel>
+          {notes.length > 0 && (
+            <p className="font-mono text-micro text-muted">
+              ransom note: <span className="text-paper">{notes.join(', ')}</span>
+            </p>
+          )}
+          {exts.length > 0 && (
+            <p className="font-mono text-micro text-muted">
+              extension: <span className="text-paper">{exts.join(', ')}</span>
+            </p>
+          )}
+        </div>
+      )}
+
+      {figureHref && (
+        <div className="flex flex-col gap-2">
+          <SectionLabel>Ransom-note figure</SectionLabel>
+          <ExternalLink href={figureHref}>View CISA advisory figure</ExternalLink>
+          <p className="text-micro text-faint">CISA advisory image (public domain) — opens on cisa.gov.</p>
+        </div>
+      )}
+
+      {intel.advisory && advisoryHref && (
+        <ExternalLink href={advisoryHref}>CISA advisory {intel.advisory.id}</ExternalLink>
+      )}
+
+      {(intel.last_reviewed || intel.advisory_date || sources.length > 0) && (
+        <div className="flex flex-col gap-2 border-t border-line pt-3">
+          <p className="font-mono text-micro text-faint">
+            CISA seed
+            {intel.last_reviewed ? ` · reviewed ${intel.last_reviewed}` : ''}
+            {intel.advisory_date ? ` · advisory ${intel.advisory_date}` : ''}
+          </p>
+          {sources.length > 0 && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {sources.map((s) => {
+                const href = safeUrl(s.url)
+                return href ? (
+                  <ExternalLink key={s.id} href={href}>
+                    {s.id}
+                  </ExternalLink>
+                ) : null
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ---------------- claimed victims (attributed leak-site facts) ------------ */
+
+/** A victim org's favicon via the same-origin proxy, falling back to a brand-
+ *  coloured monogram on any load error (or an absent/invalid domain). The proxy
+ *  is what keeps the page CSP at `img-src 'self'` and the victim domain off any
+ *  third-party CDN — see functions/api/favicon.js. */
+function VictimLogo({ domain, name }: { domain?: string; name: string }) {
+  const src = faviconSrc(domain)
+  const [failed, setFailed] = useState(false)
+  const monoBox =
+    'flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-[var(--edge-accent)] bg-[var(--tint-accent)] font-mono text-micro font-semibold text-accent'
+
+  if (!src || failed) {
+    return (
+      <span aria-hidden="true" className={monoBox}>
+        {monogram(name)}
+      </span>
+    )
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      width={28}
+      height={28}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="h-7 w-7 shrink-0 rounded-sm border border-line bg-panel-soft object-contain"
+    />
+  )
+}
+
+/** One claimed-victim ledger row. The claim link is a real link only for a
+ *  clearnet URL; an .onion address is rendered as PLAIN, non-navigable text
+ *  (never an anchor) — an analyst reads it, the app never routes to Tor. */
+function VictimRow({ v }: { v: ClaimedVictim }) {
+  const href = safeUrl(v.claimUrl)
+  const onion = /\.onion(\/|$|:)/i.test(v.claimUrl)
+  return (
+    <div className="flex items-start gap-3 py-3 first:pt-0">
+      <VictimLogo domain={v.domain} name={v.victim} />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="truncate text-base text-paper">{v.victim}</span>
+          {v.date && (
+            <span className="shrink-0 whitespace-nowrap font-mono text-micro text-faint">
+              {rel(v.date)}
+            </span>
+          )}
+        </div>
+        {v.domain && <span className="truncate font-mono text-micro text-faint">{v.domain}</span>}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {v.sector && <MonoTag tone="ghost">{v.sector}</MonoTag>}
+          {v.country && <span className="font-mono text-micro text-faint">{v.country}</span>}
+          {onion ? (
+            <span className="font-mono text-micro text-faint">leak-site post · .onion (Tor)</span>
+          ) : href ? (
+            <ExternalLink href={href}>Claim post</ExternalLink>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ClaimedVictimsPanel({ victims }: { victims: ClaimedVictim[] }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-xs leading-relaxed text-muted">
+        Unverified claims republished from the group&rsquo;s own leak site — attributed facts, not a
+        SOCDesk verdict. A listing is an allegation by the actor, not a confirmed breach.
+      </p>
+      <div className="flex flex-col divide-y divide-line">
+        {victims.map((v) => (
+          <VictimRow key={v.id} v={v} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ---------------- ATT&CK fingerprint ---------------- */
 
 function MitreFingerprintPanel({
   fingerprint,
   slugSet,
-  ransomware,
 }: {
   fingerprint: NonNullable<ProfileResult['fingerprint']>
   slugSet: Set<string>
-  ransomware?: ProfileResult['ransomware']
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -144,258 +567,11 @@ function MitreFingerprintPanel({
           </div>
         </div>
       )}
-
-      {/* A group that carries BOTH an ATT&CK fingerprint AND live leak-site
-          activity (e.g. Clop) still surfaces the sectors/countries it is
-          currently hitting — the same data profileFor computes for the
-          fingerprint-less path. Ghost tags: informational, not a verdict.
-          Honest-empty per field when the source attributed none. */}
-      {ransomware && (
-        <>
-          <div className="flex flex-col gap-2">
-            <SectionLabel>Leak-site target sectors</SectionLabel>
-            {ransomware.sectors.length ? (
-              <div className="flex flex-wrap gap-1.5">
-                {ransomware.sectors.map((s) => (
-                  <MonoTag key={s} tone="ghost">
-                    {s}
-                  </MonoTag>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-muted">No sector attributed by the source.</p>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <SectionLabel>Leak-site target countries</SectionLabel>
-            {ransomware.countries.length ? (
-              <>
-                <div className="flex flex-wrap gap-1.5">
-                  {ransomware.countries.map((c) => (
-                    <MonoTag key={c} tone="ghost">
-                      {c}
-                    </MonoTag>
-                  ))}
-                </div>
-                <p className="text-micro text-faint">
-                  Partial — rolled-up digest claims omit country, so more countries may be
-                  affected.
-                </p>
-              </>
-            ) : (
-              <p className="text-xs text-muted">No country attributed by the source.</p>
-            )}
-          </div>
-        </>
-      )}
     </div>
   )
 }
 
-/* ---------------- initial access & detection (CISA intel seed) ---------------- */
-
-/** In-app CVE link — plain <a> (⌘/middle-click opens a tab) with a left-click
- *  intercepted into SPA navigation, mirroring board-ui's DeskLink. */
-function CveLink({ cve }: { cve: string }) {
-  const href = cveLookupHref(cve)
-  return (
-    <a
-      href={href}
-      onClick={(e) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
-        e.preventDefault()
-        navigate(href)
-      }}
-      className="rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-accent underline-offset-2 transition-colors duration-150 ease-brand hover:border-line-bright hover:underline"
-    >
-      {cve}
-    </a>
-  )
-}
-
-/** CISA-sourced triage block: initial-access CVEs (pivot into our lookup), the
- *  #StopRansomware advisory, tools as hunting pivots, in-hand attribution
- *  signals, and a RaaS flag. Every fact attributed to CISA; nothing synthesised.
- *  Absent entirely when the group is unseeded. */
-function IntelPanel({ intel }: { intel: RansomIntel }) {
-  const cves = intel.initial_access_cves ?? []
-  const tools = intel.tools ?? []
-  const notes = intel.ransom_note ?? []
-  const exts = intel.extensions ?? []
-  const advisoryHref = safeUrl(intel.advisory?.url)
-  return (
-    <div className="flex flex-col gap-5">
-      <p className="text-xs leading-relaxed text-muted">
-        Initial access, tooling and detection signals below are drawn from the group&rsquo;s CISA
-        #StopRansomware advisory — attributed facts, not a SOCDesk assessment.
-      </p>
-
-      {cves.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <SectionLabel accent>Known initial-access CVEs</SectionLabel>
-          <div className="flex flex-wrap gap-1.5">
-            {cves.map((c) => (
-              <CveLink key={c} cve={c} />
-            ))}
-          </div>
-          <p className="text-micro text-faint">Check whether these are exposed on the affected customer.</p>
-        </div>
-      )}
-
-      {intel.raas && (
-        <MonoTag tone="accent">RaaS — affiliate TTPs vary per intrusion</MonoTag>
-      )}
-
-      {tools.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <SectionLabel>Tooling — hunt for these in telemetry</SectionLabel>
-          <div className="flex flex-wrap gap-1.5">
-            {tools.map((t) => (
-              <MonoTag key={t} tone="ghost">{t}</MonoTag>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(notes.length > 0 || exts.length > 0) && (
-        <div className="flex flex-col gap-2">
-          <SectionLabel>In-hand signatures</SectionLabel>
-          {notes.length > 0 && (
-            <p className="font-mono text-micro text-muted">
-              ransom note: <span className="text-paper">{notes.join(', ')}</span>
-            </p>
-          )}
-          {exts.length > 0 && (
-            <p className="font-mono text-micro text-muted">
-              extension: <span className="text-paper">{exts.join(', ')}</span>
-            </p>
-          )}
-        </div>
-      )}
-
-      {intel.advisory && advisoryHref && (
-        <ExternalLink href={advisoryHref}>
-          CISA advisory {intel.advisory.id}
-        </ExternalLink>
-      )}
-    </div>
-  )
-}
-
-function ActivityFingerprintPanel({
-  ransomware,
-  apt,
-}: {
-  ransomware: ProfileResult['ransomware']
-  apt: boolean
-}) {
-  // Ransomware-only vs reporting-only actor get DIFFERENT honest lines.
-  if (!ransomware) {
-    return (
-      <p className="text-xs leading-relaxed text-muted">
-        {apt
-          ? 'No ATT&CK profile on file for this actor — the intelligence below is drawn from open-source reporting, attributed to each outlet.'
-          : 'No ATT&CK profile and no leak-site activity on file for this entity in the current snapshot.'}
-      </p>
-    )
-  }
-  return (
-    <div className="flex flex-col gap-5">
-      <p className="text-xs leading-relaxed text-muted">
-        Ransomware-only group — no ATT&amp;CK profile on file. The fingerprint below is drawn from
-        observed leak-site activity, not an encyclopedia entry.
-      </p>
-
-      <div className="flex flex-col gap-1">
-        <SectionLabel>Leak-site claims in window</SectionLabel>
-        <span className="font-display text-lg font-extrabold tabular-nums text-paper">
-          {num(ransomware.totalClaims)}
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <SectionLabel>Target sectors</SectionLabel>
-        {ransomware.sectors.length ? (
-          <div className="flex flex-wrap gap-1.5">
-            {ransomware.sectors.map((s) => (
-              <span
-                key={s}
-                className="rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-muted"
-              >
-                {s}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-muted">No sector attributed by the source.</p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <SectionLabel>Target countries</SectionLabel>
-        {ransomware.countries.length ? (
-          <>
-            <div className="flex flex-wrap gap-1.5">
-              {ransomware.countries.map((c) => (
-                <span
-                  key={c}
-                  className="rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-muted"
-                >
-                  {c}
-                </span>
-              ))}
-            </div>
-            <p className="text-micro text-faint">
-              Partial — rolled-up digest claims omit country, so more countries may be affected.
-            </p>
-          </>
-        ) : (
-          <p className="text-xs text-muted">No country attributed by the source.</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ---------------- recent activity ---------------- */
-
-function RansomwareClaims({ ransomware }: { ransomware: NonNullable<ProfileResult['ransomware']> }) {
-  return (
-    <div className="flex flex-col divide-y divide-line">
-      {ransomware.items.map((it) => {
-        const href = safeUrl(it.url)
-        const onion = /\.onion(\/|$|:)/i.test(it.url)
-        return (
-          <div key={it.id} className="flex flex-col gap-1.5 py-3 first:pt-0">
-            <div className="flex flex-wrap items-center gap-2">
-              {it.grouped != null ? (
-                <MonoTag tone="accent">digest · {num(it.grouped)}</MonoTag>
-              ) : (
-                <MonoTag tone="faint">claim</MonoTag>
-              )}
-              {it.sector && <span className="font-mono text-micro text-muted">{it.sector}</span>}
-              {it.country && <span className="font-mono text-micro text-faint">{it.country}</span>}
-              <span className="ml-auto whitespace-nowrap font-mono text-micro text-faint">
-                {rel(it.published_at)}
-              </span>
-            </div>
-            <span className="text-base text-paper">{it.title}</span>
-            {href && (
-              <ExternalLink href={href} onion={onion}>
-                Claim source
-              </ExternalLink>
-            )}
-          </div>
-        )
-      })}
-      <p className="pt-3 text-micro text-faint">
-        Victim names are withheld per policy — only the sector / country the leak site attributed is
-        shown.
-      </p>
-    </div>
-  )
-}
+/* ---------------- reporting (link-outs) ---------------- */
 
 function ReportingList({ reporting }: { reporting: ProfileResult['reporting'] }) {
   return (
@@ -421,15 +597,32 @@ function ReportingList({ reporting }: { reporting: ProfileResult['reporting'] })
   )
 }
 
-/* ---------------- related (MITRE only) ---------------- */
+/* ---------------- associated malware (right rail) ---------------- */
+
+function AssociatedMalware({ names, slugSet }: { names: string[]; slugSet: Set<string> }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs leading-relaxed text-muted">
+        Families observed alongside this group in ATT&amp;CK and the feed — a co-occurrence surface,
+        not a &ldquo;uses&rdquo; assertion.
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {names.map((n) => (
+          <SoftwareChip key={n} name={n} linkable={slugSet.has(n.toLowerCase())} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ---------------- related (MITRE + feed co-occurrence) ---------------- */
 
 function RelatedPanel({ related }: { related: ProfileResult['related'] }) {
   if (!related.length) {
     return (
-      <p className="text-xs text-muted">
-        No related entities recorded — this profile has no ATT&amp;CK links or feed co-occurrences in
-        this snapshot.
-      </p>
+      <PanelEmpty>
+        No related entities recorded — no ATT&amp;CK links or feed co-occurrences in this snapshot.
+      </PanelEmpty>
     )
   }
   return (
@@ -470,20 +663,6 @@ function RelatedPanel({ related }: { related: ProfileResult['related'] }) {
   )
 }
 
-/* ---------------- header badges ---------------- */
-
-function KindBadges({ profile }: { profile: ProfileResult }) {
-  const fp = profile.fingerprint
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {profile.ransomware && <MonoTag tone="accent">Ransomware group</MonoTag>}
-      {fp?.kind === 'actor' && <MonoTag tone="accent">ATT&amp;CK {fp.attack_id}</MonoTag>}
-      {fp?.kind === 'malware' && <MonoTag tone="muted">Malware {fp.attack_id}</MonoTag>}
-      {!fp && profile.reporting.length > 0 && <MonoTag tone="muted">APT / reported</MonoTag>}
-    </div>
-  )
-}
-
 /* ---------------- the card ---------------- */
 
 export function ActorProfile({
@@ -493,95 +672,102 @@ export function ActorProfile({
   profile: ProfileResult
   slugSet: Set<string>
 }) {
-  const { fingerprint, ransomware, reporting } = profile
-  const attackHref = useMemo(() => safeUrl(fingerprint?.attackUrl), [fingerprint])
-  const isApt = !fingerprint && reporting.length > 0
+  const { fingerprint, ransomware, reporting, intel, activity, claimedVictims, associatedMalware } =
+    profile
+
+  // A ransomware-live full-profile link-out for an active group (a plain link,
+  // not embedded editorial — R3). Memoised only to keep the render tidy.
+  const ransomLiveHref = useMemo(
+    () =>
+      ransomware
+        ? `https://www.ransomware.live/group/${encodeURIComponent(profile.slug)}`
+        : '',
+    [ransomware, profile.slug],
+  )
+
+  const nothingOnFile =
+    !activity && !intel && !fingerprint && !reporting.length && !claimedVictims.length
 
   return (
-    <div className="flex flex-col gap-5">
-      {/* header */}
-      <div className="flex flex-col gap-3 rounded-lg border border-line bg-raised p-5 shadow-e1">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-2">
-            <KindBadges profile={profile} />
-            <h1 className="font-display text-xl font-extrabold tracking-tight text-paper">
-              {profile.name}
-            </h1>
-            <span className="font-mono text-micro text-faint">
-              {fingerprint?.attack_id ? `${fingerprint.attack_id} · ` : ''}g={profile.slug}
-            </span>
-          </div>
-          {attackHref && (
-            <a
-              href={attackHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-micro text-accent underline-offset-2 hover:underline"
-            >
-              {fingerprint?.attack_id} on ATT&amp;CK ↗
-            </a>
-          )}
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
+      <IdentityHeader profile={profile} />
 
       {/* items-start keeps each column content-height, so the panels inherit
           BoardPanel's h-full harmlessly (a stretched column would force two
           full-height panels to overlap). */}
       <div className="grid gap-5 lg:grid-cols-[1fr_340px] lg:items-start">
         <div className="flex flex-col gap-5">
-          {/* fingerprint */}
-          <BoardPanel eyebrow="Fingerprint">
-            {fingerprint ? (
-              <MitreFingerprintPanel
-                fingerprint={fingerprint}
-                slugSet={slugSet}
-                ransomware={ransomware}
-              />
-            ) : (
-              <ActivityFingerprintPanel ransomware={ransomware} apt={isApt} />
-            )}
-          </BoardPanel>
-
-          {/* initial access & detection (CISA intel seed) */}
-          {profile.intel && (
-            <BoardPanel eyebrow="Initial access & detection" accent>
-              <IntelPanel intel={profile.intel} />
+          {/* leak-site activity — the "who now" read leads for an active group */}
+          {activity && (
+            <BoardPanel eyebrow="Leak-site activity">
+              <ActivityPanel activity={activity} />
             </BoardPanel>
           )}
 
-          {/* recent activity */}
-          <BoardPanel eyebrow="Recent activity">
-            <div className="flex flex-col gap-4">
-              {ransomware ? (
-                <RansomwareClaims ransomware={ransomware} />
-              ) : reporting.length ? (
-                <ReportingList reporting={reporting} />
-              ) : (
-                <p className="text-xs text-muted">
-                  No leak-site claims or reporting name this entity in the current window.
-                </p>
-              )}
-              {/* When a group has BOTH claims and reporting, surface the reporting too. */}
-              {ransomware && reporting.length > 0 && (
-                <div className="flex flex-col gap-3 border-t border-line pt-4">
-                  <SectionLabel>Also in reporting</SectionLabel>
-                  <ReportingList reporting={reporting} />
-                </div>
-              )}
-              {ransomware && (
-                <ExternalLink href={`https://www.ransomware.live/group/${encodeURIComponent(profile.slug)}`}>
-                  Full profile at ransomware.live
-                </ExternalLink>
-              )}
-            </div>
-          </BoardPanel>
+          {/* initial access & detection (CISA intel seed) — the flagship */}
+          {intel && (
+            <BoardPanel eyebrow="Initial access & detection" accent>
+              <IntelPanel intel={intel} />
+            </BoardPanel>
+          )}
+
+          {/* claimed victims — the attributed leak-site ledger */}
+          {claimedVictims.length > 0 ? (
+            <BoardPanel
+              eyebrow="Claimed victims"
+              aside={<MicroLabel tone="faint">{num(claimedVictims.length)} listed</MicroLabel>}
+              footer={
+                ransomLiveHref ? (
+                  <ExternalLink href={ransomLiveHref}>Full profile at ransomware.live</ExternalLink>
+                ) : undefined
+              }
+            >
+              <ClaimedVictimsPanel victims={claimedVictims} />
+            </BoardPanel>
+          ) : ransomware ? (
+            <BoardPanel eyebrow="Claimed victims">
+              <PanelEmpty>
+                Only rolled-up digest claims this window — no individually-named victim posts to
+                list.
+              </PanelEmpty>
+            </BoardPanel>
+          ) : null}
+
+          {/* ATT&CK fingerprint */}
+          {fingerprint && (
+            <BoardPanel eyebrow="ATT&CK fingerprint">
+              <MitreFingerprintPanel fingerprint={fingerprint} slugSet={slugSet} />
+            </BoardPanel>
+          )}
+
+          {/* reporting */}
+          {reporting.length > 0 && (
+            <BoardPanel eyebrow="Reporting">
+              <ReportingList reporting={reporting} />
+            </BoardPanel>
+          )}
+
+          {nothingOnFile && (
+            <BoardPanel eyebrow="Profile">
+              <PanelEmpty>
+                No fingerprint, leak-site activity, seeded intel, or reporting names this entity in
+                the current snapshot — only graph relations are on file.
+              </PanelEmpty>
+            </BoardPanel>
+          )}
         </div>
 
-        {/* related */}
-        <div className="lg:sticky lg:top-20 lg:self-start">
+        {/* right rail */}
+        <div className="flex flex-col gap-5 lg:sticky lg:top-20 lg:self-start">
           <BoardPanel eyebrow="Related entities">
             <RelatedPanel related={profile.related} />
           </BoardPanel>
+
+          {associatedMalware.length > 0 && (
+            <BoardPanel eyebrow="Associated malware">
+              <AssociatedMalware names={associatedMalware} slugSet={slugSet} />
+            </BoardPanel>
+          )}
         </div>
       </div>
     </div>

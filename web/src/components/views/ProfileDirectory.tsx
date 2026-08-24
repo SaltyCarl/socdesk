@@ -62,6 +62,7 @@ function ProfileRow({ entry }: { entry: ProfileIndexEntry }) {
           {entry.hasMitre && (
             <span className="font-mono text-micro text-faint">{entry.attack_id}</span>
           )}
+          {entry.hasIntel && <MonoTag tone="accent">seeded</MonoTag>}
         </div>
         {entry.claimCount != null && (
           <span className="whitespace-nowrap font-mono text-micro text-accent">
