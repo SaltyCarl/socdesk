@@ -16,6 +16,7 @@ SCHEMA_FOR = {
     "relations.json": "relations.schema.json",
     "threat_ips.json": "threat_ips.schema.json",
     "community_reports.json": "community_reports.schema.json",
+    "asn_leaderboard.json": "asn_leaderboard.schema.json",
 }
 
 

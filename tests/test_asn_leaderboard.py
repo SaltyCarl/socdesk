@@ -197,3 +197,67 @@ def test_fetch_raising_on_every_ip_still_valid():
 def test_structural_error_returns_none():
     bad = {"indicators": {"ipv4|x": {"type": "ipv4"}}}   # no "value" -> KeyError inside build
     assert asn.build_asn_leaderboard(bad, {}, {}, _ipinfo_fetch({}), FIXED_NOW, token="tok") is None
+
+
+def test_schema_is_registered():
+    assert SCHEMA_FOR["asn_leaderboard.json"] == "asn_leaderboard.schema.json"
+
+
+def test_built_payload_validates_against_schema():
+    orgs = _orgs_for(("185.220.101.34", "AS60729 Zwiebelfreunde e.V.", "DE"),
+                     ("162.243.103.246", "AS14061 DigitalOcean, LLC", "US"))
+    board = asn.build_asn_leaderboard(
+        _community(("185.220.101.34", ["phishing"])), _threat("162.243.103.246"),
+        {}, _ipinfo_fetch(orgs), FIXED_NOW, token="tok")
+    assert validate_payload("asn_leaderboard.json", board, "schemas") == []
+
+
+def test_committed_empty_seed_is_valid():
+    seed = json.loads(Path("data/state/asn_leaderboard.json").read_text(encoding="utf-8"))
+    assert validate_payload("asn_leaderboard.json", seed, "schemas") == []
+    assert seed["networks"] == [] and seed["count"] == 0
+
+
+def test_no_pii_tokens_in_serialized_payload():
+    # DEFENSIVE mock: even if a community indicator carried identity fields, the
+    # builder never projects them (it reads only type/value/categories).
+    community = {"indicators": {"ipv4|1.2.3.4": {
+        "type": "ipv4", "value": "1.2.3.4", "reporters": 1, "categories": ["ssh"],
+        "github_id": 4242, "evidence": "internal 10.0.0.5 log", "comment": "side note"}}}
+    orgs = _orgs_for(("1.2.3.4", "AS64500 Example ISP", "US"))
+    board = asn.build_asn_leaderboard(community, {}, {}, _ipinfo_fetch(orgs), FIXED_NOW, token="tok")
+    blob = json.dumps(board)
+    for forbidden in ("github_id", "evidence", "comment", "4242",
+                      "internal 10.0.0.5", "side note"):
+        assert forbidden not in blob
+
+
+def test_injected_extra_field_fails_the_schema_fence():
+    orgs = _orgs_for(("1.2.3.4", "AS64500 Example ISP", "US"))
+    board = asn.build_asn_leaderboard(
+        _community(("1.2.3.4", ["ssh"])), {}, {}, _ipinfo_fetch(orgs), FIXED_NOW, token="tok")
+    board["networks"][0]["reporter"] = "octocat"   # stray row-level field
+    assert validate_payload("asn_leaderboard.json", board, "schemas") != []
+    bad_envelope = dict(board, leaked="x")          # stray envelope-level field
+    board["networks"][0].pop("reporter")
+    assert validate_payload("asn_leaderboard.json", bad_envelope, "schemas") != []
+
+
+def test_max_size_network_row_validates():
+    # Proves the fence doesn't gate-drop a legitimate fully-active network row:
+    # all 10 categories (enum size), both real sources, EXAMPLE_CAP=3 examples.
+    row = {
+        "asn": "AS64500", "isp": "Example ISP", "country": "US",
+        "ip_count": 50, "report_count": 40,
+        "categories": ["brute-force", "ssh", "port-scan", "web-app-attack", "phishing",
+                        "malware-c2", "scanner", "spam", "exploited-host", "other"],
+        "sources": ["abuse.ch", "community"],
+        "examples": ["1.1.1.1", "2.2.2.2", "3.3.3.3"],
+    }
+    envelope = {
+        "generated_at": asn.iso(FIXED_NOW), "schema_version": 1,
+        "attribution": "x", "count": 1, "total_abusive_ips": 50,
+        "unattributed_ips": 0, "cap": 200, "truncated": False,
+        "networks": [row],
+    }
+    assert validate_payload("asn_leaderboard.json", envelope, "schemas") == []
