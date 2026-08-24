@@ -6,7 +6,6 @@ KEV_RESULT = CollectorResult(source="kev", extra={"kev": [
     {"cve": "CVE-2026-1111", "vendor": "Fortinet", "product": "FortiOS",
      "name": "FortiOS Auth Bypass", "kev_date_added": "2026-07-25",
      "kev_due_date": "2026-08-15",
-     "kev_required_action": "Apply mitigations per vendor instructions.",
      "kev_ransomware": True}]})
 NVD_RESULT = CollectorResult(source="nvd", extra={"nvd": [
     {"cve": "CVE-2026-2222", "title": "RCE in ExampleServer.", "cvss": 9.8,
@@ -21,9 +20,8 @@ def test_join_merges_kev_and_nvd():
     assert by_cve["CVE-2026-1111"]["kev"] is True
     assert by_cve["CVE-2026-1111"]["kev_ransomware"] is True
     assert by_cve["CVE-2026-1111"]["kev_due_date"] == "2026-08-15"
-    assert by_cve["CVE-2026-1111"]["kev_required_action"].startswith("Apply mitigations")
-    # a non-KEV row keeps the empty defaults, never a KeyError
-    assert by_cve["CVE-2026-2222"]["kev_due_date"] == ""
+    # a non-KEV row never carries the KEV-only due-date key (keeps cves.json small)
+    assert "kev_due_date" not in by_cve["CVE-2026-2222"]
     assert by_cve["CVE-2026-2222"]["kev"] is False
     assert by_cve["CVE-2026-2222"]["cvss"] == 9.8
 

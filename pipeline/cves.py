@@ -6,10 +6,12 @@ WINDOW_DAYS = 180
 EPSS_BASE = "https://api.first.org/data/v1/epss"
 BATCH = 100
 
+# kev_due_date is intentionally NOT in the default row: it is set only on KEV
+# rows (below). Defaulting it to "" on every one of the ~15k catalog rows added
+# ~0.9 MB of empty strings and pushed cves.json over the publish size cap.
 _EMPTY = {"cve": "", "title": "", "cvss": None, "cvss_severity": None,
           "epss": None, "epss_percentile": None, "kev": False,
-          "kev_date_added": "", "kev_due_date": "", "kev_required_action": "",
-          "kev_ransomware": False, "vendors": [],
+          "kev_date_added": "", "kev_ransomware": False, "vendors": [],
           "products": [], "published_at": "", "last_modified": ""}
 
 
@@ -38,7 +40,6 @@ def build_cve_rows(results, prior_rows, now):
         row["kev"] = True
         row["kev_date_added"] = k["kev_date_added"]
         row["kev_due_date"] = k.get("kev_due_date", "")
-        row["kev_required_action"] = k.get("kev_required_action", "")
         row["kev_ransomware"] = k["kev_ransomware"]
         if not row["title"]:
             row["title"] = k["name"]

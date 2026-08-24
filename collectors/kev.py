@@ -20,7 +20,6 @@ def collect(fetch, now):
             "name": v.get("vulnerabilityName", ""),
             "kev_date_added": v.get("dateAdded", ""),
             "kev_due_date": v.get("dueDate", ""),
-            "kev_required_action": v.get("requiredAction", ""),
             "kev_ransomware": ransomware,
         })
         if v.get("dateAdded", "") >= cutoff:

@@ -3,7 +3,6 @@
     {"cveID": "CVE-2026-1111", "vendorProject": "Fortinet", "product": "FortiOS",
      "vulnerabilityName": "FortiOS Auth Bypass", "dateAdded": "2026-07-25",
      "dueDate": "2026-08-15",
-     "requiredAction": "Apply mitigations per vendor instructions or discontinue use.",
      "shortDescription": "Auth bypass in FortiOS.",
      "knownRansomwareCampaignUse": "Known"},
     {"cveID": "CVE-2020-9999", "vendorProject": "OldCo", "product": "Legacy",

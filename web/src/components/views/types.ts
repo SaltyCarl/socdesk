@@ -54,10 +54,8 @@ export interface Cve {
   epss_percentile?: number | null
   kev?: boolean
   kev_date_added?: string
-  /** CISA-set federal remediation deadline (YYYY-MM-DD); '' when none. */
+  /** CISA-set remediation due date (YYYY-MM-DD); absent when none. */
   kev_due_date?: string
-  /** CISA's prescribed remediation, verbatim; '' when none. */
-  kev_required_action?: string
   kev_ransomware?: boolean
   vendors?: string[]
   products?: string[]
