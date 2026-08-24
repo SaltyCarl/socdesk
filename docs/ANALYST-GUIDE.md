@@ -309,7 +309,7 @@ clickable.
 The toolbelt's **Lookup all** button feeds extracted IOCs straight into this
 table.
 
-## The feed as a work queue
+## The feed
 
 The feed is sorted by **Priority**, not by time. That is the point — the newest
 item is rarely the one to look at first.
@@ -345,30 +345,24 @@ Victim organisation names are never republished here — the claim link has the
 detail. Treat every one of these as an unverified criminal claim, because that
 is what it is.
 
-**Toggle to Newest** for chronology. Only in Newest order do you get the "N new
-since last visit" boundary marker — it is a chronological claim, so it would be
-a lie in Priority order.
+The live feed at socdesk.io is a **dated briefing**, not a keyboard-driven work
+queue: a masthead with one featured lead, then category sections —
+Vulnerabilities, Ransomware, Named actors, Malware, Reports — each with a live
+count and a "View all →". A lens bar and a search box narrow it; pick a lens or
+type a query and the briefing flattens into that scope as a ranked list. Every
+signal chip (KEV / EPSS / CVSS / claim count) is parsed from the pipeline's real
+`why` — nothing is invented — and each row links out to its source.
 
-**Keyboard triage:**
-
-| Key | Action |
-|---|---|
-| `/` | Jump to the search box |
-| `j` / `k` | Next / previous item |
-| `r` | Mark reviewed (dims the row) |
-| `n` | Flag notable (feeds the handoff digest) |
-| `Esc` | Close the verdict panel |
-
-The filter box searches title, summary, and every extracted entity. Category
-chips and the stat band above the feed filter to ransomware, vulnerability,
-APT, malware, campaign, or report. **Export JSON** downloads exactly the rows
-currently visible, filters and ordering included.
-
-Selecting a row opens detail on the right: the full summary, the source link,
-extracted entities as clickable chips that look themselves up, and copy buttons
-for the defanged URL, the raw URL, and a ready-made awareness blurb.
+> Legacy — these exist only in the older `site/` app, not at socdesk.io: a
+> **Newest** toggle with its "N new since last visit" boundary marker; keyboard
+> triage (`j` / `k` to move between items, `r` to mark a row reviewed, `n` to
+> flag it notable); a right-hand detail panel; and an **Export JSON** of the
+> visible rows. (`/` to jump to the search box still works in the live tool.)
 
 ## The shift handoff
+
+> Legacy — the `n`-to-flag handoff digest is part of the older `site/` app, not
+> the live tool at socdesk.io.
 
 Press `n` on anything worth passing along. The **Handoff** button shows a
 running count, and clicking it copies a markdown digest — every flagged item
@@ -391,11 +385,11 @@ table to them. Note what it does *not* do: it does not re-rank the feed. The
 ranking is computed in the pipeline before your browser is involved, and your
 watchlist never leaves your browser. It is a display and filter tool.
 
-**Trends** sits above the table and answers "what changed": the biggest
-exploitation-probability rises since the comparison date, and what was newly
-added to KEV. Both are built by diffing committed daily snapshots. On a fresh
-deployment there is nothing to compare against, and the panel says so rather
-than inventing movement.
+**"What changed"** answers the same question from the Overview's *Daily threat
+summary* (not above this table): the CVEs whose exploitation probability climbed
+the most since the comparison date, and what was newly added to KEV. Both are
+built by diffing committed daily snapshots. On a fresh deployment there is
+nothing to compare against, and each list says so rather than inventing movement.
 
 ## The toolbelt
 
