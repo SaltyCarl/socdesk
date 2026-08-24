@@ -6,6 +6,7 @@ import { VulnsRoute } from './VulnsRoute'
 import { ActorsRoute } from './ActorsRoute'
 import { HealthRoute } from './HealthRoute'
 import { SourcesRoute } from './SourcesRoute'
+import { AsnLeaderboardRoute } from './AsnLeaderboardRoute'
 import { ToolbeltRoute } from './ToolbeltRoute'
 
 /**
@@ -29,6 +30,7 @@ const TABS = [
   { key: 'actors', label: 'Actors' },
   { key: 'health', label: 'Health' },
   { key: 'sources', label: 'Sources' },
+  { key: 'networks', label: 'Networks' },
   { key: 'toolbelt', label: 'Toolbelt' },
 ] as const
 
@@ -103,6 +105,7 @@ export function DataDeskRoute() {
         {tab === 'actors' && <ActorsRoute />}
         {tab === 'health' && <HealthRoute />}
         {tab === 'sources' && <SourcesRoute />}
+        {tab === 'networks' && <AsnLeaderboardRoute />}
         {tab === 'toolbelt' && <ToolbeltRoute />}
       </div>
     </div>

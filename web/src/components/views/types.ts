@@ -210,3 +210,32 @@ export interface RegistryPayload {
   schema_version?: number
   sources: RegistrySource[]
 }
+
+/* ---------------- networks (ASN abuse leaderboard) ---------------- */
+
+/** One network (ASN) row. Reported/blocklisted abuse volume hosted on the
+ *  network — NOT a verdict on the operator. `report_count` (distinct
+ *  report-bearing IPs) is always <= `ip_count`; `sources` distinguishes a
+ *  community allegation from an abuse.ch published blocklist entry. */
+export interface AsnNetwork {
+  asn?: string
+  isp?: string
+  country?: string
+  ip_count?: number
+  report_count?: number
+  categories?: string[]
+  sources?: string[]
+  examples?: string[]
+}
+
+export interface AsnLeaderboardPayload {
+  generated_at?: string
+  schema_version?: number
+  attribution?: string
+  count?: number
+  total_abusive_ips?: number
+  unattributed_ips?: number
+  cap?: number
+  truncated?: boolean
+  networks: AsnNetwork[]
+}
