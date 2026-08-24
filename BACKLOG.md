@@ -1,11 +1,13 @@
 # SOCDesk Backlog
 
-> _Refreshed 2026-08-24._ Recently shipped + LIVE: reporting **Phase 3** (community reports,
-> dogfood-verified) + **`/about`** transparency page + the **cockpit Report button** + the
-> **Lookup↔Cockpit consolidation** (single lookup surface, `/lookup` retired). The report →
-> moderate → publish loop is now closed end-to-end. **Top of the queue:** enrich **B2**
-> abuse-hardening (before the reporting surface scales), then reporting **Phase 4** (ISP/ASN
-> leaderboard). Refresh this doc at every feature close-out — the durable to-do alongside `docs/HANDOFF.md`.
+> _Refreshed 2026-08-24 (program close-out)._ Shipped this program: **Node-20→24 CI bump** ·
+> **enrich B2 abuse-hardening** (KV rate-limit + per-source budget + WAF-primary; ships dark) ·
+> **Phase 4 ISP/ASN leaderboard** (Networks desk tab) · **domain→IP pivot** · reputation fixes done.
+> Earlier this session: Phase 3 community reports + `/about` + cockpit Report button + Lookup↔Cockpit
+> consolidation. **Two owner activation gates remain:** (1) `IPINFO_TOKEN` → GitHub Actions secret
+> (populates the Phase 4 leaderboard); (2) bind a `KV` namespace + add the `/api/enrich` WAF Block
+> rule (activates B2 — see `docs/OPERATIONS.md`). Next feature candidates: Phase 5 trends · Phase 6
+> upstream push · enrich B3 own-OSINT dataset · give-back honeypot. Refresh at every close-out.
 
 ## North star (owner-set, 2026-08-10 — read before adding ANYTHING)
 
@@ -74,14 +76,15 @@ in-place IOC pivot; Gallery → internal-only (dropped from the public nav); and
    `EscalationCard` as the web app (heroes, chips, Compare-IP, copy actions),
    sharing indicator detection + the enrich pipeline, so IPv6 / RDAP / URL all
    flow through. Chrome Web Store upload (Unlisted) remains an owner action.
-5. **Reputation-quality fixes** (from the 2026-08-18 UX + SOC review — sharpen the
-   "get reputation" output the analyst actually reads): **remaining** — drop
-   MalwareBazaar from IP cards (it's hash-only and currently mis-leads the lead
-   fact); domain→IP clickable pivot in the hero (P1.5c, investigation done ~15min,
-   parked). *(Shipped from that review: AbuseIPDB abuse categories on the IP card
-   `31f053f`+dogfooded; GreyNoise honesty fix `eda8ed1`; honest source-class labels,
-   ledger alignment, per-source recency on card+PNG, EPSS attribution, the dual-use
-   Tor chip, AA contrast.)*
+5. **Reputation-quality fixes** (from the 2026-08-18 UX + SOC review) — ✅ **DONE (2026-08-24).**
+   MalwareBazaar-on-IP-cards was already a no-op (source is `types:["md5","sha1","sha256"]`,
+   never queried on an IP lookup — backlog note was stale). domain→IP clickable pivot SHIPPED
+   (`364499e`→`85520e3`): VT `last_dns_records` A-record → a quiet "Hosting IP <ip> — check
+   reputation" accent link on the domain card, pivots to `/#q=<ip>`. *(Earlier from that review:
+   AbuseIPDB categories `31f053f`, GreyNoise honesty `eda8ed1`, honest source-class labels,
+   per-source recency, EPSS attribution, dual-use Tor chip, AA contrast.)*
+   - Deferred: extension-origin parity for `#q=` card links (pre-existing gap); the dead geo-based
+     "Resolves to"/"Hosting" FactCells on domain cards (geoModel never populates for domains).
 
 ## Polish & ops (opportunistic, non-blocking)
 - **Compare-IP globe arc** — the great-circle arc on the 3D globe (the shared-card
