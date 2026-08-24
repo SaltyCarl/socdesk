@@ -1,10 +1,17 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import type { Cve } from './types'
 import { day, humanize, num } from './format'
 import { SeverityBadge, KevBadge, EpssMeter } from './Badges'
 import { CountUp } from './CountUp'
 import { EmptyState } from './states'
+import {
+  addTerm,
+  loadWatchlist,
+  matchesWatchlist,
+  removeTerm,
+  saveWatchlist,
+} from './watchlist'
 
 /**
  * Vulnerability triage, risk-sorted. Risk = KEV membership first (actively
@@ -111,6 +118,15 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
   const [rawQuery, setRawQuery] = useState('')
   const query = useDeferredValue(rawQuery)
 
+  // Watchlist: vendor/product strings the analyst owns. Persisted per-browser
+  // only (no PII, never sent) — the filter + row marker read it, and it never
+  // re-ranks the table (the pipeline scored the feed before the browser was
+  // involved). Loaded once from storage; every change is written back.
+  const [watchlist, setWatchlist] = useState<string[]>(() => loadWatchlist())
+  const [watchOnly, setWatchOnly] = useState(false)
+  const [watchInput, setWatchInput] = useState('')
+  useEffect(() => saveWatchlist(watchlist), [watchlist])
+
   const kevCount = useMemo(() => cves.filter((c) => c.kev).length, [cves])
   const epssCount = useMemo(() => cves.filter((c) => c.epss != null).length, [cves])
 
@@ -118,6 +134,7 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
     const q = query.trim().toLowerCase()
     let out = cves.filter((c) => {
       if (kevOnly && !c.kev) return false
+      if (watchOnly && !matchesWatchlist(c, watchlist)) return false
       if (sev !== 'all' && (c.cvss_severity ?? '').toLowerCase() !== sev) return false
       if (!q) return true
       const hay = (
@@ -150,7 +167,7 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
       return cmp * sort.dir
     })
     return out
-  }, [cves, query, kevOnly, sev, sort])
+  }, [cves, query, kevOnly, watchOnly, watchlist, sev, sort])
 
   const shown = rows.slice(0, limit)
 
@@ -158,6 +175,19 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
     setSort((prev) => (prev.key === k ? { key: k, dir: prev.dir === -1 ? 1 : -1 } : { key: k, dir: -1 }))
     setLimit(INIT)
   }
+
+  const addWatch = (e: FormEvent) => {
+    e.preventDefault()
+    setWatchlist((w) => addTerm(w, watchInput))
+    setWatchInput('')
+    setLimit(INIT)
+  }
+  const dropWatch = (term: string) =>
+    setWatchlist((w) => {
+      const next = removeTerm(w, term)
+      if (!next.length) setWatchOnly(false)
+      return next
+    })
 
   return (
     <div className="flex flex-col gap-5">
@@ -201,21 +231,72 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
             <SevChip key={s} active={sev === s} label={s} onClick={() => { setSev(s); setLimit(INIT) }} />
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => { setKevOnly((v) => !v); setLimit(INIT) }}
-          aria-pressed={kevOnly}
-          className={cx(
-            'ml-auto inline-flex items-center rounded-full border px-3 py-1 font-mono text-micro font-semibold uppercase tracking-label transition-colors duration-150 ease-brand',
-            'outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent',
-            kevOnly
-              ? 'border-[var(--edge-red)] bg-[var(--tint-red)] text-verdict-red'
-              : 'border-line bg-panel text-muted hover:border-line-bright hover:text-paper',
-          )}
-        >
-          KEV only
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { setKevOnly((v) => !v); setLimit(INIT) }}
+            aria-pressed={kevOnly}
+            className={cx(
+              'inline-flex items-center rounded-full border px-3 py-1 font-mono text-micro font-semibold uppercase tracking-label transition-colors duration-150 ease-brand',
+              'outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent',
+              kevOnly
+                ? 'border-[var(--edge-red)] bg-[var(--tint-red)] text-verdict-red'
+                : 'border-line bg-panel text-muted hover:border-line-bright hover:text-paper',
+            )}
+          >
+            KEV only
+          </button>
+          <button
+            type="button"
+            onClick={() => { setWatchOnly((v) => !v); setLimit(INIT) }}
+            aria-pressed={watchOnly}
+            disabled={!watchlist.length}
+            title={watchlist.length ? undefined : 'Add a vendor or product below first'}
+            className={cx(
+              'inline-flex items-center rounded-full border px-3 py-1 font-mono text-micro font-semibold uppercase tracking-label transition-colors duration-150 ease-brand',
+              'outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40',
+              watchOnly
+                ? 'border-[var(--edge-accent)] bg-[var(--tint-accent)] text-accent'
+                : 'border-line bg-panel text-muted hover:border-line-bright hover:text-paper',
+            )}
+          >
+            Watchlist only
+          </button>
+        </div>
       </div>
+
+      {/* watchlist editor — vendor/product strings the analyst owns. Local to
+          this browser, never transmitted; it filters and marks, never re-ranks. */}
+      <form onSubmit={addWatch} className="flex flex-wrap items-center gap-2">
+        <label className="font-mono text-micro uppercase tracking-label text-faint">
+          Watchlist
+        </label>
+        <input
+          type="text"
+          value={watchInput}
+          onChange={(e) => setWatchInput(e.target.value)}
+          placeholder="add a vendor or product…"
+          aria-label="Add a vendor or product to your watchlist"
+          className="h-8 w-48 rounded-md border border-line bg-field px-3 font-mono text-xs text-paper outline-offset-2 placeholder:text-faint focus-visible:outline-2 focus-visible:outline-accent"
+        />
+        {watchlist.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => dropWatch(t)}
+            aria-label={`Remove ${t} from watchlist`}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--edge-accent)] bg-[var(--tint-accent)] px-2.5 py-1 font-mono text-micro font-semibold text-accent outline-offset-2 transition-colors duration-150 ease-brand hover:border-line-bright focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            {t}
+            <span aria-hidden="true" className="text-faint">×</span>
+          </button>
+        ))}
+        {!watchlist.length && (
+          <span className="font-mono text-micro text-faint">
+            e.g. fortinet, citrix — marks and filters what you own
+          </span>
+        )}
+      </form>
 
       <div className="flex items-center justify-between">
         <span className="font-mono text-micro uppercase tracking-label text-faint">
@@ -250,13 +331,21 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
                     .filter(Boolean)
                     .map((v) => humanize(v))
                     .join(' / ')
+                  const watched = matchesWatchlist(c, watchlist)
                   return (
                     <tr
                       key={c.cve}
                       className="border-b border-line last:border-0 align-top transition-colors duration-150 ease-brand hover:bg-panel-soft"
                     >
                       <td className="max-w-[22rem] px-3 py-2.5">
-                        <div className="font-mono text-xs font-semibold text-paper">
+                        <div className="flex items-center gap-1.5 font-mono text-xs font-semibold text-paper">
+                          {watched && (
+                            <span
+                              title="On your watchlist"
+                              aria-label="On your watchlist"
+                              className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-accent"
+                            />
+                          )}
                           {c.cve}
                         </div>
                         {c.title && (
