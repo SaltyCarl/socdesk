@@ -180,14 +180,16 @@ describe('profileFor — malware-name group (Clop: software + ransomware)', () =
 })
 
 describe('profileFor — reporting-only APT (Sandworm)', () => {
-  const p = profileFor('sandworm', data)
-  it('has no fingerprint / ransomware / relations, but carries real reporting', () => {
+  it('has no fingerprint / ransomware / relations, and reportsFor GATES its reporting: not an established entity, not trackedActors', () => {
+    const p = profileFor('sandworm', data)
     expect(p.fingerprint).toBeNull()
     expect(p.ransomware).toBeNull()
     expect(p.related).toEqual([])
-    expect(p.reporting).toHaveLength(1)
+    expect(p.reporting).toEqual([])
   })
-  it('strips the [Outlet] prefix and preserves the real ingested summary', () => {
+  it('surfaces reporting once the caller opts it in via trackedActors, preserving [Outlet]-strip + real summary', () => {
+    const p = profileFor('sandworm', { ...data, trackedActors: new Set(['sandworm']) })
+    expect(p.reporting).toHaveLength(1)
     expect(p.reporting[0].outlet).toBe('BleepingComputer')
     expect(p.reporting[0].title).toBe('Sandworm hackers target IT pros with trojanized software')
     expect(p.reporting[0].summary).toBe('Real ingested prose about the Sandworm campaign.')
@@ -209,6 +211,7 @@ describe('profileFor — empty slug (directory sentinel)', () => {
     const p = profileFor('', data)
     expect(p).toEqual({
       slug: '', name: '', fingerprint: null, ransomware: null, reporting: [], related: [], intel: null,
+      claimedVictims: [], activity: null,
     })
   })
 })
@@ -301,5 +304,57 @@ describe('intel fusion', () => {
     expect(akiraEntries[0].kind).toBe('actor')
     expect(akiraEntries[0].hasMitre).toBe(true)
     expect(akiraEntries[0].hasIntel).toBe(true)
+  })
+
+  it('flags hasClaims for a group with leak-site posts, and leaves it unset for a claim-free group', () => {
+    const idx = buildProfileIndex(actors, malware, feed, [])
+    expect(idx.find((e) => e.slug === 'kairos')?.hasClaims).toBe(true)
+    expect(idx.find((e) => e.slug === 'axiom')?.hasClaims).toBeUndefined()
+  })
+})
+
+/* ---------------- fusion: claimed victims + activity + reportsFor gate ---- */
+
+describe('profileFor — claimed-victim list + activity aggregates', () => {
+  it('builds an attributed claimed-victim list for a ransomware group', () => {
+    const feed = [{ id:'a'.repeat(40), source:'ransomwarelive', category:'ransomware',
+      title:'akira posted a new victim claim', summary:'Unverified claim…', url:'http://x.onion/a',
+      victim:'Furnished Quarters', domain:'furnishedquarters.com',
+      entities:{actors:['akira'],malware:[],vendors:[],cves:[]}, published_at:'2026-08-24T00:00:00Z' }]
+    const p = profileFor('akira', { actors:[], malware:[], feed, relations:null, intel:[] })
+    expect(p.claimedVictims[0]).toMatchObject({ victim:'Furnished Quarters', domain:'furnishedquarters.com', claimUrl:'http://x.onion/a' })
+    expect(p.activity?.victimCount).toBe(1)
+  })
+  it('does not surface reportsFor for a common-word actor not in the dictionary', () => {
+    // "play" as a bare RSS mention must not become a report unless dictionary-gated
+    const feed = [{ id:'b'.repeat(40), source:'rss', category:'apt', title:'Google Play update', url:'', summary:'', entities:{actors:['Play'],malware:[],vendors:[],cves:[]}, published_at:'2026-08-24T00:00:00Z' }]
+    const p = profileFor('play', { actors:[], malware:[], feed, relations:null, intel:[], trackedActors:new Set() })
+    expect(p.reporting.length).toBe(0)
+  })
+})
+
+describe('profileFor — activity.timeline: deterministic weekly buckets', () => {
+  it('buckets claims across two UTC weeks into two timeline entries with correct per-bucket counts', () => {
+    const weeklyFeed: FeedItem[] = [
+      // Mon 2026-08-10 and Wed 2026-08-12 both fall in the UTC week starting
+      // Monday 2026-08-10 — same bucket.
+      { id: 'w1', source: 'ransomwarelive', category: 'ransomware',
+        title: 'nyx posted a new victim claim', summary: single('Retail', 'US'),
+        url: 'http://x.onion/w1', entities: { actors: ['nyx'] }, published_at: '2026-08-10T09:00:00Z' },
+      { id: 'w2', source: 'ransomwarelive', category: 'ransomware',
+        title: 'nyx posted a new victim claim', summary: single('Retail', 'US'),
+        url: 'http://x.onion/w2', entities: { actors: ['nyx'] }, published_at: '2026-08-12T09:00:00Z' },
+      // Wed 2026-08-19 falls in the NEXT UTC week (starting 2026-08-17) —
+      // a separate bucket, and it's a digest of 3 claims.
+      { id: 'w3', source: 'ransomwarelive', category: 'ransomware',
+        title: 'nyx posted 3 victim claims', summary: 'Grouped: Retail, Healthcare',
+        url: 'http://x.onion/w3', entities: { actors: ['nyx'] }, grouped: 3,
+        why: ['3 claims in window'], published_at: '2026-08-19T09:00:00Z' },
+    ]
+    const p = profileFor('nyx', { actors: [], malware: [], feed: weeklyFeed, relations: null, intel: [] })
+    expect(p.activity?.timeline).toHaveLength(2)
+    expect(p.activity?.timeline[0]).toEqual({ week: '2026-08-10', count: 2 })
+    expect(p.activity?.timeline[1]).toEqual({ week: '2026-08-17', count: 3 })
+    expect(p.activity?.victimCount).toBe(5)
   })
 })

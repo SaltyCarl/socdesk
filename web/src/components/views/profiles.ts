@@ -17,7 +17,7 @@
 // Pure functions, no React, no I/O — the whole fusion is unit-testable in a
 // plain Node env (see __tests__/profiles.test.ts).
 
-import type { FeedItem, Profile, RansomIntel, RelationsPayload } from './types'
+import type { ClaimedVictim, FeedItem, Profile, RansomIntel, RelationsPayload } from './types'
 import { buildRelationsIndex, relatedFor, type RelatedRow } from './relations'
 import { claimCount } from '../overview/aggregations'
 
@@ -68,6 +68,10 @@ export interface ProfileIndexEntry {
   /** True when a curated CISA intel seed entry exists for this slug (by slug OR
    *  alias) — even when the group has posted no leak-site claims this window. */
   hasIntel?: boolean
+  /** True when the group has posted >=1 leak-site `ransomware` claim this
+   *  window — mirrors `claimCount > 0`, carried as its own flag so the
+   *  directory badge doesn't have to re-derive it from the tally. */
+  hasClaims?: boolean
 }
 
 /** Name + alias → profile, first-writer-wins (so a canonical name is never
@@ -140,8 +144,14 @@ export function buildProfileIndex(
   }
   for (const [slug, { raw, count }] of claims) {
     const existing = bySlug.get(slug)
-    if (existing) existing.claimCount = count
-    else bySlug.set(slug, { slug, name: raw, kind: 'ransomware', hasMitre: false, claimCount: count })
+    if (existing) {
+      existing.claimCount = count
+      existing.hasClaims = count > 0
+    } else {
+      bySlug.set(slug, {
+        slug, name: raw, kind: 'ransomware', hasMitre: false, claimCount: count, hasClaims: count > 0,
+      })
+    }
   }
 
   // curated CISA intel seed — flags a group even when it posted no claims
@@ -230,6 +240,25 @@ export interface Report {
   summary: string
 }
 
+/** One weekly bucket in a group's claim timeline. `week` is the ISO
+ *  `YYYY-MM-DD` UTC calendar date of that week's Monday — deterministic,
+ *  never locale- or runner-TZ-dependent (see `weekKey`). */
+export interface TimelineBucket {
+  week: string
+  count: number
+}
+
+/** Rollup aggregates over a group's leak-site claim activity — built from the
+ *  SAME claim set as `RansomwareActivity` (sectors/countries are identical),
+ *  plus a weekly timeline the per-claim list doesn't carry. null when the
+ *  group posted no claims (mirrors `ransomware: null`, honest empty). */
+export interface ProfileActivity {
+  sectors: string[]
+  countries: string[]
+  timeline: TimelineBucket[]
+  victimCount: number
+}
+
 export interface ProfileResult {
   slug: string
   /** Display name (canonical MITRE name when known, else the reported handle). */
@@ -241,6 +270,11 @@ export interface ProfileResult {
   /** Curated CISA #StopRansomware seed entry — null when the group is not
    *  seeded (honest empty; consumers must not synthesise this). */
   intel: RansomIntel | null
+  /** Attributed leak-site victim claims for this group, newest first — an
+   *  UNVERIFIED leak-site fact, republished faithfully (never a verdict). */
+  claimedVictims: ClaimedVictim[]
+  /** Claim rollup aggregates — null when the group posted no claims. */
+  activity: ProfileActivity | null
 }
 
 const OUTLET_RE = /^\s*\[([^\]]+)\]\s*/
@@ -375,8 +409,76 @@ function ransomwareActivity(slug: string, feed: FeedItem[]): RansomwareActivity 
   return { totalClaims, items, sectors: [...sectors], countries: [...countries] }
 }
 
-/** APT / campaign reporting that names the slug, newest first. */
-function reportsFor(slug: string, feed: FeedItem[]): Report[] {
+/** Deterministic weekly bucket key for a claim's `published_at` timestamp:
+ *  the ISO `YYYY-MM-DD` UTC calendar date of that timestamp's week (Monday
+ *  start). Built entirely from UTC date-part arithmetic — never
+ *  `Date.now()`, never a locale-formatted string — so a claim lands in the
+ *  same bucket on every runner regardless of local timezone. 'unknown' on an
+ *  unparsable timestamp rather than silently mis-bucketing it. */
+function weekKey(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return 'unknown'
+  const utcDay = d.getUTCDay() // 0=Sun..6=Sat
+  const diffToMonday = (utcDay + 6) % 7 // Mon=0 .. Sun=6
+  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - diffToMonday))
+  const y = monday.getUTCFullYear()
+  const m = String(monday.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(monday.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** The weekly claim timeline for a slug's ransomware.live posts, oldest
+ *  bucket first — each bucket's count uses the SAME board parser
+ *  (`claimCount`) as the totals, so a digest of 5 contributes 5, not 1. */
+function timelineFor(slug: string, feed: FeedItem[]): TimelineBucket[] {
+  const weekCounts = new Map<string, number>()
+  for (const it of feed) {
+    if (it.source !== 'ransomwarelive') continue
+    if (it.entities?.actors?.[0]?.toLowerCase() !== slug) continue
+    if (!it.published_at) continue
+    const wk = weekKey(it.published_at)
+    weekCounts.set(wk, (weekCounts.get(wk) ?? 0) + claimCount(it))
+  }
+  return [...weekCounts.entries()]
+    .map(([week, count]) => ({ week, count }))
+    .sort((a, b) => a.week.localeCompare(b.week))
+}
+
+/** Attributed leak-site victim claims for a slug, newest first. Only
+ *  ransomware.live items that carry a named `victim` become a
+ *  `ClaimedVictim` — a rolled-up digest names no single victim, so it is
+ *  honestly excluded here (it still counts toward `activity.victimCount`). */
+function claimedVictimsFor(slug: string, feed: FeedItem[]): ClaimedVictim[] {
+  const matched = feed.filter(
+    (it) =>
+      it.source === 'ransomwarelive' &&
+      it.entities?.actors?.[0]?.toLowerCase() === slug &&
+      Boolean(it.victim),
+  )
+  const sorted = [...matched].sort((a, b) =>
+    String(b.published_at ?? '').localeCompare(String(a.published_at ?? '')),
+  )
+  return sorted.map((it) => {
+    const isGrouped = it.grouped != null
+    return {
+      id: it.id,
+      victim: it.victim as string,
+      domain: it.domain,
+      sector: isGrouped ? undefined : parseSectors(it.summary, false)[0],
+      country: isGrouped ? undefined : parseCountry(it.summary),
+      date: it.published_at,
+      claimUrl: it.url,
+    }
+  })
+}
+
+/** APT / campaign reporting that names the slug, newest first. `keep` is the
+ *  reportsFor GATE (established-entity or dictionary-tracked — see
+ *  `profileFor`): when false, a bare feed mention of the slug never becomes
+ *  a report, killing the "Play"/common-word false-positive without a
+ *  hardcoded actor dictionary in the client. */
+function reportsFor(slug: string, feed: FeedItem[], keep: boolean): Report[] {
+  if (!keep) return []
   const rows: Report[] = []
   for (const it of feed) {
     if (it.category !== 'apt' && it.category !== 'campaign') continue
@@ -411,11 +513,23 @@ function rawNameFor(slug: string, feed: FeedItem[]): string | undefined {
  * on its own:
  *   • fingerprint null  → no ATT&CK profile on file
  *   • ransomware null   → no leak-site claims for this group
- *   • reporting []      → no APT/campaign article names this actor
+ *   • reporting []      → no APT/campaign article names this actor, OR the
+ *                         actor isn't an ESTABLISHED entity and isn't in the
+ *                         caller's `trackedActors` (the reportsFor gate below)
  *   • related []        → no ATT&CK links / feed co-occurrences (ransomware-only
  *                         groups have no relations node, so this is empty — the
  *                         card states that rather than synthesising links).
  *   • intel null        → no curated CISA #StopRansomware seed entry on file
+ *   • claimedVictims []  → no attributed leak-site victim posts for this group
+ *   • activity null     → no leak-site claims to aggregate (mirrors ransomware)
+ *
+ * The reportsFor GATE: the client carries NO copy of any server-side curated
+ * tracked-actor dictionary, so a report is kept only when the slug is an
+ * ESTABLISHED entity — it has an ATT&CK fingerprint, a curated CISA intel
+ * entry, or >=1 leak-site ransomware claim — or the caller explicitly passes
+ * it via the optional `trackedActors` set. This is what kills the "Play"
+ * (Google Play) / common-word false positive: a bare feed mention alone is
+ * never enough to manufacture a profile's reporting section.
  */
 export function profileFor(
   slug: string,
@@ -425,19 +539,38 @@ export function profileFor(
     feed: FeedItem[]
     relations: RelationsPayload | null
     intel: RansomIntel[]
+    /** Optional caller-supplied keep-list for reporting-only entities that
+     *  are genuinely notable but have no fingerprint/intel/claims on file
+     *  (e.g. a named APT the pipeline curates server-side). Absent by
+     *  default — the client never ships a hardcoded actor dictionary. */
+    trackedActors?: Set<string>
   },
 ): ProfileResult {
   const s = slug.trim().toLowerCase()
   if (!s) {
     return {
       slug: '', name: '', fingerprint: null, ransomware: null, reporting: [], related: [], intel: null,
+      claimedVictims: [], activity: null,
     }
   }
 
   const fingerprint = findFingerprint(s, data.actors, data.malware)
   const ransomware = ransomwareActivity(s, data.feed)
-  const reporting = reportsFor(s, data.feed)
   const intel = intelFor(s, data.intel)
+
+  const established = Boolean(fingerprint || intel || ransomware)
+  const keep = established || Boolean(data.trackedActors?.has(s))
+  const reporting = reportsFor(s, data.feed, keep)
+
+  const claimedVictims = claimedVictimsFor(s, data.feed)
+  const activity: ProfileActivity | null = ransomware
+    ? {
+        sectors: ransomware.sectors,
+        countries: ransomware.countries,
+        timeline: timelineFor(s, data.feed),
+        victimCount: ransomware.totalClaims,
+      }
+    : null
 
   const index = buildRelationsIndex(data.relations)
   const name = fingerprint?.name ?? rawNameFor(s, data.feed) ?? s
@@ -447,5 +580,7 @@ export function profileFor(
   const relNames = fingerprint ? [fingerprint.name, ...fingerprint.aliases] : [name]
   const related = relatedFor(index, relNames)
 
-  return { slug: s, name, fingerprint, ransomware, reporting, related, intel }
+  return {
+    slug: s, name, fingerprint, ransomware, reporting, related, intel, claimedVictims, activity,
+  }
 }

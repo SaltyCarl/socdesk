@@ -35,6 +35,13 @@ export interface FeedItem {
   why?: string[]
   /** present on digest rows: how many reports were rolled up */
   grouped?: number
+  /** Attributed leak-site victim name on a ransomware claim item — already
+   *  clean_text'd at collection (Task 1). Inert text: NEVER render via
+   *  dangerouslySetInnerHTML. Absent on digest / non-claim items. */
+  victim?: string
+  /** Bare hostname for the claimed victim's domain — hostname-guarded at
+   *  collection (Task 1). Inert text, same render rule as `victim`. */
+  domain?: string
 }
 
 export interface FeedPayload {
@@ -232,12 +239,40 @@ export interface RansomIntel {
   tools?: string[]
   ransom_note?: string[]
   extensions?: string[]
+  /** ISO `YYYY-MM-DD` the CISA advisory was published — honestly absent when
+   *  the seed entry has no advisory date on file. */
+  advisory_date?: string
+  /** ISO `YYYY-MM-DD` this seed entry was last reviewed for accuracy. */
+  last_reviewed?: string
+  /** A cisa.gov URL for the advisory's figure/note image — only 2 seeded
+   *  groups (alphv, rhysida) carry this; absent for everyone else. */
+  note_image?: string
+  /** Named provenance for the seed entry's claims (advisory sections, vendor
+   *  writeups, …) — honestly empty when the seed carries none. */
+  sources?: { id: string; url: string }[]
 }
 
 export interface RansomIntelPayload {
   generated_at?: string
   schema_version?: number
   groups?: RansomIntel[]
+}
+
+/* ---------------- claimed victims (attributed leak-site facts) ------------ */
+
+/** One attributed leak-site victim claim, mapped from a `ransomwarelive`
+ *  FeedItem for a single actor slug. `victim`/`domain` are already sanitized
+ *  inert text at collection (Task 1) — never rendered via
+ *  dangerouslySetInnerHTML. This is a REPUBLISHED, UNVERIFIED leak-site claim
+ *  (honesty doctrine): SOCDesk states the attribution, never a verdict. */
+export interface ClaimedVictim {
+  id: string
+  victim: string
+  domain?: string
+  sector?: string
+  country?: string
+  date?: string
+  claimUrl: string
 }
 
 /* ---------------- networks (ASN abuse leaderboard) ---------------- */
