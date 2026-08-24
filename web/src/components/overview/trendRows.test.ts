@@ -13,19 +13,27 @@ describe('trendLabel', () => {
 })
 
 describe('epssShift', () => {
-  it('formats from→to endpoints and a signed percentage-point delta', () => {
-    // The live producer's shape: {cve, from, to, delta, kev, product}.
-    expect(epssShift({ from: 0.75594, to: 0.96868, delta: 0.21274 })).toEqual({
+  it('formats from→to endpoints and a percentage-point delta from them', () => {
+    expect(epssShift({ from: 0.75594, to: 0.96868 })).toEqual({
       from: '76%',
       to: '97%',
       points: '+21 pts',
+      dir: 1,
     })
   })
-  it('derives the delta from the endpoints when the producer omits it', () => {
-    expect(epssShift({ from: 0.2, to: 0.5 })?.points).toBe('+30 pts')
+  it('keeps endpoints and the delta self-consistent (single rounding)', () => {
+    // 0.144→0.206 rounds to 14%→21%; the pill must read +7, not a raw-delta +6
+    expect(epssShift({ from: 0.144, to: 0.206 })).toEqual({
+      from: '14%',
+      to: '21%',
+      points: '+7 pts',
+      dir: 1,
+    })
   })
-  it('marks a rare downward move with a minus sign', () => {
-    expect(epssShift({ from: 0.5, to: 0.2 })?.points).toBe('−30 pts')
+  it('marks a rare downward move with a minus sign and a down direction', () => {
+    const s = epssShift({ from: 0.5, to: 0.2 })
+    expect(s?.points).toBe('−30 pts')
+    expect(s?.dir).toBe(-1)
   })
   it('degrades to null when an endpoint is missing', () => {
     expect(epssShift({ to: 0.9 })).toBeNull()

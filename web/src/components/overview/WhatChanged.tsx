@@ -31,7 +31,9 @@ function MoverRow({ m }: { m: EpssMover }) {
           <span className="font-mono text-xs tabular-nums text-muted">
             {shift.from} <span aria-hidden="true">→</span>{' '}
             <span className="text-paper">{shift.to}</span>{' '}
-            <span className="font-semibold text-verdict-amber">▲ {shift.points}</span>
+            <span className={`font-semibold ${shift.dir < 0 ? 'text-muted' : 'text-verdict-amber'}`}>
+              {shift.dir < 0 ? '▼' : '▲'} {shift.points}
+            </span>
           </span>
         ) : (
           <EpssMeter epss={m.to ?? m.from} />
@@ -62,25 +64,30 @@ function KevRow({ k }: { k: NewKevEntry }) {
 export function WhatChanged({ trends }: { trends: TrendsPayload }) {
   const movers = trends.epss_movers ?? []
   const newKev = trends.new_kev ?? []
+  // The mover baseline is whatever snapshot build_trends actually compared
+  // against (~7d back, but it falls back to yesterday on a young history), so
+  // state the real comparison date rather than a hard-coded "7 days".
+  const comparedTo = trends.totals?.compared_to
+  const since = comparedTo ? day(comparedTo) : 'the last snapshot'
 
   return (
     <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
       <BoardPanel
         eyebrow="EPSS exploitation probability ▲"
-        title="Climbing this week"
+        title="Climbing"
         aside={<SourceStamp label="FIRST · EPSS" />}
         footer={
           <>
             <span className="max-w-md text-xs text-muted">
-              CVEs whose modelled exploitation probability rose materially over
-              the last week — early movement, often ahead of a KEV listing.
+              CVEs whose modelled exploitation probability rose materially since{' '}
+              {since} — early movement, often ahead of a KEV listing.
             </span>
             <DeskLink tab="vulnerabilities">Vulnerabilities</DeskLink>
           </>
         }
       >
         {movers.length === 0 ? (
-          <PanelEmpty>No material EPSS moves in the last 7 days.</PanelEmpty>
+          <PanelEmpty>No material EPSS moves since {since}.</PanelEmpty>
         ) : (
           <div className="flex flex-col">
             {movers.map((m) => (

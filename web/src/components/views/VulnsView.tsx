@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useDeferredValue, useMemo, useState, type FormEvent } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import type { Cve } from './types'
 import { day, humanize, num } from './format'
@@ -125,7 +125,6 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
   const [watchlist, setWatchlist] = useState<string[]>(() => loadWatchlist())
   const [watchOnly, setWatchOnly] = useState(false)
   const [watchInput, setWatchInput] = useState('')
-  useEffect(() => saveWatchlist(watchlist), [watchlist])
 
   const kevCount = useMemo(() => cves.filter((c) => c.kev).length, [cves])
   const epssCount = useMemo(() => cves.filter((c) => c.epss != null).length, [cves])
@@ -176,18 +175,24 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
     setLimit(INIT)
   }
 
+  // Persist on actual change only (not via a mount effect that would re-write
+  // the just-loaded value and create the storage key on a first-ever visit).
   const addWatch = (e: FormEvent) => {
     e.preventDefault()
-    setWatchlist((w) => addTerm(w, watchInput))
+    const next = addTerm(watchlist, watchInput)
+    if (next !== watchlist) {
+      setWatchlist(next)
+      saveWatchlist(next)
+    }
     setWatchInput('')
     setLimit(INIT)
   }
-  const dropWatch = (term: string) =>
-    setWatchlist((w) => {
-      const next = removeTerm(w, term)
-      if (!next.length) setWatchOnly(false)
-      return next
-    })
+  const dropWatch = (term: string) => {
+    const next = removeTerm(watchlist, term)
+    setWatchlist(next)
+    saveWatchlist(next)
+    if (!next.length) setWatchOnly(false)
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -307,8 +312,9 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
       {/* table */}
       {rows.length === 0 ? (
         <EmptyState title="No vulnerabilities match these filters">
-          Clear the search, widen the severity, or turn off “KEV only” — the
-          catalog is loaded, these rows are just filtered out.
+          Clear the search, widen the severity, or turn off “KEV only”
+          {watchOnly ? ' or “Watchlist only”' : ''} — the catalog is loaded,
+          these rows are just filtered out.
         </EmptyState>
       ) : (
         <>
@@ -341,6 +347,7 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
                         <div className="flex items-center gap-1.5 font-mono text-xs font-semibold text-paper">
                           {watched && (
                             <span
+                              role="img"
                               title="On your watchlist"
                               aria-label="On your watchlist"
                               className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-accent"

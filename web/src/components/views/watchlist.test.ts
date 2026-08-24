@@ -15,9 +15,13 @@ describe('addTerm', () => {
   it('appends a normalised term', () => {
     expect(addTerm([], 'Fortinet')).toEqual(['fortinet'])
   })
-  it('returns the same array (no-op) for a blank or duplicate term', () => {
+  it('keeps a legitimate short vendor like f5', () => {
+    expect(addTerm([], 'F5')).toEqual(['f5'])
+  })
+  it('returns the same array (no-op) for a blank, too-short, or duplicate term', () => {
     const terms = ['fortinet']
     expect(addTerm(terms, '  ')).toBe(terms)
+    expect(addTerm(terms, 'a')).toBe(terms) // below the 2-char floor
     expect(addTerm(terms, 'FORTINET')).toBe(terms)
   })
 })
@@ -29,9 +33,14 @@ describe('removeTerm', () => {
 })
 
 describe('matchesWatchlist', () => {
-  it('matches a term against products or vendors', () => {
+  it('matches a term against products or vendors on a word boundary', () => {
     expect(matchesWatchlist(cve({ products: ['FortiOS'], vendors: ['Fortinet'] }), ['fortinet'])).toBe(true)
     expect(matchesWatchlist(cve({ title: 'Citrix NetScaler bug' }), ['citrix'])).toBe(true)
+    expect(matchesWatchlist(cve({ vendors: ['F5'] }), ['f5'])).toBe(true)
+  })
+  it('does not match a term buried inside a larger word (no bare substring)', () => {
+    expect(matchesWatchlist(cve({ title: 'PHP deserialization' }), ['hp'])).toBe(false)
+    expect(matchesWatchlist(cve({ title: 'email spoofing' }), ['ai'])).toBe(false)
   })
   it('does not match the CVE id itself', () => {
     expect(matchesWatchlist(cve({ cve: 'CVE-2026-1234' }), ['2026-1234'])).toBe(false)
