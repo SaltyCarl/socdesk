@@ -257,6 +257,14 @@ export function DomainHero({ data }: { data: VerdictData }) {
           <FactCell k="Resolves to" v={resolvedGeo} mono={false} />
           <FactCell k="Hosting" v={hosting} />
         </div>
+        {dm.resolvedIp && (
+          <a
+            href={`/#q=${encodeURIComponent(dm.resolvedIp)}`}
+            className="inline-flex w-fit items-center gap-1 font-mono text-micro text-accent underline underline-offset-2 outline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            Hosting IP {dm.resolvedIp} — check reputation <span aria-hidden="true">→</span>
+          </a>
+        )}
       </HeroPanel>
       {/* a domain's latest urlscan scan is a useful "what does this render as"
           preview — show the scanned-page panel when one exists (item: bare

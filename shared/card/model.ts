@@ -157,6 +157,11 @@ export interface DomainModel {
   newlyRegistered: boolean
   registrar: string
   resolved: GeoModel | null
+  /** The domain's first VirusTotal A-record IPv4 (lib/enrich.mjs VIRUSTOTAL
+   *  domain branch's "Resolves to" fact) — the hosting-IP pivot target for the
+   *  card's clickable link. Empty when VT wasn't consulted or reported none;
+   *  never fabricated. */
+  resolvedIp: string
 }
 
 function daysSince(iso: string, now: Date): number {
@@ -208,6 +213,7 @@ export function domainModel(data: VerdictData, now: Date = new Date()): DomainMo
     newlyRegistered: Number.isFinite(ageDays) && ageDays <= 30,
     registrar: pick(fm, 'registrar') || '—',
     resolved: geoModel(data.context, data.sources),
+    resolvedIp: pick(factMap(data.sources.find((s) => s.name === 'VirusTotal')?.facts), 'resolves to'),
   }
 }
 
