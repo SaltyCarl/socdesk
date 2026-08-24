@@ -151,15 +151,18 @@ export interface NewKevEntry {
   ransomware?: boolean
 }
 
-/** One CVE whose EPSS exploitation probability moved materially. Currently the
- *  pipeline emits an empty array here (no mover detection yet) — the view must
- *  degrade honestly rather than fabricate rows. */
+/** One CVE whose EPSS exploitation probability climbed materially in the trends
+ *  window (produced by pipeline/history.py `build_trends`). The producer emits
+ *  the snapshot endpoints `from`/`to`, the signed `delta`, and a `kev` flag.
+ *  Every field beyond `cve` is optional: a snapshot may lack an endpoint, so the
+ *  view degrades to the single current value rather than fabricate a shift. */
 export interface EpssMover {
   cve: string
   product?: string
-  epss?: number | null
-  prev?: number | null
+  from?: number | null
+  to?: number | null
   delta?: number | null
+  kev?: boolean
 }
 
 /** One day's collected-report count for the 7-day volume sparkline. */

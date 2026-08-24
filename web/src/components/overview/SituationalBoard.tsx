@@ -5,6 +5,7 @@ import { AsyncGate, Skeleton, SkeletonRows } from '../views/states'
 import { day, rel } from '../views/format'
 import type { CvePayload, FeedPayload, HealthPayload, TrendsPayload } from '../views/types'
 import { OverviewStats } from './OverviewStats'
+import { WhatChanged } from './WhatChanged'
 import { RansomwareActivity } from './RansomwareActivity'
 import { NamedActorActivity } from './NamedActorActivity'
 import { PatchPriority } from './PatchPriority'
@@ -153,6 +154,17 @@ export function SituationalBoard() {
           <OverviewStats trends={trends.data ?? {}} ransom={ransom} />
         </Gate>
       </div>
+
+      {/* what changed — the granular lists behind the stat strip's KEV/EPSS
+          deltas; light trends.json only, so no heavy fetch */}
+      <Gate
+        status={trends.status}
+        label="what changed this week"
+        detail={trends.error}
+        skeleton={<Skeleton className="h-72 w-full rounded-lg" />}
+      >
+        <WhatChanged trends={trends.data ?? {}} />
+      </Gate>
 
       {/* flagship — who's hitting people right now */}
       <Gate
