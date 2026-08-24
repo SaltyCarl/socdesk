@@ -7,6 +7,7 @@ from pathlib import Path
 
 from collectors import CACHED_COLLECTORS, COLLECTORS, attack
 from collectors.base import iso, run_all
+from pipeline.asn import build_asn_leaderboard
 from pipeline.community import build_community_reports
 from pipeline.cves import build_cve_rows, enrich_epss
 from pipeline.history import (build_trends, daily_snapshot, prune_history,
@@ -16,6 +17,7 @@ from pipeline.validate import gate
 
 BRIEF_SRC = Path("data/brief.json")
 GEO_CACHE_NAME = "geo_cache.json"    # IP -> {lat,lng,country,city,precision}
+ASN_CACHE_NAME = "asn_cache.json"    # IP -> {asn,isp,country}
 
 
 def _history(state_dir, cve_rows, feed_count, now):
@@ -96,6 +98,25 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
         payloads["community_reports.json"] = dict(
             state["community_reports.json"], generated_at=iso(now))
 
+    # ASN abuse-leaderboard (Phase 4): aggregate the already-published,
+    # PII-stripped community + abuse.ch IPs by network via IPinfo's `org` field
+    # (cache-first, only new IPs cost a call). Built AFTER community + threat_ips
+    # so it consumes their fresh payloads (falling back to the committed prior).
+    # Placed before gate() so it inherits schema validation + last-known-good +
+    # triple dual-write. NO D1, NO identity — inputs are already PII-stripped.
+    asn_cache = state.get(ASN_CACHE_NAME, {})
+    if not isinstance(asn_cache, dict):
+        asn_cache = {}
+    leaderboard = build_asn_leaderboard(
+        payloads.get("community_reports.json") or state.get("community_reports.json"),
+        payloads.get("threat_ips.json") or state.get("threat_ips.json"),
+        asn_cache, fetch, now, token=(env or {}).get("IPINFO_TOKEN"))
+    if leaderboard is not None:
+        payloads["asn_leaderboard.json"] = leaderboard
+    elif "asn_leaderboard.json" in state:
+        payloads["asn_leaderboard.json"] = dict(
+            state["asn_leaderboard.json"], generated_at=iso(now))
+
     published, problems = gate(payloads, state, schemas_dir)
     if problems:
         published["health.json"] = dict(
@@ -117,6 +138,11 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
     # diffs). CI's `git add data/state` commits it, so the next run reuses it.
     (state_dir / GEO_CACHE_NAME).write_text(
         json.dumps(geo_cache, ensure_ascii=False, sort_keys=True,
+                   separators=(",", ":")),
+        encoding="utf-8")
+
+    (state_dir / ASN_CACHE_NAME).write_text(
+        json.dumps(asn_cache, ensure_ascii=False, sort_keys=True,
                    separators=(",", ":")),
         encoding="utf-8")
 
