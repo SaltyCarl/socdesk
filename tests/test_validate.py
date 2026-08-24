@@ -46,6 +46,15 @@ def test_gate_rejects_oversized_payload():
     assert any("cap" in p for p in problems)
 
 
+def test_cves_gets_a_higher_cap_than_the_default():
+    """cves.json is legitimately large (180-day window + every KEV entry); it
+    must clear the default backstop that would (and did) freeze the catalog at
+    last-known-good, while small payloads keep the tight default guard."""
+    from pipeline import validate
+    assert validate.cap_for("cves.json") > validate.MAX_PAYLOAD_BYTES
+    assert validate.cap_for("feed.json") == validate.MAX_PAYLOAD_BYTES
+
+
 def test_schema_bounds_reject_unbounded_strings():
     over = {"generated_at": "2026-07-28T12:00:00Z", "schema_version": 1,
             "items": [dict(GOOD_FEED["items"][0], title="x" * 5000)]}

@@ -31,7 +31,22 @@ def validate_payload(filename, payload, schemas_dir):
     return [f"{e.json_path}: {e.message}" for e in v.iter_errors(payload)][:20]
 
 
-MAX_PAYLOAD_BYTES = 8_000_000   # hard cap: adversarial or runaway upstream data
+MAX_PAYLOAD_BYTES = 8_000_000   # default hard cap: adversarial or runaway upstream data
+
+# cves.json is the one legitimately-large payload — the full 180-day CVE window
+# PLUS every KEV entry regardless of age (KEV rows accumulate indefinitely) —
+# ~15k dense rows (titles are already trimmed; there is no fat to cut). It
+# outgrew the default guard and silently froze the catalog at last-known-good
+# once it crossed 8 MB. It is fetched lazily on the client (deferred behind an
+# IntersectionObserver) and Cloudflare Pages serves files up to 25 MB, so it
+# gets a higher — still bounded — cap that still catches a truly runaway NVD.
+# NOTE: this buys runway, not forever; sustained catalog growth eventually needs
+# a windowing/pruning strategy (e.g. cap the KEV-forever accumulation).
+MAX_PAYLOAD_BYTES_FOR = {"cves.json": 16_000_000}
+
+
+def cap_for(filename):
+    return MAX_PAYLOAD_BYTES_FOR.get(filename, MAX_PAYLOAD_BYTES)
 
 
 def gate(candidate, prior, schemas_dir):
@@ -40,8 +55,9 @@ def gate(candidate, prior, schemas_dir):
     for filename, payload in candidate.items():
         errors = validate_payload(filename, payload, schemas_dir)
         size = len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
-        if size > MAX_PAYLOAD_BYTES:
-            errors = [f"payload {size} bytes exceeds {MAX_PAYLOAD_BYTES} cap"] + errors
+        cap = cap_for(filename)
+        if size > cap:
+            errors = [f"payload {size} bytes exceeds {cap} cap"] + errors
         if not errors:
             published[filename] = payload
         elif filename in prior:
