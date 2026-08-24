@@ -1,10 +1,77 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — B2 enrich/write-path abuse-hardening BUILT on branch `feat/enrich-abuse-hardening` via 8-task SDD + clean whole-branch review, SHIP, NOT merged — in-isolate rate-limit + KV budget + report cap, all fail-open, ships dark; also IOC-reporting Phase 4 ASN abuse-leaderboard BUILT on branch `feat/asn-abuse-leaderboard` via 7-task SDD + clean whole-branch review, SHIP, NOT merged) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — program complete: Node 20→24 CI bump, B2 enrich/write-path abuse-hardening, IOC-reporting Phase 4 ASN/ISP leaderboard, and domain→IP reputation pivot all MERGED to `main`, deployed, and (B2 + Phase 4) fully ACTIVATED by owner + verified live) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-24 (session — B2 enrich abuse-hardening BUILT, NOT merged)
+## 0. LATEST — 2026-08-24 (session — program complete: B2 + Phase 4 merged, deployed, activated + verified live)
+
+**Supersedes** the `## 0-RECENT` B2/Phase 4 blocks below, which described them as
+"BUILT, NOT merged" — that is now stale. Both merged to `main`, deployed, and
+owner-activated this session.
+
+**Shipped, all on `main`:**
+- **Node 20→24 CI bump** — `checkout`/`setup-node`/`setup-python@v7`,
+  `wrangler-action@v4` (CLI pinned v3), build on Node 24. `0536a90`. Live.
+- **B2 enrich/write-path abuse-hardening** — merged to `main` (linear/
+  fast-forward from `feat/enrich-abuse-hardening`, base `7a19730`; see
+  `## 0-RECENT` below for the L1/L2/L3 design). Deployed, then **fully
+  ACTIVATED**: owner bound a Cloudflare KV namespace as `env.KV` (redeployed)
+  and added a WAF Rate-Limiting **Block** rule on `path starts_with
+  /api/enrich` at **40/window**. Verified live: normal `/api/enrich` lookups
+  return 200 with `Cache-Control: public, max-age=900`; an 8-request burst all
+  200 (under the 40 cap).
+- **IOC-reporting Phase 4 — ISP/ASN abuse leaderboard** — merged via
+  `053f97f` ("Merge feat/asn-abuse-leaderboard"). Deployed, then **LIVE +
+  POPULATED**: owner added `IPINFO_TOKEN` as a **GitHub Actions** secret (it
+  was previously only a Cloudflare Function secret, so the pipeline had been
+  calling ipinfo unauthenticated and getting no `org`/ASN back). Served
+  `data/state/asn_leaderboard.json` now has **5 networks, 8 abusive IPs, 0
+  unattributed**: AS14061 DigitalOcean, AS14618 Amazon, AS60729 Stiftung
+  Erneuerbare Freiheit (community/Tor), AS57269 DIGI SPAIN, AS9370 SAKURA.
+  Networks tab at `/desk#networks`.
+- **Domain→IP pivot (reputation fix)** — `85520e3`. VT `last_dns_records`
+  A-record surfaces a "Hosting IP `<ip>` — check reputation" accent link on
+  domain cards, linking to `/#q=<ip>`. Live. (The other planned reputation
+  fix, MalwareBazaar-on-IP, was confirmed a no-op — that source is hash-only,
+  nothing to wire.)
+
+**CI incident + fix (recurring trap, log prominently):** the "committed-
+dataset is-empty" test trap bit again in Phase 4 —
+`test_committed_empty_seed_is_valid` asserted the live committed
+`asn_leaderboard.json` was empty; broke every deploy/cron once the pipeline
+started populating it for real. Fixed in `5bc0e44`: assert schema-validity via
+`validate_payload(...)`, not emptiness; test the empty shape via the
+builder's own output instead. Same class of bug as the earlier Phase 3
+`test_community` fix (`1cd72de`). **Rule going forward:** any committed-
+dataset feature's tests must never assert the live committed file's exact/
+empty content — only that it validates against its schema.
+
+**Known ops fragility (non-blocking, not fixed this session):** the deploy
+workflow's "Commit state snapshots" step does `git pull --rebase` and can
+CONFLICT on `data/state/*.json` when a manual run overlaps a cron run — one
+run fails, the next recovers, last-known-good data is preserved throughout.
+Harden candidate: `concurrency: cancel-in-progress` on the workflow, or
+`-X theirs` on that rebase.
+
+**Verified:** live HTTP checks on `/api/enrich` (200 + cache header, burst
+under cap) and on the served `asn_leaderboard.json` (5 networks / 8 IPs / 0
+unattributed) as above. Build/test gates from the pre-merge sessions (vitest
+592, pytest 118, `npm --prefix web run build` clean, eslint 0) carried
+forward unchanged by the merges.
+
+**Open / next:** nothing pending on the build side. Candidates: Phase 5
+trends, Phase 6 upstream push, enrich B3 own-OSINT dataset, give-back
+honeypot, the workflow ops-harden above.
+
+**Docs:** close-out spec/plan context in
+`docs/superpowers/specs/2026-08-24-*` and
+`docs/superpowers/plans/2026-08-24-*` (see `## 0-RECENT` blocks below for the
+per-feature design detail this block summarizes).
+
+---
+
+## 0-RECENT — 2026-08-24 (session — B2 enrich abuse-hardening BUILT, NOT merged)
 
 > Branch `feat/enrich-abuse-hardening` (base `7a19730`), built via 8-task SDD +
 > a clean whole-branch review (opus) = SHIP. **NOT merged** — owner finish-menu
