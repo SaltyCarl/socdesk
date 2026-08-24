@@ -565,8 +565,10 @@ export function profileFor(
   const claimedVictims = claimedVictimsFor(s, data.feed)
   const activity: ProfileActivity | null = ransomware
     ? {
-        sectors: ransomware.sectors,
-        countries: ransomware.countries,
+        // Copy, don't alias: the render layer may sort/filter these in place,
+        // and sharing the reference with `ransomware.*` would corrupt both.
+        sectors: [...ransomware.sectors],
+        countries: [...ransomware.countries],
         timeline: timelineFor(s, data.feed),
         victimCount: ransomware.totalClaims,
       }
