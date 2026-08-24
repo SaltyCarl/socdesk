@@ -37,6 +37,29 @@ def test_build_site_data_shapes():
         assert p["generated_at"] == iso(FIXED_NOW) and p["schema_version"] == 1
 
 
+def test_build_site_data_gates_actor_bonus_on_injected_dictionary():
+    """Through the real publish path, the relevance 'tracked adversary' +8 fires
+    only for an actor in the injected dictionary — an untracked ransomware.live
+    leak-site group does not inflate. Guards the wiring a dropped tracked_actors
+    argument would silently break (all actor bonuses → 0, tests still green)."""
+    tracked = make_item("rss", "t1", "apt", "Report on Sandworm", "s",
+                        "https://x/t", "info", "2026-07-28T00:00:00Z", FIXED_NOW,
+                        entities={"actors": ["Sandworm"], "malware": [],
+                                  "vendors": [], "cves": []})
+    untracked = make_item("ransomwarelive", "u1", "ransomware",
+                          "Obscure posted a claim", "s", "https://x/u", "high",
+                          "2026-07-28T00:00:00Z", FIXED_NOW,
+                          entities={"actors": ["ObscureLeakGroup"], "malware": [],
+                                    "vendors": [], "cves": []})
+    results = [CollectorResult(source="rss", items=[tracked]),
+               CollectorResult(source="ransomwarelive", items=[untracked])]
+    payloads = build_site_data(results, cve_rows=[], health=[], prior={},
+                               now=FIXED_NOW, tracked_actors={"sandworm"})
+    feed = {i["id"]: i for i in payloads["feed.json"]["items"]}
+    assert any(w.startswith("actor:") for w in feed[tracked["id"]]["why"])
+    assert not any(w.startswith("actor:") for w in feed[untracked["id"]]["why"])
+
+
 def test_no_ioc_corpus_is_published():
     """Compliance gate: reputation data is deep-linked at render time, never
     mirrored (COMPLIANCE.md R4)."""

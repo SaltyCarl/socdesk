@@ -36,6 +36,10 @@ def tracked_actor_set(entities_dir="data/entities"):
     return frozenset(a.lower() for a in _dictionaries(entities_dir)["actors"])
 
 
+# NOTE: this is a SEPARATE authority from actors.json (which tracked_actor_set()
+# and relevance scoring use). This set only drives category classification below.
+# Names added here should generally also live in actors.json, or scoring and
+# classification will disagree about the same group.
 RANSOM_ACTORS = {"akira", "lockbit", "alphv", "blackcat", "play", "cl0p",
                  "black basta", "ransomhub", "medusa", "rhysida", "qilin",
                  "8base", "conti", "royal"}

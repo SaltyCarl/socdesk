@@ -21,7 +21,7 @@ page supports those two.
 ## Looking something up
 
 Paste into the search box at the top and press Enter. Press `/` from anywhere
-to jump to it.
+to open the command palette, or `Ctrl`/`⌘`+`K`.
 
 The type is detected automatically and shown as a chip beside the box: IPv4,
 IPv6, domain, URL, MD5, SHA-1, SHA-256, CVE, or email. Defanged input is
@@ -357,7 +357,7 @@ signal chip (KEV / EPSS / CVSS / claim count) is parsed from the pipeline's real
 > **Newest** toggle with its "N new since last visit" boundary marker; keyboard
 > triage (`j` / `k` to move between items, `r` to mark a row reviewed, `n` to
 > flag it notable); a right-hand detail panel; and an **Export JSON** of the
-> visible rows. (`/` to jump to the search box still works in the live tool.)
+> visible rows. (`/` still works in the live tool — it opens the command palette.)
 
 ## The shift handoff
 
@@ -376,12 +376,12 @@ pasted the digest somewhere.
 ## Vulnerability triage
 
 The full CVE table: a 180-day window plus every KEV entry regardless of age.
-Sort by CVE, CVSS, EPSS, publication date, or the composite risk column. Filter
-to **KEV only**, or to your watchlist.
+Sort by CVE, CVSS, EPSS, publication date, or the risk-ranked **Status** column
+(KEV membership first, then EPSS). Filter to **KEV only**, or to your watchlist.
 
 **The watchlist** is a list of vendor or product strings — `fortinet`, `citrix`,
 whatever you own. Matching rows get a marker, and **Watchlist only** filters the
-table to them. Note what it does *not* do: it does not re-rank the feed. The
+table to them. Note what it does *not* do: it does not re-rank the table. The
 ranking is computed in the pipeline before your browser is involved, and your
 watchlist never leaves your browser. It is a display and filter tool.
 

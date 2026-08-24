@@ -37,7 +37,7 @@ def merge_feed(prior_items, new_items, days, now):
 
 
 def build_site_data(results, cve_rows, health, prior, now, fetch=None,
-                    geo_cache=None):
+                    geo_cache=None, tracked_actors=None):
     """Assemble published payloads.
 
     No IOC corpus is published (see COMPLIANCE.md): reputation data is reached
@@ -56,7 +56,12 @@ def build_site_data(results, cve_rows, health, prior, now, fetch=None,
     # Operational ordering: score every item, then collapse the repetitive
     # ransomware victim-claim stubs into one digest row per group. The site
     # ships ranked — it does not re-sort a newspaper in the browser.
-    apply_scores(feed, cve_rows, iso(now), tracked_actors=tracked_actor_set())
+    # The relevance "tracked adversary" bonus is gated on the curated actor
+    # dictionary. Injected for testability; defaults to loading the dictionary so
+    # the production orchestrator needs no change.
+    if tracked_actors is None:
+        tracked_actors = tracked_actor_set()
+    apply_scores(feed, cve_rows, iso(now), tracked_actors=tracked_actors)
     feed = group_repetitive(
         feed, "ransomwarelive",
         lambda i: (i.get("entities", {}).get("actors") or ["unknown"])[0])
