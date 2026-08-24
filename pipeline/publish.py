@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 
 from collectors.base import iso
+from pipeline.entities import tracked_actor_set
 from pipeline.relations import build_relations
 from pipeline.relevance import apply_scores, group_repetitive
 from pipeline.threat_ips import build_threat_ips
@@ -55,7 +56,7 @@ def build_site_data(results, cve_rows, health, prior, now, fetch=None,
     # Operational ordering: score every item, then collapse the repetitive
     # ransomware victim-claim stubs into one digest row per group. The site
     # ships ranked — it does not re-sort a newspaper in the browser.
-    apply_scores(feed, cve_rows, iso(now))
+    apply_scores(feed, cve_rows, iso(now), tracked_actors=tracked_actor_set())
     feed = group_repetitive(
         feed, "ransomwarelive",
         lambda i: (i.get("entities", {}).get("actors") or ["unknown"])[0])

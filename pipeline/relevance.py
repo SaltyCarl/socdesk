@@ -22,8 +22,14 @@ WEIGHTS = {
 CAP = 100
 
 
-def score_item(item, cve_index, now_iso, watchlist=()):
-    """Return (score, reasons). Pure and deterministic — no clock reads."""
+def score_item(item, cve_index, now_iso, watchlist=(), tracked_actors=()):
+    """Return (score, reasons). Pure and deterministic — no clock reads.
+
+    `tracked_actors` is the lowercased set of curated adversary names. The
+    "tracked adversary" bonus fires ONLY for an actor in that set — a raw
+    ransomware.live leak-site group, injected wholesale into an item's actors,
+    must not read as a tracked adversary (that inflated ~half the feed by 8).
+    """
     reasons, score = [], 0
     ents = item.get("entities") or {}
 
@@ -61,9 +67,11 @@ def score_item(item, cve_index, now_iso, watchlist=()):
     elif sev == "high":
         score += WEIGHTS["severity_high"]
 
-    if ents.get("actors"):
+    tracked_hit = next(
+        (a for a in ents.get("actors") or [] if a.lower() in tracked_actors), None)
+    if tracked_hit:
         score += WEIGHTS["actor"]
-        reasons.append(f"actor: {ents['actors'][0]}")
+        reasons.append(f"actor: {tracked_hit}")
     if ents.get("malware"):
         score += WEIGHTS["malware"]
         reasons.append(f"malware: {ents['malware'][0]}")
@@ -85,11 +93,11 @@ def _shift(now_iso, hours):
     return (t + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def apply_scores(items, cve_rows, now_iso, watchlist=()):
+def apply_scores(items, cve_rows, now_iso, watchlist=(), tracked_actors=()):
     """Annotate items in place with `score` and `why`, newest-first as tiebreak."""
     idx = {c["cve"].upper(): c for c in cve_rows}
     for it in items:
-        s, why = score_item(it, idx, now_iso, watchlist)
+        s, why = score_item(it, idx, now_iso, watchlist, tracked_actors)
         it["score"] = s
         it["why"] = why[:4]
     return items

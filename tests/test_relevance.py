@@ -34,12 +34,41 @@ def test_watchlist_hit_scores_and_explains():
     assert s >= 30 and any("watchlist" in w for w in why)
 
 
+def test_tracked_actor_scores_and_names():
+    it = item(entities={"actors": ["Sandworm"], "malware": [], "vendors": [],
+                        "cves": []})
+    s, why = score_item(it, IDX, NOW, tracked_actors={"sandworm"})
+    assert s == 8
+    assert "actor: Sandworm" in why
+
+
+def test_untracked_leak_site_group_does_not_score_as_actor():
+    """A ransomware.live group not in the curated dictionary must NOT earn the
+    'tracked adversary' bonus — auto-tagging every group inflated ~half the feed
+    by 8 and mislabelled unknown groups as tracked."""
+    it = item(source="ransomwarelive",
+              entities={"actors": ["ObscureLeakGroup"], "malware": [],
+                        "vendors": [], "cves": []})
+    s, why = score_item(it, IDX, NOW, tracked_actors={"sandworm", "akira"})
+    assert s == 0
+    assert not any(w.startswith("actor:") for w in why)
+
+
+def test_tracked_ransomware_group_still_scores():
+    """A leak-site group that IS in the dictionary (e.g. Akira) keeps the bonus."""
+    it = item(entities={"actors": ["akira"], "malware": [], "vendors": [],
+                        "cves": []})
+    s, _ = score_item(it, IDX, NOW, tracked_actors={"akira"})
+    assert s == 8
+
+
 def test_score_is_capped_and_explained():
     it = item(severity="critical",
               published_at="2026-08-08T11:30:00Z",
               entities={"actors": ["Akira"], "malware": ["Cobalt Strike"],
                         "vendors": ["Fortinet"], "cves": ["CVE-2026-1111"]})
-    s, why = score_item(it, IDX, NOW, watchlist=["fortinet"])
+    s, why = score_item(it, IDX, NOW, watchlist=["fortinet"],
+                        tracked_actors={"akira"})
     assert s == 100                          # capped
     assert len(why) >= 4
 

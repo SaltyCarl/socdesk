@@ -28,6 +28,14 @@ def extract_entities(text, entities_dir="data/entities"):
     return found
 
 
+def tracked_actor_set(entities_dir="data/entities"):
+    """Lowercased set of curated tracked-adversary names — the authority for the
+    relevance scorer's "names a tracked adversary" signal. Only a name in this
+    dictionary earns the bonus; a raw leak-site group injected into an item's
+    actors (ransomware.live) does not, unless it is independently tracked here."""
+    return frozenset(a.lower() for a in _dictionaries(entities_dir)["actors"])
+
+
 RANSOM_ACTORS = {"akira", "lockbit", "alphv", "blackcat", "play", "cl0p",
                  "black basta", "ransomhub", "medusa", "rhysida", "qilin",
                  "8base", "conti", "royal"}
