@@ -64,3 +64,136 @@ def test_resolve_network_error_returns_none():
     def boom(url, **kw):
         raise RuntimeError("ipinfo 503")
     assert asn.resolve_asn("1.2.3.4", {}, boom, "tok") is None
+
+
+def _community(*entries):
+    """entries: (value, [categories]) -> a community_reports-shaped payload."""
+    return {"indicators": {
+        f"ipv4|{v}": {"type": "ipv4", "value": v, "reporters": 1,
+                      "categories": list(cats)} for v, cats in entries}}
+
+
+def _threat(*ips):
+    return {"ips": [{"ip": ip, "source": "feodotracker"} for ip in ips]}
+
+
+def _orgs_for(*pairs):
+    return {ip: {"org": org, "country": cc} for ip, org, cc in pairs}
+
+
+def test_aggregates_ips_on_one_asn_ranked():
+    orgs = _orgs_for(
+        ("185.220.101.34", "AS60729 Zwiebelfreunde e.V.", "DE"),
+        ("185.220.101.42", "AS60729 Zwiebelfreunde e.V.", "DE"),
+        ("162.243.103.246", "AS14061 DigitalOcean, LLC", "US"))
+    community = _community(("185.220.101.34", ["phishing"]),
+                          ("185.220.101.42", ["scanner", "phishing"]))
+    board = asn.build_asn_leaderboard(
+        community, _threat("162.243.103.246"), {},
+        _ipinfo_fetch(orgs), FIXED_NOW, token="tok")
+    assert board["count"] == 2
+    assert board["total_abusive_ips"] == 3 and board["unattributed_ips"] == 0
+    assert board["cap"] == 200 and board["truncated"] is False
+    assert [n["asn"] for n in board["networks"]] == ["AS60729", "AS14061"]  # ip_count desc
+    top = board["networks"][0]
+    assert top["asn"] == "AS60729" and top["isp"] == "Zwiebelfreunde e.V."
+    assert top["ip_count"] == 2 and top["report_count"] == 2
+    assert top["categories"] == ["phishing", "scanner"]   # deduped + sorted union
+    assert top["sources"] == ["community"] and top["country"] == "DE"
+    assert len(top["examples"]) <= asn.EXAMPLE_CAP
+    assert top["examples"] == sorted(top["examples"])
+
+
+def test_rank_tie_breaks_on_asn():
+    orgs = _orgs_for(("1.1.1.1", "AS200 B Net", "US"),
+                     ("2.2.2.2", "AS100 A Net", "US"))
+    board = asn.build_asn_leaderboard(
+        _community(("1.1.1.1", ["ssh"]), ("2.2.2.2", ["ssh"])), {},
+        {}, _ipinfo_fetch(orgs), FIXED_NOW, token="tok")
+    assert [n["asn"] for n in board["networks"]] == ["AS100", "AS200"]  # equal count -> asn asc
+
+
+def test_feed_only_asn_has_zero_report_count():
+    orgs = _orgs_for(("162.243.103.246", "AS14061 DigitalOcean, LLC", "US"))
+    board = asn.build_asn_leaderboard(
+        {}, _threat("162.243.103.246"), {}, _ipinfo_fetch(orgs), FIXED_NOW, token="tok")
+    (row,) = board["networks"]
+    assert row["report_count"] == 0 and row["sources"] == ["abuse.ch"]
+    assert row["categories"] == []                 # abuse.ch malware family != category enum
+    assert row["report_count"] <= row["ip_count"]
+
+
+def test_both_sources_merge_on_one_asn():
+    orgs = _orgs_for(("1.1.1.1", "AS100 Shared Net", "US"),
+                     ("2.2.2.2", "AS100 Shared Net", "US"))
+    board = asn.build_asn_leaderboard(
+        _community(("1.1.1.1", ["ssh"])), _threat("2.2.2.2"),
+        {}, _ipinfo_fetch(orgs), FIXED_NOW, token="tok")
+    (row,) = board["networks"]
+    assert row["ip_count"] == 2 and row["report_count"] == 1
+    assert row["sources"] == ["abuse.ch", "community"]   # sorted union
+
+
+def test_unattributed_ip_gets_no_fabricated_asn():
+    orgs = _orgs_for(("1.2.3.4", "Some ISP Without ASN", "US"))
+    board = asn.build_asn_leaderboard(
+        _community(("1.2.3.4", ["ssh"])), {}, {}, _ipinfo_fetch(orgs), FIXED_NOW, token="tok")
+    assert board["networks"] == []
+    assert board["unattributed_ips"] == 1 and board["total_abusive_ips"] == 1
+
+
+def test_non_ip_indicators_are_not_unattributed():
+    community = {"indicators": {"domain|evil.example": {
+        "type": "domain", "value": "evil.example", "reporters": 1,
+        "categories": ["phishing"]}}}
+    board = asn.build_asn_leaderboard(community, {}, {}, _ipinfo_fetch({}), FIXED_NOW, token="tok")
+    assert board["total_abusive_ips"] == 0 and board["unattributed_ips"] == 0
+
+
+def test_cache_pruned_to_ips_seen_this_run():
+    orgs = _orgs_for(("1.2.3.4", "AS64500 Example ISP", "US"))
+    cache = {"5.5.5.5": {"asn": "AS1", "isp": "old", "country": "US"}}
+    asn.build_asn_leaderboard(
+        _community(("1.2.3.4", ["ssh"])), {}, cache, _ipinfo_fetch(orgs), FIXED_NOW, token="tok")
+    assert "5.5.5.5" not in cache and "1.2.3.4" in cache
+
+
+def test_cached_ip_is_not_refetched_by_builder():
+    cache = {"9.9.9.9": {"asn": "AS19281", "isp": "Quad9", "country": "CH"}}
+    calls = []
+    asn.build_asn_leaderboard(
+        _community(("9.9.9.9", ["scanner"])), {}, cache,
+        _ipinfo_fetch({}, calls), FIXED_NOW, token="tok")
+    assert calls == []                             # cache-first: quota discipline
+
+
+def test_sources_switch_to_community_only(monkeypatch):
+    monkeypatch.setattr(asn, "SOURCES", ("community",))
+    orgs = _orgs_for(("1.1.1.1", "AS100 Community Net", "US"))
+    board = asn.build_asn_leaderboard(
+        _community(("1.1.1.1", ["ssh"])), _threat("162.243.103.246"),
+        {}, _ipinfo_fetch(orgs), FIXED_NOW, token="tok")
+    assert {s for n in board["networks"] for s in n["sources"]} == {"community"}
+    assert board["total_abusive_ips"] == 1         # abuse.ch IP excluded entirely
+
+
+def test_missing_token_all_unattributed_but_valid():
+    board = asn.build_asn_leaderboard(
+        _community(("1.2.3.4", ["ssh"])), _threat("5.6.7.8"),
+        {}, _ipinfo_fetch({}), FIXED_NOW, token=None)
+    assert board is not None and board["networks"] == []
+    assert board["unattributed_ips"] == 2 and board["total_abusive_ips"] == 2
+    assert board["generated_at"] == asn.iso(FIXED_NOW)
+
+
+def test_fetch_raising_on_every_ip_still_valid():
+    def boom(url, **kw):
+        raise RuntimeError("ipinfo 503")
+    board = asn.build_asn_leaderboard(
+        _community(("1.2.3.4", ["ssh"])), {}, {}, boom, FIXED_NOW, token="tok")
+    assert board is not None and board["networks"] == [] and board["unattributed_ips"] == 1
+
+
+def test_structural_error_returns_none():
+    bad = {"indicators": {"ipv4|x": {"type": "ipv4"}}}   # no "value" -> KeyError inside build
+    assert asn.build_asn_leaderboard(bad, {}, {}, _ipinfo_fetch({}), FIXED_NOW, token="tok") is None
