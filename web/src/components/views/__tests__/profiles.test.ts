@@ -211,8 +211,32 @@ describe('profileFor — empty slug (directory sentinel)', () => {
     const p = profileFor('', data)
     expect(p).toEqual({
       slug: '', name: '', fingerprint: null, ransomware: null, reporting: [], related: [], intel: null,
-      claimedVictims: [], activity: null,
+      claimedVictims: [], activity: null, associatedMalware: [],
     })
+  })
+})
+
+/* ---------------- associatedMalware: ATT&CK software + feed co-occurrence -- */
+
+describe('profileFor — associatedMalware: ATT&CK software + feed co-occurrence, deduped', () => {
+  it('unions ATT&CK software with feed-entity malware, deduping case-insensitively with ATT&CK casing preferred, sorted', () => {
+    const coOccur: FeedItem[] = [
+      {
+        id: 'm1', source: 'ransomwarelive', category: 'ransomware',
+        title: 'axiom posted a new victim claim', summary: 'n/a', url: 'http://x.onion/m1',
+        entities: { actors: ['Axiom'], malware: ['derusbi', 'Cobalt Strike'] },
+        published_at: '2026-08-20T00:00:00Z',
+      },
+    ]
+    const p = profileFor('axiom', { ...data, feed: [...data.feed, ...coOccur] })
+    // ATT&CK software (Axiom fixture): Derusbi, Hikit. Feed adds a lowercase
+    // 'derusbi' dupe (ATT&CK casing wins) + a genuinely new 'Cobalt Strike'.
+    expect(p.associatedMalware).toEqual(['Cobalt Strike', 'Derusbi', 'Hikit'])
+  })
+
+  it('is honest-empty when neither ATT&CK software nor feed co-occurrence names anything', () => {
+    const p = profileFor('kimsuky', data)
+    expect(p.associatedMalware).toEqual([])
   })
 })
 

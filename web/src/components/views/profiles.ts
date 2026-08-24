@@ -275,6 +275,13 @@ export interface ProfileResult {
   claimedVictims: ClaimedVictim[]
   /** Claim rollup aggregates — null when the group posted no claims. */
   activity: ProfileActivity | null
+  /** Malware / tooling families associated with this group: ATT&CK `software`
+   *  on its own fingerprint UNIONED with the malware entities co-occurring on
+   *  feed items that name it as an actor. An OBSERVED co-occurrence surface
+   *  (abuse.ch/ATT&CK CC0), never a synthesised "X uses Y" verdict — the
+   *  render layer renders these as link-out chips only. Honest [] when
+   *  neither source names anything. */
+  associatedMalware: string[]
 }
 
 const OUTLET_RE = /^\s*\[([^\]]+)\]\s*/
@@ -472,6 +479,42 @@ function claimedVictimsFor(slug: string, feed: FeedItem[]): ClaimedVictim[] {
   })
 }
 
+/** Malware / tooling families associated with a slug: ATT&CK `software` on
+ *  its own fingerprint (already-clean canonical names) UNIONED with the
+ *  malware entities on feed items whose `entities.actors` name this slug —
+ *  i.e. co-occurrence, not any category restriction (an APT/campaign
+ *  article naming both counts same as a ransomware.live claim).
+ *
+ *  Dedupe is case-insensitive; when a family appears in BOTH sources, the
+ *  ATT&CK spelling wins (it's the canonical casing) since ATT&CK software is
+ *  folded into the map first and a later case-insensitive dupe is dropped.
+ *  Sorted case-insensitively for a deterministic, render-stable order — this
+ *  list has no natural time axis (unlike claims/reporting) to sort by
+ *  instead. Honest [] when neither source names anything — never a guess. */
+function associatedMalwareFor(
+  slug: string,
+  fingerprint: MitreFingerprint | null,
+  feed: FeedItem[],
+): string[] {
+  const byLower = new Map<string, string>()
+
+  for (const name of fingerprint?.software ?? []) {
+    if (!name) continue
+    const key = name.toLowerCase()
+    if (!byLower.has(key)) byLower.set(key, name)
+  }
+  for (const it of feed) {
+    if (!(it.entities?.actors ?? []).some((a) => a?.toLowerCase() === slug)) continue
+    for (const m of it.entities?.malware ?? []) {
+      if (!m) continue
+      const key = m.toLowerCase()
+      if (!byLower.has(key)) byLower.set(key, m)
+    }
+  }
+
+  return [...byLower.values()].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+}
+
 /** APT / campaign reporting that names the slug, newest first. `keep` is the
  *  reportsFor GATE (established-entity or dictionary-tracked — see
  *  `profileFor`): when false, a bare feed mention of the slug never becomes
@@ -522,6 +565,7 @@ function rawNameFor(slug: string, feed: FeedItem[]): string | undefined {
  *   • intel null        → no curated CISA #StopRansomware seed entry on file
  *   • claimedVictims []  → no attributed leak-site victim posts for this group
  *   • activity null     → no leak-site claims to aggregate (mirrors ransomware)
+ *   • associatedMalware [] → no ATT&CK software AND no feed co-occurrence
  *
  * The reportsFor GATE: the client carries NO copy of any server-side curated
  * tracked-actor dictionary, so a report is kept only when the slug is an
@@ -550,7 +594,7 @@ export function profileFor(
   if (!s) {
     return {
       slug: '', name: '', fingerprint: null, ransomware: null, reporting: [], related: [], intel: null,
-      claimedVictims: [], activity: null,
+      claimedVictims: [], activity: null, associatedMalware: [],
     }
   }
 
@@ -582,7 +626,10 @@ export function profileFor(
   const relNames = fingerprint ? [fingerprint.name, ...fingerprint.aliases] : [name]
   const related = relatedFor(index, relNames)
 
+  const associatedMalware = associatedMalwareFor(s, fingerprint, data.feed)
+
   return {
     slug: s, name, fingerprint, ransomware, reporting, related, intel, claimedVictims, activity,
+    associatedMalware,
   }
 }
