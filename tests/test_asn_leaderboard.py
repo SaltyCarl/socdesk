@@ -212,10 +212,23 @@ def test_built_payload_validates_against_schema():
     assert validate_payload("asn_leaderboard.json", board, "schemas") == []
 
 
-def test_committed_empty_seed_is_valid():
-    seed = json.loads(Path("data/state/asn_leaderboard.json").read_text(encoding="utf-8"))
-    assert validate_payload("asn_leaderboard.json", seed, "schemas") == []
-    assert seed["networks"] == [] and seed["count"] == 0
+def test_committed_dataset_stays_schema_valid():
+    # The committed asn_leaderboard.json is a LIVING artifact the pipeline rewrites
+    # as abusive IPs resolve to ASNs — it may be empty OR populated. The invariant
+    # is that it always VALIDATES (a corrupt published file would break gate()'s
+    # last-known-good), NOT that it is empty. (An "is-empty" assertion here breaks
+    # every run once real data publishes — see the Phase-3 lesson.)
+    board = json.loads(Path("data/state/asn_leaderboard.json").read_text(encoding="utf-8"))
+    assert validate_payload("asn_leaderboard.json", board, "schemas") == []
+
+
+def test_empty_envelope_is_valid():
+    # The empty-envelope shape (the first-commit seed) validates and is empty —
+    # tested against the builder's own empty output, not the live committed file.
+    empty = asn.build_asn_leaderboard(
+        {"indicators": {}}, [], {}, _ipinfo_fetch({}), FIXED_NOW, token="tok")
+    assert validate_payload("asn_leaderboard.json", empty, "schemas") == []
+    assert empty["networks"] == [] and empty["count"] == 0
 
 
 def test_no_pii_tokens_in_serialized_payload():
