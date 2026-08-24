@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildProfileIndex, profileFor } from '../profiles'
-import type { FeedItem, Profile, RelationsPayload } from '../types'
+import type { FeedItem, Profile, RansomIntel, RelationsPayload } from '../types'
 
 // em-dash (U+2014) is the real separator ransomware.live uses in a single-claim
 // summary ("Sector: X — Country: YY."). Written as an escape so file encoding
@@ -102,7 +102,7 @@ const relations: RelationsPayload = {
   ],
 }
 
-const data = { actors, malware, feed, relations }
+const data = { actors, malware, feed, relations, intel: [] as RansomIntel[] }
 
 /* ---------------- profileFor: the fusion ---------------------------------- */
 
@@ -208,7 +208,7 @@ describe('profileFor — empty slug (directory sentinel)', () => {
   it('returns an all-empty result, never a fabricated one', () => {
     const p = profileFor('', data)
     expect(p).toEqual({
-      slug: '', name: '', fingerprint: null, ransomware: null, reporting: [], related: [],
+      slug: '', name: '', fingerprint: null, ransomware: null, reporting: [], related: [], intel: null,
     })
   })
 })
@@ -216,7 +216,7 @@ describe('profileFor — empty slug (directory sentinel)', () => {
 /* ---------------- buildProfileIndex: the directory ------------------------ */
 
 describe('buildProfileIndex — union + dedup + merged flags', () => {
-  const index = buildProfileIndex(actors, malware, feed)
+  const index = buildProfileIndex(actors, malware, feed, [])
   const by = (slug: string) => index.find((e) => e.slug === slug)
 
   it('unions MITRE actors, MITRE software, ransomware groups + named actors', () => {
@@ -259,5 +259,35 @@ describe('buildProfileIndex — union + dedup + merged flags', () => {
   it('does not duplicate a slug', () => {
     const slugs = index.map((e) => e.slug)
     expect(new Set(slugs).size).toBe(slugs.length)
+  })
+})
+
+/* ---------------- intel fusion: curated CISA seed ---------------------- */
+
+const INTEL: RansomIntel[] = [
+  { slug: 'akira', name: 'Akira', aliases: ['Storm-1567'],
+    initial_access_cves: ['CVE-2023-20269'],
+    advisory: { id: 'AA24-109A', url: 'https://www.cisa.gov/x' },
+    tools: ['Rclone'], ransom_note: ['akira_readme.txt'], extensions: ['.akira'], raas: true },
+]
+
+describe('intel fusion', () => {
+  it('attaches the seed entry to a matching slug', () => {
+    const p = profileFor('akira', { actors: [], malware: [], feed: [], relations: null, intel: INTEL })
+    expect(p.intel?.advisory?.id).toBe('AA24-109A')
+    expect(p.intel?.initial_access_cves).toEqual(['CVE-2023-20269'])
+  })
+  it('resolves the seed by alias', () => {
+    const p = profileFor('storm-1567', { actors: [], malware: [], feed: [], relations: null, intel: INTEL })
+    expect(p.intel?.name).toBe('Akira')
+  })
+  it('is null for an unseeded group', () => {
+    const p = profileFor('nitrogen', { actors: [], malware: [], feed: [], relations: null, intel: INTEL })
+    expect(p.intel).toBeNull()
+  })
+  it('lists a seeded-but-quiet group in the directory with hasIntel', () => {
+    const idx = buildProfileIndex([], [], [], INTEL)
+    const akira = idx.find((e) => e.slug === 'akira')
+    expect(akira?.hasIntel).toBe(true)
   })
 })

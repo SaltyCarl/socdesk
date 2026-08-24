@@ -216,6 +216,30 @@ export interface RegistryPayload {
   sources: RegistrySource[]
 }
 
+/* ---------------- ransomware intel (curated CISA seed) ---------------- */
+
+/** One curated CISA #StopRansomware group entry. Fields are optional in TS
+ *  since a seed entry may honestly omit a field the advisory never covered
+ *  (honest-empty over a fabricated value). */
+export interface RansomIntel {
+  slug: string
+  name: string
+  aliases?: string[]
+  first_seen?: string
+  raas?: boolean
+  initial_access_cves?: string[]
+  advisory?: { id: string; url: string }
+  tools?: string[]
+  ransom_note?: string[]
+  extensions?: string[]
+}
+
+export interface RansomIntelPayload {
+  generated_at?: string
+  schema_version?: number
+  groups?: RansomIntel[]
+}
+
 /* ---------------- networks (ASN abuse leaderboard) ---------------- */
 
 /** One network (ASN) row. Reported/blocklisted abuse volume hosted on the

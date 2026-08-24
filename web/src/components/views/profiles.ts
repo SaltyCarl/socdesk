@@ -1,11 +1,13 @@
 // profiles.ts — the actor / ransomware-group / malware PROFILE fusion layer.
 //
-// A profile fuses up to four INDEPENDENT snapshots into one honest picture of a
+// A profile fuses up to five INDEPENDENT snapshots into one honest picture of a
 // single named entity:
 //   • MITRE ATT&CK fingerprint (actors.json / malware.json) — the encyclopedia
 //   • ransomware.live leak-site activity (feed.json) — who they are hitting now
 //   • APT / campaign reporting (feed.json) — what outlets are writing about them
 //   • relations.json co-occurrence — what else shows up alongside them
+//   • curated CISA #StopRansomware intel (ransomware_intel.json) — initial
+//     access, tooling, and in-hand detection signatures for a seeded group
 //
 // The honesty doctrine (shared/verdict/doctrine.ts) governs every selector here:
 // SOCDesk emits NO verdict of its own and NEVER synthesises a description, TTP,
@@ -15,7 +17,7 @@
 // Pure functions, no React, no I/O — the whole fusion is unit-testable in a
 // plain Node env (see __tests__/profiles.test.ts).
 
-import type { FeedItem, Profile, RelationsPayload } from './types'
+import type { FeedItem, Profile, RansomIntel, RelationsPayload } from './types'
 import { buildRelationsIndex, relatedFor, type RelatedRow } from './relations'
 import { claimCount } from '../overview/aggregations'
 
@@ -63,6 +65,9 @@ export interface ProfileIndexEntry {
   aliases?: string[]
   /** Leak-site victim claims in the window — present iff the group posts claims. */
   claimCount?: number
+  /** True when a curated CISA intel seed entry exists for this slug (by slug OR
+   *  alias) — even when the group has posted no leak-site claims this window. */
+  hasIntel?: boolean
 }
 
 /** Name + alias → profile, first-writer-wins (so a canonical name is never
@@ -88,15 +93,17 @@ function aliasIndex(profiles: Profile[]): Map<string, Profile> {
 /**
  * The searchable directory: the UNION of MITRE actors + MITRE software + the
  * ransomware groups that posted leak-site claims + the actors named in APT /
- * campaign reporting. De-duplicated by slug; when an entity appears in more than
- * one source its flags MERGE (Akira keeps its actor fingerprint AND gains its
- * claim tally). A leak-site / reporting name that only exists via an ATT&CK
- * ALIAS still resolves `hasMitre` so the directory badge matches the card.
+ * campaign reporting + the curated CISA intel seed. De-duplicated by slug; when
+ * an entity appears in more than one source its flags MERGE (Akira keeps its
+ * actor fingerprint AND gains its claim tally). A leak-site / reporting name
+ * that only exists via an ATT&CK ALIAS still resolves `hasMitre` so the
+ * directory badge matches the card.
  */
 export function buildProfileIndex(
   actors: Profile[],
   malware: Profile[],
   feed: FeedItem[],
+  intel: RansomIntel[],
 ): ProfileIndexEntry[] {
   const bySlug = new Map<string, ProfileIndexEntry>()
 
@@ -135,6 +142,15 @@ export function buildProfileIndex(
     const existing = bySlug.get(slug)
     if (existing) existing.claimCount = count
     else bySlug.set(slug, { slug, name: raw, kind: 'ransomware', hasMitre: false, claimCount: count })
+  }
+
+  // curated CISA intel seed — flags a group even when it posted no claims
+  // this window (a seeded-but-quiet entry still belongs in the directory).
+  for (const g of intel) {
+    const slug = g.slug.toLowerCase()
+    const existing = bySlug.get(slug)
+    if (existing) existing.hasIntel = true
+    else bySlug.set(slug, { slug, name: g.name, kind: 'ransomware', hasMitre: false, hasIntel: true })
   }
 
   // actors named in APT / campaign reporting (resolve ATT&CK by name OR alias).
@@ -222,6 +238,9 @@ export interface ProfileResult {
   ransomware: RansomwareActivity | null
   reporting: Report[]
   related: RelatedRow[]
+  /** Curated CISA #StopRansomware seed entry — null when the group is not
+   *  seeded (honest empty; consumers must not synthesise this). */
+  intel: RansomIntel | null
 }
 
 const OUTLET_RE = /^\s*\[([^\]]+)\]\s*/
@@ -304,6 +323,18 @@ function findFingerprint(
   }
 }
 
+/** The curated CISA intel for a slug — matched by slug OR alias (lowercased).
+ *  null when the group is not seeded (honest empty; the panel is absent). */
+export function intelFor(slug: string, intel: RansomIntel[]): RansomIntel | null {
+  return (
+    intel.find(
+      (g) =>
+        g.slug.toLowerCase() === slug ||
+        (g.aliases ?? []).some((a) => a?.toLowerCase() === slug),
+    ) ?? null
+  )
+}
+
 /** Leak-site activity for a slug, or null when the group posted no claims. */
 function ransomwareActivity(slug: string, feed: FeedItem[]): RansomwareActivity | null {
   const matched = feed.filter(
@@ -376,7 +407,7 @@ function rawNameFor(slug: string, feed: FeedItem[]): string | undefined {
 }
 
 /**
- * Fuse the four snapshots for one slug. Every field degrades to a HONEST empty
+ * Fuse the five snapshots for one slug. Every field degrades to a HONEST empty
  * on its own:
  *   • fingerprint null  → no ATT&CK profile on file
  *   • ransomware null   → no leak-site claims for this group
@@ -384,6 +415,7 @@ function rawNameFor(slug: string, feed: FeedItem[]): string | undefined {
  *   • related []        → no ATT&CK links / feed co-occurrences (ransomware-only
  *                         groups have no relations node, so this is empty — the
  *                         card states that rather than synthesising links).
+ *   • intel null        → no curated CISA #StopRansomware seed entry on file
  */
 export function profileFor(
   slug: string,
@@ -392,16 +424,20 @@ export function profileFor(
     malware: Profile[]
     feed: FeedItem[]
     relations: RelationsPayload | null
+    intel: RansomIntel[]
   },
 ): ProfileResult {
   const s = slug.trim().toLowerCase()
   if (!s) {
-    return { slug: '', name: '', fingerprint: null, ransomware: null, reporting: [], related: [] }
+    return {
+      slug: '', name: '', fingerprint: null, ransomware: null, reporting: [], related: [], intel: null,
+    }
   }
 
   const fingerprint = findFingerprint(s, data.actors, data.malware)
   const ransomware = ransomwareActivity(s, data.feed)
   const reporting = reportsFor(s, data.feed)
+  const intel = intelFor(s, data.intel)
 
   const index = buildRelationsIndex(data.relations)
   const name = fingerprint?.name ?? rawNameFor(s, data.feed) ?? s
@@ -411,5 +447,5 @@ export function profileFor(
   const relNames = fingerprint ? [fingerprint.name, ...fingerprint.aliases] : [name]
   const related = relatedFor(index, relNames)
 
-  return { slug: s, name, fingerprint, ransomware, reporting, related }
+  return { slug: s, name, fingerprint, ransomware, reporting, related, intel }
 }
