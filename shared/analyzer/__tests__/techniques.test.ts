@@ -453,4 +453,25 @@ describe('cmd-var-obfuscation surfaced as a signal (review 2.5)', () => {
     expect(s).toBeTruthy()
     expect(s!.techniqueIds).toEqual(expect.arrayContaining(['T1140', 'T1027']))
   })
+
+  // Review recall gap: the FIRST-declared `set` is often a decoy — the
+  // referenced var(s) can be any LATER-declared one(s). Chained multi-`set`
+  // is the common real form of this obfuscation, so the rule must scan every
+  // declaration, not just the first.
+  it('fires when the referenced var is a LATER `set` declaration, not the first (decoy first var)', () => {
+    const ids = sig('cmd /c "set a=unused&&set b=power&&set c=shell&&%b%%c% -c whoami"')
+    expect(ids).toContain('cmd-var-obfuscation')
+  })
+
+  it('benign twin (chained): multiple `set` declarations with NO reference to any of them anywhere does NOT fire', () => {
+    expect(sig('set a=unused&&set b=power&&set c=shell')).not.toContain('cmd-var-obfuscation')
+  })
+
+  it('trigger on the decoy-first-var case cites the ACTUAL referenced declaration (b), not the unreferenced decoy (a)', () => {
+    const input = 'cmd /c "set a=unused&&set b=power&&set c=shell&&%b%%c% -c whoami"'
+    const s = classify(buildContext(input, [], 'unknown')).find((x) => x.id === 'cmd-var-obfuscation')
+    expect(s).toBeTruthy()
+    expect(input.toLowerCase()).toContain(s!.trigger.toLowerCase())
+    expect(s!.trigger.toLowerCase()).not.toContain('set a=')
+  })
 })

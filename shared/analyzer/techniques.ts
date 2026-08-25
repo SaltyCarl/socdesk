@@ -449,12 +449,21 @@ export const RULES: SignatureRule[] = [
       // result. A bare %PATH% with no matching `set` must never fire (the
       // benign twin) — reassembleCmdVars.ts's own LITERAL-SAFETY guarantee
       // mirrored here: only a var actually `set` in the text counts.
-      const m = ctx.text.match(/\bset\s+"?([A-Za-z_][\w]*)=/i)
-      if (!m) return { hit: false }
-      const name = m[1]
-      const ref = ctx.text.match(new RegExp(`[%!]${name}[:%!]`, 'i'))
-      if (!ref) return { hit: false }
-      return { hit: true, trigger: triggerFor(ctx, [m[0], ref[0]]) }
+      //
+      // Review recall gap: chaining decoy `set` declarations ahead of the
+      // real one (`set a=unused&&set b=power&&...&&%b%`) is the common real
+      // form of this obfuscation — checking only the FIRST `set` match (as
+      // the v1 implementation did) missed every one of those. Scan ALL `set`
+      // declarations and fire the moment ANY declared var has a matching
+      // reference — never just the first.
+      const setRe = /\bset\s+"?([A-Za-z_][\w]*)=/gi
+      let m: RegExpExecArray | null
+      while ((m = setRe.exec(ctx.text)) !== null) {
+        const name = m[1]
+        const ref = ctx.text.match(new RegExp(`[%!]${name}[:%!]`, 'i'))
+        if (ref) return { hit: true, trigger: triggerFor(ctx, [m[0], ref[0]]) }
+      }
+      return { hit: false }
     },
   },
   {

