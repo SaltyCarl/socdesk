@@ -191,13 +191,18 @@ function downloadMethodFromTrigger(trigger: string): string {
   return trigger.replace(/^\.+/, '')
 }
 
-// The clickfix SIGNAL (techniques.ts) fires broadly — including on a bare
-// hidden+no-profile+fetch+IEX cradle with NO literal verification-prompt text
-// (its own `hiddenFetchIex` branch). Asserting "presents a fake
-// human-verification prompt" there would be an invented fact. The delivery
-// bullet re-checks for the actual decoy phrase / headless-conhost text — the
-// same discriminators techniques.ts's own decoy/headless branches use — so it
-// only fires when a real ClickFix presentation is present in the corpus.
+// The clickfix SIGNAL (techniques.ts) requires a genuine paste-and-run trait
+// to fire at all (a lure/decoy phrase, a headless conhost, or an mshta lure —
+// Task 14 removed the old `hiddenFetchIex` branch that used to fire on a bare
+// hidden+no-profile+fetch+IEX cradle alone, since that shape has no literal
+// verification-prompt text and reads as download-cradle only). So by the time
+// this bullet's `fires()` sees the signal, a real trait is already present —
+// but this re-check is kept as defense in depth (and to avoid coupling this
+// bullet's wording to techniques.ts's internal branch structure): it
+// independently re-derives "a real decoy phrase or headless-conhost text is
+// present" via the same discriminators techniques.ts's own decoy/headless
+// checks use, so "presents a fake human-verification prompt" is never
+// asserted without that exact text backing it up.
 const CLICKFIX_DECOY_PHRASES = ['verify you are human', 'i am not a robot', 'ray id', 'captcha', 'press win+r', 'press enter to verify']
 function isClickfixPresentation(ctx: BulletContext): boolean {
   const decoy = CLICKFIX_DECOY_PHRASES.some((p) => ctx.lower.includes(p)) ||
@@ -459,6 +464,54 @@ export const RULES: ActionRule[] = [
     },
   },
 
+  // shadow-recovery-tamper (T1490) splits into TWO ActionRules off the ONE
+  // signal (the technique tally stays one signal — only the bullet layer
+  // splits): a deletion sub-fact (vssadmin/wmic shadow-copy vs. wbadmin
+  // catalog vs. wbadmin system-state backup) and an independent
+  // recovery-disable sub-fact (bcdedit). Each re-tests ctx for its OWN
+  // resolved sub-fact and renders ONLY it — no "X / Y" hedge (RENDER RULE,
+  // header comment) — mirroring defender-disable-rtm/defender-add-exclusion
+  // above. A bcdedit-only input must never claim shadow copies were deleted,
+  // and a vssadmin-only input must never claim recovery was disabled.
+  {
+    id: 'shadow-copy-delete',
+    requiredFacts: ['signal: shadow-recovery-tamper', 'vssadmin/wmic shadow-copy OR wbadmin backup-catalog/system-state-backup deletion matched'],
+    family: 'evade',
+    fires(ctx) {
+      const s = ctx.signals.find((x) => x.id === 'shadow-recovery-tamper')
+      if (!s) return null
+      const wbadmin = ctx.lower.includes('wbadmin')
+      const catalog = wbadmin && ctx.lower.includes('delete catalog')
+      const stateBackup = wbadmin && ctx.lower.includes('delete systemstatebackup')
+      const shadowCopy = ctx.lower.includes('vssadmin') || (ctx.lower.includes('wmic') && ctx.lower.includes('shadowcopy'))
+      if (!catalog && !stateBackup && !shadowCopy) return null // e.g. a bcdedit-only fire — nothing for THIS bullet to resolve
+      const kind = catalog ? 'catalog' : stateBackup ? 'systemstatebackup' : 'shadowcopy'
+      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: { kind } }
+    },
+    render(m) {
+      const text =
+        m.vars.kind === 'catalog' ? 'Deletes the Windows Server backup catalog — destroys recovery data' :
+        m.vars.kind === 'systemstatebackup' ? 'Deletes system-state backups — destroys recovery data' :
+        'Deletes volume shadow copies — destroys ransomware rollback'
+      return { verb: 'Deletes', text }
+    },
+  },
+  {
+    id: 'recovery-disable',
+    requiredFacts: ['signal: shadow-recovery-tamper', 'bcdedit recoveryenabled no OR bootstatuspolicy ignoreallfailures matched'],
+    family: 'evade',
+    fires(ctx) {
+      const s = ctx.signals.find((x) => x.id === 'shadow-recovery-tamper')
+      if (!s) return null
+      const bcdedit = ctx.lower.includes('recoveryenabled') || ctx.lower.includes('bootstatuspolicy')
+      if (!bcdedit) return null // e.g. a vssadmin-only fire — nothing for THIS bullet to resolve
+      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
+    },
+    render() {
+      return { verb: 'Disables', text: 'Disables Windows automatic recovery (bcdedit)' }
+    },
+  },
+
   // ---- Fetch/download (tier 7) — method named (SOC must-fix #4) ----
   {
     id: 'download-cradle-fetch',
@@ -548,10 +601,13 @@ export const RULES: ActionRule[] = [
     fires(ctx) {
       const s = ctx.signals.find((x) => x.id === 'lolbin' && x.trigger === 'regsvr32')
       if (!s) return null
-      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
+      const squiblydoo = /\/i:http/i.test(ctx.lower) || ctx.lower.includes('scrobj')
+      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: { squiblydoo: squiblydoo ? '1' : '' } }
     },
-    render() {
-      return { verb: 'Registers', text: 'Registers and executes a remote script via regsvr32 (Squiblydoo)' }
+    render(m) {
+      return m.vars.squiblydoo
+        ? { verb: 'Executes', text: 'Executes a remote scriptlet via regsvr32 (Squiblydoo)' }
+        : { verb: 'Executes', text: 'Executes regsvr32 against a remote target' }
     },
   },
   {
@@ -564,7 +620,7 @@ export const RULES: ActionRule[] = [
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
     },
     render() {
-      return { verb: 'Executes', text: 'Executes code via rundll32' }
+      return { verb: 'Executes', text: 'Executes code via a rundll32 proxy invocation' }
     },
   },
   {
@@ -610,6 +666,33 @@ export const RULES: ActionRule[] = [
     },
     render() {
       return { verb: 'Executes', text: 'Executes the downloaded content in memory (not written to disk)' }
+    },
+  },
+  {
+    id: 'disk-drop-exec',
+    requiredFacts: ['signal: disk-dropper'],
+    family: 'execute',
+    fires(ctx) {
+      const s = ctx.signals.find((x) => x.id === 'disk-dropper')
+      if (!s) return null
+      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
+    },
+    render() {
+      return { verb: 'Executes', text: 'Downloads a file to disk and executes it' }
+    },
+  },
+
+  {
+    id: 'offensive-tool-run',
+    requiredFacts: ['signal: offensive-tool'],
+    family: 'execute',
+    fires(ctx) {
+      const s = ctx.signals.find((x) => x.id === 'offensive-tool')
+      if (!s) return null
+      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: { name: s.trigger } }
+    },
+    render(m) {
+      return { verb: 'Runs', text: `Runs a named offensive/credential-theft tool (${m.vars.name})` }
     },
   },
 
@@ -728,6 +811,26 @@ export const RULES: ActionRule[] = [
     },
     render() {
       return { verb: 'Notes', text: 'String-concat / eval obfuscation present in this script — not resolved' }
+    },
+  },
+
+  // cmd/set/%var% honesty notice — same quarantine-to-opaque discipline as the
+  // WSH/HTA pair above (D3/D6, review 2.5): the cmd-var-obfuscation SIGNAL
+  // fires off the raw corpus text independent of whether preprocess.ts's
+  // reassembleCmdVars actually resolved the construct, so this bullet must
+  // never claim more than "obfuscation was present" — it never asserts the
+  // reassembly succeeded or failed.
+  {
+    id: 'cmd-var-obfuscation-notice',
+    requiredFacts: ['signal: cmd-var-obfuscation'],
+    family: 'decode',
+    fires(ctx) {
+      const s = ctx.signals.find((x) => x.id === 'cmd-var-obfuscation')
+      if (!s) return null
+      return { layerIndex: 0, confidence: 'opaque', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
+    },
+    render() {
+      return { verb: 'Notes', text: 'cmd variable-substitution obfuscation present — the reassembled command may be incomplete; treat any thin result as opaque' }
     },
   },
 ]

@@ -7,6 +7,7 @@ import { resolve, normalize } from './resolve'
 import { buildContext, classify, RULES } from './techniques'
 import { decodeNumericCharCodes } from './wsh'
 import { deriveBullets } from './bullets'
+import { detectResidue } from './residue'
 
 const WRAPPER_INTERPRETERS = new Set<Interpreter>(['cmd', 'mshta', 'wscript', 'cscript'])
 const WSH_INTERPRETERS = new Set<Interpreter>(['mshta', 'wscript', 'cscript'])
@@ -100,7 +101,21 @@ function dedupeFlags(flags: EvasionFlag[]): EvasionFlag[] {
   return out
 }
 
+// Input size cap (review 2.6): a pasted stager can be arbitrarily large, and
+// re-tokenizing/re-scanning an unbounded corpus on every keystroke is a real
+// cost (and, unbounded, a DoS surface). Cap the RAW input BEFORE preprocess()
+// ever sees it, and never truncate silently — the excess is surfaced as an
+// opaque layer + bullet below (review 2.6's "must never silently truncate"),
+// which also flips confidence.state to 'partial' via the existing count logic.
+const MAX_INPUT_BYTES = 64 * 1024
+
 export async function analyze(input: string): Promise<AnalysisResult> {
+  let truncatedNote: string | null = null
+  if (input.length > MAX_INPUT_BYTES) {
+    const notScannedKb = Math.round((input.length - MAX_INPUT_BYTES) / 1024)
+    truncatedNote = `input truncated for analysis — ${notScannedKb} KB not scanned`
+    input = input.slice(0, MAX_INPUT_BYTES)
+  }
   const outer = preprocess(input)
   let { script, encoded, flags } = outer
   let interpreter = outer.interpreter
@@ -151,15 +166,30 @@ export async function analyze(input: string): Promise<AnalysisResult> {
     }
   }
 
-  // Layer 2 (depth 1): an embedded Base64 blob that inflates (gzip/raw-DEFLATE cradle).
+  // Layer 2 (depth 1): an embedded Base64 blob that inflates (gzip/raw-DEFLATE cradle),
+  // or — the 2.1 fix — decodes straight to plain text with no compression involved.
   for (const lit of stringLiterals(tokenize(current))) {
     if (!looksBase64(lit)) continue
-    const inflated = await inflate(fromBase64(lit))
+    const bytes = fromBase64(lit)
+    const inflated = await inflate(bytes)
     if (inflated) {
       const text = bytesToText(inflated)
       if (isMostlyPrintable(text)) {
         layers.push({ index: layers.length, transform: 'Base64 → inflate', text, state: 'fully-decoded' })
         break // depth 1: one inflate; deeper recursion is Phase 2
+      }
+    }
+    // Plain (non-compressed) base64 → text. Gated: decode-API co-occurs OR the
+    // blob is long enough that a coincidental base64-shaped bareword is
+    // implausible. Non-printable result is NOT a layer — it falls to the
+    // residue detector (honest "decodes to non-text").
+    const decodeApiPresent = /frombase64string|\[convert\]::from/i.test(current)
+    if (decodeApiPresent || lit.replace(/\s+/g, '').length >= 32) {
+      const text = bytesToTextSmart(bytes)
+      if (isMostlyPrintable(text)) {
+        const enc = Array.from(bytes.subarray(0, 4)).some((b) => b === 0) ? 'UTF-16LE' : 'UTF-8'
+        layers.push({ index: layers.length, transform: `Base64 → text (${enc})`, text, state: 'fully-decoded' })
+        break
       }
     }
   }
@@ -173,10 +203,21 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   }
   let work = layers.length ? (layers[layers.length - 1].text ?? '') : current
   let workIndex = layers.length ? layers[layers.length - 1].index : 0
+  // Tracks the deepest text resolve() reached on this pass, INDEPENDENTLY of
+  // whether a 'resolve (fold/substitute)' layer was pushed for it below (that
+  // push is gated on `layers.length` — an intentional UI decision about when
+  // to show a resolve step in the decode ladder, not about whether resolution
+  // happened). Whole-branch review finding 1: detectResidue() below must read
+  // this, not a layers-derived value, or an input with NO prior decode layer
+  // that resolve() still fully folds (e.g. a bare `[char]`/`-join` assembly)
+  // hands the residue detector the STALE unfolded text and wrongly flags a
+  // fully-resolved input as unresolved.
+  let finalResolvedText = work
   for (let depth = 0; depth < 6; depth++) {
     const resolved = resolve(work)
     if (seen.has(resolved)) break
     seen.add(resolved)
+    finalResolvedText = resolved
     let idx = workIndex
     if (resolved !== normalize(work) && layers.length) {
       layers.push({ index: layers.length, transform: 'resolve (fold/substitute)', text: resolved, state: 'fully-decoded' })
@@ -203,6 +244,57 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   const signals = classify(buildContext(corpus, flags, interpreter))
   const characterization = deriveCharacterization(signals)
   const bullets = deriveBullets(buildContext(corpus, flags, interpreter), layers, iocs, signals)
+
+  // Failure legibility (spec §4.1): scan the DEEPEST decoded text for encoding
+  // constructs that produced no layer. Each becomes an opaque layer (flips
+  // confidence.state to 'partial' via the count below) + an opaque bullet in
+  // the "Could not resolve" block — so an unopenable stager never renders
+  // identically to a benign one-liner. Fall back to `finalResolvedText` (the
+  // deepest text resolve() actually reached), never `script` — `script` is
+  // the pre-resolve text and is stale whenever resolve() fully folded the
+  // input without a prior decode layer to hang a 'resolve' layer off of
+  // (whole-branch review finding 1).
+  const deepestText = [...layers].reverse().find((l) => l.text != null)?.text ?? finalResolvedText
+  for (const res of detectResidue(deepestText, interpreter)) {
+    layers.push({
+      index: layers.length,
+      transform: `unresolved ${res.construct}`,
+      text: null,
+      state: 'opaque',
+      residual: { bytes: res.bytes, entropy: res.entropy, note: res.note },
+    })
+    bullets.push({
+      order: bullets.length + 1,
+      verb: 'Contains',
+      text: `${res.note} — treat as opaque and escalate for manual review.`,
+      confidence: 'opaque',
+      iocs: [],
+      techniqueIds: [],
+    })
+  }
+
+  // Input size cap (review 2.6), continued: reuse this same opaque-layer +
+  // opaque-bullet machinery for the truncation itself, rather than a special
+  // case — the excess is exactly the same kind of "could not be resolved"
+  // fact as an unopenable stager, and gets the same honest treatment (flips
+  // confidence.state to 'partial' via the count below, never silent).
+  if (truncatedNote) {
+    layers.push({
+      index: layers.length,
+      transform: 'input truncated',
+      text: null,
+      state: 'opaque',
+      residual: { bytes: 0, entropy: 0, note: truncatedNote },
+    })
+    bullets.push({
+      order: bullets.length + 1,
+      verb: 'Note',
+      text: `${truncatedNote} — treat as opaque and escalate.`,
+      confidence: 'opaque',
+      iocs: [],
+      techniqueIds: [],
+    })
+  }
 
   const fullyDecoded = layers.filter((l) => l.state === 'fully-decoded').length
   const state = layers.length === 0 || fullyDecoded === layers.length ? 'fully-decoded' : 'partial'
@@ -345,6 +437,15 @@ function composeCopyText(
     lines.push('Indicators: (none extracted)')
   }
   return lines.join('\n')
+}
+
+/** Pick text encoding for a decoded byte array: UTF-16LE if a high share of
+ *  odd-index bytes are NUL (the -enc gotcha), else UTF-8. */
+function bytesToTextSmart(bytes: Uint8Array): string {
+  let oddNul = 0, oddCount = 0
+  for (let i = 1; i < bytes.length; i += 2) { oddCount++; if (bytes[i] === 0) oddNul++ }
+  const enc = oddCount > 0 && oddNul / oddCount > 0.3 ? 'utf-16le' : 'utf-8'
+  return new TextDecoder(enc, { fatal: false }).decode(bytes)
 }
 
 /** Accept a decompressed layer only if it's mostly printable text — raw-DEFLATE

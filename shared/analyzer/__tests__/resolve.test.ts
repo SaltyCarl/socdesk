@@ -77,3 +77,142 @@ describe('resolve output cap', () => {
     expect(resolve(src).length).toBeLessThanOrEqual(1 << 20)
   })
 })
+
+describe('resolve — [char]/-join assembly (review 2.5)', () => {
+  it('folds a [char] number to its character', () => {
+    expect(resolve('[char]73')).toContain('I')
+  })
+  it('folds a joined [char] array to a literal', () => {
+    expect(resolve("([char]73,[char]69,[char]88) -join ''")).toContain('IEX')
+  })
+  it('leaves a non-literal join untouched', () => {
+    const t = "$x -join ','"
+    expect(resolve(t)).toContain('$x')
+  })
+  it('does not reach inside a string literal — [char]73 as DATA is preserved verbatim', () => {
+    expect(resolve("'[char]73'")).toBe("'[char]73'")
+  })
+  it('does not misparse a hex literal inside a string as [char]0 — no NUL injection', () => {
+    const out = resolve("'uses [char]0x41 casts'")
+    expect(out).not.toContain(String.fromCharCode(0))
+    expect(out).toContain('[char]0x41')
+  })
+  it('leaves [char]$x (variable operand) untouched — never guessed', () => {
+    const out = resolve('[char]$x')
+    expect(out).toContain('char')
+    expect(out).toContain('$x')
+  })
+  it('does not falsely collapse a join with a mixed literal/variable array (a bare [char] element may still fold independently)', () => {
+    const out = resolve("([char]73,$x) -join ''")
+    expect(out).toContain('$x')
+    expect(out).not.toMatch(/^'[^']*'$/) // the whole expression must not collapse to one literal
+  })
+})
+
+describe('resolve — -f format operator (review 2.5)', () => {
+  it('folds a literal format string + literal args', () => {
+    expect(resolve("('{0}{1}{2}' -f 'I','E','X')")).toContain('IEX')
+  })
+  it('leaves a variable-arg -f untouched', () => {
+    expect(resolve("'{0}' -f $x")).toContain('$x')
+  })
+  it('leaves a format-spec placeholder untouched', () => {
+    const t = "'{0:X2}' -f 255"
+    expect(resolve(t)).toContain('{0:X2}')
+  })
+  it('does not reach inside a string literal — content containing -f/{0} is preserved verbatim', () => {
+    // The whole thing is ONE string token; -f and {0} here are DATA, not an
+    // operator + placeholder. A raw-text regex would corrupt this; a
+    // token-aware fold cannot, because it never fires without a separate
+    // 'string' token, a separate '-f' bareword token, and another separate
+    // 'string' token as an arg.
+    expect(resolve("'use the -f flag with {0} here'")).toBe("'use the -f flag with {0} here'")
+  })
+})
+
+describe('resolve — -replace fold with ReDoS guard (review 2.5)', () => {
+  it('folds a plain-substring -replace', () => {
+    expect(resolve("'IqqEqqX' -replace 'qq',''")).toContain('IEX')
+  })
+  it('does NOT fold a regex-metachar -replace (ReDoS guard) — left untouched', () => {
+    const t = "'aaa' -replace '(a+)+',''"
+    expect(resolve(t)).toContain('-replace')
+  })
+  it('does not fold -replace with an empty pattern (ambiguous substitution semantics)', () => {
+    // empty-pattern regex-replace matches at every position (not the same as
+    // JS split('')/join semantics) — leave unfolded rather than misrepresent it
+    const t = "'abc' -replace '',''"
+    expect(resolve(t)).toContain('-replace')
+  })
+  it('leaves a variable-subject -replace untouched (literal subject only)', () => {
+    expect(resolve("$x -replace 'qq',''")).toContain('$x')
+  })
+  it('does not reach inside a string literal — a string CONTAINING "-replace" is preserved verbatim', () => {
+    // Token-aware: this is ONE string token. A raw-text regex over the whole
+    // source could mis-parse '-replace' appearing inside string payload as
+    // the operator (this is exactly Task 8's NUL-injection class of bug);
+    // token-aware matching can never do that because there is no separate
+    // '-replace' bareword token here to match against.
+    expect(resolve("'the -replace operator rocks'")).toBe("'the -replace operator rocks'")
+  })
+  it('folds a plain-substring .Replace() method call', () => {
+    expect(resolve("'IqqEqqX'.Replace('qq','')")).toContain('IEX')
+  })
+  it('does NOT fold a regex-metachar .Replace() pattern (same shared guard) — left untouched', () => {
+    const t = "'a.b.c'.Replace('.','')"
+    expect(resolve(t)).toContain('.Replace')
+  })
+  it('does not reach inside a string literal — a string CONTAINING ".Replace(" is preserved verbatim', () => {
+    expect(resolve("'call .Replace(x,y) here'")).toBe("'call .Replace(x,y) here'")
+  })
+  it('a guard-rejected clause does not silently delete a following foldable clause (fidelity fix)', () => {
+    // The first clause's pattern '(x)' has a regex metachar, so the first
+    // clause is unresolvable. Before the fix, the scan fell through the
+    // rejected clause one token at a time, which let the rejected clause's
+    // replacement-arg token ('XX', itself a 'string' token) be reinterpreted
+    // as a fresh SUBJECT for the second -replace, silently consuming and
+    // deleting it. Correct behavior: the whole chain is left verbatim —
+    // nothing from either clause is dropped.
+    const r = resolve("'evil' -replace '(x)','XX' -replace 'qq','EE'")
+    expect(r).toContain('(x)')
+    expect(r).toContain('XX')
+    expect(r).toContain('qq')
+    expect(r).toContain('EE')
+  })
+  it('a folded clause correctly hands off to a following clause on the next fixpoint pass (positive interaction)', () => {
+    // First clause is metachar-free and folds: 'IqqE' -replace 'qq','' -> 'IE'.
+    // The second clause's true subject only becomes literal ('IE') on resolve()'s
+    // next fixpoint pass; 'zz' does not occur in 'IE', so the second -replace is a
+    // real no-op substitution and the chain settles at 'IE' with nothing dropped.
+    expect(resolve("'IqqE' -replace 'qq','' -replace 'zz','z'")).toBe("'IE'")
+  })
+})
+
+describe('resolve — string reversal (review 2.5)', () => {
+  it('folds a char-index reversal join over a literal', () => {
+    // 'XEI'[-1..-3] -join '' → 'IEX'
+    expect(resolve("('XEI'[-1..-3] -join '')")).toContain('IEX')
+  })
+  it('folds the same idiom when the range is space-separated (still one atomic span)', () => {
+    // Lexes to three separate bareword tokens ('-1', '..', '-3') rather than
+    // one glued token — must fold the same way.
+    expect(resolve("'XEI' [ -1 .. -3 ] -join ''")).toContain('IEX')
+  })
+  it('leaves a variable-subject reversal untouched (literal subject only)', () => {
+    expect(resolve("$s[-1..-3] -join ''")).toContain('$s')
+  })
+  it('does not reach inside a string literal — content containing "[-1..-3]"/"-join" is preserved verbatim', () => {
+    // Token-aware: this whole thing is ONE string token. A raw-text regex
+    // over the source could mis-parse the bracketed range or '-join'
+    // appearing inside string payload as real structure; token-aware
+    // matching cannot, because there is no separate '[' / bareword / '-join'
+    // token here to match against — it is all one string token's value.
+    expect(resolve("'see s[-1..-3] in docs'")).toBe("'see s[-1..-3] in docs'")
+  })
+  it('does not fold when the range does not span the whole literal (not a full reversal)', () => {
+    // -1..-3 selects only the last 3 chars of a 5-char literal — not a full
+    // reversal of 'ABCDE' — so this must not be folded to a reversed guess.
+    const out = resolve("'ABCDE'[-1..-3] -join ''")
+    expect(out).toContain('-1..-3')
+  })
+})

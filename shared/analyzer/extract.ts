@@ -11,7 +11,34 @@ const CANDIDATE_RE = /\bhttps?:\/\/[^\s'"()<>]+|\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\
 // with a dotted extension satisfies the TLD-agnostic domain regex. Real domains
 // don't carry these extensions; URL hosts arrive via the URL branch, unaffected
 // by this guard (it only fires on type === 'domain').
-const BINARY_EXT_DENYLIST = /\.(?:exe|dll|sys|bat|cmd|scr|ocx|cpl|msi|vbs|ps1|js|hta)$/i
+const BINARY_EXT_DENYLIST =
+  /\.(?:exe|dll|sys|bat|cmd|scr|ocx|cpl|msi|vbs|ps1|js|hta|json|xml|txt|log|csv|dat|tmp|ini|cfg)$/i
+
+// A lowercase .NET namespace/member-access chain (system.io.memorystream,
+// microsoft.win32.registry) is mis-typed as a domain by the shared
+// detectType — same failure mode as the PascalCase guard below, just without
+// a case signal to key off. No "i" flag: this only runs after the PascalCase
+// guard above has already `continue`d on any uppercase char, so raw is
+// guaranteed lowercase here. Shape alone (root word + 2 more dotted
+// segments) isn't sufficient to identify a .NET member chain — a real
+// 3-label domain can start with the same root word (io.adafruit.com,
+// microsoft.fake-support.ru, net.example.org all shape-match). What actually
+// distinguishes them is the final label: a real domain's leaf is a TLD, a
+// .NET member chain's leaf is a class/member name and never a TLD. This
+// regex enforces only the shape (root word, then 2+ more dotted segments,
+// e.g. rules out a bare 2-label "microsoft.com"); the TLD check that does
+// the real discriminating work is applied at the call site below.
+const DOTNET_MEMBER_RE =
+  /^(?:system|net|io|text|management|microsoft|reflection|runtime)\.[a-z0-9-]+\.[a-z0-9.-]+$/
+
+// Common TLDs — not exhaustive, just enough to cover the TLDs likely to
+// appear on a real domain (or brand-impersonation lookalike) that happens to
+// shape-match DOTNET_MEMBER_RE. A .NET class/member name (memorystream,
+// webclient, registry, encoding, ...) is never one of these.
+const COMMON_TLD = new Set([
+  'com', 'net', 'org', 'io', 'co', 'ru', 'cn', 'info', 'biz', 'us', 'uk',
+  'de', 'fr', 'edu', 'gov', 'mil', 'ca', 'au', 'jp', 'nl',
+])
 
 // An IPv4 literal (loose octets, matching the app's own detectType arbiter —
 // per-octet range is enforced downstream at lookup time).
@@ -45,6 +72,12 @@ export function extractIocs(layers: { index: number; text: string | null }[]): E
       // domains are conventionally lowercase and URL hosts arrive via the URL branch.
       if (type === 'domain' && /[A-Z]/.test(raw)) continue
       if (type === 'domain' && BINARY_EXT_DENYLIST.test(raw)) continue
+      if (
+        type === 'domain' &&
+        DOTNET_MEMBER_RE.test(raw) &&
+        !COMMON_TLD.has(raw.slice(raw.lastIndexOf('.') + 1))
+      )
+        continue
       seen.add(raw)
       out.push({ raw, defanged: defang(raw), type, layerIndex: layer.index })
       // A URL whose host is an IP literal yields a second IOC: the IP itself,

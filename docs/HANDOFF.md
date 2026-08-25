@@ -1,10 +1,220 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — TI-uplift Track A: 5 cheap decoupled TI-parity wins — "what changed" Overview panel, KEV due-date/overdue flag, tracked-adversary bonus gated to the curated dict, per-browser vuln watchlist, analyst-guide drift fix — built on branch `feat/ti-uplift-track-a`, full suite green, NOT merged) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-25 (session — analyzer-hardening Phase 4 (final): cmd `set`/`%var%` reassembly, gzip-bomb/input-size hardening, IOC-extraction hygiene — all 8 external-review findings now addressed across 4 phases, branch `feat/analyzer-hardening`, full suite green, NOT merged) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-24 (session — TI-uplift Track A: 5 cheap decoupled TI-parity wins, branch built, NOT merged)
+## 0. LATEST — 2026-08-25 (session — analyzer-hardening Phase 4: cmd half + robustness + IOC hygiene, branch built, NOT merged)
+
+**Lane:** analyzer hardening per the external analyzer review (2026-08-24), final phase.
+Phase 4 goal: the cmd half + robustness + IOC hygiene (review 2.5, 2.6, 2.7). Branch
+`feat/analyzer-hardening`, commits `149f59e..fcd819f`, **NOT merged**.
+
+**Shipped:**
+- **cmd `set`/`%var%` reassembly** — `shared/analyzer/cmdvars.ts` (new) + `preprocess.ts`.
+  Resolves `set`/`%var%` reassembly, `%COMSPEC:~n,m%` substring (incl. negative offsets),
+  and `!VAR!` delayed expansion, invoked only from the cmd branch after caret
+  de-obfuscation. Bounded (≤64 vars, depth-1, no recursion). Resolves
+  `set x=power&&set y=shell&&%x%%y%` → `powershell` — review's "biggest scope gap" (2.5).
+  (`25c8f62`, test coverage for delayed-expansion/unset-var guarantees `e0e7f00`)
+- **`cmd-var-obfuscation` signal** — `shared/analyzer/techniques.ts` + `bullets.ts`. Weak
+  signal (T1140/T1027): fires on a `set X=` + `%X%`/`!X!` reference, scanning ALL set
+  declarations (not just the first, closing a chained-decoy miss), paired with an
+  opaque-tier honesty bullet mirroring `wsh-not-resolved` so the obfuscation surfaces even
+  when reassembly only half-resolves. Bare `%PATH%` stays silent. (`b5210aa`, all-declarations
+  fix `d5b3e00`)
+- **Debounced input + honest size cap** — `shared/analyzer-ui/useDebounced.ts` (new) +
+  `web/src/routes/PowerShellAnalyzer.tsx` + `shared/analyzer/report.ts`. Input debounced
+  ~200ms (the `usePsAnalysis` "debounced-by-caller" contract is now true); `analyze()` caps
+  raw input at 64 KB, surfacing an opaque "input truncated" notice + partial state rather
+  than silently truncating or blocking the main thread (2.6). (`7bd9674`)
+- **Bounded `inflate()` output** — `shared/analyzer/fold.ts`. Reads the decompressed stream
+  incrementally with a 2 MiB output cap (cancels the reader past the cap, returns null),
+  guarding against a gzip-bomb literal that previously expanded unbounded (2.6). (`8449847`)
+- **IOC-extraction hygiene** — `shared/analyzer/extract.ts` (2.7). Widened the binary/data
+  denylist (json/xml/txt/log/csv/…) so `-OutFile data.json` no longer yields a bogus domain
+  IOC; added a .NET-member shape guard gated on the leaf label not being a common TLD, so
+  `system.io.memorystream` is excluded while real domains (`io.adafruit.com`,
+  `microsoft.fake-support.ru`) still extract. (`7adc72d`, TLD-gate fix `d41eb6b`)
+- **Intent-classification boundary fix** — `shared/intent.ts` (2.7). A lone malware filename
+  (`mimikatz.exe`, `kernel32.dll`) now classifies as `command` → local analyzer, never
+  `/api/enrich`; TLD-lookalike domains (`finger.io`, `wmic.io`, `certutil.info`) still
+  classify as `indicator`. (`fcd819f`)
+
+**Headline:** all 8 findings of the 2026-08-24 external review are addressed across 4
+phases — failure legibility (no more blank on unprocessable input), decode-ladder
+expansion, detection-gap closure (review CRITICAL 2.1 closed end-to-end on sample 6), and
+now the cmd half + robustness + IOC hygiene.
+
+**Verified:** Phase-4 gate green — `npm --prefix web run build` PASS, `cd web && npx
+vitest run ../shared` 514/514, `cd web && npx vitest run src` 152/152 (all three re-run
+and confirmed this session at branch HEAD `fcd819f`).
+
+**Open / next:** whole-branch final review of `feat/analyzer-hardening` (owner), then merge
+decision. Not deployed — branch unmerged.
+
+---
+
+## 0-RECENT — 2026-08-25 (session — analyzer-hardening Phase 3: detection-gap closure, branch built, NOT merged)
+
+**Lane:** analyzer hardening per the external analyzer review (2026-08-24), continuing
+Phase 2 (below). Phase 3 goal: close the detection gaps the review found missing (2.2,
+2.4) and fix the ClickFix over-fire (2.4), holding the anti-cry-wolf/specificity doctrine.
+Branch `feat/analyzer-hardening`, commits `8c10662..cbec78e`, **NOT merged**.
+
+**Shipped:**
+- **`shadow-recovery-tamper` rule (T1490)** — `shared/analyzer/techniques.ts` +
+  `bullets.ts`, baseSpecificity near-dispositive (`8c10662`, trigger-fabrication/bullet
+  slash-hedge fix `c970b78`). Fires on vssadmin delete shadows / resize shadowstorage,
+  wmic shadowcopy delete, wbadmin delete catalog|systemstatebackup, bcdedit
+  recoveryenabled no / bootstatuspolicy ignoreallfailures — destructive verb must
+  co-occur with its object (bare `vssadmin list` stays silent). Emits split,
+  sub-fact-specific bullets (shadow-copy-delete vs recovery-disable, no slash-hedge).
+  Review sample 3 (AMSI + vssadmin) now flags shadow destruction too.
+- **`disk-dropper` rule** — `shared/analyzer/techniques.ts` + `bullets.ts`,
+  baseSpecificity strong (`3569b28`, exec-sink false-positive fix `73b42e4`). A to-disk
+  fetch (DownloadFile / -OutFile / Start-BitsTransfer / curl -o /
+  certutil -urlcache+-split) co-occurring with a local-exec sink (Start-Process / saps /
+  Invoke-Item / separator-anchored `& payload.exe`) now flags — a staple dropper that
+  previously read as benign (review 2.2). Discriminator bounded: a fully-qualified fetch
+  tool name at corpus start (certutil.exe/powershell.exe) and the "ascii" substring do
+  NOT false-fire.
+- **ClickFix trait-gating (review 2.4)** — `shared/analyzer/techniques.ts` (`4b60ee0`). A
+  plain -enc/hidden fetch+IEX cradle no longer gets a ClickFix / paste-and-run verdict —
+  ClickFix now requires a real paste-and-run trait (fake-CAPTCHA decoy phrase, --verify
+  decoy, conhost --headless, or an mshta lure). Review samples 1 & 4 now read as
+  download-cradle only, no misdirecting ClickFix label. The -w/-nop cluster still
+  contributes to evasion-cluster.
+- **`offensive-tool` rule** — `shared/analyzer/techniques.ts` + `bullets.ts`,
+  baseSpecificity near-dispositive (`cbec78e`). Fires on named offensive tooling
+  (invoke-mimikatz, sekurlsa::, dumpcreds, rubeus, invoke-kerberoast, safetykatz). Closes
+  the loop on review sample 6: after Phase 2 it DECODED to `Invoke-Mimikatz -DumpCreds;
+  net user hacker /add` but had no signal — it now ALSO characterizes as
+  high-confidence-malicious.
+
+**Headline:** review CRITICAL finding 2.1 (malicious ≡ blank ≡ benign) is now closed
+end-to-end — sample 6, which originally rendered completely blank, both fully decodes
+(Phase 2) and flags red high-confidence-malicious (Phase 3).
+
+**Doctrine note:** all new detections hold the specificity/anti-cry-wolf rules —
+near-dispositive tiers only where there's no legitimate use, benign-twin discriminators
+on every rule, and every `Signal.trigger` cites a real matched substring (three separate
+trigger-fabrication risks caught and fixed in review before merge, see `c970b78`).
+
+**Verified:** Phase-3 gate green — `npm --prefix web run build` PASS; `cd web && npx
+vitest run ../shared` 469/469; `cd web && npx vitest run src` 152/152 (all three re-run
+and confirmed this session at branch HEAD `cbec78e`).
+
+**Contributor note:** a Windows Defender exclusion for the repo path is required — the
+analyzer's own test fixtures contain live malware signatures and get quarantined
+otherwise. Follow-up: document this fully in `docs/OPERATIONS.md` (not yet done).
+
+**Open / next:** Phase 4 (cmd reassembly + robustness + IOC hygiene), then merge decision
+on `feat/analyzer-hardening` (owner). Not deployed — branch unmerged.
+
+---
+
+## 0-RECENT — 2026-08-24 (session — analyzer-hardening Phase 2: decode-ladder expansion, branch built, NOT merged)
+
+**Lane:** analyzer hardening per the external analyzer review (2026-08-24), continuing
+Phase 1 (below). Phase 2 goal: convert the opaque residues Phase 1 made honest into real
+decode layers, so the analyzer actually reads the common obfuscated second stages. Branch
+`feat/analyzer-hardening`, commits `20bc8b1..0c201cb`, **NOT merged**.
+
+**Shipped:**
+- **Plain base64 → text decode** — `shared/analyzer/report.ts` (`20bc8b1`). Decodes
+  non-compressed base64 in the embedded-literal loop (UTF-16LE/UTF-8 sniff, gated on
+  decode-API co-occurrence or length ≥32; non-printable results fall through to the residue
+  detector). Core review-2.1 fix: review sample 6 (an `IEX([Convert]::FromBase64String(...))`
+  Mimikatz stager) now fully decodes instead of rendering blank/opaque
+  (`shared/analyzer/__tests__/review-samples.test.ts:13`, "#6 plain-base64 inner stage: now
+  DECODED (Phase 2)").
+- **Four constant-folds chained into `resolve()`'s fixpoint** — `shared/analyzer/resolve.ts`,
+  all token-aware (a construct's text inside a quoted string literal is never reinterpreted
+  as code):
+  - `foldCharArray`: `[char]73` / `([char]73,...) -join ''` → literal (`0242c06`, literal-safety
+    fix `d15f736`).
+  - `foldFormat`: `'{0}{1}' -f 'a','b'` → `'ab'`, plain `{N}` only, format-spec/variable-arg
+    left untouched (`257d874`).
+  - `foldReplace`: `'IqqEqqX' -replace 'qq',''` → `'IEX'` and `.Replace()`, ReDoS-guarded —
+    folds only metacharacter-free patterns via split/join, never `new RegExp` on attacker text
+    (`0c50c29`); guard-rejected clauses consumed atomically so a chained clause is never
+    dropped (`2de5d17`).
+  - `foldReverse`: `'XEI'[-1..-3] -join ''` → `'IEX'`; full-reversal guard rejects partial
+    ranges (N must equal the subject's exact length) rather than mis-folding a slice
+    (`0c201cb`).
+  - Not folded (deferred, both still caught opaque by the residue detector): `[array]::Reverse`
+    and computed-bound reversal `$s[-1..-($s.Length)]` — need variable-mutation tracking
+    outside resolve.ts's straight-line/literal-only doctrine.
+
+**Design note:** every fold matches on the lexer token stream, not raw text — preserves the
+literal-safety guarantee (a `-replace`/`[char]` construct inside a quoted string is data,
+never code). Two early raw-regex attempts were caught in review and rewritten token-aware
+(one injected a NUL byte into a decoy string; one silently dropped a chained `-replace`
+clause) — see the `d15f736` and `2de5d17` fix commits above.
+
+**Verified:** Phase-2 gate green — `npm --prefix web run build` PASS; `cd web && npx vitest
+run ../shared` 422/422; `cd web && npx vitest run src` 152/152 (all three re-run and confirmed
+this session at branch HEAD `0c201cb`). Not deployed — branch not merged, Phases 3-4 of the
+hardening plan still to come.
+
+**Open / next:** Phase 3-4 of the hardening plan, then merge decision on
+`feat/analyzer-hardening` (owner).
+
+---
+
+## 0-RECENT — 2026-08-24 (session — analyzer-hardening Phase 1: failure legibility + honest narratives, branch built, NOT merged)
+
+**Lane:** analyzer hardening per the external analyzer review (2026-08-24) — spec
+`docs/superpowers/specs/2026-08-24-analyzer-hardening-design.md`, plan
+`docs/superpowers/plans/2026-08-24-analyzer-hardening.md`. Phase 1 goal: the
+analyzer must never render blank on input it couldn't fully process, and must
+never fabricate behavior. Branch `feat/analyzer-hardening`, 6 tasks / commits
+`3740555..476ddad`, **NOT merged**.
+
+**Shipped:**
+- **Opaque-residue detector** — new `shared/analyzer/residue.ts` (`3740555`,
+  tightened `a5dc80d`). Scans the deepest decoded text for encoding constructs
+  that produced no decode layer: unresolved base64+decode-API, dynamic-exec
+  over `[char]`/`-join`/`-replace`/`GetString`, cmd `%VAR:~n,m%` incl. negative
+  offsets. Reuses the canonical FETCH vocab from `techniques.ts` to avoid
+  over-firing.
+- **Never-blank rendering** — `shared/analyzer/report.ts` `analyze()` wired
+  each residue finding into an opaque `DecodedLayer` (flips
+  `confidence.state` to `'partial'` via existing count logic) + an opaque
+  "Could not resolve" bullet (`09abae1`). Review sample 6 (plain-base64
+  Mimikatz stager) now renders an opaque partial instead of blank.
+- **Partial-decode escalation notice** — new
+  `shared/analyzer-ui/PartialDecodeNotice.tsx`, neutral/periwinkle band shown
+  when `state === 'partial'`, wired into the shared `AnalyzerResult` surface
+  (reaches web `/analyzer`, cockpit, extension) (`6eac498`). No verdict hue —
+  reserved-colour law honored. Same commit additively extends
+  `web/vitest.config.ts` to discover `.tsx` tests.
+- **Abuse-only LOLBin gating** — `shared/analyzer/lolbins.ts` tightened
+  regsvr32/rundll32/msiexec/installutil context tokens to real abuse-only
+  discriminators, dropping bare `/u`, `shell32.dll`, `/q`, `.exe` (`a9861d3`).
+  Stops matching benign admin invocations.
+- **Honest bullets** — `shared/analyzer/bullets.ts` regsvr32/rundll32 bullets
+  are now variant-aware: "Squiblydoo" only renders when `/i:http` or `scrobj`
+  matched, otherwise a plain line (`0299f66`). Kills the fabricated narrative
+  on benign `regsvr32 /u` (review finding 2.3, sample 7).
+- **Ratcheting fixture** — new
+  `shared/analyzer/__tests__/review-samples.test.ts` pins the review's 7
+  samples as an integration fixture whose expected values are deliberately
+  updated as later phases land (sample 6 flips to fully-decoded in Phase 2)
+  (`bff4059`, strengthened `476ddad`).
+
+**Verified:** Phase-1 gate green at HEAD `476ddad` — `npm --prefix web run
+build` PASS; `cd web && npx vitest run ../shared` 395/395; `cd web && npx
+vitest run src` 152/152. Not yet deployed — branch not merged, Phases 2-4 of
+the hardening plan still to come.
+
+**Open / next:** Phase 2 (full decode of sample 6 + remaining plan phases),
+then merge decision on `feat/analyzer-hardening` (owner).
+
+---
+
+## 0-RECENT — 2026-08-24 (session — TI-uplift Track A: 5 cheap decoupled TI-parity wins, branch built, NOT merged)
 
 **Lane:** TI-analytics uplift toward MS Threat Intel parity — **Track A** = 5 cheap,
 decoupled, owner-approved wins (see memory `socdesk-ti-uplift`). Branch

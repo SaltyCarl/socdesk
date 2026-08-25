@@ -192,3 +192,79 @@ describe('copyText — opaque bullets get parity with the UI (whole-branch revie
     expect(whatItDidSection).not.toContain('numeric char-code decode only')
   })
 })
+
+describe('analyze — failure legibility (residue)', () => {
+  it('a plain-base64 blob that decodes to non-text renders an opaque partial, never blank (Phase 2: a blob that decodes to legible text is now a real layer — see review 2.1 below; this is the genuinely-undecodable case)', async () => {
+    // 0x80-0xBF are lone UTF-8 continuation bytes -> each decodes to U+FFFD, and
+    // there's no NUL at any odd index, so neither the UTF-8 nor UTF-16LE sniff
+    // yields printable text -> stays honestly opaque, never a fabricated layer.
+    const garbage = new Uint8Array(40)
+    for (let i = 0; i < garbage.length; i++) garbage[i] = 0x80 + (i % 0x40)
+    const b64 = btoa(String.fromCharCode(...garbage))
+    const r = await analyze(`IEX([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64}')))`)
+    expect(r.confidence.state).toBe('partial')
+    expect(r.layers.some((l) => l.state === 'opaque')).toBe(true)
+    expect(r.bullets.some((b) => b.confidence === 'opaque')).toBe(true)
+  })
+  it('benign admin work stays fully-decoded and silent', async () => {
+    const r = await analyze('Get-ChildItem -Recurse | Where Length -gt 1MB | Sort | Select')
+    expect(r.confidence.state).toBe('fully-decoded')
+    expect(r.layers.some((l) => l.state === 'opaque')).toBe(false)
+  })
+  it('a construct resolve() fully folds with NO prior decode layer does not falsely flag as unresolved (whole-branch review finding 1)', async () => {
+    // No -enc, no interpreter reentry, no embedded base64 blob -> layers is
+    // empty going into the resolve loop, so the resolve-loop's layer push
+    // (gated on layers.length being already nonzero) never fires. Before the
+    // fix, detectResidue() was fed the STALE pre-resolve text (which still
+    // contains the [char]/-join construct) and wrongly flagged this
+    // fully-decodable input as unresolved.
+    const r = await analyze("IEX (([char]73,[char]69,[char]88) -join '')")
+    expect(r.confidence.state).toBe('fully-decoded')
+    expect(r.layers.some((l) => l.state === 'opaque')).toBe(false)
+    expect(r.bullets.some((b) => b.confidence === 'opaque')).toBe(false)
+  })
+  it('a variable-subject reversal/-join construct with no [char] literal is flagged opaque, not silently blank (whole-branch review finding 2)', async () => {
+    // $s is never bound to a literal, so resolve() intentionally leaves the
+    // reversal/-join idiom unfolded (real, honest unresolvability) — this
+    // must render as an opaque partial, never as a clean, signal-less pass.
+    const r = await analyze("IEX ($s[-1..-3] -join '')")
+    expect(r.confidence.state).toBe('partial')
+    expect(r.layers.some((l) => l.state === 'opaque')).toBe(true)
+    expect(r.bullets.some((b) => b.confidence === 'opaque')).toBe(true)
+  })
+})
+
+describe('analyze — plain base64 inner stage (review 2.1)', () => {
+  it('decodes a non-compressed base64 blob to text and characterizes it', async () => {
+    const b64 = btoa('Invoke-Mimikatz -DumpCreds; net user hacker P@ss /add')
+    const r = await analyze(`IEX([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64}')))`)
+    expect(r.layers.some((l) => /Base64 → text/.test(l.transform) && (l.text ?? '').includes('Invoke-Mimikatz'))).toBe(true)
+    expect(r.confidence.state).toBe('fully-decoded')
+  })
+})
+
+describe('analyze — input size cap (review 2.6)', () => {
+  it('caps a huge paste and reports truncation honestly', async () => {
+    const huge = 'A'.repeat(70_000)
+    const r = await analyze(huge)
+    expect(r.layers.some((l) => l.state === 'opaque' && /truncated/i.test(l.residual?.note ?? ''))).toBe(true)
+  })
+
+  it('flips confidence.state to partial when truncated', async () => {
+    const huge = 'Write-Host ' + 'A'.repeat(70_000)
+    const r = await analyze(huge)
+    expect(r.confidence.state).toBe('partial')
+  })
+
+  it('does not truncate input at or under the 64 KB cap', async () => {
+    const atCap = 'A'.repeat(64 * 1024)
+    const r = await analyze(atCap)
+    expect(r.layers.some((l) => /truncated/i.test(l.residual?.note ?? ''))).toBe(false)
+  })
+
+  it('leaves a normal-sized paste completely unaffected', async () => {
+    const r = await analyze('Get-ChildItem -Recurse | Where Length -gt 1MB | Sort | Select')
+    expect(r.layers.some((l) => /truncated/i.test(l.residual?.note ?? ''))).toBe(false)
+    expect(r.confidence.state).toBe('fully-decoded')
+  })
+})

