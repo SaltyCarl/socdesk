@@ -116,7 +116,7 @@ export function ActorProfileRoute() {
         title={slug ? 'Threat profile' : 'Threat actor & ransomware profiles'}
         intro={
           slug
-            ? 'A single entity, fused from ATT&CK, leak-site activity, and open-source reporting — each fact attributed to its source, nothing synthesised.'
+            ? 'A single entity, aggregated from ATT&CK, leak-site activity, and open-source reporting — each fact attributed to its source, nothing synthesised.'
             : 'Search and open a profile for any tracked actor, ransomware group, or malware family. Ransomware groups surface their live leak-site claim tally.'
         }
         aside={

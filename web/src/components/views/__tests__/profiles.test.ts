@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildProfileIndex, profileFor } from '../profiles'
+import { buildProfileIndex, cleanDescription, profileFor } from '../profiles'
 import type { FeedItem, Profile, RansomIntel, RelationsPayload } from '../types'
 
 // em-dash (U+2014) is the real separator ransomware.live uses in a single-claim
@@ -167,6 +167,30 @@ describe('profileFor — both kinds merged (Akira: actor + ransomware)', () => {
     expect(p.ransomware?.totalClaims).toBe(1)
     expect(p.ransomware?.sectors).toEqual(['Energy & Utilities'])
     expect(p.ransomware?.countries).toEqual(['IT'])
+  })
+  it('activity.hasDigest is false for a group with only single claims', () => {
+    // Akira has one single claim, no digest → the "digest omits country"
+    // caveat must NOT render (gated on hasDigest).
+    expect(p.activity?.hasDigest).toBe(false)
+  })
+})
+
+describe('cleanDescription — strips ATT&CK citation noise', () => {
+  it('strips a whole (Citation: …) marker', () => {
+    expect(cleanDescription('Foo bar. (Citation: Novetta 2014) Baz.')).toBe('Foo bar. Baz.')
+  })
+  it('strips a trailing citation truncated mid-token (no closing paren)', () => {
+    // ATT&CK descriptions are length-truncated at ingest, which can cut mid
+    // citation and leak a dangling "(Citation: Tren" the closed-paren rule can't
+    // match — the scraper artifact the design review flagged as an AI-slop tell.
+    expect(cleanDescription('…healthcare sectors.(Citation: Tren')).toBe('…healthcare sectors.')
+  })
+})
+
+describe('profileFor — activity.hasDigest true when a digest is present', () => {
+  it('kairos (2 singles + 1 digest) flags hasDigest', () => {
+    // Gates the country caveat on a REAL digest, so the honesty note is never false.
+    expect(profileFor('kairos', data).activity?.hasDigest).toBe(true)
   })
 })
 

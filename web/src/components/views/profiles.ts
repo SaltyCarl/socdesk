@@ -37,6 +37,10 @@ export function attackUrl(kind: 'actor' | 'malware', id?: string): string {
 export function cleanDescription(d?: string): string {
   return (d ?? '')
     .replace(/\(Citation:[^)]*\)/g, '')
+    // ATT&CK descriptions are length-truncated at ingest, which can cut mid
+    // citation — leaving a dangling "(Citation: Foo" with no closing paren the
+    // rule above (which requires the close) can't strip. Drop that tail too.
+    .replace(/\s*\(Citation:[^)]*$/, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/\s{2,}/g, ' ')
     .trim()
@@ -260,6 +264,10 @@ export interface ProfileActivity {
   countries: string[]
   timeline: TimelineBucket[]
   victimCount: number
+  /** True when the group's window contains a rolled-up digest claim. Gates the
+   *  "digest claims omit country" caveat so it never shows for a group that has
+   *  no digest this window (which would make the honesty note itself false). */
+  hasDigest: boolean
 }
 
 export interface ProfileResult {
@@ -416,7 +424,8 @@ function ransomwareActivity(slug: string, feed: FeedItem[]): RansomwareActivity 
     })
   }
 
-  return { totalClaims, items, sectors: [...sectors], countries: [...countries] }
+  // sort sectors so the chip row reads deliberate, not feed-insertion-order.
+  return { totalClaims, items, sectors: [...sectors].sort(), countries: [...countries] }
 }
 
 /** Deterministic weekly bucket key for a claim's `published_at` timestamp:
@@ -646,6 +655,7 @@ export function profileFor(
         countries: [...ransomware.countries],
         timeline: timelineFor(s, data.feed),
         victimCount: ransomware.totalClaims,
+        hasDigest: ransomware.items.some((i) => i.grouped != null),
       }
     : null
 

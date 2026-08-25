@@ -314,7 +314,7 @@ function ActivityPanel({ activity }: { activity: NonNullable<ProfileResult['acti
       )}
 
       <GeoTags label="Target sectors" values={activity.sectors} />
-      <GeoTags label="Target countries" values={activity.countries} partial />
+      <GeoTags label="Target countries" values={activity.countries} partial={activity.hasDigest} />
     </div>
   )
 }
@@ -505,12 +505,27 @@ function VictimRow({ v }: { v: ClaimedVictim }) {
   )
 }
 
-function ClaimedVictimsPanel({ victims }: { victims: ClaimedVictim[] }) {
+function ClaimedVictimsPanel({
+  victims,
+  totalClaims,
+}: {
+  victims: ClaimedVictim[]
+  totalClaims?: number
+}) {
+  // When the window holds more claims than named victims (unnamed singles +
+  // digest-collapsed tallies), reconcile the two counts explicitly so the
+  // "N claims / M listed" gap reads as a documented fact, not an inconsistency.
+  const listed = victims.length
+  const reconcile =
+    totalClaims && totalClaims > listed
+      ? `${num(listed)} of the ${num(totalClaims)} claims this window named a specific victim.`
+      : null
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs leading-relaxed text-muted">
         Unverified claims republished from the group&rsquo;s own leak site — attributed facts, not a
         SOCDesk verdict. A listing is an allegation by the actor, not a confirmed breach.
+        {reconcile ? ` ${reconcile}` : ''}
       </p>
       <div className="flex flex-col divide-y divide-line">
         {victims.map((v) => (
@@ -722,7 +737,7 @@ export function ActorProfile({
                 ) : undefined
               }
             >
-              <ClaimedVictimsPanel victims={claimedVictims} />
+              <ClaimedVictimsPanel victims={claimedVictims} totalClaims={ransomware?.totalClaims} />
             </BoardPanel>
           ) : ransomware ? (
             <BoardPanel eyebrow="Claimed victims">
