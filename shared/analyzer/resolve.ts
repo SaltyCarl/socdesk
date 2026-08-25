@@ -289,6 +289,103 @@ export function foldReplace(text: string): string {
   return out.join(' ')
 }
 
+const RANGE_SPAN_CHARS = /^[-.\d]+$/
+const FULL_REVERSE_RANGE = /^-1\.\.-(\d+)$/
+const MAX_RANGE_TOKENS = 6 // '-1' '..' '-3' is 3; generous headroom, still bounded
+
+/** Match a `'subject' [ -1..-N ] -join ''` span at token index i — the
+ *  negative char-index-range reversal idiom. The range's punctuation (`..`)
+ *  is NOT in the lexer's PUNCT set, so depending on the source's internal
+ *  spacing it lexes as ONE glued bareword ("-1..-3") or as several separate
+ *  barewords ("-1", "..", "-3", or any other split at a whitespace boundary)
+ *  — never as its own token type. To stay token-aware without hardcoding one
+ *  spacing, this walks consecutive bareword tokens made up ONLY of `-`, `.`
+ *  or digits (never a letter, `$`, or anything else) and concatenates their
+ *  values; that concatenation is exactly the source's range text with any
+ *  internal whitespace removed, regardless of how the lexer happened to
+ *  split it. It is then matched WHOLE against `^-1\.\.-\d+$` — a partial or
+ *  malformed span (a stray extra token, a missing digit run) fails the full
+ *  match and is rejected, same as everywhere else in this file. Returns the
+ *  reversal length N and the index just past the whole matched span, or
+ *  undefined. */
+function matchReverseIdiom(toks: Token[], i: number): { n: number; next: number } | undefined {
+  if (toks[i]?.type !== 'string') return undefined
+  let j = i + 1
+  if (!isOpenBracket(toks[j])) return undefined
+  j++
+  let span = ''
+  let k = j
+  let count = 0
+  while (k < toks.length && toks[k].type === 'bareword' && RANGE_SPAN_CHARS.test(toks[k].value) && count < MAX_RANGE_TOKENS) {
+    span += toks[k].value
+    k++
+    count++
+  }
+  if (count === 0) return undefined
+  const m = FULL_REVERSE_RANGE.exec(span)
+  if (!m) return undefined
+  j = k
+  if (!isCloseBracket(toks[j])) return undefined
+  j++
+  if (!isJoinKeyword(toks[j])) return undefined
+  j++
+  if (!isEmptyStringTok(toks[j])) return undefined
+  j++
+  return { n: Number(m[1]), next: j }
+}
+
+/** Fold `'literal'[-1..-N] -join ''` → the reversed literal — PowerShell's
+ *  negative-char-index-range reversal idiom. Literal subject only (checked
+ *  by `matchReverseIdiom` requiring a 'string' token at the match start); a
+ *  variable subject (`$s[-1..-3] -join ''`) never even reaches a structural
+ *  match attempt and is left completely untouched.
+ *
+ *  N must equal the subject's exact length: `[-1..-N]` is a full reversal
+ *  only when N spans the whole literal (index -1 = last char, -N = first
+ *  char). A shorter N is a partial slice, not a reversal, and folding it to
+ *  "the reversed literal" would misrepresent what the code does — that span
+ *  is left unfolded rather than guessed, consistent with every other guard
+ *  in this file (foldFormat's out-of-range index, foldReplace's ReDoS/empty-
+ *  pattern guards).
+ *
+ *  Operates on the TOKEN stream (like foldConcat/foldCharArray/foldFormat/
+ *  foldReplace), never on raw text: the bracket, range, `-join` and empty
+ *  string must each be their OWN tokens, so a string literal whose PAYLOAD
+ *  merely contains the text `[-1..-3]` or `-join` can never be mistaken for
+ *  the idiom — there is no token boundary there for the match to fire
+ *  against.
+ *
+ *  Whenever `matchReverseIdiom` finds a full structural match, the ENTIRE
+ *  span is consumed as one atomic unit — folded if N equals the subject's
+ *  length, or re-emitted verbatim token-by-token otherwise — and `i` always
+ *  advances past the whole span. It never falls through to the generic
+ *  single-token `i++` mid-span, for the same reason foldReplace's fix (Task
+ *  10) requires it: doing so could let a token from a rejected match be
+ *  re-examined on its own as a fresh candidate and mis-consume a later,
+ *  unrelated construct. */
+export function foldReverse(text: string): string {
+  const toks = tokenize(text)
+  const out: string[] = []
+  let i = 0
+  while (i < toks.length) {
+    const m = matchReverseIdiom(toks, i)
+    if (m) {
+      const subj = toks[i].value
+      if (m.n === subj.length) {
+        const rev = [...subj].reverse().join('')
+        out.push(`'${rev.replace(/'/g, "''")}'`)
+      } else {
+        for (let k = i; k < m.next; k++) out.push(emit(toks[k]))
+      }
+      i = m.next
+      continue
+    }
+    out.push(emit(toks[i]))
+    i++
+  }
+  return out.join(' ')
+}
+
 /** Re-emit the token stream with no folding or substitution — the whitespace/
  *  quote baseline that separates real deobfuscation from mere reformatting.
  *  resolve(x) === normalize(x) exactly when nothing was folded or substituted. */
@@ -304,7 +401,7 @@ export function resolve(text: string): string {
   const MAX_OUTPUT = 1 << 20 // 1 MiB — bail past this; return the last bounded form
   let cur = text
   for (let i = 0; i < 12; i++) {
-    const next = foldConcat(foldReplace(foldFormat(foldCharArray(resolveVars(cur)))))
+    const next = foldConcat(foldReverse(foldReplace(foldFormat(foldCharArray(resolveVars(cur))))))
     if (next.length > MAX_OUTPUT) return cur
     if (next === cur) return next
     cur = next

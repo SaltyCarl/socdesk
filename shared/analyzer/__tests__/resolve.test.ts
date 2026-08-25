@@ -187,3 +187,32 @@ describe('resolve — -replace fold with ReDoS guard (review 2.5)', () => {
     expect(resolve("'IqqE' -replace 'qq','' -replace 'zz','z'")).toBe("'IE'")
   })
 })
+
+describe('resolve — string reversal (review 2.5)', () => {
+  it('folds a char-index reversal join over a literal', () => {
+    // 'XEI'[-1..-3] -join '' → 'IEX'
+    expect(resolve("('XEI'[-1..-3] -join '')")).toContain('IEX')
+  })
+  it('folds the same idiom when the range is space-separated (still one atomic span)', () => {
+    // Lexes to three separate bareword tokens ('-1', '..', '-3') rather than
+    // one glued token — must fold the same way.
+    expect(resolve("'XEI' [ -1 .. -3 ] -join ''")).toContain('IEX')
+  })
+  it('leaves a variable-subject reversal untouched (literal subject only)', () => {
+    expect(resolve("$s[-1..-3] -join ''")).toContain('$s')
+  })
+  it('does not reach inside a string literal — content containing "[-1..-3]"/"-join" is preserved verbatim', () => {
+    // Token-aware: this whole thing is ONE string token. A raw-text regex
+    // over the source could mis-parse the bracketed range or '-join'
+    // appearing inside string payload as real structure; token-aware
+    // matching cannot, because there is no separate '[' / bareword / '-join'
+    // token here to match against — it is all one string token's value.
+    expect(resolve("'see s[-1..-3] in docs'")).toBe("'see s[-1..-3] in docs'")
+  })
+  it('does not fold when the range does not span the whole literal (not a full reversal)', () => {
+    // -1..-3 selects only the last 3 chars of a 5-char literal — not a full
+    // reversal of 'ABCDE' — so this must not be folded to a reversed guess.
+    const out = resolve("'ABCDE'[-1..-3] -join ''")
+    expect(out).toContain('-1..-3')
+  })
+})
