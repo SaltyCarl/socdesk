@@ -203,10 +203,21 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   }
   let work = layers.length ? (layers[layers.length - 1].text ?? '') : current
   let workIndex = layers.length ? layers[layers.length - 1].index : 0
+  // Tracks the deepest text resolve() reached on this pass, INDEPENDENTLY of
+  // whether a 'resolve (fold/substitute)' layer was pushed for it below (that
+  // push is gated on `layers.length` — an intentional UI decision about when
+  // to show a resolve step in the decode ladder, not about whether resolution
+  // happened). Whole-branch review finding 1: detectResidue() below must read
+  // this, not a layers-derived value, or an input with NO prior decode layer
+  // that resolve() still fully folds (e.g. a bare `[char]`/`-join` assembly)
+  // hands the residue detector the STALE unfolded text and wrongly flags a
+  // fully-resolved input as unresolved.
+  let finalResolvedText = work
   for (let depth = 0; depth < 6; depth++) {
     const resolved = resolve(work)
     if (seen.has(resolved)) break
     seen.add(resolved)
+    finalResolvedText = resolved
     let idx = workIndex
     if (resolved !== normalize(work) && layers.length) {
       layers.push({ index: layers.length, transform: 'resolve (fold/substitute)', text: resolved, state: 'fully-decoded' })
@@ -238,8 +249,12 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   // constructs that produced no layer. Each becomes an opaque layer (flips
   // confidence.state to 'partial' via the count below) + an opaque bullet in
   // the "Could not resolve" block — so an unopenable stager never renders
-  // identically to a benign one-liner.
-  const deepestText = [...layers].reverse().find((l) => l.text != null)?.text ?? script
+  // identically to a benign one-liner. Fall back to `finalResolvedText` (the
+  // deepest text resolve() actually reached), never `script` — `script` is
+  // the pre-resolve text and is stale whenever resolve() fully folded the
+  // input without a prior decode layer to hang a 'resolve' layer off of
+  // (whole-branch review finding 1).
+  const deepestText = [...layers].reverse().find((l) => l.text != null)?.text ?? finalResolvedText
   for (const res of detectResidue(deepestText, interpreter)) {
     layers.push({
       index: layers.length,

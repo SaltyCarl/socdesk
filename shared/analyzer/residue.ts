@@ -22,9 +22,21 @@ function entropy(s: string): number {
 
 const DECODE_API = /frombase64string|\[convert\]::from|::frombase64/i
 const SINK = /\biex\b|invoke-expression|\.invoke\(|(?:^|\s)&\s*\(/i
-const CHAR_ASM = /\[char(?:\[\])?\]|\[array\]::reverse/i
+// [char]-array assembly AND a bare -join/reversal idiom (e.g. a VARIABLE-
+// subject `$s[-1..-3] -join ''` — resolve() intentionally leaves this
+// unfolded since $s isn't a literal, per resolve.ts's own "leaves a
+// variable-subject reversal untouched" doctrine) are the same class of
+// construction evidence per spec §4.1's R2/R3 list — whole-branch review
+// finding 2: a bare `-join` was previously only matched INSIDE the
+// char-array pattern, so a reversal/array-assembly over a variable produced
+// zero layers/signals/bullets, identical to benign input.
+const CHAR_ASM = /\[char(?:\[\])?\]|\[array\]::reverse|-join\b/i
 const FMT_REPLACE = /-f\b|-replace\b|\.replace\(/i
 const GETSTRING = /getstring/i
+// A variable operand concatenated with `+` (either side) — spec §4.1's
+// "concat-with-variables" construction evidence, e.g. `IEX ($a + $b)` where
+// $a/$b could not be resolved to literals.
+const VAR_CONCAT = /\$[A-Za-z_]\w*\s*\+|\+\s*\$[A-Za-z_]\w*/
 
 /** Scan the DEEPEST decoded text for encoding constructs that produced no
  *  decode layer — the honesty spine (spec §4.1). Each finding becomes an
@@ -54,6 +66,7 @@ export function detectResidue(text: string, interpreter: Interpreter): ResidueFi
   if (SINK.test(text) && !hasFetch) {
     if (CHAR_ASM.test(text)) push('char-assembly', 'a [char]/-join character-assembly construct feeding execution could not be resolved', text)
     else if (FMT_REPLACE.test(text)) push('dynamic-exec', 'an obfuscated string feeding execution could not be resolved', text)
+    else if (VAR_CONCAT.test(text)) push('dynamic-exec', 'a variable-concatenation construct feeding execution could not be resolved', text)
     // GetString off an already-flagged base64 blob is the SAME residue, not a second finding.
     else if (GETSTRING.test(text) && !base64Found) push('dynamic-exec', 'an obfuscated string feeding execution could not be resolved', text)
   }

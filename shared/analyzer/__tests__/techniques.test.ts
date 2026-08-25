@@ -292,8 +292,8 @@ describe('T1490 shadow/recovery tamper (review 2.4)', () => {
   it('fires on vssadmin delete shadows', () => {
     expect(sig('vssadmin delete shadows /all /quiet')).toContain('shadow-recovery-tamper')
   })
-  it('fires on vssadmin resize shadowstorage', () => {
-    expect(sig('vssadmin resize shadowstorage /for=c: /on=c: /maxsize=401MB')).toContain('shadow-recovery-tamper')
+  it('does NOT fire on vssadmin resize shadowstorage alone — a plausible legitimate capacity increase, not inherently destructive (whole-branch review finding 3)', () => {
+    expect(sig('vssadmin resize shadowstorage /maxsize=500MB')).not.toContain('shadow-recovery-tamper')
   })
   it('fires on wmic shadowcopy delete', () => {
     expect(sig('wmic shadowcopy delete')).toContain('shadow-recovery-tamper')
@@ -313,11 +313,11 @@ describe('T1490 shadow/recovery tamper (review 2.4)', () => {
   it('is near-dispositive on its own', () => {
     expect(specOf('vssadmin delete shadows /all /quiet', 'shadow-recovery-tamper')).toBe('near-dispositive')
   })
-  it('trigger is a real substring of the input — never fabricated, even for the non-first discriminators (resize-shadowstorage and bootstatuspolicy cases)', () => {
-    const resizeInput = 'vssadmin resize shadowstorage /for=c: /on=c: /maxsize=401MB'
-    const resizeSignal = classify(buildContext(resizeInput, [], 'unknown')).find((s) => s.id === 'shadow-recovery-tamper')
-    expect(resizeSignal).toBeTruthy()
-    expect(resizeInput.toLowerCase()).toContain(resizeSignal!.trigger.toLowerCase())
+  it('trigger is a real substring of the input — never fabricated, even for the non-first discriminators (systemstatebackup and bootstatuspolicy cases)', () => {
+    const wbadminInput = 'wbadmin delete systemstatebackup -deleteoldest'
+    const wbadminSignal = classify(buildContext(wbadminInput, [], 'unknown')).find((s) => s.id === 'shadow-recovery-tamper')
+    expect(wbadminSignal).toBeTruthy()
+    expect(wbadminInput.toLowerCase()).toContain(wbadminSignal!.trigger.toLowerCase())
 
     const bcdInput = 'bcdedit /set {default} bootstatuspolicy ignoreallfailures'
     const bcdSignal = classify(buildContext(bcdInput, [], 'unknown')).find((s) => s.id === 'shadow-recovery-tamper')

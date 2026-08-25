@@ -211,6 +211,27 @@ describe('analyze — failure legibility (residue)', () => {
     expect(r.confidence.state).toBe('fully-decoded')
     expect(r.layers.some((l) => l.state === 'opaque')).toBe(false)
   })
+  it('a construct resolve() fully folds with NO prior decode layer does not falsely flag as unresolved (whole-branch review finding 1)', async () => {
+    // No -enc, no interpreter reentry, no embedded base64 blob -> layers is
+    // empty going into the resolve loop, so the resolve-loop's layer push
+    // (gated on layers.length being already nonzero) never fires. Before the
+    // fix, detectResidue() was fed the STALE pre-resolve text (which still
+    // contains the [char]/-join construct) and wrongly flagged this
+    // fully-decodable input as unresolved.
+    const r = await analyze("IEX (([char]73,[char]69,[char]88) -join '')")
+    expect(r.confidence.state).toBe('fully-decoded')
+    expect(r.layers.some((l) => l.state === 'opaque')).toBe(false)
+    expect(r.bullets.some((b) => b.confidence === 'opaque')).toBe(false)
+  })
+  it('a variable-subject reversal/-join construct with no [char] literal is flagged opaque, not silently blank (whole-branch review finding 2)', async () => {
+    // $s is never bound to a literal, so resolve() intentionally leaves the
+    // reversal/-join idiom unfolded (real, honest unresolvability) — this
+    // must render as an opaque partial, never as a clean, signal-less pass.
+    const r = await analyze("IEX ($s[-1..-3] -join '')")
+    expect(r.confidence.state).toBe('partial')
+    expect(r.layers.some((l) => l.state === 'opaque')).toBe(true)
+    expect(r.bullets.some((b) => b.confidence === 'opaque')).toBe(true)
+  })
 })
 
 describe('analyze — plain base64 inner stage (review 2.1)', () => {

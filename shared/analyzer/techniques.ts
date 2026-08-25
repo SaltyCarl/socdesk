@@ -266,8 +266,19 @@ export const RULES: SignatureRule[] = [
     test(ctx) {
       // Destructive verb must co-occur with its object — a bare `vssadmin list`
       // is benign admin work. Pasted one-liner context: no legitimate use.
+      //
+      // `vssadmin resize shadowstorage` is DELIBERATELY excluded (whole-branch
+      // review finding 3): unlike `delete shadows`, resize doesn't destroy
+      // anything by itself — `/maxsize=<N>` is routine VSS capacity-management
+      // admin work (often INCREASING headroom for more restore points), so the
+      // direction of the resize matters and this rule can't see it. Firing
+      // near-dispositive/no-legitimate-use on that alone was a cry-wolf bug.
+      // Deferred gap: no rule currently flags a shrink-to-near-zero resize
+      // (the actual destructive shape, e.g. `/maxsize=401MB` on a large volume,
+      // or `/maxsize=unbounded` followed by a shrink) — logged for a future
+      // pass rather than fixed here, per the fix-wave's minimal-change scope.
       const del =
-        (hasAny(ctx, ['vssadmin']) && hasAny(ctx, ['delete shadows', 'resize shadowstorage'])) ||
+        (hasAny(ctx, ['vssadmin']) && hasAny(ctx, ['delete shadows'])) ||
         (hasAny(ctx, ['wmic']) && hasAll(ctx, ['shadowcopy', 'delete'])) ||
         (hasAny(ctx, ['wbadmin']) && hasAny(ctx, ['delete catalog', 'delete systemstatebackup'])) ||
         (hasAny(ctx, ['bcdedit']) && hasAny(ctx, ['recoveryenabled no', 'bootstatuspolicy ignoreallfailures']))
@@ -275,7 +286,7 @@ export const RULES: SignatureRule[] = [
         return {
           hit: true,
           trigger: triggerFor(ctx, [
-            'delete shadows', 'resize shadowstorage', 'shadowcopy', 'delete catalog',
+            'delete shadows', 'shadowcopy', 'delete catalog',
             'delete systemstatebackup', 'recoveryenabled', 'bootstatuspolicy ignoreallfailures',
           ]),
         }

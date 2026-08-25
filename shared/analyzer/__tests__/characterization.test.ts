@@ -28,6 +28,12 @@ describe('specificity-gated characterization', () => {
     expect(r.characterization).toBeNull()
     expect(r.signals.find((s) => s.id === 'download-cradle')).toBeUndefined()
   })
+
+  it('vssadmin resize shadowstorage alone (legitimate capacity-management admin work) yields no near-dispositive/high-confidence-malicious characterization (whole-branch review finding 3)', async () => {
+    const r = await analyze('vssadmin resize shadowstorage /maxsize=500MB')
+    expect(r.signals.find((s) => s.id === 'shadow-recovery-tamper')).toBeUndefined()
+    expect(r.characterization).toBeNull()
+  })
 })
 
 describe('suspicious tier (co-occurrence-corroborated, no intrinsic near-dispositive)', () => {

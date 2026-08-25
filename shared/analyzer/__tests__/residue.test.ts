@@ -14,6 +14,17 @@ describe('detectResidue — unresolved constructs become findings', () => {
     const t = "IEX (( [char]73,[char]69,[char]88 ) -join '')"
     expect(detectResidue(t, 'powershell').map((f) => f.construct)).toContain('char-assembly')
   })
+  it('R2: a dynamic sink over a VARIABLE-subject reversal/-join construct (no [char] literal) is flagged (whole-branch review finding 2)', () => {
+    // resolve() intentionally leaves this unfolded — $s is not a literal — so
+    // it must not render identical to benign input just because there is no
+    // [char] token to match on.
+    const t = "IEX ($s[-1..-3] -join '')"
+    expect(detectResidue(t, 'powershell').map((f) => f.construct)).toContain('char-assembly')
+  })
+  it('R2: a dynamic sink over an unresolved variable-concatenation construct is flagged (whole-branch review finding 2)', () => {
+    const t = 'IEX ($a + $b)'
+    expect(detectResidue(t, 'powershell').map((f) => f.construct)).toContain('dynamic-exec')
+  })
   it('R4: a cmd %VAR:~n,m% substring construct is flagged (cmd interpreter only)', () => {
     const t = '%COMSPEC:~0,1%'
     expect(detectResidue(t, 'cmd').map((f) => f.construct)).toContain('cmd-var')

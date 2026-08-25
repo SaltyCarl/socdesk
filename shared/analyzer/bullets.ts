@@ -191,13 +191,18 @@ function downloadMethodFromTrigger(trigger: string): string {
   return trigger.replace(/^\.+/, '')
 }
 
-// The clickfix SIGNAL (techniques.ts) fires broadly — including on a bare
-// hidden+no-profile+fetch+IEX cradle with NO literal verification-prompt text
-// (its own `hiddenFetchIex` branch). Asserting "presents a fake
-// human-verification prompt" there would be an invented fact. The delivery
-// bullet re-checks for the actual decoy phrase / headless-conhost text — the
-// same discriminators techniques.ts's own decoy/headless branches use — so it
-// only fires when a real ClickFix presentation is present in the corpus.
+// The clickfix SIGNAL (techniques.ts) requires a genuine paste-and-run trait
+// to fire at all (a lure/decoy phrase, a headless conhost, or an mshta lure —
+// Task 14 removed the old `hiddenFetchIex` branch that used to fire on a bare
+// hidden+no-profile+fetch+IEX cradle alone, since that shape has no literal
+// verification-prompt text and reads as download-cradle only). So by the time
+// this bullet's `fires()` sees the signal, a real trait is already present —
+// but this re-check is kept as defense in depth (and to avoid coupling this
+// bullet's wording to techniques.ts's internal branch structure): it
+// independently re-derives "a real decoy phrase or headless-conhost text is
+// present" via the same discriminators techniques.ts's own decoy/headless
+// checks use, so "presents a fake human-verification prompt" is never
+// asserted without that exact text backing it up.
 const CLICKFIX_DECOY_PHRASES = ['verify you are human', 'i am not a robot', 'ray id', 'captcha', 'press win+r', 'press enter to verify']
 function isClickfixPresentation(ctx: BulletContext): boolean {
   const decoy = CLICKFIX_DECOY_PHRASES.some((p) => ctx.lower.includes(p)) ||
