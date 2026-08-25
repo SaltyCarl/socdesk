@@ -89,4 +89,22 @@ describe('resolve — [char]/-join assembly (review 2.5)', () => {
     const t = "$x -join ','"
     expect(resolve(t)).toContain('$x')
   })
+  it('does not reach inside a string literal — [char]73 as DATA is preserved verbatim', () => {
+    expect(resolve("'[char]73'")).toBe("'[char]73'")
+  })
+  it('does not misparse a hex literal inside a string as [char]0 — no NUL injection', () => {
+    const out = resolve("'uses [char]0x41 casts'")
+    expect(out).not.toContain(String.fromCharCode(0))
+    expect(out).toContain('[char]0x41')
+  })
+  it('leaves [char]$x (variable operand) untouched — never guessed', () => {
+    const out = resolve('[char]$x')
+    expect(out).toContain('char')
+    expect(out).toContain('$x')
+  })
+  it('does not falsely collapse a join with a mixed literal/variable array (a bare [char] element may still fold independently)', () => {
+    const out = resolve("([char]73,$x) -join ''")
+    expect(out).toContain('$x')
+    expect(out).not.toMatch(/^'[^']*'$/) // the whole expression must not collapse to one literal
+  })
 })

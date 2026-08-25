@@ -77,23 +77,70 @@ export function resolveVars(text: string): string {
   return out.join(' ')
 }
 
+const isOpenParen = (t: Token | undefined): boolean => !!t && t.type === 'punct' && t.value === '('
+const isCloseParen = (t: Token | undefined): boolean => !!t && t.type === 'punct' && t.value === ')'
+const isOpenBracket = (t: Token | undefined): boolean => !!t && t.type === 'punct' && t.value === '['
+const isCloseBracket = (t: Token | undefined): boolean => !!t && t.type === 'punct' && t.value === ']'
+const isComma = (t: Token | undefined): boolean => !!t && t.type === 'punct' && t.value === ','
+const isCharKeyword = (t: Token | undefined): boolean => !!t && t.type === 'bareword' && /^char$/i.test(t.value)
+const isJoinKeyword = (t: Token | undefined): boolean => !!t && t.type === 'bareword' && /^-join$/i.test(t.value)
+const isDigits = (t: Token | undefined): boolean => !!t && t.type === 'bareword' && /^\d+$/.test(t.value)
+const isEmptyStringTok = (t: Token | undefined): boolean => !!t && t.type === 'string' && t.value === ''
+
+/** Match a `[char]NN` run at token index i (numeric literal only — a
+ *  `[char]$x` cast with a variable operand fails this match and is left
+ *  untouched, never guessed). Returns the code point and the index just
+ *  past the match, or undefined. */
+function matchCharLiteral(toks: Token[], i: number): { code: number; next: number } | undefined {
+  if (!isOpenBracket(toks[i]) || !isCharKeyword(toks[i + 1]) || !isCloseBracket(toks[i + 2]) || !isDigits(toks[i + 3])) return undefined
+  return { code: Number(toks[i + 3].value), next: i + 4 }
+}
+
 /** Fold `[char]NN` → its character and `([char]A,[char]B,…) -join ''` → the
- *  assembled literal. Numeric literals only — a `[char]$x` with a variable is
- *  left untouched (never guessed). Whitespace is tolerated inside `[ char ]`
- *  because this runs on `resolveVars()`'s output, which re-emits every
- *  punctuation token (`[`, `]`, `,`, `(`, `)`) space-separated. */
+ *  assembled literal. Operates on the TOKEN stream (like foldConcat), never
+ *  on raw text — a `[char]73`-shaped run of characters inside a string
+ *  literal's payload is a single 'string' token and is passed through via
+ *  emit() unchanged; it can never be reinterpreted as code. Numeric literals
+ *  only — a `[char]$x` with a variable, or a `-join` whose array contains a
+ *  non-literal element, is left untouched (a bare `[char]NN` elsewhere in
+ *  that same unresolvable expression may still fold on its own — that is
+ *  real, independently-decodable code, not a guess). */
 export function foldCharArray(text: string): string {
-  // ([char]73,[char]69,...) -join '' | "" → 'IEX'
-  const joined = text.replace(
-    /\(\s*((?:\[\s*char\s*\]\s*\d+\s*,\s*)+\[\s*char\s*\]\s*\d+)\s*\)\s*-join\s*(?:''|"")/gi,
-    (_m, body: string) => {
-      const codes = [...body.matchAll(/\[\s*char\s*\]\s*(\d+)/gi)].map((x) => Number(x[1]))
-      const s = String.fromCharCode(...codes).replace(/'/g, "''")
-      return `'${s}'`
-    },
-  )
-  // bare [char]73 → 'I'
-  return joined.replace(/\[\s*char\s*\]\s*(\d+)/gi, (_m, n: string) => `'${String.fromCharCode(Number(n)).replace(/'/g, "''")}'`)
+  const toks = tokenize(text)
+  const out: string[] = []
+  let i = 0
+  while (i < toks.length) {
+    // ( [char]A , [char]B , ... [char]N ) -join '' | "" → 'assembled'
+    if (isOpenParen(toks[i])) {
+      const codes: number[] = []
+      let j = i + 1
+      let ok = true
+      for (;;) {
+        const m = matchCharLiteral(toks, j)
+        if (!m) { ok = false; break }
+        codes.push(m.code)
+        j = m.next
+        if (isComma(toks[j])) { j++; continue }
+        break
+      }
+      if (ok && codes.length > 0 && isCloseParen(toks[j]) && isJoinKeyword(toks[j + 1]) && isEmptyStringTok(toks[j + 2])) {
+        const s = String.fromCharCode(...codes).replace(/'/g, "''")
+        out.push(`'${s}'`)
+        i = j + 3
+        continue
+      }
+    }
+    // bare [char]73 → 'I'
+    const m = matchCharLiteral(toks, i)
+    if (m) {
+      out.push(`'${String.fromCharCode(m.code).replace(/'/g, "''")}'`)
+      i = m.next
+      continue
+    }
+    out.push(emit(toks[i]))
+    i++
+  }
+  return out.join(' ')
 }
 
 /** Re-emit the token stream with no folding or substitution — the whitespace/
