@@ -15,11 +15,11 @@ export const LOLBINS: LolbinEntry[] = [
   { bin: 'certutil', context: ['-urlcache', '-verifyctl', 'http://', 'https://'], techniqueIds: ['T1105'] },
   { bin: 'bitsadmin', context: ['/transfer', '/addfile', 'http://', 'https://'], techniqueIds: ['T1105', 'T1197'] },
   { bin: 'mshta', context: ['http://', 'https://', 'javascript:', 'vbscript:', '.hta'], techniqueIds: ['T1218.005'] },
-  { bin: 'regsvr32', context: ['/i:http', 'scrobj', '/u ', 'http://', 'https://'], techniqueIds: ['T1218.010'] },
-  { bin: 'rundll32', context: ['javascript:', 'url.dll', 'shell32.dll', 'mshtml'], techniqueIds: ['T1218.011'] },
-  { bin: 'msiexec', context: ['/i http', '/i https', '/q', '/package http'], techniqueIds: ['T1218.007'] },
+  { bin: 'regsvr32', context: ['/i:http', 'scrobj', 'http://', 'https://'], techniqueIds: ['T1218.010'] },
+  { bin: 'rundll32', context: ['javascript:', 'url.dll,fileprotocolhandler', 'mshtml,runhtmlapplication'], techniqueIds: ['T1218.011'] },
+  { bin: 'msiexec', context: ['/i http', '/i https', '/package http'], techniqueIds: ['T1218.007'] },
   { bin: 'wmic', context: ['process call create', '/node:', 'format:http'], techniqueIds: ['T1047'] },
-  { bin: 'installutil', context: ['/logfile', '/u ', '.exe'], techniqueIds: ['T1218.004'] },
+  { bin: 'installutil', context: ['/logfile=', 'logtoconsole'], techniqueIds: ['T1218.004'] },
   { bin: 'conhost', context: ['--headless'], techniqueIds: ['T1059.001'] },
   // finger.exe fetching a payload via a for /f download/exec cradle — the
   // discriminator is real co-occurrence with the cradle shape, not a bare
