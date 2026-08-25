@@ -119,4 +119,25 @@ describe('IOC hygiene (review 2.7)', () => {
   it('still extracts a URL host unaffected by the domain-type guards', () => {
     expect(scan('http://evil.example.com/a')).toContain('http://evil.example.com/a')
   })
+
+  // Regression (post-approval review): a first-pass DOTNET_MEMBER_RE that
+  // fired on shape alone (root word + 2 more dotted segments) also swallowed
+  // real domains that happen to start with the same root word and have 3
+  // labels — a false negative, worse than the bogus-IOC false positive this
+  // whole task exists to fix. The leaf-not-a-TLD check is what tells these
+  // apart from an actual .NET member chain (whose leaf is a class/member
+  // name, never a TLD).
+  it('still extracts io.adafruit.com (real domain, leaf is a TLD)', () => {
+    expect(scan('beaconing to io.adafruit.com for telemetry')).toContain('io.adafruit.com')
+  })
+
+  it('still extracts microsoft.fake-support.ru (brand-impersonation lookalike, leaf is a TLD)', () => {
+    expect(scan('phishing page hosted at microsoft.fake-support.ru')).toContain(
+      'microsoft.fake-support.ru',
+    )
+  })
+
+  it('still extracts net.example.org (real domain, leaf is a TLD)', () => {
+    expect(scan('callback to net.example.org every 60s')).toContain('net.example.org')
+  })
 })
