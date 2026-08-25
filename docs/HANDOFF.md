@@ -1,10 +1,61 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-25 (session — analyzer-hardening Phase 3: detection-gap closure — shadow-recovery-tamper (T1490), disk-dropper, ClickFix trait-gating, named-offensive-tool characterization — built on branch `feat/analyzer-hardening`, full suite green, NOT merged) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-25 (session — analyzer-hardening Phase 4 (final): cmd `set`/`%var%` reassembly, gzip-bomb/input-size hardening, IOC-extraction hygiene — all 8 external-review findings now addressed across 4 phases, branch `feat/analyzer-hardening`, full suite green, NOT merged) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-25 (session — analyzer-hardening Phase 3: detection-gap closure, branch built, NOT merged)
+## 0. LATEST — 2026-08-25 (session — analyzer-hardening Phase 4: cmd half + robustness + IOC hygiene, branch built, NOT merged)
+
+**Lane:** analyzer hardening per the external analyzer review (2026-08-24), final phase.
+Phase 4 goal: the cmd half + robustness + IOC hygiene (review 2.5, 2.6, 2.7). Branch
+`feat/analyzer-hardening`, commits `149f59e..fcd819f`, **NOT merged**.
+
+**Shipped:**
+- **cmd `set`/`%var%` reassembly** — `shared/analyzer/cmdvars.ts` (new) + `preprocess.ts`.
+  Resolves `set`/`%var%` reassembly, `%COMSPEC:~n,m%` substring (incl. negative offsets),
+  and `!VAR!` delayed expansion, invoked only from the cmd branch after caret
+  de-obfuscation. Bounded (≤64 vars, depth-1, no recursion). Resolves
+  `set x=power&&set y=shell&&%x%%y%` → `powershell` — review's "biggest scope gap" (2.5).
+  (`25c8f62`, test coverage for delayed-expansion/unset-var guarantees `e0e7f00`)
+- **`cmd-var-obfuscation` signal** — `shared/analyzer/techniques.ts` + `bullets.ts`. Weak
+  signal (T1140/T1027): fires on a `set X=` + `%X%`/`!X!` reference, scanning ALL set
+  declarations (not just the first, closing a chained-decoy miss), paired with an
+  opaque-tier honesty bullet mirroring `wsh-not-resolved` so the obfuscation surfaces even
+  when reassembly only half-resolves. Bare `%PATH%` stays silent. (`b5210aa`, all-declarations
+  fix `d5b3e00`)
+- **Debounced input + honest size cap** — `shared/analyzer-ui/useDebounced.ts` (new) +
+  `web/src/routes/PowerShellAnalyzer.tsx` + `shared/analyzer/report.ts`. Input debounced
+  ~200ms (the `usePsAnalysis` "debounced-by-caller" contract is now true); `analyze()` caps
+  raw input at 64 KB, surfacing an opaque "input truncated" notice + partial state rather
+  than silently truncating or blocking the main thread (2.6). (`7bd9674`)
+- **Bounded `inflate()` output** — `shared/analyzer/fold.ts`. Reads the decompressed stream
+  incrementally with a 2 MiB output cap (cancels the reader past the cap, returns null),
+  guarding against a gzip-bomb literal that previously expanded unbounded (2.6). (`8449847`)
+- **IOC-extraction hygiene** — `shared/analyzer/extract.ts` (2.7). Widened the binary/data
+  denylist (json/xml/txt/log/csv/…) so `-OutFile data.json` no longer yields a bogus domain
+  IOC; added a .NET-member shape guard gated on the leaf label not being a common TLD, so
+  `system.io.memorystream` is excluded while real domains (`io.adafruit.com`,
+  `microsoft.fake-support.ru`) still extract. (`7adc72d`, TLD-gate fix `d41eb6b`)
+- **Intent-classification boundary fix** — `shared/intent.ts` (2.7). A lone malware filename
+  (`mimikatz.exe`, `kernel32.dll`) now classifies as `command` → local analyzer, never
+  `/api/enrich`; TLD-lookalike domains (`finger.io`, `wmic.io`, `certutil.info`) still
+  classify as `indicator`. (`fcd819f`)
+
+**Headline:** all 8 findings of the 2026-08-24 external review are addressed across 4
+phases — failure legibility (no more blank on unprocessable input), decode-ladder
+expansion, detection-gap closure (review CRITICAL 2.1 closed end-to-end on sample 6), and
+now the cmd half + robustness + IOC hygiene.
+
+**Verified:** Phase-4 gate green — `npm --prefix web run build` PASS, `cd web && npx
+vitest run ../shared` 514/514, `cd web && npx vitest run src` 152/152 (all three re-run
+and confirmed this session at branch HEAD `fcd819f`).
+
+**Open / next:** whole-branch final review of `feat/analyzer-hardening` (owner), then merge
+decision. Not deployed — branch unmerged.
+
+---
+
+## 0-RECENT — 2026-08-25 (session — analyzer-hardening Phase 3: detection-gap closure, branch built, NOT merged)
 
 **Lane:** analyzer hardening per the external analyzer review (2026-08-24), continuing
 Phase 2 (below). Phase 3 goal: close the detection gaps the review found missing (2.2,
