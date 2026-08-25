@@ -52,12 +52,19 @@ const WSH_FLAG_RULES: { flag: string; re: RegExp; techniqueIds: string[] }[] = [
 // Extract the /c or /k body, mirroring the shape of the existing -Command
 // extraction: match a flag, take the rest of the line. Caret de-obfuscation
 // runs first, then set/%var% reassembly (review 2.5) — cmd branch only, never
-// on PowerShell text (see cmdvars.ts's LITERAL-SAFETY note).
-function extractCmdBody(input: string): string {
+// on PowerShell text (see cmdvars.ts's LITERAL-SAFETY note). Also reports
+// whether reassembly actually substituted anything: reassembleCmdVars only
+// replaces the %VAR% *reference*, never the `set VAR=` *declaration* — so a
+// declaration can survive into the reassembled script while its reference
+// (the only literal evidence a corpus-text scan could key on) is consumed.
+// The cmd-var-obfuscation signal (techniques.ts) needs this as ground truth
+// for exactly that case, not just a text scan reconstructing it after the fact.
+function extractCmdBody(input: string): { text: string; changed: boolean } {
   const m = input.match(/\/(?:c|k)\s+(.*)$/is)
   const body = m ? m[1] : input
   const de = deobfuscateCaret(body)
-  return reassembleCmdVars(de).text.trim()
+  const reassembled = reassembleCmdVars(de)
+  return { text: reassembled.text.trim(), changed: reassembled.changed }
 }
 
 // The argument itself IS the payload: a URL, a local .hta path, or an inline
@@ -81,7 +88,13 @@ function extractWshBody(input: string, flags: EvasionFlag[]): string {
   return stripped.trim()
 }
 
-export function preprocess(input: string): { script: string; encoded: string | null; flags: EvasionFlag[]; interpreter: Interpreter } {
+export function preprocess(input: string): {
+  script: string
+  encoded: string | null
+  flags: EvasionFlag[]
+  interpreter: Interpreter
+  cmdVarsReassembled: boolean
+} {
   const flags: EvasionFlag[] = []
   let encoded: string | null = null
   for (const rule of FLAG_RULES) {
@@ -92,8 +105,11 @@ export function preprocess(input: string): { script: string; encoded: string | n
   }
   const interpreter = detectInterpreter(input)
   let script: string
+  let cmdVarsReassembled = false
   if (interpreter === 'cmd') {
-    script = extractCmdBody(input)
+    const body = extractCmdBody(input)
+    script = body.text
+    cmdVarsReassembled = body.changed
   } else if (interpreter === 'mshta') {
     script = extractMshtaBody(input)
   } else if (interpreter === 'wscript' || interpreter === 'cscript') {
@@ -105,5 +121,5 @@ export function preprocess(input: string): { script: string; encoded: string | n
     if (cmd) s = cmd[1]
     script = s
   }
-  return { script: script.trim(), encoded, flags, interpreter }
+  return { script: script.trim(), encoded, flags, interpreter, cmdVarsReassembled }
 }

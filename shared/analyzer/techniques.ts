@@ -22,12 +22,17 @@ export interface SignatureRule {
 /** Build the read-only match context once per analysis. `words` are lowercased
  *  bareword/string token values (backtick obfuscation already stripped by the
  *  lexer); `lower` is the whole-text fallback for multi-word phrases. */
-export function buildContext(text: string, flags: EvasionFlag[], interpreter: Interpreter = 'unknown'): RuleContext {
+export function buildContext(
+  text: string,
+  flags: EvasionFlag[],
+  interpreter: Interpreter = 'unknown',
+  cmdVarsReassembled = false,
+): RuleContext {
   const tokens = tokenize(text)
   const words = tokens
     .filter((t) => t.type === 'bareword' || t.type === 'string')
     .map((t) => t.value.toLowerCase())
-  return { text, lower: text.toLowerCase(), tokens, words, flags, interpreter }
+  return { text, lower: text.toLowerCase(), tokens, words, flags, interpreter, cmdVarsReassembled }
 }
 
 // ---- match helpers (all case-insensitive; token-value first, whole-text fallback) ----
@@ -480,6 +485,15 @@ export const RULES: SignatureRule[] = [
         const ref = ctx.text.match(new RegExp(`[%!]${name}[:%!]`, 'i'))
         if (ref) return { hit: true, trigger: triggerFor(ctx, [m[0], ref[0]]) }
       }
+      // Fall back to the FACT that reassembly happened (reassembleCmdVars
+      // reported changed:true) when no literal set+%var% evidence survives
+      // anywhere in the corpus — e.g. the %var% reference itself was ALSO
+      // caret-obfuscated, so the only untouched copy (which would otherwise
+      // still be sitting in the raw pasted input) never existed. No literal
+      // substring to cite here, so the trigger falls through to the rule's
+      // own label (runRules' `r.trigger ?? rule.label`), never a fabricated
+      // quote.
+      if (ctx.cmdVarsReassembled) return { hit: true }
       return { hit: false }
     },
   },

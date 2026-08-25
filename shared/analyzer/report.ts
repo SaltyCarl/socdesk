@@ -119,6 +119,11 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   const outer = preprocess(input)
   let { script, encoded, flags } = outer
   let interpreter = outer.interpreter
+  // Outer cmd body's own reassembly fact — captured here (not re-derived from
+  // `interpreter`, which nested re-entry below may reassign) so the
+  // cmd-var-obfuscation rule can key off ground truth even when no literal
+  // set+%var% evidence survives in the corpus text (see techniques.ts).
+  const cmdVarsReassembled = outer.cmdVarsReassembled
   const layers: DecodedLayer[] = []
   // Every intermediate wrapper body the reentry loop passed through — see
   // reenterNestedInterpreter's contextTexts doc comment.
@@ -241,9 +246,9 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   // these sources can't double-count; IOC extraction reads `scan`, not `corpus`,
   // so this doesn't affect IOCs.
   const corpus = [input, ...reentryContext, script, ...scan.map((s) => s.text)].filter(Boolean).join('\n')
-  const signals = classify(buildContext(corpus, flags, interpreter))
+  const signals = classify(buildContext(corpus, flags, interpreter, cmdVarsReassembled))
   const characterization = deriveCharacterization(signals)
-  const bullets = deriveBullets(buildContext(corpus, flags, interpreter), layers, iocs, signals)
+  const bullets = deriveBullets(buildContext(corpus, flags, interpreter, cmdVarsReassembled), layers, iocs, signals)
 
   // Failure legibility (spec §4.1): scan the DEEPEST decoded text for encoding
   // constructs that produced no layer. Each becomes an opaque layer (flips

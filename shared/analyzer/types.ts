@@ -21,6 +21,7 @@ export interface RuleContext {
   words: string[]        // lowercased bareword + string token values
   flags: EvasionFlag[]   // outer command-line evasion flags from preprocess
   interpreter: Interpreter // resolved interpreter (post nested-reentry); 'unknown' for existing PS-only call sites
+  cmdVarsReassembled: boolean // cmd branch only: reassembleCmdVars actually substituted a %var%/!var! reference (ground truth, independent of whether literal evidence survives in `text`)
 }
 
 export interface DecodedLayer {
