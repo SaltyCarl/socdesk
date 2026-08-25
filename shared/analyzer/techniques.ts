@@ -290,11 +290,6 @@ export const RULES: SignatureRule[] = [
     baseSpecificity: 'strong',
     upgradesWith: ['download-cradle', 'amsi-reflection'],
     test(ctx) {
-      const flags = flagSet(ctx)
-      // A -File-launched script is a file execution, not a paste-and-run one-liner;
-      // its inner fetch+IEX is a download-cradle concern, not ClickFix (mirrors evasion-cluster).
-      const localFile = /-file\b/i.test(ctx.text) || present(ctx, '-file')
-      const hiddenFetchIex = flags.has('-w') && flags.has('-nop') && hasAny(ctx, FETCH) && hasIexSink(ctx) && !localFile
       const headless = hasAll(ctx, ['conhost', '--headless'])
       const hta = hasAny(ctx, ['mshta']) && hasAny(ctx, ['http://', 'https://', 'javascript:', '.hta'])
       const decoyPhrases = ['verify you are human', 'i am not a robot', 'ray id', 'captcha', 'press win+r', 'press enter to verify']
@@ -303,7 +298,11 @@ export const RULES: SignatureRule[] = [
       // when it co-occurs with real lure/fetch context, never as a bare token.
       const verifyDecoy = hasAny(ctx, ['--verify']) && (hasAny(ctx, ['press enter', 'press win+r']) || hasAny(ctx, FETCH))
       const decoy = hasAny(ctx, decoyPhrases) || verifyDecoy
-      if (hiddenFetchIex || headless || hta || decoy) {
+      // A hidden/-nop fetch+IEX cradle by itself is a download-cradle concern
+      // (review 2.4) — ClickFix additionally requires a genuine paste-and-run
+      // trait: a lure phrase, --verify decoy, headless conhost, or an mshta lure.
+      const realTrait = headless || hta || decoy
+      if (realTrait) {
         const decoyTrigger = decoyPhrases.find((p) => present(ctx, p)) ?? (verifyDecoy ? '--verify' : undefined)
         const trigger = headless ? '--headless' : decoyTrigger ?? triggerFor(ctx, [...FETCH, 'mshta'])
         return { hit: true, trigger }
