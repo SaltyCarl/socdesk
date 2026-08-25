@@ -165,4 +165,25 @@ describe('resolve — -replace fold with ReDoS guard (review 2.5)', () => {
   it('does not reach inside a string literal — a string CONTAINING ".Replace(" is preserved verbatim', () => {
     expect(resolve("'call .Replace(x,y) here'")).toBe("'call .Replace(x,y) here'")
   })
+  it('a guard-rejected clause does not silently delete a following foldable clause (fidelity fix)', () => {
+    // The first clause's pattern '(x)' has a regex metachar, so the first
+    // clause is unresolvable. Before the fix, the scan fell through the
+    // rejected clause one token at a time, which let the rejected clause's
+    // replacement-arg token ('XX', itself a 'string' token) be reinterpreted
+    // as a fresh SUBJECT for the second -replace, silently consuming and
+    // deleting it. Correct behavior: the whole chain is left verbatim —
+    // nothing from either clause is dropped.
+    const r = resolve("'evil' -replace '(x)','XX' -replace 'qq','EE'")
+    expect(r).toContain('(x)')
+    expect(r).toContain('XX')
+    expect(r).toContain('qq')
+    expect(r).toContain('EE')
+  })
+  it('a folded clause correctly hands off to a following clause on the next fixpoint pass (positive interaction)', () => {
+    // First clause is metachar-free and folds: 'IqqE' -replace 'qq','' -> 'IE'.
+    // The second clause's true subject only becomes literal ('IE') on resolve()'s
+    // next fixpoint pass; 'zz' does not occur in 'IE', so the second -replace is a
+    // real no-op substitution and the chain settles at 'IE' with nothing dropped.
+    expect(resolve("'IqqE' -replace 'qq','' -replace 'zz','z'")).toBe("'IE'")
+  })
 })

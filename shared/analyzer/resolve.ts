@@ -221,7 +221,25 @@ const isReplaceMethod = (t: Token | undefined): boolean => !!t && t.type === 'ba
  *  there for the match to fire against (this is the same safety argument as
  *  foldFormat's fix in Task 9 / foldCharArray's fix in Task 8). A variable
  *  subject, pattern or replacement operand leaves the whole expression
- *  untouched — never guessed. */
+ *  untouched — never guessed.
+ *
+ *  Whenever a full structural match is found (subject + operator + pattern +
+ *  `,` + replacement, in either form), the ENTIRE span is consumed as one
+ *  atomic unit — folded if the guard accepts it, or re-emitted verbatim
+ *  token-by-token if the guard rejects it (metachar or empty pattern) — and
+ *  `i` always advances past the whole span. It never falls through to the
+ *  generic single-token `i++` mid-span: doing so would let a rejected
+ *  clause's replacement-arg token (itself a 'string' token) be re-examined
+ *  on its own iteration as a fresh candidate SUBJECT, which could then fold
+ *  against an immediately-following real `-replace`/`.Replace` clause and
+ *  silently consume + delete it. Concretely: `'evil' -replace '(x)','XX'
+ *  -replace 'qq','EE'` — the first clause's pattern `'(x)'` has a
+ *  metachar, so it is unresolvable; treating the whole clause as one atomic
+ *  span (verbatim, on rejection) keeps `'XX'` from ever being reconsidered
+ *  as the subject of the trailing ` -replace 'qq','EE'`, which is otherwise
+ *  silently deleted. A partial fold is never produced either way — a span
+ *  either folds completely or is reproduced completely, and no token is
+ *  ever dropped or reinterpreted across a clause boundary. */
 export function foldReplace(text: string): string {
   const toks = tokenize(text)
   const out: string[] = []
@@ -239,9 +257,11 @@ export function foldReplace(text: string): string {
         if (pat !== '' && !REGEX_METACHAR.test(pat)) {
           const folded = toks[i].value.split(pat).join(toks[i + 4].value)
           out.push(`'${folded.replace(/'/g, "''")}'`)
-          i += 5
-          continue
+        } else {
+          for (let k = i; k <= i + 4; k++) out.push(emit(toks[k]))
         }
+        i += 5
+        continue
       }
       // 'subj' . Replace ( 'pat' , 'rep' )
       if (
@@ -256,9 +276,11 @@ export function foldReplace(text: string): string {
         if (pat !== '' && !REGEX_METACHAR.test(pat)) {
           const folded = toks[i].value.split(pat).join(toks[i + 5].value)
           out.push(`'${folded.replace(/'/g, "''")}'`)
-          i += 7
-          continue
+        } else {
+          for (let k = i; k <= i + 6; k++) out.push(emit(toks[k]))
         }
+        i += 7
+        continue
       }
     }
     out.push(emit(toks[i]))
