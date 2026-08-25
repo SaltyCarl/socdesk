@@ -16,8 +16,8 @@ describe('review battery — end state after Phase 1', () => {
     expect(r.confidence.state).toBe('partial')
     expect(r.layers.some((l) => l.state === 'opaque')).toBe(true)
   })
-  it('#7 benign regsvr32 /u: no fabricated narrative', async () => {
+  it('#7 benign regsvr32 /u: no regsvr32 bullet at all (no fabricated narrative)', async () => {
     const r = await analyze('regsvr32 /u /s C:\\Program Files\\MyApp\\shell-extension.dll')
-    expect(r.bullets.some((b) => /squiblydoo|remote script/i.test(b.text))).toBe(false)
+    expect(r.bullets.some((b) => /regsvr32/i.test(b.text))).toBe(false)
   })
 })
