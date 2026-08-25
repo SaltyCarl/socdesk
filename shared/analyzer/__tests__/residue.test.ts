@@ -7,6 +7,8 @@ describe('detectResidue — unresolved constructs become findings', () => {
     const r = detectResidue(t, 'powershell')
     expect(r.map((f) => f.construct)).toContain('base64')
     expect(r[0].bytes).toBeGreaterThan(0)
+    // the GetString(...) wrapping the base64 blob is the SAME residue, not a second finding.
+    expect(r.map((f) => f.construct)).toEqual(['base64'])
   })
   it('R2: a dynamic sink over an unresolved -join/[char] construct is flagged', () => {
     const t = "IEX (( [char]73,[char]69,[char]88 ) -join '')"
@@ -14,6 +16,10 @@ describe('detectResidue — unresolved constructs become findings', () => {
   })
   it('R4: a cmd %VAR:~n,m% substring construct is flagged (cmd interpreter only)', () => {
     const t = '%COMSPEC:~0,1%'
+    expect(detectResidue(t, 'cmd').map((f) => f.construct)).toContain('cmd-var')
+  })
+  it('R4: a cmd %VAR:~-n,m% negative-offset substring construct is flagged', () => {
+    const t = '%COMSPEC:~-4,1%'
     expect(detectResidue(t, 'cmd').map((f) => f.construct)).toContain('cmd-var')
   })
 
@@ -30,5 +36,9 @@ describe('detectResidue — unresolved constructs become findings', () => {
   })
   it('does not fire on a bare %PATH% (not a substring/reassembly construct)', () => {
     expect(detectResidue('echo %PATH%', 'cmd')).toEqual([])
+  })
+  it('does not fire on a fetch cradle using the wider canonical fetch vocabulary (Invoke-RestMethod)', () => {
+    const t = "IEX ((Invoke-RestMethod $u) -replace 'a','b')"
+    expect(detectResidue(t, 'powershell')).toEqual([])
   })
 })
