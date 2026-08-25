@@ -192,6 +192,81 @@ export function foldFormat(text: string): string {
   return out.join(' ')
 }
 
+const REGEX_METACHAR = /[.\\^$*+?()[\]{}|]/
+
+const isReplaceOp = (t: Token | undefined): boolean => !!t && t.type === 'bareword' && /^-replace$/i.test(t.value)
+const isReplaceMethod = (t: Token | undefined): boolean => !!t && t.type === 'bareword' && /^\.replace$/i.test(t.value)
+
+/** Fold `'subject' -replace 'pat','rep'` and `'subject'.Replace('pat','rep')` to
+ *  the substituted literal — plain-substring substitution ONLY, via split/join,
+ *  NEVER by constructing `new RegExp(pat)` from attacker-controlled text.
+ *  `-replace` is PowerShell's REGEX replace operator, so a pattern containing
+ *  any regex metacharacter is left unfolded (ReDoS guard, spec §5): a hostile
+ *  paste must never hand our own analyzer a catastrophic regex to execute.
+ *  The SAME metacharacter guard is applied to the `.Replace()` method form
+ *  too — even though .NET's String.Replace is never regex, one shared guard
+ *  is simpler to reason about and is strictly more conservative, never less
+ *  safe (it only ever means falling through to the residue detector instead
+ *  of folding, not a wrong or unsafe fold). An empty pattern is also left
+ *  unfolded on both forms: `split('')` does not reproduce -replace's regex
+ *  empty-match semantics, and .NET's String.Replace throws on an empty
+ *  oldValue — folding either would misrepresent what the real call does.
+ *
+ *  Operates on the TOKEN stream (like foldConcat/foldCharArray/foldFormat),
+ *  never on raw text: the subject, pattern and replacement must each be
+ *  their OWN 'string' token, separated by real token boundaries from the
+ *  `-replace`/`.Replace` operator and from each other — a string literal
+ *  whose PAYLOAD merely contains the text `-replace` or `.Replace(` can
+ *  never be mistaken for the operator, because there is no token boundary
+ *  there for the match to fire against (this is the same safety argument as
+ *  foldFormat's fix in Task 9 / foldCharArray's fix in Task 8). A variable
+ *  subject, pattern or replacement operand leaves the whole expression
+ *  untouched — never guessed. */
+export function foldReplace(text: string): string {
+  const toks = tokenize(text)
+  const out: string[] = []
+  let i = 0
+  while (i < toks.length) {
+    if (toks[i].type === 'string') {
+      // 'subj' -replace 'pat' , 'rep'
+      if (
+        isReplaceOp(toks[i + 1]) &&
+        toks[i + 2]?.type === 'string' &&
+        isComma(toks[i + 3]) &&
+        toks[i + 4]?.type === 'string'
+      ) {
+        const pat = toks[i + 2].value
+        if (pat !== '' && !REGEX_METACHAR.test(pat)) {
+          const folded = toks[i].value.split(pat).join(toks[i + 4].value)
+          out.push(`'${folded.replace(/'/g, "''")}'`)
+          i += 5
+          continue
+        }
+      }
+      // 'subj' . Replace ( 'pat' , 'rep' )
+      if (
+        isReplaceMethod(toks[i + 1]) &&
+        isOpenParen(toks[i + 2]) &&
+        toks[i + 3]?.type === 'string' &&
+        isComma(toks[i + 4]) &&
+        toks[i + 5]?.type === 'string' &&
+        isCloseParen(toks[i + 6])
+      ) {
+        const pat = toks[i + 3].value
+        if (pat !== '' && !REGEX_METACHAR.test(pat)) {
+          const folded = toks[i].value.split(pat).join(toks[i + 5].value)
+          out.push(`'${folded.replace(/'/g, "''")}'`)
+          i += 7
+          continue
+        }
+      }
+    }
+    out.push(emit(toks[i]))
+    i++
+  }
+  return out.join(' ')
+}
+
 /** Re-emit the token stream with no folding or substitution — the whitespace/
  *  quote baseline that separates real deobfuscation from mere reformatting.
  *  resolve(x) === normalize(x) exactly when nothing was folded or substituted. */
@@ -207,7 +282,7 @@ export function resolve(text: string): string {
   const MAX_OUTPUT = 1 << 20 // 1 MiB — bail past this; return the last bounded form
   let cur = text
   for (let i = 0; i < 12; i++) {
-    const next = foldConcat(foldFormat(foldCharArray(resolveVars(cur))))
+    const next = foldConcat(foldReplace(foldFormat(foldCharArray(resolveVars(cur)))))
     if (next.length > MAX_OUTPUT) return cur
     if (next === cur) return next
     cur = next

@@ -129,3 +129,40 @@ describe('resolve — -f format operator (review 2.5)', () => {
     expect(resolve("'use the -f flag with {0} here'")).toBe("'use the -f flag with {0} here'")
   })
 })
+
+describe('resolve — -replace fold with ReDoS guard (review 2.5)', () => {
+  it('folds a plain-substring -replace', () => {
+    expect(resolve("'IqqEqqX' -replace 'qq',''")).toContain('IEX')
+  })
+  it('does NOT fold a regex-metachar -replace (ReDoS guard) — left untouched', () => {
+    const t = "'aaa' -replace '(a+)+',''"
+    expect(resolve(t)).toContain('-replace')
+  })
+  it('does not fold -replace with an empty pattern (ambiguous substitution semantics)', () => {
+    // empty-pattern regex-replace matches at every position (not the same as
+    // JS split('')/join semantics) — leave unfolded rather than misrepresent it
+    const t = "'abc' -replace '',''"
+    expect(resolve(t)).toContain('-replace')
+  })
+  it('leaves a variable-subject -replace untouched (literal subject only)', () => {
+    expect(resolve("$x -replace 'qq',''")).toContain('$x')
+  })
+  it('does not reach inside a string literal — a string CONTAINING "-replace" is preserved verbatim', () => {
+    // Token-aware: this is ONE string token. A raw-text regex over the whole
+    // source could mis-parse '-replace' appearing inside string payload as
+    // the operator (this is exactly Task 8's NUL-injection class of bug);
+    // token-aware matching can never do that because there is no separate
+    // '-replace' bareword token here to match against.
+    expect(resolve("'the -replace operator rocks'")).toBe("'the -replace operator rocks'")
+  })
+  it('folds a plain-substring .Replace() method call', () => {
+    expect(resolve("'IqqEqqX'.Replace('qq','')")).toContain('IEX')
+  })
+  it('does NOT fold a regex-metachar .Replace() pattern (same shared guard) — left untouched', () => {
+    const t = "'a.b.c'.Replace('.','')"
+    expect(resolve(t)).toContain('.Replace')
+  })
+  it('does not reach inside a string literal — a string CONTAINING ".Replace(" is preserved verbatim', () => {
+    expect(resolve("'call .Replace(x,y) here'")).toBe("'call .Replace(x,y) here'")
+  })
+})
