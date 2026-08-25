@@ -548,10 +548,13 @@ export const RULES: ActionRule[] = [
     fires(ctx) {
       const s = ctx.signals.find((x) => x.id === 'lolbin' && x.trigger === 'regsvr32')
       if (!s) return null
-      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
+      const squiblydoo = /\/i:http/i.test(ctx.lower) || ctx.lower.includes('scrobj')
+      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: { squiblydoo: squiblydoo ? '1' : '' } }
     },
-    render() {
-      return { verb: 'Registers', text: 'Registers and executes a remote script via regsvr32 (Squiblydoo)' }
+    render(m) {
+      return m.vars.squiblydoo
+        ? { verb: 'Executes', text: 'Executes a remote scriptlet via regsvr32 (Squiblydoo)' }
+        : { verb: 'Executes', text: 'Executes regsvr32 against a remote target' }
     },
   },
   {
@@ -564,7 +567,7 @@ export const RULES: ActionRule[] = [
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
     },
     render() {
-      return { verb: 'Executes', text: 'Executes code via rundll32' }
+      return { verb: 'Executes', text: 'Executes code via a rundll32 proxy invocation' }
     },
   },
   {
