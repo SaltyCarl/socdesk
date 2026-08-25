@@ -1,5 +1,6 @@
 import type { EvasionFlag } from './types'
 import { deobfuscateCaret } from './cmdlex'
+import { reassembleCmdVars } from './cmdvars'
 
 // PowerShell accepts unambiguous prefixes of parameter names; match the ones
 // that carry evasion meaning. Each entry: canonical flag → { regex, technique }.
@@ -49,11 +50,14 @@ const WSH_FLAG_RULES: { flag: string; re: RegExp; techniqueIds: string[] }[] = [
 ]
 
 // Extract the /c or /k body, mirroring the shape of the existing -Command
-// extraction: match a flag, take the rest of the line.
+// extraction: match a flag, take the rest of the line. Caret de-obfuscation
+// runs first, then set/%var% reassembly (review 2.5) — cmd branch only, never
+// on PowerShell text (see cmdvars.ts's LITERAL-SAFETY note).
 function extractCmdBody(input: string): string {
   const m = input.match(/\/(?:c|k)\s+(.*)$/is)
   const body = m ? m[1] : input
-  return deobfuscateCaret(body).trim()
+  const de = deobfuscateCaret(body)
+  return reassembleCmdVars(de).text.trim()
 }
 
 // The argument itself IS the payload: a URL, a local .hta path, or an inline
