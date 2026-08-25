@@ -157,6 +157,58 @@ def test_ransomware_intel_note_image_host_is_anchored_not_substring():
     assert validate_payload("ransomware_intel.json", bad, "schemas") != []
 
 
+def test_ransomware_intel_schema_accepts_hhs_hc3_advisory_host():
+    """R3 gate widened to admit HHS HC3 (17 U.S.C. §105 public domain, same
+    footing as CISA) — a well-formed hhs.gov advisory URL must validate."""
+    good = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "qilin", "name": "Qilin",
+         "advisory": {"id": "202406181500",
+                      "url": "https://www.hhs.gov/sites/default/files/qilin-threat-profile-tlpclear.pdf"}}]}
+    assert validate_payload("ransomware_intel.json", good, "schemas") == []
+
+
+def test_ransomware_intel_schema_accepts_hhs_hc3_note_image_host():
+    good = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "qilin", "name": "Qilin",
+         "note_image": "https://www.hhs.gov/sites/default/files/qilin-figure.png"}]}
+    assert validate_payload("ransomware_intel.json", good, "schemas") == []
+
+
+def test_ransomware_intel_schema_accepts_aspr_hhs_subdomain():
+    """HC3 products are also mirrored under aspr.hhs.gov — the gate is
+    subdomain-tolerant for both admitted hosts, not just the bare www."""
+    good = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "qilin", "name": "Qilin",
+         "advisory": {"id": "x", "url": "https://aspr.hhs.gov/HC3/some-product.pdf"}}]}
+    assert validate_payload("ransomware_intel.json", good, "schemas") == []
+
+
+def test_ransomware_intel_schema_rejects_non_gov_advisory_host():
+    """The widened gate still must reject an arbitrary non-gov domain — only
+    public-domain US-gov hosts (cisa.gov, hhs.gov and their subdomains) are
+    admitted."""
+    bad = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "x", "name": "X",
+         "advisory": {"id": "A", "url": "https://evil.example/x"}}]}
+    assert validate_payload("ransomware_intel.json", bad, "schemas") != []
+
+
+def test_ransomware_intel_schema_rejects_hhs_lookalike_subdomain_injection():
+    """A host that merely CONTAINS 'hhs.gov' as a subdomain-injection suffix
+    (e.g. attacker-controlled 'hhs.gov.evil.example') must NOT pass — the
+    pattern anchors the real registrable host, not a substring."""
+    bad = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "x", "name": "X",
+         "advisory": {"id": "A", "url": "https://www.hhs.gov.evil.example/x"}}]}
+    assert validate_payload("ransomware_intel.json", bad, "schemas") != []
+
+
+def test_ransomware_intel_schema_rejects_non_gov_note_image_host():
+    bad = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "x", "name": "X", "note_image": "https://evil.example/hhs.gov/note.png"}]}
+    assert validate_payload("ransomware_intel.json", bad, "schemas") != []
+
+
 def test_ransomware_intel_schema_accepts_provenance_fields():
     """Schema shape check: advisory_date/last_reviewed/note_image/sources[] are
     accepted when well-formed (independent of what the seed currently contains)."""

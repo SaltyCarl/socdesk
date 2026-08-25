@@ -3,6 +3,7 @@ import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../ui'
 import { MonoTag } from './Badges'
 import { rel, safeUrl, num } from './format'
+import { intelSource } from './intelSource'
 import { faviconSrc, monogram } from './logo'
 import { PIVOTABLE, provenance, techniqueUrl } from './relations'
 import { ActorLink, BoardPanel, CveLink, PanelEmpty } from '../overview/board-ui'
@@ -115,7 +116,9 @@ function KindBadges({ profile }: { profile: ProfileResult }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {profile.ransomware && <MonoTag tone="accent">Ransomware group</MonoTag>}
-      {profile.intel && <MonoTag tone="accent">CISA seeded</MonoTag>}
+      {profile.intel && (
+        <MonoTag tone="accent">{intelSource(profile.intel.advisory?.url).org} seeded</MonoTag>
+      )}
       {/* One consistent "ATT&CK <id>" treatment regardless of actor vs. malware
           kind — the metadata rail below no longer repeats it (dedupe). */}
       {fp?.attack_id && <MonoTag tone="muted">ATT&amp;CK {fp.attack_id}</MonoTag>}
@@ -312,13 +315,16 @@ function ActivityPanel({ activity }: { activity: NonNullable<ProfileResult['acti
   )
 }
 
-/* ---------------- initial access & detection (CISA intel seed) ---------------- */
+/* ---------------- initial access & detection (curated public-domain intel seed) --- */
 
-/** CISA-sourced triage block: initial-access CVEs (pivot into our lookup), the
- *  #StopRansomware advisory, tools as hunting pivots, on-host attribution
- *  signals, the advisory ransom-note figure (linked, public-domain), and a
- *  provenance footer. Every fact attributed to CISA; nothing synthesised. Absent
- *  entirely when the group is unseeded. */
+/** Curated triage block sourced from a public-domain US federal advisory
+ *  (CISA #StopRansomware or HHS HC3, per the schema's host gate — both 17
+ *  U.S.C. §105 public domain): initial-access CVEs (pivot into our lookup),
+ *  tools as hunting pivots, on-host attribution signals, the advisory figure
+ *  (linked, public-domain), and a provenance footer. The attributing org and
+ *  document type are derived from `intel.advisory.url`'s host (`intelSource`)
+ *  — never hardcoded to a single publisher. Every fact attributed to the
+ *  source; nothing synthesised. Absent entirely when the group is unseeded. */
 function IntelPanel({ intel }: { intel: RansomIntel }) {
   const cves = intel.initial_access_cves ?? []
   const tools = intel.tools ?? []
@@ -327,11 +333,13 @@ function IntelPanel({ intel }: { intel: RansomIntel }) {
   const sources = intel.sources ?? []
   const advisoryHref = safeUrl(intel.advisory?.url)
   const figureHref = safeUrl(intel.note_image)
+  const source = intelSource(intel.advisory?.url ?? intel.note_image)
+  const figureHost = figureHref ? new URL(figureHref).hostname : ''
   return (
     <div className="flex flex-col gap-5">
       <p className="text-xs leading-relaxed text-muted">
-        Initial access, tooling and detection signals below are drawn from the group&rsquo;s CISA
-        #StopRansomware advisory — attributed facts, not a SOCDesk assessment.
+        Initial access, tooling and detection signals below are drawn from the group&rsquo;s{' '}
+        {source.product} — attributed facts, not a SOCDesk assessment.
       </p>
 
       {cves.length > 0 && (
@@ -387,19 +395,23 @@ function IntelPanel({ intel }: { intel: RansomIntel }) {
       {figureHref && (
         <div className="flex flex-col gap-2">
           <SectionLabel>Ransom-note figure</SectionLabel>
-          <ExternalLink href={figureHref}>View CISA advisory figure</ExternalLink>
-          <p className="text-micro text-faint">CISA advisory image (public domain) — opens on cisa.gov.</p>
+          <ExternalLink href={figureHref}>View {source.org} advisory figure</ExternalLink>
+          <p className="text-micro text-faint">
+            {source.org} advisory image (public domain) — opens on {figureHost}.
+          </p>
         </div>
       )}
 
       {intel.advisory && advisoryHref && (
-        <ExternalLink href={advisoryHref}>CISA advisory {intel.advisory.id}</ExternalLink>
+        <ExternalLink href={advisoryHref}>
+          {source.org} advisory {intel.advisory.id}
+        </ExternalLink>
       )}
 
       {(intel.last_reviewed || intel.advisory_date || sources.length > 0) && (
         <div className="flex flex-col gap-2 border-t border-line pt-3">
           <p className="font-mono text-micro text-faint">
-            CISA seed
+            {source.org} seed
             {intel.last_reviewed ? ` · reviewed ${intel.last_reviewed}` : ''}
             {intel.advisory_date ? ` · advisory ${intel.advisory_date}` : ''}
           </p>
@@ -699,7 +711,7 @@ export function ActorProfile({
           full-height panels to overlap). */}
       <div className="grid gap-5 lg:grid-cols-[1fr_340px] lg:items-start">
         <div className="flex flex-col gap-5">
-          {/* initial access & detection (CISA intel seed) — the flagship, and
+          {/* initial access & detection (public-domain intel seed) — the flagship, and
               the most triage-actionable read (CVEs to check, tooling to
               hunt), so it leads when present */}
           {intel && (

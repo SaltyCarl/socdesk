@@ -98,6 +98,13 @@
       "sources": [{"id": "ic3-flash", "url": "https://www.ic3.gov/CSA/2023/230516.pdf"}],
       "tools": ["Advanced Port Scanner", "SoftPerfect Network Scanner", "SharpShares", "PingCastle", "RDP Recognizer", "Impacket", "SessionGopher", "PsExec", "Rclone", "Mega", "Ngrok", "Rsocks", "UPX"],
       "ransom_note": ["Look at this instruction.txt"], "extensions": [".bianlian"]
+    },
+    {
+      "slug": "qilin", "name": "Qilin", "aliases": ["Agenda"],
+      "first_seen": "2022-07", "raas": true,
+      "advisory": {"id": "202406181500", "url": "https://www.hhs.gov/sites/default/files/qilin-threat-profile-tlpclear.pdf"},
+      "advisory_date": "2024-06-18", "last_reviewed": "2026-08-25",
+      "tools": ["Cobalt Strike", "PsExec", "SecureShell"]
     }
   ]
 }

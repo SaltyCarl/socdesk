@@ -6,8 +6,9 @@
 //   • ransomware.live leak-site activity (feed.json) — who they are hitting now
 //   • APT / campaign reporting (feed.json) — what outlets are writing about them
 //   • relations.json co-occurrence — what else shows up alongside them
-//   • curated CISA #StopRansomware intel (ransomware_intel.json) — initial
-//     access, tooling, and in-hand detection signatures for a seeded group
+//   • curated public-domain intel (ransomware_intel.json) — CISA
+//     #StopRansomware advisories and HHS HC3 threat profiles: initial access,
+//     tooling, and in-hand detection signatures for a seeded group
 //
 // The honesty doctrine (shared/verdict/doctrine.ts) governs every selector here:
 // SOCDesk emits NO verdict of its own and NEVER synthesises a description, TTP,
@@ -69,8 +70,9 @@ export interface ProfileIndexEntry {
   aliases?: string[]
   /** Leak-site victim claims in the window — present iff the group posts claims. */
   claimCount?: number
-  /** True when a curated CISA intel seed entry exists for this slug (by slug OR
-   *  alias) — even when the group has posted no leak-site claims this window. */
+  /** True when a curated public-domain intel seed entry (CISA or HHS HC3)
+   *  exists for this slug (by slug OR alias) — even when the group has
+   *  posted no leak-site claims this window. */
   hasIntel?: boolean
   /** True when the group has posted >=1 leak-site `ransomware` claim this
    *  window — mirrors `claimCount > 0`, carried as its own flag so the
@@ -101,7 +103,7 @@ function aliasIndex(profiles: Profile[]): Map<string, Profile> {
 /**
  * The searchable directory: the UNION of MITRE actors + MITRE software + the
  * ransomware groups that posted leak-site claims + the actors named in APT /
- * campaign reporting + the curated CISA intel seed. De-duplicated by slug; when
+ * campaign reporting + the curated public-domain intel seed. De-duplicated by slug; when
  * an entity appears in more than one source its flags MERGE (Akira keeps its
  * actor fingerprint AND gains its claim tally). A leak-site / reporting name
  * that only exists via an ATT&CK ALIAS still resolves `hasMitre` so the
@@ -158,7 +160,7 @@ export function buildProfileIndex(
     }
   }
 
-  // curated CISA intel seed — flags a group even when it posted no claims
+  // curated public-domain intel seed (CISA or HHS HC3) — flags a group even when it posted no claims
   // this window (a seeded-but-quiet entry still belongs in the directory).
   for (const g of intel) {
     const slug = g.slug.toLowerCase()
@@ -278,8 +280,9 @@ export interface ProfileResult {
   ransomware: RansomwareActivity | null
   reporting: Report[]
   related: RelatedRow[]
-  /** Curated CISA #StopRansomware seed entry — null when the group is not
-   *  seeded (honest empty; consumers must not synthesise this). */
+  /** Curated public-domain intel seed entry (CISA #StopRansomware or HHS HC3
+   *  — see `intelSource`) — null when the group is not seeded (honest empty;
+   *  consumers must not synthesise this). */
   intel: RansomIntel | null
   /** Attributed leak-site victim claims for this group, newest first — an
    *  UNVERIFIED leak-site fact, republished faithfully (never a verdict). */
@@ -375,7 +378,7 @@ function findFingerprint(
   }
 }
 
-/** The curated CISA intel for a slug — matched by slug OR alias (lowercased).
+/** The curated public-domain intel for a slug — matched by slug OR alias (lowercased).
  *  null when the group is not seeded (honest empty; the panel is absent). */
 export function intelFor(slug: string, intel: RansomIntel[]): RansomIntel | null {
   return (
@@ -602,16 +605,16 @@ function rawNameFor(slug: string, feed: FeedItem[]): string | undefined {
  *   • related []        → no ATT&CK links / feed co-occurrences (ransomware-only
  *                         groups have no relations node, so this is empty — the
  *                         card states that rather than synthesising links).
- *   • intel null        → no curated CISA #StopRansomware seed entry on file
+ *   • intel null        → no curated public-domain (CISA/HHS HC3) seed entry on file
  *   • claimedVictims []  → no attributed leak-site victim posts for this group
  *   • activity null     → no leak-site claims to aggregate (mirrors ransomware)
  *   • associatedMalware [] → no ATT&CK software AND no feed co-occurrence
  *
  * The reportsFor GATE: the client carries NO copy of any server-side curated
  * tracked-actor dictionary, so a report is kept only when the slug is an
- * ESTABLISHED entity — it has an ATT&CK fingerprint, a curated CISA intel
- * entry, or >=1 leak-site ransomware claim — or the caller explicitly passes
- * it via the optional `trackedActors` set. This is what kills the "Play"
+ * ESTABLISHED entity — it has an ATT&CK fingerprint, a curated intel seed
+ * entry (CISA or HHS HC3), or >=1 leak-site ransomware claim — or the caller
+ * explicitly passes it via the optional `trackedActors` set. This is what kills the "Play"
  * (Google Play) / common-word false positive: a bare feed mention alone is
  * never enough to manufacture a profile's reporting section.
  */

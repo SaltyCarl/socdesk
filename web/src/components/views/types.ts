@@ -229,11 +229,14 @@ export interface RegistryPayload {
   sources: RegistrySource[]
 }
 
-/* ---------------- ransomware intel (curated CISA seed) ---------------- */
+/* ---------------- ransomware intel (curated public-domain seed) -------- */
 
-/** One curated CISA #StopRansomware group entry. Fields are optional in TS
- *  since a seed entry may honestly omit a field the advisory never covered
- *  (honest-empty over a fabricated value). */
+/** One curated group entry sourced from a public-domain US federal advisory
+ *  — a CISA #StopRansomware joint advisory or an HHS HC3 threat profile (see
+ *  `intelSource`, which derives the attributing org from `advisory.url`'s
+ *  host). Fields are optional in TS since a seed entry may honestly omit a
+ *  field the source document never covered (honest-empty over a fabricated
+ *  value). */
 export interface RansomIntel {
   slug: string
   name: string
@@ -245,13 +248,15 @@ export interface RansomIntel {
   tools?: string[]
   ransom_note?: string[]
   extensions?: string[]
-  /** ISO `YYYY-MM-DD` the CISA advisory was published — honestly absent when
-   *  the seed entry has no advisory date on file. */
+  /** ISO `YYYY-MM-DD` the source advisory/profile was published — honestly
+   *  absent when the seed entry has no advisory date on file. */
   advisory_date?: string
   /** ISO `YYYY-MM-DD` this seed entry was last reviewed for accuracy. */
   last_reviewed?: string
-  /** A cisa.gov URL for the advisory's figure/note image — only 2 seeded
-   *  groups (alphv, rhysida) carry this; absent for everyone else. */
+  /** A cisa.gov or hhs.gov URL (schema-gated — see
+   *  ransomware_intel.schema.json) for the advisory's figure/note image —
+   *  only 2 seeded groups (alphv, rhysida) carry this; absent for everyone
+   *  else. */
   note_image?: string
   /** Named provenance for the seed entry's claims (advisory sections, vendor
    *  writeups, …) — honestly empty when the seed carries none. */
