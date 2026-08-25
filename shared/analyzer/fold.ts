@@ -32,13 +32,40 @@ export function bytesToText(bytes: Uint8Array): string {
   return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
 }
 
+const MAX_INFLATE = 2 * 1024 * 1024 // 2 MiB — decode-bomb guard (mirrors resolve.ts's MAX_OUTPUT)
+
+/** Reads the decompressed stream incrementally rather than buffering it whole
+ *  (as Response(stream).arrayBuffer() would) so a tiny compressed blob that
+ *  expands to hundreds of MB is caught and abandoned instead of exhausting
+ *  memory. Once accumulated output exceeds MAX_INFLATE the reader is
+ *  cancelled and null is returned — same "no inflate layer" contract as any
+ *  other decode failure. */
 async function decompress(bytes: Uint8Array, format: 'gzip' | 'deflate-raw'): Promise<Uint8Array | null> {
   try {
     const ds = new DecompressionStream(format)
     // TS's generic Uint8Array<ArrayBufferLike> isn't assignable to BlobPart
     // (which wants ArrayBufferView<ArrayBuffer>) — cast; runtime behavior unchanged.
     const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(ds)
-    return new Uint8Array(await new Response(stream).arrayBuffer())
+    const reader = stream.getReader()
+    const chunks: Uint8Array[] = []
+    let total = 0
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      total += value.length
+      if (total > MAX_INFLATE) {
+        await reader.cancel()
+        return null
+      }
+      chunks.push(value)
+    }
+    const out = new Uint8Array(total)
+    let offset = 0
+    for (const chunk of chunks) {
+      out.set(chunk, offset)
+      offset += chunk.length
+    }
+    return out
   } catch {
     return null
   }

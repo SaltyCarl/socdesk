@@ -84,3 +84,13 @@ describe('inflate', () => {
     expect(await inflate(new TextEncoder().encode('not compressed'))).toBeNull()
   })
 })
+
+describe('inflate — output bound (review 2.6)', () => {
+  it('returns null when decompressed output exceeds the 2 MiB cap', async () => {
+    // 8 MiB of zeros gzips tiny but inflates past the cap.
+    const cs = new CompressionStream('gzip')
+    const big = new Uint8Array(8 * 1024 * 1024)
+    const gz = new Uint8Array(await new Response(new Blob([big]).stream().pipeThrough(cs)).arrayBuffer())
+    expect(await inflate(gz)).toBeNull()
+  })
+})
