@@ -108,3 +108,24 @@ describe('resolve — [char]/-join assembly (review 2.5)', () => {
     expect(out).not.toMatch(/^'[^']*'$/) // the whole expression must not collapse to one literal
   })
 })
+
+describe('resolve — -f format operator (review 2.5)', () => {
+  it('folds a literal format string + literal args', () => {
+    expect(resolve("('{0}{1}{2}' -f 'I','E','X')")).toContain('IEX')
+  })
+  it('leaves a variable-arg -f untouched', () => {
+    expect(resolve("'{0}' -f $x")).toContain('$x')
+  })
+  it('leaves a format-spec placeholder untouched', () => {
+    const t = "'{0:X2}' -f 255"
+    expect(resolve(t)).toContain('{0:X2}')
+  })
+  it('does not reach inside a string literal — content containing -f/{0} is preserved verbatim', () => {
+    // The whole thing is ONE string token; -f and {0} here are DATA, not an
+    // operator + placeholder. A raw-text regex would corrupt this; a
+    // token-aware fold cannot, because it never fires without a separate
+    // 'string' token, a separate '-f' bareword token, and another separate
+    // 'string' token as an arg.
+    expect(resolve("'use the -f flag with {0} here'")).toBe("'use the -f flag with {0} here'")
+  })
+})

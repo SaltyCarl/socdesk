@@ -143,6 +143,55 @@ export function foldCharArray(text: string): string {
   return out.join(' ')
 }
 
+const isFormatOp = (t: Token | undefined): boolean => !!t && t.type === 'bareword' && /^-f$/i.test(t.value)
+
+/** Fold `'{0}{1}' -f 'a','b'` → `'ab'`. Operates on the TOKEN stream (like
+ *  foldConcat/foldCharArray), never on raw text — a format string or arg is
+ *  only recognized when it is its OWN 'string' token, separated from the
+ *  `-f` bareword and from every other arg by real token boundaries. Content
+ *  such as `-f` or `{0}` sitting inside the payload of a single string
+ *  literal is part of that one token's value and can never be mistaken for
+ *  the operator or a placeholder. Every arg must itself be a literal string
+ *  token — a variable arg (or any non-string token in the arg list) leaves
+ *  the whole expression untouched. Plain `{N}` placeholders only: a
+ *  format-spec/alignment component (`{0:X2}`, `{0,10}`) or an out-of-range
+ *  index also leaves it untouched, never guessed. */
+export function foldFormat(text: string): string {
+  const toks = tokenize(text)
+  const out: string[] = []
+  let i = 0
+  while (i < toks.length) {
+    if (toks[i].type === 'string' && isFormatOp(toks[i + 1]) && toks[i + 2]?.type === 'string') {
+      const args: string[] = [toks[i + 2].value]
+      let j = i + 3
+      let literalArgs = true
+      while (isComma(toks[j])) {
+        if (toks[j + 1]?.type === 'string') { args.push(toks[j + 1].value); j += 2 }
+        else { literalArgs = false; break }
+      }
+      if (literalArgs) {
+        const fmt = toks[i].value
+        let ok = !/\{\s*\d+\s*[:,]/.test(fmt) // format-spec/alignment present — do not fold
+        const folded = ok
+          ? fmt.replace(/\{(\d+)\}/g, (whole: string, idx: string) => {
+              const v = args[Number(idx)]
+              if (v === undefined) { ok = false; return whole } // index out of range — do not fold
+              return v
+            })
+          : fmt
+        if (ok) {
+          out.push(`'${folded.replace(/'/g, "''")}'`)
+          i = j
+          continue
+        }
+      }
+    }
+    out.push(emit(toks[i]))
+    i++
+  }
+  return out.join(' ')
+}
+
 /** Re-emit the token stream with no folding or substitution — the whitespace/
  *  quote baseline that separates real deobfuscation from mere reformatting.
  *  resolve(x) === normalize(x) exactly when nothing was folded or substituted. */
@@ -158,7 +207,7 @@ export function resolve(text: string): string {
   const MAX_OUTPUT = 1 << 20 // 1 MiB — bail past this; return the last bounded form
   let cur = text
   for (let i = 0; i < 12; i++) {
-    const next = foldConcat(foldCharArray(resolveVars(cur)))
+    const next = foldConcat(foldFormat(foldCharArray(resolveVars(cur))))
     if (next.length > MAX_OUTPUT) return cur
     if (next === cur) return next
     cur = next
