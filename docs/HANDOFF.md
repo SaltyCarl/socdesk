@@ -1,10 +1,69 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — analyzer-hardening Phase 2: decode-ladder expansion — plain-base64 decode + 4 token-aware constant-folds (char-array, format, replace, reverse) — built on branch `feat/analyzer-hardening`, full suite green, NOT merged) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-25 (session — analyzer-hardening Phase 3: detection-gap closure — shadow-recovery-tamper (T1490), disk-dropper, ClickFix trait-gating, named-offensive-tool characterization — built on branch `feat/analyzer-hardening`, full suite green, NOT merged) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-24 (session — analyzer-hardening Phase 2: decode-ladder expansion, branch built, NOT merged)
+## 0. LATEST — 2026-08-25 (session — analyzer-hardening Phase 3: detection-gap closure, branch built, NOT merged)
+
+**Lane:** analyzer hardening per the external analyzer review (2026-08-24), continuing
+Phase 2 (below). Phase 3 goal: close the detection gaps the review found missing (2.2,
+2.4) and fix the ClickFix over-fire (2.4), holding the anti-cry-wolf/specificity doctrine.
+Branch `feat/analyzer-hardening`, commits `8c10662..cbec78e`, **NOT merged**.
+
+**Shipped:**
+- **`shadow-recovery-tamper` rule (T1490)** — `shared/analyzer/techniques.ts` +
+  `bullets.ts`, baseSpecificity near-dispositive (`8c10662`, trigger-fabrication/bullet
+  slash-hedge fix `c970b78`). Fires on vssadmin delete shadows / resize shadowstorage,
+  wmic shadowcopy delete, wbadmin delete catalog|systemstatebackup, bcdedit
+  recoveryenabled no / bootstatuspolicy ignoreallfailures — destructive verb must
+  co-occur with its object (bare `vssadmin list` stays silent). Emits split,
+  sub-fact-specific bullets (shadow-copy-delete vs recovery-disable, no slash-hedge).
+  Review sample 3 (AMSI + vssadmin) now flags shadow destruction too.
+- **`disk-dropper` rule** — `shared/analyzer/techniques.ts` + `bullets.ts`,
+  baseSpecificity strong (`3569b28`, exec-sink false-positive fix `73b42e4`). A to-disk
+  fetch (DownloadFile / -OutFile / Start-BitsTransfer / curl -o /
+  certutil -urlcache+-split) co-occurring with a local-exec sink (Start-Process / saps /
+  Invoke-Item / separator-anchored `& payload.exe`) now flags — a staple dropper that
+  previously read as benign (review 2.2). Discriminator bounded: a fully-qualified fetch
+  tool name at corpus start (certutil.exe/powershell.exe) and the "ascii" substring do
+  NOT false-fire.
+- **ClickFix trait-gating (review 2.4)** — `shared/analyzer/techniques.ts` (`4b60ee0`). A
+  plain -enc/hidden fetch+IEX cradle no longer gets a ClickFix / paste-and-run verdict —
+  ClickFix now requires a real paste-and-run trait (fake-CAPTCHA decoy phrase, --verify
+  decoy, conhost --headless, or an mshta lure). Review samples 1 & 4 now read as
+  download-cradle only, no misdirecting ClickFix label. The -w/-nop cluster still
+  contributes to evasion-cluster.
+- **`offensive-tool` rule** — `shared/analyzer/techniques.ts` + `bullets.ts`,
+  baseSpecificity near-dispositive (`cbec78e`). Fires on named offensive tooling
+  (invoke-mimikatz, sekurlsa::, dumpcreds, rubeus, invoke-kerberoast, safetykatz). Closes
+  the loop on review sample 6: after Phase 2 it DECODED to `Invoke-Mimikatz -DumpCreds;
+  net user hacker /add` but had no signal — it now ALSO characterizes as
+  high-confidence-malicious.
+
+**Headline:** review CRITICAL finding 2.1 (malicious ≡ blank ≡ benign) is now closed
+end-to-end — sample 6, which originally rendered completely blank, both fully decodes
+(Phase 2) and flags red high-confidence-malicious (Phase 3).
+
+**Doctrine note:** all new detections hold the specificity/anti-cry-wolf rules —
+near-dispositive tiers only where there's no legitimate use, benign-twin discriminators
+on every rule, and every `Signal.trigger` cites a real matched substring (three separate
+trigger-fabrication risks caught and fixed in review before merge, see `c970b78`).
+
+**Verified:** Phase-3 gate green — `npm --prefix web run build` PASS; `cd web && npx
+vitest run ../shared` 469/469; `cd web && npx vitest run src` 152/152 (all three re-run
+and confirmed this session at branch HEAD `cbec78e`).
+
+**Contributor note:** a Windows Defender exclusion for the repo path is required — the
+analyzer's own test fixtures contain live malware signatures and get quarantined
+otherwise. Follow-up: document this fully in `docs/OPERATIONS.md` (not yet done).
+
+**Open / next:** Phase 4 (cmd reassembly + robustness + IOC hygiene), then merge decision
+on `feat/analyzer-hardening` (owner). Not deployed — branch unmerged.
+
+---
+
+## 0-RECENT — 2026-08-24 (session — analyzer-hardening Phase 2: decode-ladder expansion, branch built, NOT merged)
 
 **Lane:** analyzer hardening per the external analyzer review (2026-08-24), continuing
 Phase 1 (below). Phase 2 goal: convert the opaque residues Phase 1 made honest into real
