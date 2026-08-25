@@ -1,10 +1,61 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — TI-uplift Track A: 5 cheap decoupled TI-parity wins — "what changed" Overview panel, KEV due-date/overdue flag, tracked-adversary bonus gated to the curated dict, per-browser vuln watchlist, analyst-guide drift fix — built on branch `feat/ti-uplift-track-a`, full suite green, NOT merged) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — analyzer-hardening Phase 1: failure legibility + honest narratives — opaque-residue detector, partial-decode notice, regsvr32/rundll32 abuse-only gating, ratcheting review-sample fixture — built on branch `feat/analyzer-hardening`, full suite green, NOT merged) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-24 (session — TI-uplift Track A: 5 cheap decoupled TI-parity wins, branch built, NOT merged)
+## 0. LATEST — 2026-08-24 (session — analyzer-hardening Phase 1: failure legibility + honest narratives, branch built, NOT merged)
+
+**Lane:** analyzer hardening per the external analyzer review (2026-08-24) — spec
+`docs/superpowers/specs/2026-08-24-analyzer-hardening-design.md`, plan
+`docs/superpowers/plans/2026-08-24-analyzer-hardening.md`. Phase 1 goal: the
+analyzer must never render blank on input it couldn't fully process, and must
+never fabricate behavior. Branch `feat/analyzer-hardening`, 6 tasks / commits
+`3740555..476ddad`, **NOT merged**.
+
+**Shipped:**
+- **Opaque-residue detector** — new `shared/analyzer/residue.ts` (`3740555`,
+  tightened `a5dc80d`). Scans the deepest decoded text for encoding constructs
+  that produced no decode layer: unresolved base64+decode-API, dynamic-exec
+  over `[char]`/`-join`/`-replace`/`GetString`, cmd `%VAR:~n,m%` incl. negative
+  offsets. Reuses the canonical FETCH vocab from `techniques.ts` to avoid
+  over-firing.
+- **Never-blank rendering** — `shared/analyzer/report.ts` `analyze()` wired
+  each residue finding into an opaque `DecodedLayer` (flips
+  `confidence.state` to `'partial'` via existing count logic) + an opaque
+  "Could not resolve" bullet (`09abae1`). Review sample 6 (plain-base64
+  Mimikatz stager) now renders an opaque partial instead of blank.
+- **Partial-decode escalation notice** — new
+  `shared/analyzer-ui/PartialDecodeNotice.tsx`, neutral/periwinkle band shown
+  when `state === 'partial'`, wired into the shared `AnalyzerResult` surface
+  (reaches web `/analyzer`, cockpit, extension) (`6eac498`). No verdict hue —
+  reserved-colour law honored. Same commit additively extends
+  `web/vitest.config.ts` to discover `.tsx` tests.
+- **Abuse-only LOLBin gating** — `shared/analyzer/lolbins.ts` tightened
+  regsvr32/rundll32/msiexec/installutil context tokens to real abuse-only
+  discriminators, dropping bare `/u`, `shell32.dll`, `/q`, `.exe` (`a9861d3`).
+  Stops matching benign admin invocations.
+- **Honest bullets** — `shared/analyzer/bullets.ts` regsvr32/rundll32 bullets
+  are now variant-aware: "Squiblydoo" only renders when `/i:http` or `scrobj`
+  matched, otherwise a plain line (`0299f66`). Kills the fabricated narrative
+  on benign `regsvr32 /u` (review finding 2.3, sample 7).
+- **Ratcheting fixture** — new
+  `shared/analyzer/__tests__/review-samples.test.ts` pins the review's 7
+  samples as an integration fixture whose expected values are deliberately
+  updated as later phases land (sample 6 flips to fully-decoded in Phase 2)
+  (`bff4059`, strengthened `476ddad`).
+
+**Verified:** Phase-1 gate green at HEAD `476ddad` — `npm --prefix web run
+build` PASS; `cd web && npx vitest run ../shared` 395/395; `cd web && npx
+vitest run src` 152/152. Not yet deployed — branch not merged, Phases 2-4 of
+the hardening plan still to come.
+
+**Open / next:** Phase 2 (full decode of sample 6 + remaining plan phases),
+then merge decision on `feat/analyzer-hardening` (owner).
+
+---
+
+## 0-RECENT — 2026-08-24 (session — TI-uplift Track A: 5 cheap decoupled TI-parity wins, branch built, NOT merged)
 
 **Lane:** TI-analytics uplift toward MS Threat Intel parity — **Track A** = 5 cheap,
 decoupled, owner-approved wins (see memory `socdesk-ti-uplift`). Branch
