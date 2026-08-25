@@ -74,7 +74,7 @@ capabilities now live in `web/`, `shared/`, and `lib/`.
 | Escalation write-up (markdown / plain text / `.md` download) | `shared/verdict/doctrine.ts` (`composeEscalation`), `shared/verdict-cards/copy.ts` |
 | Threat feed scored 0–100 with an explainable `why` per item | `pipeline/relevance.py`, `web/src/routes/FeedRoute.tsx`, `web/src/components/views/FeedView.tsx` |
 | Vulnerability triage table with watchlist, KEV filter, sortable columns | `web/src/routes/VulnsRoute.tsx`, `web/src/components/views/VulnsView.tsx` |
-| ATT&CK actor and malware profiles, resolvable by name or alias | `collectors/attack.py`, `web/src/routes/ActorProfileRoute.tsx`, `web/src/components/views/ActorsView.tsx` |
+| ATT&CK actor and malware profiles, resolvable by name or alias | `collectors/attack.py`, `web/src/routes/ActorProfileRoute.tsx`, `web/src/components/views/ProfileDirectory.tsx`, `web/src/components/views/ActorProfile.tsx` |
 | Collection health per source, with last-known-good retention | `pipeline/validate.py`, `web/src/routes/HealthRoute.tsx`, `web/src/components/views/HealthView.tsx` |
 
 #### Legacy — `site/` only (historical, not on the live site)
@@ -84,7 +84,7 @@ capabilities now live in `web/`, `shared/`, and `lib/`.
 | Bulk lookup — paste up to 200 indicators, export CSV / JSON / defanged TXT | `site/js/verdict.js`, `site/js/app.js` |
 | In-context lookup bookmarklet — select an indicator on any page, get the verdict, no install | `site/js/bookmarklet.js` |
 | Trends — biggest EPSS rises and new KEV entries, from committed daily snapshots | `pipeline/history.py`, `site/js/views.js` (the `TrendsPayload` schema is also fetched in `web/src/components/overview/OverviewStats.tsx` for day-over-day totals + a volume sparkline, but the EPSS-risers/new-KEV leaderboard itself has no `web/` view) |
-| Analyst toolbelt — defang/refang, IOC extract, UTF-16LE Base64 decode | `site/js/toolbelt/` (legacy; PowerShell parsing and LOLBin lookup superseded by the PowerShell analyzer above; `web/src/components/views/ToolbeltView.tsx` is a deliberate stub — only Base64 decode is live there, linking out to `/analyzer`) |
+| Analyst toolbelt — defang/refang, IOC extract, UTF-16LE Base64 decode | `site/js/toolbelt/` (legacy; PowerShell parsing and LOLBin lookup superseded by the PowerShell analyzer above; the `web/` Toolbelt tab was retired in the IA cut — its one live tool, Base64 decode, already links out to `/analyzer`) |
 | Shift handoff digest from items you flagged notable | `site/js/app.js` |
 | Offline capability via service worker (data network-first, never stale-as-fresh) | `site/sw.js` (`web/public/sw.js` is a deliberate tombstone — clears caches and unregisters on activate, not an offline cache) |
 

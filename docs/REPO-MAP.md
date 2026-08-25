@@ -35,8 +35,8 @@ site-tests/  tests/   Playwright (site/) + pytest (pipeline), fixture-backed
 - `Overview.tsx` (`/`) — the polymorphic cockpit: three.js globe + omnibox that classifies input → escalation card OR PowerShell analyzer inline.
 - `Lookup.tsx` (`/lookup`) — standalone escalation-card view; reads/writes `#q=` deep links; redirects command-shaped values to `/analyzer`.
 - `PowerShellAnalyzer.tsx` (`/analyzer`) — bare textarea over `usePsAnalysis`; renders the shared `AnalyzerResult`.
-- `DataDeskRoute.tsx` (`/desk`) — tabbed shell composing feed / vulns / actors / health / sources / toolbelt; each tab is a `*Route.tsx` → `components/views/*View.tsx`.
-- `FeedRoute` / `VulnsRoute` / `ActorsRoute` / `HealthRoute` / `SourcesRoute` / `ToolbeltRoute` — the `/desk` tabs (Toolbelt is a deliberate stub — only Base64 decode is live, linking to `/analyzer`).
+- `DataDeskRoute.tsx` (`/desk`) — tabbed shell composing feed / vulnerabilities / health / sources / networks; each tab is a `*Route.tsx` → `components/views/*View.tsx`.
+- `FeedRoute` / `VulnsRoute` / `HealthRoute` / `SourcesRoute` / `AsnLeaderboardRoute` — the `/desk` tabs (`networks`, labeled "ISP Abuse Leaderboard", ranks abusive-IP volume by ASN/ISP). The Actors and Toolbelt tabs were retired in the IA cut: Actors duplicated the `/actor` entity directory below (a superset — same profiles plus ransomware/CISA-intel/reporting it never had); Toolbelt was a stub whose one live tool, Base64 decode, already linked out to `/analyzer`. Both stale hashes fall back to the default `feed` tab.
 - `ActorProfileRoute.tsx` (`/actor`) — a single ATT&CK actor/malware profile + directory, resolvable by name/alias.
 - `Gallery.tsx` (`/gallery`, `nav:false`) — the design-system craft-review surface (internal; hidden from the top-nav, reachable by direct URL).
 - `Privacy.tsx` (`/privacy`, `nav:false`) — the disclosure page.
@@ -50,7 +50,7 @@ site-tests/  tests/   Playwright (site/) + pytest (pipeline), fixture-backed
 - **`palette/`** — `CommandPalette`, `commands.ts` (`submitLookup` — the shared route-to-`/lookup`-or-`/analyzer` entry every non-cockpit surface uses), `classify` (delegates to `detectType`), `fuzzy`, `recents`.
 - **`lookup/`** — `useLookup` (the one indicator→resolution hook shared by `/lookup` + the cockpit), `LookupStates`, `useEffectiveTheme`.
 - **`views/`** — one `*View.tsx` per `/desk` tab + `useStateData` (snapshot fetcher) + async-gate/skeleton primitives + `profiles`/`relations` ATT&CK lookups.
-- **`overview/`** — the Overview "situational board" (`OverviewStats`, `RansomwareActivity`, `NamedActorActivity`, `PatchPriority`, `FreshnessStrip`, `Sparkline`) via `aggregations.ts`.
+- **`overview/`** — the Overview "situational board" (`OverviewStats`, `WhatChanged`, `RansomwareActivity`, `NetworkAbuseLeaderboard`, `NamedActorActivity`, `PatchPriority`, `FreshnessStrip`, `Sparkline`) via `aggregations.ts`.
 - **`ui/`, `shell/`** — web-only chrome: `Topbar`, `ThemeToggle`; `Shell` (frame), `Omnibox`, `MobileNav`, `PageContainer`.
 
 ## `shared/` (`@socdesk/shared/*`)

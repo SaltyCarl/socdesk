@@ -5,9 +5,7 @@ import { MonoTag } from './Badges'
 import { rel, safeUrl, num } from './format'
 import { faviconSrc, monogram } from './logo'
 import { PIVOTABLE, provenance, techniqueUrl } from './relations'
-import { ActorLink, BoardPanel, PanelEmpty } from '../overview/board-ui'
-import { navigate } from '../palette/commands'
-import { cveLookupHref } from './intelHref'
+import { ActorLink, BoardPanel, CveLink, PanelEmpty } from '../overview/board-ui'
 import type { ProfileResult, TimelineBucket } from './profiles'
 import type { ClaimedVictim, RansomIntel } from './types'
 
@@ -194,7 +192,12 @@ function weekLabel(iso: string): string {
  *  an aria summary. Static by design (no entrance animation) so it renders
  *  identically every time and needs no reduced-motion guard. */
 function TimelineChart({ buckets }: { buckets: TimelineBucket[] }) {
-  const data = buckets.filter((b) => b.week !== 'unknown')
+  // Cap to the most recent 26 weeks (buckets arrive oldest-first): barW's
+  // Math.max(2, …) floor below can't shrink past 2 chart units, so past
+  // ~33 bars the fixed GAP alone would overflow the fixed 320-unit viewBox.
+  // Unreachable today (30-day feed retention → ~5 buckets) but guarded in
+  // case that retention constant ever grows.
+  const data = buckets.filter((b) => b.week !== 'unknown').slice(-26)
   const W = 320
   const H = 76
   const padTop = 6
@@ -310,25 +313,6 @@ function ActivityPanel({ activity }: { activity: NonNullable<ProfileResult['acti
 }
 
 /* ---------------- initial access & detection (CISA intel seed) ---------------- */
-
-/** In-app CVE link — plain <a> (⌘/middle-click opens a tab) with a left-click
- *  intercepted into SPA navigation, mirroring board-ui's DeskLink. */
-function CveLink({ cve }: { cve: string }) {
-  const href = cveLookupHref(cve)
-  return (
-    <a
-      href={href}
-      onClick={(e) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
-        e.preventDefault()
-        navigate(href)
-      }}
-      className="rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-accent underline-offset-2 transition-colors duration-150 ease-brand hover:border-line-bright hover:underline"
-    >
-      {cve}
-    </a>
-  )
-}
 
 /** CISA-sourced triage block: initial-access CVEs (pivot into our lookup), the
  *  #StopRansomware advisory, tools as hunting pivots, on-host attribution

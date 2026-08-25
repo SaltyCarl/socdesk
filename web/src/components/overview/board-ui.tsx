@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../ui'
 import { navigate } from '../palette/commands'
+import { cveLookupHref } from '../views/intelHref'
 
 /**
  * Shared chrome for the daily-summary panels: a titled panel frame, an
@@ -97,6 +98,31 @@ export function ActorLink({
       )}
     >
       {children ?? name}
+    </a>
+  )
+}
+
+/* ---------------- in-app CVE lookup pivot ---------------- */
+
+/**
+ * A CVE id as a real `<a href="/lookup#q=<cve>">` (⌘/middle-click opens a new
+ * tab) with a plain left-click intercepted into SPA navigation — the one CVE
+ * link idiom the board and the actor profile both reuse, so a CVE never reads
+ * as plain text in one surface and a link in another.
+ */
+export function CveLink({ cve }: { cve: string }) {
+  const href = cveLookupHref(cve)
+  return (
+    <a
+      href={href}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+        e.preventDefault()
+        navigate(href)
+      }}
+      className="rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-accent underline-offset-2 transition-colors duration-150 ease-brand hover:border-line-bright hover:underline"
+    >
+      {cve}
     </a>
   )
 }

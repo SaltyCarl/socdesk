@@ -3,23 +3,31 @@ import { MicroLabel } from '../ui'
 import { useStateData, type AsyncStatus } from '../views/useStateData'
 import { AsyncGate, Skeleton, SkeletonRows } from '../views/states'
 import { day, rel } from '../views/format'
-import type { CvePayload, FeedPayload, HealthPayload, TrendsPayload } from '../views/types'
+import type {
+  AsnLeaderboardPayload,
+  CvePayload,
+  FeedPayload,
+  HealthPayload,
+  TrendsPayload,
+} from '../views/types'
 import { OverviewStats } from './OverviewStats'
 import { WhatChanged } from './WhatChanged'
 import { RansomwareActivity } from './RansomwareActivity'
 import { NamedActorActivity } from './NamedActorActivity'
 import { PatchPriority } from './PatchPriority'
+import { NetworkAbuseLeaderboard } from './NetworkAbuseLeaderboard'
 import { FreshnessStrip } from './FreshnessStrip'
 import { aggregateRansomware, namedActorReports } from './aggregations'
 import { useInView } from './useInView'
 
 /**
- * Daily threat summary — the board below the globe. It answers four DIFFERENT
- * questions rather than three cuts of the same CVE table:
- *   who is hitting people   → Ransomware activity (leak-site victim claims)
- *   who is being reported on → Named-actor activity (APT / campaign)
- *   what to patch first      → Patch priority (KEV / EPSS)
- *   did collection run       → Collector status
+ * Daily threat summary — the board below the globe. It answers five DIFFERENT
+ * questions rather than four cuts of the same CVE table:
+ *   who is hitting people        → Ransomware activity (leak-site victim claims)
+ *   which networks host abuse    → ISP Abuse Leaderboard (abuse.ch / community)
+ *   who is being reported on     → Named-actor activity (APT / campaign)
+ *   what to patch first          → Patch priority (KEV / EPSS)
+ *   did collection run           → Collector status
  * plus a mixed stat strip on top. Each panel ranks its OWN lane — the feed's
  * category-capped score makes a single global "top" list an all-CVE artifact.
  *
@@ -128,6 +136,7 @@ export function SituationalBoard() {
   const trends = useStateData<TrendsPayload>('trends')
   const feed = useStateData<FeedPayload>('feed')
   const health = useStateData<HealthPayload>('health')
+  const networks = useStateData<AsnLeaderboardPayload>('asn_leaderboard')
 
   const items = useMemo(() => feed.data?.items ?? [], [feed.data])
   const ransom = useMemo(() => aggregateRansomware(items), [items])
@@ -174,6 +183,17 @@ export function SituationalBoard() {
         skeleton={<Skeleton className="h-72 w-full rounded-lg" />}
       >
         <RansomwareActivity summary={ransom} />
+      </Gate>
+
+      {/* compact landing teaser for the full /desk#networks table; light
+          asn_leaderboard.json only (~1 KB), so it fetches eagerly like trends */}
+      <Gate
+        status={networks.status}
+        label="the ISP abuse leaderboard"
+        detail={networks.error}
+        skeleton={<Skeleton className="h-64 w-full rounded-lg" />}
+      >
+        <NetworkAbuseLeaderboard payload={networks.data ?? { networks: [] }} />
       </Gate>
 
       {/* secondary lane: who's reported on · what to patch · did collection run */}

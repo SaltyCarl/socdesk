@@ -8,7 +8,7 @@
 // Pure functions, no React, no I/O — trivially testable and reused by both the
 // stat strip and its matching panel so their numbers can never disagree.
 
-import type { Cve, FeedItem } from '../views/types'
+import type { AsnNetwork, Cve, FeedItem } from '../views/types'
 
 /* ---------------- ransomware leak-site activity ---------------- */
 
@@ -123,4 +123,18 @@ export function patchPriority(cves: Cve[], limit = 7): Cve[] {
     .filter((c) => c.kev === true || (c.epss ?? 0) >= 0.5)
     .sort((a, b) => riskKey(b) - riskKey(a) || (b.cvss ?? 0) - (a.cvss ?? 0))
     .slice(0, limit)
+}
+
+/* ---------------- ISP abuse leaderboard (landing teaser) ---------------- */
+
+/**
+ * Top-N networks for the landing teaser. asn.py already ranks the full
+ * leaderboard by ip_count desc (asn tie-break) before it's committed to
+ * asn_leaderboard.json, so this is a pure slice — no re-sort — the same
+ * no-re-sort contract AsnLeaderboardView holds for the full table. A separate
+ * function (not an inline `.slice()`) so the "top 5" cut is one tested,
+ * reused definition instead of a magic number duplicated at each call site.
+ */
+export function topNetworks(networks: AsnNetwork[], limit = 5): AsnNetwork[] {
+  return networks.slice(0, limit)
 }

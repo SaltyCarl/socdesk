@@ -1,7 +1,7 @@
 import type { EpssMover, NewKevEntry, TrendsPayload } from '../views/types'
 import { day } from '../views/format'
 import { EpssMeter, KevBadge } from '../views/Badges'
-import { BoardPanel, DeskLink, PanelEmpty, SourceStamp } from './board-ui'
+import { BoardPanel, CveLink, DeskLink, PanelEmpty, SourceStamp } from './board-ui'
 import { epssShift, trendLabel } from './trendRows'
 
 /**
@@ -15,6 +15,10 @@ import { epssShift, trendLabel } from './trendRows'
  * DOCTRINE: a rising EPSS is a real severity signal, so a climber's delta earns
  * amber ink — the same honest exception OverviewStats' KEV counter takes — while
  * KEV membership keeps the reserved red via KevBadge. No fabricated rows.
+ *
+ * Every CVE id in both lists is a CveLink — the same lookup-pivot idiom the
+ * actor profile uses (board-ui.tsx) — so a climber or a new KEV entry pivots
+ * straight into SOCDesk's own KEV/EPSS verdict, not just a static label.
  */
 
 function MoverRow({ m }: { m: EpssMover }) {
@@ -22,7 +26,7 @@ function MoverRow({ m }: { m: EpssMover }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-line py-3 first:pt-0 last:border-0 last:pb-0">
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="font-mono text-xs font-semibold text-paper">{m.cve}</span>
+        <CveLink cve={m.cve} />
         <span className="truncate text-micro text-muted">{trendLabel(m.product)}</span>
       </div>
       <div className="flex shrink-0 items-center gap-2.5">
@@ -47,7 +51,7 @@ function KevRow({ k }: { k: NewKevEntry }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-line py-3 first:pt-0 last:border-0 last:pb-0">
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="font-mono text-xs font-semibold text-paper">{k.cve}</span>
+        <CveLink cve={k.cve} />
         <span className="truncate text-micro text-muted">{trendLabel(k.product)}</span>
       </div>
       <div className="flex shrink-0 items-center gap-2.5">
