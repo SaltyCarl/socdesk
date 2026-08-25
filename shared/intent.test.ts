@@ -149,6 +149,34 @@ describe('classifyCockpitInput — unclassified + determinism', () => {
   })
 })
 
+describe('intent — lone malware filename never routes to enrich (review 2.7)', () => {
+  it('classifies a bare mimikatz.exe as command, not indicator', () => {
+    expect(classifyCockpitInput('mimikatz.exe')).toBe('command')
+  })
+  it('routeSelection never sends kernel32.dll to lookup', () => {
+    expect(routeSelection('kernel32.dll').mode).not.toBe('lookup')
+  })
+  it('a real domain still classifies as indicator', () => {
+    expect(classifyCockpitInput('evil.example.com')).toBe('indicator')
+  })
+  it('a lone binary filename routes to the analyzer, never enrich', () => {
+    expect(routeSelection('mimikatz.exe')).toEqual({ mode: 'analyze', q: 'mimikatz.exe' })
+  })
+  it('covers the other listed binary/script extensions as lone filenames', () => {
+    for (const name of [
+      'evil.dll', 'rootkit.sys', 'payload.scr', 'dropper.ocx', 'panel.cpl',
+      'stager.vbs', 'loader.ps1', 'x.hta', 'run.bat', 'go.cmd',
+    ]) {
+      expect(classifyCockpitInput(name)).toBe('command')
+    }
+  })
+  it('still classifies real look-alike-TLD domains as indicator (extension is not a real TLD collision)', () => {
+    expect(classifyCockpitInput('finger.io')).toBe('indicator')
+    expect(classifyCockpitInput('wmic.io')).toBe('indicator')
+    expect(classifyCockpitInput('certutil.info')).toBe('indicator')
+  })
+})
+
 describe('routeSelection (extension selection router — data-boundary guard)', () => {
   it('routes a command/script to the analyzer with the raw text', () => {
     expect(routeSelection('powershell -nop -w hidden -enc AAAA')).toEqual({

@@ -95,6 +95,19 @@ const CMD_FORLOOP_RE = /\bfor\s+\/[a-z]\b/i
  *  a command line rather than a single pasted value. */
 const SHELL_PUNCT_RE = /[;|`]|\$\(|\s&\s|&&/
 
+/** A lone binary/script filename — the ENTIRE trimmed value, nothing else
+ *  (e.g. `mimikatz.exe`, `kernel32.dll`) — read in isolation, not as part of
+ *  a larger command line (those already classify as `command` via the checks
+ *  above). None of these extensions are real TLDs (unlike EXE_NAME_RE's
+ *  `.io`/`.info` collisions above), so this can't misroute a legitimate
+ *  domain: `finger.io`, `wmic.io`, and `certutil.info` keep classifying as
+ *  `indicator` because `io`/`info` aren't in this extension list. Without
+ *  this guard a bare malware filename that isn't one of EXE_NAME_RE's
+ *  handful of named LOLBins (e.g. `mimikatz.exe`) falls through to
+ *  detectType's domain regex and gets sent to the third-party /api/enrich
+ *  endpoint as `?q=mimikatz.exe` — review finding 2.7, a data-boundary leak. */
+const LONE_BINARY_RE = /^[\w.-]+\.(?:exe|dll|sys|scr|ocx|cpl|vbs|ps1|hta|bat|cmd)$/i
+
 function looksLikeCommand(raw: string): boolean {
   if (raw.includes('\n')) return true
   if (COMMAND_TOKEN_RE.test(raw)) return true
@@ -107,6 +120,7 @@ function looksLikeCommand(raw: string): boolean {
     const tokenCount = raw.trim().split(/\s+/).filter(Boolean).length
     if (tokenCount >= 2) return true
   }
+  if (LONE_BINARY_RE.test(raw.trim())) return true
   return false
 }
 
