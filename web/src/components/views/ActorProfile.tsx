@@ -467,6 +467,12 @@ function VictimLogo({ domain, name }: { domain?: string; name: string }) {
       height={28}
       loading="lazy"
       onError={() => setFailed(true)}
+      // The proxy answers "no icon" with a 1×1 transparent PNG (a SUCCESSFUL
+      // load, so onError never fires) — detect that sentinel on load and fall
+      // back to the monogram, else the row shows an empty square.
+      onLoad={(e) => {
+        if (e.currentTarget.naturalWidth <= 1) setFailed(true)
+      }}
       className="h-7 w-7 shrink-0 rounded-sm border border-line bg-panel-soft object-contain"
     />
   )
