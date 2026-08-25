@@ -200,8 +200,11 @@ export interface MitreFingerprint {
   software: string[]
 }
 
-/** One leak-site victim claim (or a rolled-up digest). Victim names are never
- *  republished — only the sector / country the source attributed. */
+/** One leak-site victim claim (or a rolled-up digest). Victim identity IS
+ *  republished — an attributed, unverified leak-site fact carried faithfully
+ *  from the source (see `ClaimedVictim`); the sector / country note below
+ *  applies to the aggregate rollup path here, not to whether a name appears
+ *  at all. */
 export interface RansomClaim {
   id: string
   title: string
@@ -451,32 +454,49 @@ function timelineFor(slug: string, feed: FeedItem[]): TimelineBucket[] {
     .sort((a, b) => a.week.localeCompare(b.week))
 }
 
-/** Attributed leak-site victim claims for a slug, newest first. Only
- *  ransomware.live items that carry a named `victim` become a
- *  `ClaimedVictim` — a rolled-up digest names no single victim, so it is
- *  honestly excluded here (it still counts toward `activity.victimCount`). */
+/** Attributed leak-site victim claims for a slug, newest first. A single
+ *  claim item (a named `victim`) becomes one `ClaimedVictim`. A rolled-up
+ *  digest (`grouped != null`) that CARRIES its collapsed victims
+ *  (`claims[]`, Task: digest-carries-victims) expands to one `ClaimedVictim`
+ *  per claim — the Desk feed stays a single noise-reduced row while the
+ *  profile still lists every attributed victim. A digest with no `claims`
+ *  (rare — e.g. every collapsed item lacked a victim) is honestly excluded
+ *  here (it still counts toward `activity.victimCount`). */
 function claimedVictimsFor(slug: string, feed: FeedItem[]): ClaimedVictim[] {
   const matched = feed.filter(
     (it) =>
       it.source === 'ransomwarelive' &&
       it.entities?.actors?.[0]?.toLowerCase() === slug &&
-      Boolean(it.victim),
+      (Boolean(it.victim) || (it.grouped != null && Boolean(it.claims?.length))),
   )
-  const sorted = [...matched].sort((a, b) =>
-    String(b.published_at ?? '').localeCompare(String(a.published_at ?? '')),
-  )
-  return sorted.map((it) => {
+  const out: ClaimedVictim[] = []
+  for (const it of matched) {
     const isGrouped = it.grouped != null
-    return {
-      id: it.id,
-      victim: it.victim as string,
-      domain: it.domain,
-      sector: isGrouped ? undefined : parseSectors(it.summary, false)[0],
-      country: isGrouped ? undefined : parseCountry(it.summary),
-      date: it.published_at,
-      claimUrl: it.url,
+    if (isGrouped) {
+      it.claims?.forEach((c, i) => {
+        out.push({
+          id: `${it.id}:${i}`,
+          victim: c.victim,
+          domain: c.domain,
+          sector: undefined,
+          country: undefined,
+          date: c.date,
+          claimUrl: c.url ?? it.url,
+        })
+      })
+    } else {
+      out.push({
+        id: it.id,
+        victim: it.victim as string,
+        domain: it.domain,
+        sector: parseSectors(it.summary, false)[0],
+        country: parseCountry(it.summary),
+        date: it.published_at,
+        claimUrl: it.url,
+      })
     }
-  })
+  }
+  return out.sort((a, b) => String(b.date ?? '').localeCompare(String(a.date ?? '')))
 }
 
 /** Malware / tooling families associated with a slug: ATT&CK `software` on

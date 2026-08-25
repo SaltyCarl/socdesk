@@ -23,6 +23,25 @@ def test_invalid_payload_reports_errors():
     assert validate_payload("feed.json", BAD_FEED, "schemas") != []
 
 
+def test_feed_digest_with_claims_validates():
+    """A grouped digest carrying its collapsed victims (Finding #1 fix) must
+    still validate — the feed item schema is additionalProperties:false, so a
+    `claims` field emitted without the matching schema addition would fail
+    EVERY digest and silently freeze feed.json at last-known-good (the
+    cves.json-freeze pattern)."""
+    digest = dict(GOOD_FEED["items"][0])
+    digest["grouped"] = 6
+    digest["claims"] = [
+        {"victim": "A Corp", "domain": "acorp.example",
+         "date": "2026-07-28T09:00:00Z", "url": "https://x.test/a"},
+        {"victim": "B Corp", "date": "2026-07-28T08:00:00Z",
+         "url": "https://x.test/b"},
+    ]
+    payload = {"generated_at": "2026-07-28T12:00:00Z", "schema_version": 1,
+               "items": [digest]}
+    assert validate_payload("feed.json", payload, "schemas") == []
+
+
 def test_gate_falls_back_to_prior_on_invalid():
     published, problems = gate(
         {"feed.json": BAD_FEED}, {"feed.json": GOOD_FEED}, "schemas")
@@ -92,10 +111,16 @@ def test_ransomware_intel_seed_dates_are_isoish():
     from pathlib import Path
     seed = json.loads(Path("data/ransomware_intel.json").read_text(encoding="utf-8"))
     date_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    seen = {"advisory_date": 0, "last_reviewed": 0}
     for group in seed["groups"]:
         for field in ("advisory_date", "last_reviewed"):
             if field in group:
+                seen[field] += 1
                 assert date_re.match(group[field]), f"{group['slug']}.{field}={group[field]!r}"
+    # a hardening guard: if these fields ever vanished from the seed the loop
+    # above would silently no-op and this test would pass vacuously.
+    assert seen["advisory_date"] >= 1
+    assert seen["last_reviewed"] >= 1
 
 
 def test_ransomware_intel_seed_note_images_are_cisa_hosted():
@@ -104,10 +129,15 @@ def test_ransomware_intel_seed_note_images_are_cisa_hosted():
     from urllib.parse import urlsplit
     from pathlib import Path
     seed = json.loads(Path("data/ransomware_intel.json").read_text(encoding="utf-8"))
+    seen = 0
     for group in seed["groups"]:
         if "note_image" in group:
+            seen += 1
             host = urlsplit(group["note_image"]).netloc
             assert host.endswith("cisa.gov"), f"{group['slug']}.note_image host={host!r}"
+    # a hardening guard: if note_image ever vanished from the seed the loop
+    # above would silently no-op and this test would pass vacuously.
+    assert seen >= 1
 
 
 def test_ransomware_intel_schema_rejects_non_cisa_note_image():

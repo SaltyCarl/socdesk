@@ -83,3 +83,16 @@ def test_never_raises_on_malformed_reference_date():
     for bad_ref in ("not-a-date", "", None):
         warnings = check_intel_staleness([_group("akira", REF)], set(), bad_ref)
         assert len(warnings) == 1 and warnings[0].startswith("GUARD:")
+
+
+def test_runs_on_the_actual_committed_seed_shape():
+    """The guard was imported nowhere in prod/CI (Finding #2) — it could never
+    surface real drift. This proves it runs on the REAL seed shape without
+    raising. Type/no-raise only — asserting specific warning CONTENT of the
+    live seed would be brittle (the seed changes over time)."""
+    import json
+    from pathlib import Path
+    seed = json.loads(Path("data/ransomware_intel.json").read_text(encoding="utf-8"))
+    kev_rs = {"CVE-2026-9999"}
+    warnings = check_intel_staleness(seed["groups"], kev_rs, REF)
+    assert isinstance(warnings, list)

@@ -42,6 +42,12 @@ export interface FeedItem {
   /** Bare hostname for the claimed victim's domain — hostname-guarded at
    *  collection (Task 1). Inert text, same render rule as `victim`. */
   domain?: string
+  /** On a grouped digest row ONLY: the individual victims the digest
+   *  collapsed, newest-first, capped at 100 — carried through so the Desk
+   *  feed can stay a single noise-reduced row while the profile still
+   *  expands every claimed victim. Same inert-text render rule as
+   *  `victim`/`domain`. Absent on non-digest items. */
+  claims?: { victim: string; domain?: string; date?: string; url?: string }[]
 }
 
 export interface FeedPayload {

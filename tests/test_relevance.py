@@ -89,6 +89,9 @@ def test_repetitive_claims_are_grouped_not_dropped():
     claims = [item(source="ransomwarelive", title=f"akira claim {n}",
                    summary=(f"Unverified claim by akira, per its leak site. "
                             f"Sector: {sectors[n]} — Country: US."),
+                   published_at=f"2026-08-0{n + 1}T00:00:00Z",
+                   victim=f"Victim {n}", domain=f"victim{n}.example",
+                   url=f"http://abcxyz.onion/claim-{n}",
                    entities={"actors": ["akira"], "malware": [], "vendors": [],
                              "cves": []}) for n in range(6)]
     news = [item(title="real story")]
@@ -99,8 +102,20 @@ def test_repetitive_claims_are_grouped_not_dropped():
     assert "real story" in by_title
     assert len(out) == 2                     # 6 stubs collapsed to 1
     # digest names the distinct sectors, NOT the leading attribution prose
-    digest = by_title["akira posted 6 victim claims"]["summary"]
-    assert digest == "Grouped: Healthcare, Manufacturing, Retail"
+    digest = by_title["akira posted 6 victim claims"]
+    assert digest["summary"] == "Grouped: Healthcare, Manufacturing, Retail"
+    # the digest CARRIES its collapsed victims (Finding #1) — none are lost —
+    # newest-first by published_at, and does NOT inherit a misleading scalar
+    # victim/domain from group[0].
+    assert "victim" not in digest
+    assert "domain" not in digest
+    claim_victims = [c["victim"] for c in digest["claims"]]
+    assert claim_victims == ["Victim 5", "Victim 4", "Victim 3",
+                              "Victim 2", "Victim 1", "Victim 0"]
+    assert digest["claims"][0] == {
+        "victim": "Victim 5", "domain": "victim5.example",
+        "date": "2026-08-06T00:00:00Z", "url": "http://abcxyz.onion/claim-5",
+    }
 
 
 def test_small_groups_are_left_alone():

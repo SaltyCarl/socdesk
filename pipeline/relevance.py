@@ -138,6 +138,28 @@ def group_repetitive(items, source, key_fn, threshold=4):
         head["grouped"] = len(group)
         head["score"] = max(g.get("score", 0) for g in group)
         head["why"] = [f"{len(group)} claims in window"]
+
+        # The digest represents MANY victims — carry them all so the profile
+        # can expand the list, instead of inheriting group[0]'s single
+        # victim/domain (which silently dropped every other victim from the
+        # published feed for the busiest groups).
+        claims = []
+        for g in group:
+            victim = g.get("victim")
+            if not victim:
+                continue
+            claim = {"victim": victim}
+            domain = g.get("domain")
+            if domain:
+                claim["domain"] = domain
+            claim["date"] = g.get("published_at")
+            claim["url"] = g.get("url")
+            claims.append(claim)
+        claims.sort(key=lambda c: c.get("date") or "", reverse=True)
+        head["claims"] = claims[:100]
+        head.pop("victim", None)
+        head.pop("domain", None)
+
         out.append(head)
     out.sort(key=lambda i: (i.get("score", 0), i.get("published_at", "")), reverse=True)
     return out

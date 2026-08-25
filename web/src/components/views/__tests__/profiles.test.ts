@@ -369,6 +369,37 @@ describe('profileFor — claimed-victim list + activity aggregates', () => {
     const p = profileFor('play', { actors:[], malware:[], feed, relations:null, intel:[], trackedActors:new Set() })
     expect(p.reporting.length).toBe(0)
   })
+  it('expands a digest that carries claims[] to one ClaimedVictim per claim — the busy-group fix', () => {
+    // A busy group's digest inherits no scalar victim/domain (Finding #1) —
+    // its claims[] is what the profile must expand, newest-first.
+    const digestFeed: FeedItem[] = [{
+      id: 'd'.repeat(40), source: 'ransomwarelive', category: 'ransomware',
+      title: 'qilin posted 17 victim claims', summary: 'Grouped: Manufacturing, Retail',
+      url: 'http://abcxyz.onion/digest', entities: { actors: ['qilin'] },
+      why: ['17 claims in window'], grouped: 17, published_at: '2026-08-20T00:00:00Z',
+      claims: [
+        { victim: 'A Corp', domain: 'acorp.example', date: '2026-08-19T00:00:00Z', url: 'http://abcxyz.onion/claim-a' },
+        { victim: 'B Corp', date: '2026-08-20T00:00:00Z', url: 'http://abcxyz.onion/claim-b' },
+        { victim: 'C Corp', domain: 'ccorp.example', date: '2026-08-18T00:00:00Z', url: 'http://abcxyz.onion/claim-c' },
+      ],
+    }]
+    const p = profileFor('qilin', { actors: [], malware: [], feed: digestFeed, relations: null, intel: [] })
+    expect(p.claimedVictims).toHaveLength(3)
+    expect(p.claimedVictims.map((v) => v.victim)).toEqual(['B Corp', 'A Corp', 'C Corp']) // newest-first
+    expect(p.claimedVictims[0]).toMatchObject({ id: `${'d'.repeat(40)}:1`, victim: 'B Corp', claimUrl: 'http://abcxyz.onion/claim-b' })
+    expect(p.claimedVictims[0].domain).toBeUndefined() // per-claim domain omitted when the claim has none
+    expect(p.claimedVictims[1]).toMatchObject({ victim: 'A Corp', domain: 'acorp.example', sector: undefined, country: undefined })
+  })
+  it('honestly excludes a digest with NO claims[] (every collapsed item lacked a victim)', () => {
+    const digestFeed: FeedItem[] = [{
+      id: 'e'.repeat(40), source: 'ransomwarelive', category: 'ransomware',
+      title: 'nomad posted 4 victim claims', summary: 'Grouped: Retail',
+      url: 'http://abcxyz.onion/digest2', entities: { actors: ['nomad'] },
+      why: ['4 claims in window'], grouped: 4, published_at: '2026-08-20T00:00:00Z',
+    }]
+    const p = profileFor('nomad', { actors: [], malware: [], feed: digestFeed, relations: null, intel: [] })
+    expect(p.claimedVictims).toEqual([])
+  })
 })
 
 describe('profileFor — activity.timeline: deterministic weekly buckets', () => {

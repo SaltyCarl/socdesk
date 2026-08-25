@@ -12,6 +12,7 @@ from pipeline.community import build_community_reports
 from pipeline.cves import build_cve_rows, enrich_epss
 from pipeline.history import (build_trends, daily_snapshot, prune_history,
                               snapshot_name)
+from pipeline.intel_staleness import check_intel_staleness
 from pipeline.publish import build_site_data
 from pipeline.validate import gate
 
@@ -88,6 +89,16 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
         payloads["ransomware_intel.json"] = dict(
             json.loads(intel_path.read_text(encoding="utf-8")), generated_at=iso(now))
 
+    # Staleness/drift guard (spec §3.4): soft warnings only, never a publish
+    # blocker — run against the seed groups actually loaded above and the
+    # real KEV-ransomware CVE set, so it can surface real drift instead of
+    # never running at all.
+    stale = []
+    if "ransomware_intel.json" in payloads:
+        kev_rs = {r["cve"] for r in cve_rows if r.get("kev_ransomware")}
+        stale = check_intel_staleness(
+            payloads["ransomware_intel.json"]["groups"], kev_rs, iso(now)[:10])
+
     feed_count = len(payloads.get("feed.json", {}).get("items", []))
     snapshots, history_files = _history(state_dir, cve_rows, feed_count, now)
     payloads["trends.json"] = dict(
@@ -127,10 +138,11 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
             state["asn_leaderboard.json"], generated_at=iso(now))
 
     published, problems = gate(payloads, state, schemas_dir)
-    if problems:
+    warnings = problems + stale
+    if warnings:
         published["health.json"] = dict(
             published.get("health.json", payloads["health.json"]),
-            pipeline_warnings=problems)
+            pipeline_warnings=warnings)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     state_dir.mkdir(parents=True, exist_ok=True)
