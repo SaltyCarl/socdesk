@@ -82,15 +82,14 @@ function BoardHeader({ generatedAt }: { generatedAt?: string }) {
     <header className="flex flex-col gap-3 border-t border-line pt-8 sm:flex-row sm:items-end sm:justify-between">
       <div className="flex flex-col gap-2">
         <MicroLabel tone="accent" tick>
-          Daily summary
+          Last 24 hours
         </MicroLabel>
         <h2 className="font-display text-xl font-extrabold tracking-tight text-paper">
           Daily threat summary
         </h2>
         <p className="max-w-2xl text-base text-muted">
-          A once-daily summary — what changed in the last 24 hours, active
-          ransomware and named-actor reporting, and what to patch first. Updated
-          once per day, not a live feed.
+          What changed in the last 24 hours — active ransomware, named-actor
+          reporting, and what to patch first.
         </p>
       </div>
       {generatedAt && (

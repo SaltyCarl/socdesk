@@ -34,10 +34,10 @@ export const DEFAULT_VIEWS: CommandItem[] = [
   {
     id: 'view:desk',
     kind: 'view',
-    label: 'Data desk',
+    label: 'Desk',
     hint: '/desk',
     href: '/desk',
-    keywords: ['feed', 'vulnerabilities', 'actors', 'health', 'sources', 'triage'],
+    keywords: ['feed', 'vulnerabilities', 'health', 'sources', 'networks', 'isp abuse', 'triage'],
   },
   {
     id: 'view:actor',

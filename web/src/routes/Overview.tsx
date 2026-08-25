@@ -214,7 +214,7 @@ export function Overview({
                 </h1>
                 <p className="sdh-enter sdh-enter-3 max-w-lg text-md text-muted">
                   {subtitle ??
-                    'Reported malicious IPs and ransomware victim-countries, plotted from real sources. Enrich any indicator to get its attributed escalation card inline — and watch it land live on the globe. Drag to spin, scroll to zoom.'}
+                    'Reported malicious IPs and ransomware victim-countries, plotted from real sources. Enrich any indicator for its attributed escalation card inline, plotted live on the globe. Drag to spin, scroll to zoom.'}
                 </p>
               </div>
             </div>
