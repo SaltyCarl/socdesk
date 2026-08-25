@@ -152,15 +152,30 @@ export async function analyze(input: string): Promise<AnalysisResult> {
     }
   }
 
-  // Layer 2 (depth 1): an embedded Base64 blob that inflates (gzip/raw-DEFLATE cradle).
+  // Layer 2 (depth 1): an embedded Base64 blob that inflates (gzip/raw-DEFLATE cradle),
+  // or — the 2.1 fix — decodes straight to plain text with no compression involved.
   for (const lit of stringLiterals(tokenize(current))) {
     if (!looksBase64(lit)) continue
-    const inflated = await inflate(fromBase64(lit))
+    const bytes = fromBase64(lit)
+    const inflated = await inflate(bytes)
     if (inflated) {
       const text = bytesToText(inflated)
       if (isMostlyPrintable(text)) {
         layers.push({ index: layers.length, transform: 'Base64 → inflate', text, state: 'fully-decoded' })
         break // depth 1: one inflate; deeper recursion is Phase 2
+      }
+    }
+    // Plain (non-compressed) base64 → text. Gated: decode-API co-occurs OR the
+    // blob is long enough that a coincidental base64-shaped bareword is
+    // implausible. Non-printable result is NOT a layer — it falls to the
+    // residue detector (honest "decodes to non-text").
+    const decodeApiPresent = /frombase64string|\[convert\]::from/i.test(current)
+    if (decodeApiPresent || lit.replace(/\s+/g, '').length >= 32) {
+      const text = bytesToTextSmart(bytes)
+      if (isMostlyPrintable(text)) {
+        const enc = Array.from(bytes.subarray(0, 4)).some((b) => b === 0) ? 'UTF-16LE' : 'UTF-8'
+        layers.push({ index: layers.length, transform: `Base64 → text (${enc})`, text, state: 'fully-decoded' })
+        break
       }
     }
   }
@@ -370,6 +385,15 @@ function composeCopyText(
     lines.push('Indicators: (none extracted)')
   }
   return lines.join('\n')
+}
+
+/** Pick text encoding for a decoded byte array: UTF-16LE if a high share of
+ *  odd-index bytes are NUL (the -enc gotcha), else UTF-8. */
+function bytesToTextSmart(bytes: Uint8Array): string {
+  let oddNul = 0, oddCount = 0
+  for (let i = 1; i < bytes.length; i += 2) { oddCount++; if (bytes[i] === 0) oddNul++ }
+  const enc = oddCount > 0 && oddNul / oddCount > 0.3 ? 'utf-16le' : 'utf-8'
+  return new TextDecoder(enc, { fatal: false }).decode(bytes)
 }
 
 /** Accept a decompressed layer only if it's mostly printable text — raw-DEFLATE
