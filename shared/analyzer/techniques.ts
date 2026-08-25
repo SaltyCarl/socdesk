@@ -128,23 +128,37 @@ export const RULES: SignatureRule[] = [
       // (a bare fetch-to-disk with no launch; a bare Start-Process on an
       // unrelated .exe with no fetch) — both are shipped as negative tests.
       const DISK_NEEDLES = ['downloadfile', '-outfile', 'start-bitstransfer', 'curl -o', 'wget -o']
-      const EXEC_NEEDLES = ['start-process', 'saps', 'invoke-item', 'ii ']
+      // 'ii ' (the Invoke-Item alias) is deliberately NOT a bare substring
+      // needle here — it collides with "ascii" (`-Encoding ascii`), firing on
+      // a benign fetch-to-disk with no execution. Alias coverage instead uses
+      // the bounded II_ALIAS_RE below, gated on the same command-separator
+      // requirement as the bare-.exe fallback.
+      const EXEC_NEEDLES = ['start-process', 'saps', 'invoke-item']
+      // Both fallback patterns require a command separator (`;`/`&`/`|`)
+      // immediately before the token — NEVER the start of the corpus. In
+      // analyze()'s real pipeline the corpus starts with the verbatim raw
+      // input (report.ts), so an unanchored `^` branch previously matched a
+      // fully-qualified fetch tool's own name at position 0 — e.g.
+      // `certutil.exe -urlcache -split -f http://x.test/a.exe dest.exe` or
+      // `powershell.exe -Command "iwr ... -OutFile a.exe"` — firing on pure
+      // fetch-to-disk with no execution at all. A separator-anchored token
+      // (e.g. `& a.exe`, `; ii payload`) is never confused with the fetching
+      // command's own filename, which sits at the very start of the corpus.
+      const II_ALIAS_RE = /[;&|]\s*&?\s*ii\s/i
+      const EXE_SINK_RE = /[;&|]\s*&?\s*['"]?[^'"\s]+\.exe\b/i
       const diskNeedle = DISK_NEEDLES.find((n) => present(ctx, n))
       const certutilDisk = !diskNeedle && hasAny(ctx, ['certutil']) && hasAny(ctx, ['-urlcache', '-split'])
       if (!diskNeedle && !certutilDisk) return { hit: false }
       const execNeedle = EXEC_NEEDLES.find((n) => present(ctx, n))
-      // Fallback exec sink: a bare `.exe` invocation via a statement separator
-      // (`;`/`&`/`|`) or at the start of the corpus — e.g. `& a.exe` — never a
-      // mere `.exe` MENTION (a URL path segment, a destination filename arg)
-      // with no launch context, which is exactly what the fetch-to-disk-only
-      // benign twin contains.
-      const exeMatch = execNeedle ? undefined : /(?:^|[;&|]\s*)&?\s*['"]?[^'"\s]+\.exe\b/i.exec(ctx.text)
-      if (!execNeedle && !exeMatch) return { hit: false }
+      const iiMatch = execNeedle ? undefined : II_ALIAS_RE.exec(ctx.text)
+      const exeMatch = execNeedle || iiMatch ? undefined : EXE_SINK_RE.exec(ctx.text)
+      if (!execNeedle && !iiMatch && !exeMatch) return { hit: false }
       // Trigger needles are built from what ACTUALLY matched on this input
       // (never a static list that might miss the branch that fired) — the
       // Task 12 lesson: triggerFor must never fall through to a fabricated
       // needles[0] default.
-      const triggerNeedles = [diskNeedle ?? 'certutil', execNeedle ?? exeMatch![0].trim()]
+      const execTrigger = execNeedle ?? (iiMatch ? iiMatch[0].trim() : exeMatch![0].trim())
+      const triggerNeedles = [diskNeedle ?? 'certutil', execTrigger]
       return { hit: true, trigger: triggerFor(ctx, triggerNeedles) }
     },
   },

