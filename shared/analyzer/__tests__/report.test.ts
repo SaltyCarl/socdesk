@@ -192,3 +192,18 @@ describe('copyText — opaque bullets get parity with the UI (whole-branch revie
     expect(whatItDidSection).not.toContain('numeric char-code decode only')
   })
 })
+
+describe('analyze — failure legibility (residue)', () => {
+  it('a plain-base64 inner stage renders an opaque partial, never blank', async () => {
+    const b64 = btoa('Invoke-Mimikatz -DumpCreds; net user hacker P@ss /add')
+    const r = await analyze(`IEX([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64}')))`)
+    expect(r.confidence.state).toBe('partial')
+    expect(r.layers.some((l) => l.state === 'opaque')).toBe(true)
+    expect(r.bullets.some((b) => b.confidence === 'opaque')).toBe(true)
+  })
+  it('benign admin work stays fully-decoded and silent', async () => {
+    const r = await analyze('Get-ChildItem -Recurse | Where Length -gt 1MB | Sort | Select')
+    expect(r.confidence.state).toBe('fully-decoded')
+    expect(r.layers.some((l) => l.state === 'opaque')).toBe(false)
+  })
+})

@@ -7,6 +7,7 @@ import { resolve, normalize } from './resolve'
 import { buildContext, classify, RULES } from './techniques'
 import { decodeNumericCharCodes } from './wsh'
 import { deriveBullets } from './bullets'
+import { detectResidue } from './residue'
 
 const WRAPPER_INTERPRETERS = new Set<Interpreter>(['cmd', 'mshta', 'wscript', 'cscript'])
 const WSH_INTERPRETERS = new Set<Interpreter>(['mshta', 'wscript', 'cscript'])
@@ -203,6 +204,30 @@ export async function analyze(input: string): Promise<AnalysisResult> {
   const signals = classify(buildContext(corpus, flags, interpreter))
   const characterization = deriveCharacterization(signals)
   const bullets = deriveBullets(buildContext(corpus, flags, interpreter), layers, iocs, signals)
+
+  // Failure legibility (spec §4.1): scan the DEEPEST decoded text for encoding
+  // constructs that produced no layer. Each becomes an opaque layer (flips
+  // confidence.state to 'partial' via the count below) + an opaque bullet in
+  // the "Could not resolve" block — so an unopenable stager never renders
+  // identically to a benign one-liner.
+  const deepestText = [...layers].reverse().find((l) => l.text != null)?.text ?? script
+  for (const res of detectResidue(deepestText, interpreter)) {
+    layers.push({
+      index: layers.length,
+      transform: `unresolved ${res.construct}`,
+      text: null,
+      state: 'opaque',
+      residual: { bytes: res.bytes, entropy: res.entropy, note: res.note },
+    })
+    bullets.push({
+      order: bullets.length + 1,
+      verb: 'Contains',
+      text: `${res.note} — treat as opaque and escalate for manual review.`,
+      confidence: 'opaque',
+      iocs: [],
+      techniqueIds: [],
+    })
+  }
 
   const fullyDecoded = layers.filter((l) => l.state === 'fully-decoded').length
   const state = layers.length === 0 || fullyDecoded === layers.length ? 'fully-decoded' : 'partial'
