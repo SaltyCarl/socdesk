@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildContext, classify } from '../techniques'
+import { buildContext, classify, triggerFor } from '../techniques'
 import { preprocess } from '../preprocess'
 
 function analyze(text: string, raw = text) {
@@ -332,6 +332,25 @@ describe('T1490 shadow/recovery tamper (review 2.4)', () => {
   })
   it('does NOT fire on a bare bcdedit query with no destructive object', () => {
     expect(sig('bcdedit /enum')).not.toContain('shadow-recovery-tamper')
+  })
+  it('trigger evidence includes the full command name, not a clipped fragment (live finding: "ssadmin delete shadows")', () => {
+    const input = 'vssadmin delete shadows /all /quiet'
+    const signal = classify(buildContext(input, [], 'unknown')).find((s) => s.id === 'shadow-recovery-tamper')
+    expect(signal).toBeTruthy()
+    expect(signal!.trigger).toContain('vssadmin')
+    expect(signal!.trigger).not.toMatch(/^ssadmin\b/)
+  })
+})
+
+describe('triggerFor / triggerWindow evidence snippet', () => {
+  it('includes the full preceding word, not just its last 8 characters', () => {
+    // "installutil" is 11 chars — one more than the old fixed 8-char look-back
+    // could ever capture, so any needle it precedes reproduces the same class
+    // of bug as the live "vssadmin" -> "ssadmin" clip.
+    const ctx = buildContext('installutil /logfile=out.txt /LogToConsole=false', [], 'unknown')
+    const trigger = triggerFor(ctx, ['/logfile='])
+    expect(trigger).toContain('installutil')
+    expect(trigger).not.toMatch(/^nstallutil\b/)
   })
 })
 

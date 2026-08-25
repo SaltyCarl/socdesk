@@ -62,7 +62,13 @@ function triggerWindow(text: string, start: number): string {
   const lineStart = text.lastIndexOf('\n', Math.max(start - 1, 0)) + 1
   const lineEndIdx = text.indexOf('\n', start)
   const lineEnd = lineEndIdx === -1 ? text.length : lineEndIdx
-  const windowStart = Math.max(lineStart, start - 8)
+  // Back up to the start of the whole word immediately preceding the match
+  // (e.g. the command name before a matched flag/needle), not just a fixed
+  // 8-char look-back — a preceding word longer than 8 chars (`vssadmin `,
+  // `installutil `) used to get clipped mid-word ("ssadmin delete shadows").
+  const precedingWord = text.slice(lineStart, start).match(/\S+\s*$/)
+  const wordStart = precedingWord ? start - precedingWord[0].length : start
+  const windowStart = Math.max(lineStart, Math.min(start - 8, wordStart))
   const windowEnd = Math.min(lineEnd, start + TRIGGER_MAX)
   const snippet = text.slice(windowStart, windowEnd).trim()
   return windowEnd < lineEnd ? snippet + '…' : snippet
