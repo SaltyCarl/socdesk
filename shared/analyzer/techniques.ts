@@ -434,6 +434,27 @@ export const RULES: SignatureRule[] = [
       return { hit: true, trigger: triggerFor(ctx, ['execute(', 'executeglobal(', 'eval(']) }
     },
   },
+  {
+    id: 'offensive-tool',
+    label: 'named offensive tool',
+    techniqueIds: ['T1003', 'T1059.001'],
+    baseSpecificity: 'near-dispositive',
+    upgradesWith: [],
+    test(ctx) {
+      // Named offensive/credential-theft tooling — mimikatz (and its sekurlsa::
+      // module namespace / DumpCreds verb), Rubeus, Invoke-Kerberoast, SafetyKatz.
+      // Zero legitimate use: these are distinctive tool names, never a bare word
+      // like 'user' that would collide with routine admin cmdlets (Get-LocalUser).
+      // The trigger needle list is intentionally IDENTICAL to the hasAny() gate
+      // list — a Task 12/13 lesson: triggerFor must never fall through to a
+      // fabricated needles[0] default for a needle that didn't actually fire.
+      const NEEDLES = ['invoke-mimikatz', 'sekurlsa::', 'dumpcreds', 'rubeus', 'invoke-kerberoast', 'safetykatz']
+      if (hasAny(ctx, NEEDLES)) {
+        return { hit: true, trigger: triggerFor(ctx, NEEDLES) }
+      }
+      return { hit: false }
+    },
+  },
 ]
 
 /** Run every rule once; emit one Signal per hit, in table order (deterministic).

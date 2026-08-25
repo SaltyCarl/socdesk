@@ -677,6 +677,20 @@ export const RULES: ActionRule[] = [
     },
   },
 
+  {
+    id: 'offensive-tool-run',
+    requiredFacts: ['signal: offensive-tool'],
+    family: 'execute',
+    fires(ctx) {
+      const s = ctx.signals.find((x) => x.id === 'offensive-tool')
+      if (!s) return null
+      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: { name: s.trigger } }
+    },
+    render(m) {
+      return { verb: 'Runs', text: `Runs a named offensive/credential-theft tool (${m.vars.name})` }
+    },
+  },
+
   // ---- Inject/load (tier 9) ----
   {
     id: 'inmemory-inject',

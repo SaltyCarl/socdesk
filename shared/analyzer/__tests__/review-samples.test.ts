@@ -25,11 +25,15 @@ describe('review battery — end state after Phase 1', () => {
     expect(r.bullets.some((b) => b.text === 'Deletes volume shadow copies — destroys ransomware rollback')).toBe(true)
     expect(r.bullets.some((b) => b.text.includes('disables recovery') || /bcdedit/i.test(b.text))).toBe(false)
   })
-  it('#6 plain-base64 inner stage: now DECODED (Phase 2)', async () => {
+  it('#6 plain-base64 inner stage: now DECODED (Phase 2) and CHARACTERIZED (Task 15) — the decoded Mimikatz payload is no longer signal-less', async () => {
     const b64 = btoa('Invoke-Mimikatz -DumpCreds; net user hacker P@ss /add')
     const r = await analyze(`IEX([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64}')))`)
     expect(r.layers.some((l) => /Base64 → text/.test(l.transform))).toBe(true)
     expect(r.confidence.state).toBe('fully-decoded')
+    expect(r.signals.some((s) => s.id === 'offensive-tool')).toBe(true)
+    expect(r.characterization).not.toBeNull()
+    expect(r.characterization!.level).toBe('high-confidence-malicious')
+    expect(r.characterization!.basis).toContain('offensive-tool')
   })
   it('#7 benign regsvr32 /u: no regsvr32 bullet at all (no fabricated narrative)', async () => {
     const r = await analyze('regsvr32 /u /s C:\\Program Files\\MyApp\\shell-extension.dll')

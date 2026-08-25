@@ -379,3 +379,42 @@ describe('download-to-disk-then-exec dropper (review 2.2)', () => {
     expect(specOf(script, 'disk-dropper', raw)).toBe('near-dispositive')
   })
 })
+
+describe('offensive-tool naming (spec §6)', () => {
+  it('fires on Invoke-Mimikatz -DumpCreds', () => {
+    expect(sig('Invoke-Mimikatz -DumpCreds')).toContain('offensive-tool')
+  })
+  it('does not fire on a benign string containing "user"', () => {
+    expect(sig('Get-LocalUser')).not.toContain('offensive-tool')
+  })
+  it('fires on sekurlsa:: (mimikatz module invocation)', () => {
+    expect(sig('sekurlsa::logonpasswords')).toContain('offensive-tool')
+  })
+  it('fires on rubeus', () => {
+    expect(sig('Rubeus.exe asktgt /user:svc /rc4:aad3b435')).toContain('offensive-tool')
+  })
+  it('fires on Invoke-Kerberoast', () => {
+    expect(sig('Invoke-Kerberoast -OutputFormat hashcat')).toContain('offensive-tool')
+  })
+  it('fires on SafetyKatz', () => {
+    expect(sig('SafetyKatz.exe -o output.txt')).toContain('offensive-tool')
+  })
+  it('is near-dispositive on its own (named offensive tooling has no legitimate use)', () => {
+    expect(specOf('Invoke-Mimikatz -DumpCreds', 'offensive-tool')).toBe('near-dispositive')
+  })
+  it('trigger is a real substring of the input, not a fabricated needles[0] fallback — every needle checked individually (Task 12/13 lesson)', () => {
+    const cases = [
+      'Invoke-Mimikatz -DumpCreds',
+      'sekurlsa::logonpasswords',
+      'net user hacker /add & DumpCreds',
+      'Rubeus.exe asktgt /user:svc',
+      'Invoke-Kerberoast -OutputFormat hashcat',
+      'SafetyKatz.exe -o output.txt',
+    ]
+    for (const input of cases) {
+      const s = classify(buildContext(input, [], 'unknown')).find((x) => x.id === 'offensive-tool')
+      expect(s).toBeTruthy()
+      expect(input.toLowerCase()).toContain(s!.trigger.toLowerCase())
+    }
+  })
+})

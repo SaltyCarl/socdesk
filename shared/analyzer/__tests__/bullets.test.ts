@@ -290,6 +290,15 @@ describe('deriveBullets — inject/persist/beacon families', () => {
   })
 })
 
+describe('deriveBullets — offensive-tool-run bullet (execute family)', () => {
+  it('names the matched tool from the signal trigger', () => {
+    const bullets = deriveBullets(buildContext('', [], 'powershell'), [], [], [sig('offensive-tool', { trigger: 'Invoke-Mimikatz -DumpCreds' })])
+    const runs = bullets.find((x) => x.text.includes('offensive/credential-theft'))
+    expect(runs).toBeTruthy()
+    expect(runs!.text).toBe('Runs a named offensive/credential-theft tool (Invoke-Mimikatz -DumpCreds)')
+  })
+})
+
 describe('deriveBullets — WSH honesty signals quarantine to opaque', () => {
   it('wsh-decode-limits and wsh-concat-eval-present both render opaque-tier bullets', () => {
     const bullets = deriveBullets(buildContext('', [], 'wscript'), [], [], [sig('wsh-decode-limits'), sig('wsh-concat-eval-present')])
@@ -358,9 +367,10 @@ describe('coverage discipline (D5/D6): every signal maps to a bullet', () => {
     'download-cradle', 'disk-dropper', 'cmd-cradle', 'evasion-cluster', 'amsi-reflection', 'amsi-memory-patch',
     'etw-tamper', 'defender-tamper', 'shadow-recovery-tamper', 'clickfix', 'beaconing', 'reverse-shell', 'fileless-loader',
     'persistence', 'lolbin', 'mshta-interpreter', 'wsh-script-exec', 'wsh-decode-limits', 'wsh-concat-eval-present',
+    'offensive-tool',
   ]
 
-  it('lists exactly the 19 signal ids defined in techniques.ts (fails loudly if the signal catalog changes without a matching bullets.ts update)', () => {
+  it('lists exactly the 20 signal ids defined in techniques.ts (fails loudly if the signal catalog changes without a matching bullets.ts update)', () => {
     expect(TECHNIQUE_RULES.map((r) => r.id).sort()).toEqual([...ALL_SIGNAL_IDS].sort())
   })
 
