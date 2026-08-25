@@ -808,6 +808,26 @@ export const RULES: ActionRule[] = [
       return { verb: 'Notes', text: 'String-concat / eval obfuscation present in this script — not resolved' }
     },
   },
+
+  // cmd/set/%var% honesty notice — same quarantine-to-opaque discipline as the
+  // WSH/HTA pair above (D3/D6, review 2.5): the cmd-var-obfuscation SIGNAL
+  // fires off the raw corpus text independent of whether preprocess.ts's
+  // reassembleCmdVars actually resolved the construct, so this bullet must
+  // never claim more than "obfuscation was present" — it never asserts the
+  // reassembly succeeded or failed.
+  {
+    id: 'cmd-var-obfuscation-notice',
+    requiredFacts: ['signal: cmd-var-obfuscation'],
+    family: 'decode',
+    fires(ctx) {
+      const s = ctx.signals.find((x) => x.id === 'cmd-var-obfuscation')
+      if (!s) return null
+      return { layerIndex: 0, confidence: 'opaque', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
+    },
+    render() {
+      return { verb: 'Notes', text: 'cmd variable-substitution obfuscation present — the reassembled command may be incomplete; treat any thin result as opaque' }
+    },
+  },
 ]
 
 /** Run every rule; assemble hits into order-numbered ActionBullets sorted by

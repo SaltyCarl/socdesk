@@ -435,6 +435,29 @@ export const RULES: SignatureRule[] = [
     },
   },
   {
+    id: 'cmd-var-obfuscation',
+    label: 'cmd variable-substitution obfuscation',
+    techniqueIds: ['T1140', 'T1027'],
+    baseSpecificity: 'weak',
+    upgradesWith: ['cmd-cradle', 'download-cradle'],
+    test(ctx) {
+      // The reassembly-shape tell: a `set X=…` followed by a `%X%`/`!X!`
+      // reference to the SAME var name — informational, like the wsh-*
+      // limit rules (review 2.5): surfaces even when preprocess.ts's cmd-var
+      // reassembly (Task 16) only half-resolves the construct, since this
+      // rule reads the CORPUS text directly rather than the reassembled
+      // result. A bare %PATH% with no matching `set` must never fire (the
+      // benign twin) — reassembleCmdVars.ts's own LITERAL-SAFETY guarantee
+      // mirrored here: only a var actually `set` in the text counts.
+      const m = ctx.text.match(/\bset\s+"?([A-Za-z_][\w]*)=/i)
+      if (!m) return { hit: false }
+      const name = m[1]
+      const ref = ctx.text.match(new RegExp(`[%!]${name}[:%!]`, 'i'))
+      if (!ref) return { hit: false }
+      return { hit: true, trigger: triggerFor(ctx, [m[0], ref[0]]) }
+    },
+  },
+  {
     id: 'offensive-tool',
     label: 'named offensive tool',
     techniqueIds: ['T1003', 'T1059.001'],

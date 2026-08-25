@@ -307,6 +307,16 @@ describe('deriveBullets — WSH honesty signals quarantine to opaque', () => {
   })
 })
 
+describe('deriveBullets — cmd-var-obfuscation honesty notice quarantines to opaque (review 2.5, mirrors wsh-not-resolved)', () => {
+  it('renders a single opaque-tier bullet naming the obfuscation, never promoted', () => {
+    const bullets = deriveBullets(buildContext('', [], 'cmd'), [], [], [sig('cmd-var-obfuscation', { techniqueIds: ['T1140', 'T1027'] })])
+    expect(bullets).toHaveLength(1)
+    expect(bullets[0].confidence).toBe('opaque')
+    expect(bullets[0].text).toContain('cmd variable-substitution obfuscation')
+    expect(bullets[0].techniqueIds).toEqual(['T1140', 'T1027'])
+  })
+})
+
 const ENC_CRADLE =
   'SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8ANAA1AC4AOQAuADEANAA4AC4AMgAwAC8AYQAuAHAAcwAxACcAKQA='
 
@@ -367,10 +377,10 @@ describe('coverage discipline (D5/D6): every signal maps to a bullet', () => {
     'download-cradle', 'disk-dropper', 'cmd-cradle', 'evasion-cluster', 'amsi-reflection', 'amsi-memory-patch',
     'etw-tamper', 'defender-tamper', 'shadow-recovery-tamper', 'clickfix', 'beaconing', 'reverse-shell', 'fileless-loader',
     'persistence', 'lolbin', 'mshta-interpreter', 'wsh-script-exec', 'wsh-decode-limits', 'wsh-concat-eval-present',
-    'offensive-tool',
+    'offensive-tool', 'cmd-var-obfuscation',
   ]
 
-  it('lists exactly the 20 signal ids defined in techniques.ts (fails loudly if the signal catalog changes without a matching bullets.ts update)', () => {
+  it('lists exactly the 21 signal ids defined in techniques.ts (fails loudly if the signal catalog changes without a matching bullets.ts update)', () => {
     expect(TECHNIQUE_RULES.map((r) => r.id).sort()).toEqual([...ALL_SIGNAL_IDS].sort())
   })
 

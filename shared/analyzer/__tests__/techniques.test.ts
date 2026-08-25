@@ -418,3 +418,39 @@ describe('offensive-tool naming (spec §6)', () => {
     }
   })
 })
+
+describe('cmd-var-obfuscation surfaced as a signal (review 2.5)', () => {
+  it('a set/%var% reassembled command carries the obfuscation signal', () => {
+    const ids = sig('cmd /c "set x=power&&set y=shell&&%x%%y% -c whoami"')
+    expect(ids).toContain('cmd-var-obfuscation')
+  })
+
+  it('benign twin: a bare %PATH% reference with no matching `set` does NOT fire', () => {
+    expect(sig('echo %PATH%')).not.toContain('cmd-var-obfuscation')
+  })
+
+  it('benign twin: a `set` assignment with no matching %var% reference anywhere does NOT fire', () => {
+    expect(sig('set x=power')).not.toContain('cmd-var-obfuscation')
+  })
+
+  it('fires on the !var! delayed-expansion form too', () => {
+    expect(sig('setlocal enabledelayedexpansion & set x=power & set y=shell & !x!!y!')).toContain('cmd-var-obfuscation')
+  })
+
+  it('is weak on its own', () => {
+    expect(specOf('cmd /c "set x=power&&set y=shell&&%x%%y% -c whoami"', 'cmd-var-obfuscation')).toBe('weak')
+  })
+
+  it('trigger is a real substring of the input, not a fabricated fallback', () => {
+    const input = 'cmd /c "set x=power&&set y=shell&&%x%%y% -c whoami"'
+    const s = classify(buildContext(input, [], 'unknown')).find((x) => x.id === 'cmd-var-obfuscation')
+    expect(s).toBeTruthy()
+    expect(input.toLowerCase()).toContain(s!.trigger.toLowerCase())
+  })
+
+  it('techniqueIds include T1140 (deobfuscate/decode) and T1027 (obfuscated files/information)', () => {
+    const s = classify(buildContext('set x=power&&set y=shell&&%x%%y%', [], 'unknown')).find((x) => x.id === 'cmd-var-obfuscation')
+    expect(s).toBeTruthy()
+    expect(s!.techniqueIds).toEqual(expect.arrayContaining(['T1140', 'T1027']))
+  })
+})
