@@ -224,7 +224,15 @@ export const RULES: SignatureRule[] = [
         (hasAny(ctx, ['wmic']) && hasAll(ctx, ['shadowcopy', 'delete'])) ||
         (hasAny(ctx, ['wbadmin']) && hasAny(ctx, ['delete catalog', 'delete systemstatebackup'])) ||
         (hasAny(ctx, ['bcdedit']) && hasAny(ctx, ['recoveryenabled no', 'bootstatuspolicy ignoreallfailures']))
-      if (del) return { hit: true, trigger: triggerFor(ctx, ['delete shadows', 'shadowcopy', 'recoveryenabled', 'delete catalog']) }
+      if (del) {
+        return {
+          hit: true,
+          trigger: triggerFor(ctx, [
+            'delete shadows', 'resize shadowstorage', 'shadowcopy', 'delete catalog',
+            'delete systemstatebackup', 'recoveryenabled', 'bootstatuspolicy ignoreallfailures',
+          ]),
+        }
+      }
       return { hit: false }
     },
   },

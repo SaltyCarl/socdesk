@@ -18,7 +18,12 @@ describe('review battery — end state after Phase 1', () => {
     expect(r.characterization).not.toBeNull()
     expect(r.characterization!.level).toBe('high-confidence-malicious')
     expect(r.characterization!.basis).toContain('shadow-recovery-tamper')
-    expect(r.bullets.some((b) => b.text === 'Deletes volume shadow copies / disables recovery — destroys ransomware rollback')).toBe(true)
+    // Bullet layer splits by resolved sub-fact (review fix-up): this sample's
+    // clause is vssadmin-only (no bcdedit), so ONLY the shadow-copy deletion
+    // bullet fires — never a combined slash-hedge, and never a fabricated
+    // "disables recovery" claim the input never made.
+    expect(r.bullets.some((b) => b.text === 'Deletes volume shadow copies — destroys ransomware rollback')).toBe(true)
+    expect(r.bullets.some((b) => b.text.includes('disables recovery') || /bcdedit/i.test(b.text))).toBe(false)
   })
   it('#6 plain-base64 inner stage: now DECODED (Phase 2)', async () => {
     const b64 = btoa('Invoke-Mimikatz -DumpCreds; net user hacker P@ss /add')

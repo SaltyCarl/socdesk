@@ -289,6 +289,17 @@ describe('T1490 shadow/recovery tamper (review 2.4)', () => {
   it('is near-dispositive on its own', () => {
     expect(specOf('vssadmin delete shadows /all /quiet', 'shadow-recovery-tamper')).toBe('near-dispositive')
   })
+  it('trigger is a real substring of the input — never fabricated, even for the non-first discriminators (resize-shadowstorage and bootstatuspolicy cases)', () => {
+    const resizeInput = 'vssadmin resize shadowstorage /for=c: /on=c: /maxsize=401MB'
+    const resizeSignal = classify(buildContext(resizeInput, [], 'unknown')).find((s) => s.id === 'shadow-recovery-tamper')
+    expect(resizeSignal).toBeTruthy()
+    expect(resizeInput.toLowerCase()).toContain(resizeSignal!.trigger.toLowerCase())
+
+    const bcdInput = 'bcdedit /set {default} bootstatuspolicy ignoreallfailures'
+    const bcdSignal = classify(buildContext(bcdInput, [], 'unknown')).find((s) => s.id === 'shadow-recovery-tamper')
+    expect(bcdSignal).toBeTruthy()
+    expect(bcdInput.toLowerCase()).toContain(bcdSignal!.trigger.toLowerCase())
+  })
   it('does NOT fire on a benign vssadmin list shadows', () => {
     expect(sig('vssadmin list shadows')).not.toContain('shadow-recovery-tamper')
   })

@@ -459,17 +459,51 @@ export const RULES: ActionRule[] = [
     },
   },
 
+  // shadow-recovery-tamper (T1490) splits into TWO ActionRules off the ONE
+  // signal (the technique tally stays one signal — only the bullet layer
+  // splits): a deletion sub-fact (vssadmin/wmic shadow-copy vs. wbadmin
+  // catalog vs. wbadmin system-state backup) and an independent
+  // recovery-disable sub-fact (bcdedit). Each re-tests ctx for its OWN
+  // resolved sub-fact and renders ONLY it — no "X / Y" hedge (RENDER RULE,
+  // header comment) — mirroring defender-disable-rtm/defender-add-exclusion
+  // above. A bcdedit-only input must never claim shadow copies were deleted,
+  // and a vssadmin-only input must never claim recovery was disabled.
   {
-    id: 'shadow-delete',
-    requiredFacts: ['signal: shadow-recovery-tamper'],
+    id: 'shadow-copy-delete',
+    requiredFacts: ['signal: shadow-recovery-tamper', 'vssadmin/wmic shadow-copy OR wbadmin backup-catalog/system-state-backup deletion matched'],
     family: 'evade',
     fires(ctx) {
       const s = ctx.signals.find((x) => x.id === 'shadow-recovery-tamper')
       if (!s) return null
+      const wbadmin = ctx.lower.includes('wbadmin')
+      const catalog = wbadmin && ctx.lower.includes('delete catalog')
+      const stateBackup = wbadmin && ctx.lower.includes('delete systemstatebackup')
+      const shadowCopy = ctx.lower.includes('vssadmin') || (ctx.lower.includes('wmic') && ctx.lower.includes('shadowcopy'))
+      if (!catalog && !stateBackup && !shadowCopy) return null // e.g. a bcdedit-only fire — nothing for THIS bullet to resolve
+      const kind = catalog ? 'catalog' : stateBackup ? 'systemstatebackup' : 'shadowcopy'
+      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: { kind } }
+    },
+    render(m) {
+      const text =
+        m.vars.kind === 'catalog' ? 'Deletes the Windows Server backup catalog — destroys recovery data' :
+        m.vars.kind === 'systemstatebackup' ? 'Deletes system-state backups — destroys recovery data' :
+        'Deletes volume shadow copies — destroys ransomware rollback'
+      return { verb: 'Deletes', text }
+    },
+  },
+  {
+    id: 'recovery-disable',
+    requiredFacts: ['signal: shadow-recovery-tamper', 'bcdedit recoveryenabled no OR bootstatuspolicy ignoreallfailures matched'],
+    family: 'evade',
+    fires(ctx) {
+      const s = ctx.signals.find((x) => x.id === 'shadow-recovery-tamper')
+      if (!s) return null
+      const bcdedit = ctx.lower.includes('recoveryenabled') || ctx.lower.includes('bootstatuspolicy')
+      if (!bcdedit) return null // e.g. a vssadmin-only fire — nothing for THIS bullet to resolve
       return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
     },
     render() {
-      return { verb: 'Destroys', text: 'Deletes volume shadow copies / disables recovery — destroys ransomware rollback' }
+      return { verb: 'Disables', text: 'Disables Windows automatic recovery (bcdedit)' }
     },
   },
 

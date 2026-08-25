@@ -185,6 +185,45 @@ describe('deriveBullets — evade family: split rules, no slash-hedge (SOC must-
     expect(twoFlags.find((b) => b.verb === 'Runs')!.text).toBe('Runs with evasion flags (hidden, no-profile)')
     expect(twoFlags.find((b) => b.verb === 'Runs')!.text).not.toContain('execution-policy bypass')
   })
+
+  it('shadow-copy-delete and recovery-disable are independent rules, each naming only its own resolved sub-fact (T1490 review 2.4 fix-up)', () => {
+    // bcdedit-only: recovery-disable fires; shadow-copy-delete must NOT
+    // (it has nothing of its own to resolve here) — no fabricated
+    // "shadow copies" claim on an input that never mentioned any.
+    const bcdOnly = deriveBullets(
+      buildContext('bcdedit /set {default} recoveryenabled no', [], 'powershell'),
+      [], [], [sig('shadow-recovery-tamper')],
+    )
+    expect(bcdOnly.some((b) => b.text === 'Disables Windows automatic recovery (bcdedit)')).toBe(true)
+    expect(bcdOnly.some((b) => /shadow copies/i.test(b.text))).toBe(false)
+
+    // vssadmin-only: shadow-copy-delete fires; recovery-disable must NOT
+    // (no bcdedit clause present) — no fabricated "recovery" claim.
+    const vssadminOnly = deriveBullets(
+      buildContext('vssadmin delete shadows /all /quiet', [], 'powershell'),
+      [], [], [sig('shadow-recovery-tamper')],
+    )
+    expect(vssadminOnly.some((b) => b.text === 'Deletes volume shadow copies — destroys ransomware rollback')).toBe(true)
+    expect(vssadminOnly.some((b) => /bcdedit/i.test(b.text) || /recovery/i.test(b.text))).toBe(false)
+
+    // wbadmin system-state-backup deletion resolves its OWN specific branch
+    // text, not the vssadmin/shadow-copy wording and not a slash-hedge.
+    const wbadminStateBackup = deriveBullets(
+      buildContext('wbadmin delete systemstatebackup -deleteoldest', [], 'powershell'),
+      [], [], [sig('shadow-recovery-tamper')],
+    )
+    expect(wbadminStateBackup.some((b) => b.text === 'Deletes system-state backups — destroys recovery data')).toBe(true)
+    expect(wbadminStateBackup.some((b) => b.text.includes(' / '))).toBe(false)
+
+    // both firing at once — independent, and both facts stated cleanly.
+    const both = deriveBullets(
+      buildContext('vssadmin delete shadows /all /quiet ; bcdedit /set {default} recoveryenabled no', [], 'powershell'),
+      [], [], [sig('shadow-recovery-tamper')],
+    )
+    expect(both.some((b) => b.text === 'Deletes volume shadow copies — destroys ransomware rollback')).toBe(true)
+    expect(both.some((b) => b.text === 'Disables Windows automatic recovery (bcdedit)')).toBe(true)
+    expect(both.some((b) => b.text.includes(' / '))).toBe(false)
+  })
 })
 
 describe('deriveBullets — inject/persist/beacon families', () => {
@@ -334,6 +373,15 @@ describe('coverage discipline (D5/D6): every signal maps to a bullet', () => {
     if (id === 'defender-tamper') {
       const ctx = buildContext('Set-MpPreference -DisableRealtimeMonitoring $true', [], 'powershell')
       expect(deriveBullets(ctx, [], [], [sig('defender-tamper')]).length).toBeGreaterThan(0)
+      return
+    }
+    if (id === 'shadow-recovery-tamper') {
+      // The split shadow-copy-delete/recovery-disable bullets each re-test
+      // ctx for their own resolved sub-fact (no fabricated hedge) — the
+      // generic 'Register-ScheduledTask' fixture below carries neither, so
+      // this id needs its own corpus like clickfix/lolbin/defender-tamper above.
+      const ctx = buildContext('vssadmin delete shadows /all /quiet', [], 'powershell')
+      expect(deriveBullets(ctx, [], [], [sig('shadow-recovery-tamper')]).length).toBeGreaterThan(0)
       return
     }
     const ctx = buildContext('Register-ScheduledTask', [], 'powershell') // corpus content only matters for persistence's mechanism-naming branch
