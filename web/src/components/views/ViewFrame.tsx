@@ -8,11 +8,16 @@ import { MicroLabel } from '../ui'
  */
 export function ViewHeader({
   eyebrow,
+  kicker,
   title,
   intro,
   aside,
 }: {
   eyebrow: string
+  /** A small mono line above the H1 — e.g. the entity TYPE when the H1 itself
+   *  is a resolved proper name (an actor's own name), so the "what kind of
+   *  page is this" cue isn't lost. */
+  kicker?: string
   title: string
   intro?: string
   aside?: ReactNode
@@ -23,6 +28,11 @@ export function ViewHeader({
         <MicroLabel tone="accent" tick>
           {eyebrow}
         </MicroLabel>
+        {kicker && (
+          <span className="font-mono text-micro font-semibold uppercase tracking-label text-faint">
+            {kicker}
+          </span>
+        )}
         <h1 className="font-display text-xl font-extrabold tracking-tight text-paper">
           {title}
         </h1>

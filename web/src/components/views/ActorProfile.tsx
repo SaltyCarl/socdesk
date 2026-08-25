@@ -118,19 +118,24 @@ function KindBadges({ profile }: { profile: ProfileResult }) {
     <div className="flex flex-wrap items-center gap-1.5">
       {profile.ransomware && <MonoTag tone="accent">Ransomware group</MonoTag>}
       {profile.intel && <MonoTag tone="accent">CISA seeded</MonoTag>}
-      {fp?.kind === 'actor' && <MonoTag tone="muted">ATT&amp;CK {fp.attack_id}</MonoTag>}
-      {fp?.kind === 'malware' && <MonoTag tone="muted">Malware {fp.attack_id}</MonoTag>}
+      {/* One consistent "ATT&CK <id>" treatment regardless of actor vs. malware
+          kind — the metadata rail below no longer repeats it (dedupe). */}
+      {fp?.attack_id && <MonoTag tone="muted">ATT&amp;CK {fp.attack_id}</MonoTag>}
       {isApt && <MonoTag tone="muted">APT · reported</MonoTag>}
     </div>
   )
 }
 
-/** The identity block: classification badges, name, aliases, a headline claim
- *  tally for an active group, the ATT&CK deep-link, and a rail of status FACTS
- *  (first-seen, RaaS, ATT&CK id, victim count, slug) — each stated only when
- *  known, never synthesised. */
+/** The identity block: classification badges (incl. the single ATT&CK-id
+ *  treatment), aliases, the ATT&CK deep-link, and a rail of status FACTS
+ *  (first-seen, RaaS, victim count, slug) — each stated only when known,
+ *  never synthesised. The actor's NAME itself is not repeated here — it is
+ *  the page H1 immediately above this card (ActorProfileRoute), so restating
+ *  it at similar weight would be a pure duplicate. The claim-count tally
+ *  likewise lives only in the activity panel below, not twice at hero
+ *  weight. */
 function IdentityHeader({ profile }: { profile: ProfileResult }) {
-  const { fingerprint, ransomware, intel, activity } = profile
+  const { fingerprint, intel } = profile
   const attackHref = safeUrl(fingerprint?.attackUrl)
   const aliases = fingerprint?.aliases ?? intel?.aliases ?? []
 
@@ -139,40 +144,24 @@ function IdentityHeader({ profile }: { profile: ProfileResult }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-2">
           <KindBadges profile={profile} />
-          <h1 className="font-display text-xl font-extrabold tracking-tight text-paper">
-            {profile.name}
-          </h1>
           {aliases.length > 0 && <AliasChips aliases={aliases} />}
         </div>
 
-        <div className="flex shrink-0 flex-col items-end gap-2">
-          {ransomware && (
-            <div className="flex flex-col items-end">
-              <span className="font-display text-2xl font-extrabold tabular-nums leading-none text-accent">
-                {num(activity?.victimCount ?? ransomware.totalClaims)}
-              </span>
-              <span className="font-mono text-micro uppercase tracking-label text-faint">
-                claims · window
-              </span>
-            </div>
-          )}
-          {attackHref && (
-            <a
-              href={attackHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-micro text-accent underline-offset-2 hover:underline"
-            >
-              {fingerprint?.attack_id} on ATT&amp;CK ↗
-            </a>
-          )}
-        </div>
+        {attackHref && (
+          <a
+            href={attackHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 font-mono text-micro text-accent underline-offset-2 hover:underline"
+          >
+            {fingerprint?.attack_id} on ATT&amp;CK ↗
+          </a>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-x-6 gap-y-3 border-t border-line pt-4">
         {intel?.first_seen && <Fact label="First seen">{intel.first_seen}</Fact>}
         {intel && <Fact label="RaaS">{intel.raas ? 'Yes · affiliate model' : 'No'}</Fact>}
-        {fingerprint?.attack_id && <Fact label="ATT&CK">{fingerprint.attack_id}</Fact>}
         {aliases.length > 0 && <Fact label="Aliases">{num(aliases.length)}</Fact>}
         <Fact label="Slug">g={profile.slug}</Fact>
       </div>
@@ -193,12 +182,17 @@ function weekLabel(iso: string): string {
 }
 
 /** Deterministic inline-SVG column chart of weekly claim volume — no chart
- *  dependency. One periwinkle bar per week (accent is the established claim-
- *  VOLUME colour, per ClaimsChip — a count, never a verdict). The peak week
- *  reads at full strength, the rest recede; each bar carries a native <title>
- *  for hover/keyboard, and the whole chart carries an aria summary. Static by
- *  design (no entrance animation) so it renders identically every time and needs
- *  no reduced-motion guard. */
+ *  dependency. Every bar is the same reserved-accent shade (periwinkle is the
+ *  established claim-VOLUME colour, per ClaimsChip — a count, never a
+ *  verdict) at full strength; the peak week is called out in the caption
+ *  row instead of a second opacity/shade, so there is exactly one accent
+ *  tone on the chart in either theme. Bar width and gap are fixed in chart
+ *  units and the sequence is LEFT-anchored, so a sparse 2-3-week window
+ *  clusters near the left on a baseline that still spans the full card,
+ *  rather than a couple of bars stretching to fill the width. Each bar
+ *  carries a native <title> for hover/keyboard, and the whole chart carries
+ *  an aria summary. Static by design (no entrance animation) so it renders
+ *  identically every time and needs no reduced-motion guard. */
 function TimelineChart({ buckets }: { buckets: TimelineBucket[] }) {
   const data = buckets.filter((b) => b.week !== 'unknown')
   const W = 320
@@ -208,9 +202,14 @@ function TimelineChart({ buckets }: { buckets: TimelineBucket[] }) {
   const plotH = H - padTop - padBottom
   const max = Math.max(1, ...data.map((d) => d.count))
   const peak = data.reduce((a, b) => (b.count > a.count ? b : a), data[0])
-  const slot = W / data.length
-  const barW = Math.min(slot * 0.68, 20)
   const total = data.reduce((s, d) => s + d.count, 0)
+
+  // Fixed bar width + gap (chart units), left-anchored from x=0. Only shrinks
+  // below the cap once enough weeks are packed in to need it — a 2-3 bar
+  // window keeps the same bar width as a full one, just clustered left.
+  const GAP = 8
+  const MAX_BAR = 20
+  const barW = Math.max(2, Math.min(MAX_BAR, (W - GAP * (data.length - 1)) / data.length))
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -221,7 +220,8 @@ function TimelineChart({ buckets }: { buckets: TimelineBucket[] }) {
         role="img"
         aria-label={`Weekly claim volume across ${data.length} weeks, peaking at ${peak.count} in the week of ${weekLabel(peak.week)}. ${total} claims total.`}
       >
-        {/* baseline */}
+        {/* baseline — always spans the full card width, even when the bars
+            themselves cluster left for a sparse window */}
         <line
           x1={0}
           y1={padTop + plotH + 0.5}
@@ -233,20 +233,10 @@ function TimelineChart({ buckets }: { buckets: TimelineBucket[] }) {
         />
         {data.map((d, i) => {
           const h = Math.max(d.count > 0 ? 2 : 0, (d.count / max) * plotH)
-          const x = i * slot + (slot - barW) / 2
+          const x = i * (barW + GAP)
           const y = padTop + plotH - h
-          const isPeak = d.week === peak.week
           return (
-            <rect
-              key={d.week}
-              x={x}
-              y={y}
-              width={barW}
-              height={h}
-              rx={1.5}
-              className="fill-accent"
-              fillOpacity={isPeak ? 1 : 0.55}
-            >
+            <rect key={d.week} x={x} y={y} width={barW} height={h} rx={1.5} className="fill-accent">
               <title>{`Week of ${weekLabel(d.week)}: ${d.count} claim${d.count === 1 ? '' : 's'}`}</title>
             </rect>
           )
@@ -341,7 +331,7 @@ function CveLink({ cve }: { cve: string }) {
 }
 
 /** CISA-sourced triage block: initial-access CVEs (pivot into our lookup), the
- *  #StopRansomware advisory, tools as hunting pivots, in-hand attribution
+ *  #StopRansomware advisory, tools as hunting pivots, on-host attribution
  *  signals, the advisory ransom-note figure (linked, public-domain), and a
  *  provenance footer. Every fact attributed to CISA; nothing synthesised. Absent
  *  entirely when the group is unseeded. */
@@ -372,7 +362,14 @@ function IntelPanel({ intel }: { intel: RansomIntel }) {
         </div>
       )}
 
-      {intel.raas && <MonoTag tone="accent">RaaS — affiliate TTPs vary per intrusion</MonoTag>}
+      {intel.raas && (
+        <div className="rounded-r-sm border-l-2 border-[var(--edge-accent)] bg-[var(--tint-accent)] py-1.5 pl-3 pr-2">
+          <p className="text-xs text-muted">
+            <span className="font-semibold text-accent">RaaS</span> — affiliate TTPs vary per
+            intrusion.
+          </p>
+        </div>
+      )}
 
       {tools.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -389,7 +386,7 @@ function IntelPanel({ intel }: { intel: RansomIntel }) {
 
       {(notes.length > 0 || exts.length > 0) && (
         <div className="flex flex-col gap-2">
-          <SectionLabel>In-hand signatures</SectionLabel>
+          <SectionLabel>On-host signatures</SectionLabel>
           {notes.length > 0 && (
             <p className="font-mono text-micro text-muted">
               ransom note: <span className="text-paper">{notes.join(', ')}</span>
@@ -485,7 +482,7 @@ function VictimRow({ v }: { v: ClaimedVictim }) {
   const href = safeUrl(v.claimUrl)
   const onion = /\.onion(\/|$|:)/i.test(v.claimUrl)
   return (
-    <div className="flex items-start gap-3 py-3 first:pt-0">
+    <div className="flex items-center gap-3 py-3 first:pt-0">
       <VictimLogo domain={v.domain} name={v.victim} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-baseline justify-between gap-2">
@@ -718,17 +715,19 @@ export function ActorProfile({
           full-height panels to overlap). */}
       <div className="grid gap-5 lg:grid-cols-[1fr_340px] lg:items-start">
         <div className="flex flex-col gap-5">
-          {/* leak-site activity — the "who now" read leads for an active group */}
-          {activity && (
-            <BoardPanel eyebrow="Leak-site activity">
-              <ActivityPanel activity={activity} />
-            </BoardPanel>
-          )}
-
-          {/* initial access & detection (CISA intel seed) — the flagship */}
+          {/* initial access & detection (CISA intel seed) — the flagship, and
+              the most triage-actionable read (CVEs to check, tooling to
+              hunt), so it leads when present */}
           {intel && (
             <BoardPanel eyebrow="Initial access & detection" accent>
               <IntelPanel intel={intel} />
+            </BoardPanel>
+          )}
+
+          {/* leak-site activity — the "who now" read */}
+          {activity && (
+            <BoardPanel eyebrow="Leak-site activity">
+              <ActivityPanel activity={activity} />
             </BoardPanel>
           )}
 

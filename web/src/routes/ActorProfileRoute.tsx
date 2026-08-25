@@ -113,7 +113,8 @@ export function ActorProfileRoute() {
     <div className="flex flex-col gap-6">
       <ViewHeader
         eyebrow="Adversaries"
-        title={slug ? 'Threat profile' : 'Threat actor & ransomware profiles'}
+        kicker={slug ? 'Threat profile' : undefined}
+        title={slug ? profile?.name || 'Threat profile' : 'Threat actor & ransomware profiles'}
         intro={
           slug
             ? 'A single entity, aggregated from ATT&CK, leak-site activity, and open-source reporting — each fact attributed to its source, nothing synthesised.'
