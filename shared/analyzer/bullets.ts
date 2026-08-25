@@ -459,6 +459,20 @@ export const RULES: ActionRule[] = [
     },
   },
 
+  {
+    id: 'shadow-delete',
+    requiredFacts: ['signal: shadow-recovery-tamper'],
+    family: 'evade',
+    fires(ctx) {
+      const s = ctx.signals.find((x) => x.id === 'shadow-recovery-tamper')
+      if (!s) return null
+      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
+    },
+    render() {
+      return { verb: 'Destroys', text: 'Deletes volume shadow copies / disables recovery — destroys ransomware rollback' }
+    },
+  },
+
   // ---- Fetch/download (tier 7) — method named (SOC must-fix #4) ----
   {
     id: 'download-cradle-fetch',

@@ -9,6 +9,10 @@ function analyze(text: string, raw = text) {
 const ids = (text: string, raw = text) => analyze(text, raw).map((s) => s.id)
 const specOf = (text: string, id: string, raw = text) =>
   analyze(text, raw).find((s) => s.id === id)?.specificity
+// Shared helper (established here for later tasks 13/14/15/17 to reuse):
+// classify/buildContext directly, no preprocess() pass — a plain-corpus
+// signature check independent of interpreter detection or evasion-flag lexing.
+const sig = (s: string) => classify(buildContext(s, [], 'unknown')).map((x) => x.id)
 
 describe('download cradle', () => {
   it('fires when fetched content flows into an interpreter', () => {
@@ -257,5 +261,41 @@ describe('wscript/cscript script-execution rule', () => {
   it('benign twin: wscript launching a .vbs from a trusted path with no //E: flag does NOT fire', () => {
     const s = classify(buildContext('C:\\Program Files\\LegitApp\\installer.vbs', [], 'wscript'))
     expect(s.map((x) => x.id)).not.toContain('wsh-script-exec')
+  })
+})
+
+describe('T1490 shadow/recovery tamper (review 2.4)', () => {
+  it('fires on vssadmin delete shadows', () => {
+    expect(sig('vssadmin delete shadows /all /quiet')).toContain('shadow-recovery-tamper')
+  })
+  it('fires on vssadmin resize shadowstorage', () => {
+    expect(sig('vssadmin resize shadowstorage /for=c: /on=c: /maxsize=401MB')).toContain('shadow-recovery-tamper')
+  })
+  it('fires on wmic shadowcopy delete', () => {
+    expect(sig('wmic shadowcopy delete')).toContain('shadow-recovery-tamper')
+  })
+  it('fires on wbadmin delete catalog', () => {
+    expect(sig('wbadmin delete catalog -quiet')).toContain('shadow-recovery-tamper')
+  })
+  it('fires on wbadmin delete systemstatebackup', () => {
+    expect(sig('wbadmin delete systemstatebackup -deleteoldest')).toContain('shadow-recovery-tamper')
+  })
+  it('fires on bcdedit recoveryenabled no', () => {
+    expect(sig('bcdedit /set {default} recoveryenabled no')).toContain('shadow-recovery-tamper')
+  })
+  it('fires on bcdedit bootstatuspolicy ignoreallfailures', () => {
+    expect(sig('bcdedit /set {default} bootstatuspolicy ignoreallfailures')).toContain('shadow-recovery-tamper')
+  })
+  it('is near-dispositive on its own', () => {
+    expect(specOf('vssadmin delete shadows /all /quiet', 'shadow-recovery-tamper')).toBe('near-dispositive')
+  })
+  it('does NOT fire on a benign vssadmin list shadows', () => {
+    expect(sig('vssadmin list shadows')).not.toContain('shadow-recovery-tamper')
+  })
+  it('does NOT fire on a benign wbadmin get status', () => {
+    expect(sig('wbadmin get status')).not.toContain('shadow-recovery-tamper')
+  })
+  it('does NOT fire on a bare bcdedit query with no destructive object', () => {
+    expect(sig('bcdedit /enum')).not.toContain('shadow-recovery-tamper')
   })
 })

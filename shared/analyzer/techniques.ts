@@ -211,6 +211,24 @@ export const RULES: SignatureRule[] = [
     },
   },
   {
+    id: 'shadow-recovery-tamper',
+    label: 'shadow-copy / recovery destruction',
+    techniqueIds: ['T1490'],
+    baseSpecificity: 'near-dispositive',
+    upgradesWith: [],
+    test(ctx) {
+      // Destructive verb must co-occur with its object — a bare `vssadmin list`
+      // is benign admin work. Pasted one-liner context: no legitimate use.
+      const del =
+        (hasAny(ctx, ['vssadmin']) && hasAny(ctx, ['delete shadows', 'resize shadowstorage'])) ||
+        (hasAny(ctx, ['wmic']) && hasAll(ctx, ['shadowcopy', 'delete'])) ||
+        (hasAny(ctx, ['wbadmin']) && hasAny(ctx, ['delete catalog', 'delete systemstatebackup'])) ||
+        (hasAny(ctx, ['bcdedit']) && hasAny(ctx, ['recoveryenabled no', 'bootstatuspolicy ignoreallfailures']))
+      if (del) return { hit: true, trigger: triggerFor(ctx, ['delete shadows', 'shadowcopy', 'recoveryenabled', 'delete catalog']) }
+      return { hit: false }
+    },
+  },
+  {
     id: 'clickfix',
     label: 'ClickFix / paste-and-run',
     techniqueIds: ['T1204', 'T1059.001', 'T1218.005', 'T1105'],

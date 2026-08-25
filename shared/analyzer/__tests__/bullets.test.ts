@@ -311,11 +311,11 @@ describe('banned-word discipline (D6, mirrors doctrine.ts, widened word list)', 
 describe('coverage discipline (D5/D6): every signal maps to a bullet', () => {
   const ALL_SIGNAL_IDS = [
     'download-cradle', 'cmd-cradle', 'evasion-cluster', 'amsi-reflection', 'amsi-memory-patch',
-    'etw-tamper', 'defender-tamper', 'clickfix', 'beaconing', 'reverse-shell', 'fileless-loader',
+    'etw-tamper', 'defender-tamper', 'shadow-recovery-tamper', 'clickfix', 'beaconing', 'reverse-shell', 'fileless-loader',
     'persistence', 'lolbin', 'mshta-interpreter', 'wsh-script-exec', 'wsh-decode-limits', 'wsh-concat-eval-present',
   ]
 
-  it('lists exactly the 17 signal ids defined in techniques.ts (fails loudly if the signal catalog changes without a matching bullets.ts update)', () => {
+  it('lists exactly the 18 signal ids defined in techniques.ts (fails loudly if the signal catalog changes without a matching bullets.ts update)', () => {
     expect(TECHNIQUE_RULES.map((r) => r.id).sort()).toEqual([...ALL_SIGNAL_IDS].sort())
   })
 
