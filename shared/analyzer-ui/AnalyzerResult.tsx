@@ -3,6 +3,7 @@ import type { AnalysisResult } from '@socdesk/shared/analyzer'
 import { ActionBullets } from './ActionBullets'
 import { DecodeLadder } from './DecodeLadder'
 import { IocTable } from './IocTable'
+import { PartialDecodeNotice } from './PartialDecodeNotice'
 import { TechniqueTally } from './TechniqueTally'
 
 /** The analyzer's result composition — flag chips + the technique tally +
@@ -24,6 +25,7 @@ export function AnalyzerResult({ result, baseUrl }: { result: AnalysisResult; ba
         </div>
       )}
       <TechniqueTally signals={result.signals} characterization={result.characterization} />
+      <PartialDecodeNotice state={result.confidence.state} />
       <ActionBullets bullets={result.bullets} />
       <DecodeLadder layers={result.layers} />
       <IocTable iocs={result.iocs} baseUrl={baseUrl} />

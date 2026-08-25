@@ -9,6 +9,14 @@ import { defineConfig } from 'vitest/config'
 // The verdict/doctrine/map/client tests + the card-model baseline tests now live
 // beside the shared source they cover (../shared), so both trees are scanned.
 export default defineConfig({
+  // No @vitejs/plugin-react here (see above), so esbuild's own JSX transform
+  // handles the .tsx test files that render a shared/analyzer-ui component
+  // (e.g. PartialDecodeNotice) via react-dom/server. Without this, esbuild's
+  // default classic-runtime transform emits bare `React.createElement(...)`
+  // calls with no React import in scope — pin the automatic runtime instead.
+  esbuild: {
+    jsx: 'automatic',
+  },
   resolve: {
     // Mirrors vite.config.ts's alias (not imported wholesale — see above)
     // so web/src tests can import shared modules the same way app code does,
@@ -25,6 +33,6 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', '../shared/**/*.test.ts', '../lib/**/*.test.mjs'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', '../shared/**/*.test.ts', '../shared/**/*.test.tsx', '../lib/**/*.test.mjs'],
   },
 })
