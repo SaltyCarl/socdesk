@@ -10,7 +10,7 @@ import type { ProfileIndexEntry, ProfileKind } from './profiles'
 /**
  * ProfileDirectory — the searchable index of every addressable profile (MITRE
  * actors + software, ransomware groups, named APTs). Search covers name / alias
- * / ATT&CK id (mirrors ActorsView); the kind chips filter by classification. A
+ * / ATT&CK id; the kind chips filter by classification. A
  * ransomware group surfaces its live claim tally so the leader board reads at a
  * glance. Each row is a crawlable link into `/actor#g=<slug>`.
  */

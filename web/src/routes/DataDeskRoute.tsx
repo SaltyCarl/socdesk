@@ -3,18 +3,16 @@ import { cx } from '@socdesk/shared/lib/cx'
 import { usePressScale } from '@socdesk/shared/lib/motion'
 import { FeedRoute } from './FeedRoute'
 import { VulnsRoute } from './VulnsRoute'
-import { ActorsRoute } from './ActorsRoute'
 import { HealthRoute } from './HealthRoute'
 import { SourcesRoute } from './SourcesRoute'
 import { AsnLeaderboardRoute } from './AsnLeaderboardRoute'
-import { ToolbeltRoute } from './ToolbeltRoute'
 
 /**
- * The data desk — a single route that hosts the five data surfaces + the
- * toolbelt stub behind an in-content tab bar (a secondary nav, distinct from
- * the app topbar). It exists so the whole deliverable is demoable and
- * deep-linkable behind one route (#feed, #vulnerabilities, …) even before the
- * shell wires each surface to a top-level nav item.
+ * The data desk — a single route that hosts the data surfaces behind an
+ * in-content tab bar (a secondary nav, distinct from the app topbar). It
+ * exists so the whole deliverable is demoable and deep-linkable behind one
+ * route (#feed, #vulnerabilities, …) even before the shell wires each
+ * surface to a top-level nav item.
  *
  * Only the active tab mounts, so the heavy catalog (cves.json) is fetched
  * lazily — opening the desk on the feed never pulls the 5 MB CVE file.
@@ -22,16 +20,24 @@ import { ToolbeltRoute } from './ToolbeltRoute'
  * Motion split: entrances/reveals are CSS scroll-driven (`.sd-reveal` on the
  * rows/cards inside each view — gated + static fallback); the tab press here is
  * the WAAPI interaction (Motion.dev spring scale, no inline style).
+ *
+ * IA note (nav-ia-simplification): the Actors tab was retired — it duplicated
+ * the /actor "Threat Intelligence" entity directory (ProfileDirectory +
+ * ActorProfile), which is a superset: same actor/malware profiles, the same
+ * ATT&CK-technique + related-entity panel (with pivot), PLUS ransomware
+ * groups with claim tallies, leak-site activity, CISA intel, and reporting
+ * that ActorsView never had. The Toolbelt tab was retired too — a stub whose
+ * one live tool (Base64 decode) already links out to /analyzer. Both stale
+ * hashes (#actors, #toolbelt) fall back to the default 'feed' tab below
+ * rather than rendering blank, since KEYS is derived from TABS.
  */
 
 const TABS = [
   { key: 'feed', label: 'Feed' },
   { key: 'vulnerabilities', label: 'Vulnerabilities' },
-  { key: 'actors', label: 'Actors' },
   { key: 'health', label: 'Health' },
   { key: 'sources', label: 'Sources' },
-  { key: 'networks', label: 'Networks' },
-  { key: 'toolbelt', label: 'Toolbelt' },
+  { key: 'networks', label: 'ISP Abuse Leaderboard' },
 ] as const
 
 const KEYS = TABS.map((t) => t.key) as readonly string[]
@@ -102,11 +108,9 @@ export function DataDeskRoute() {
       <div>
         {tab === 'feed' && <FeedRoute />}
         {tab === 'vulnerabilities' && <VulnsRoute />}
-        {tab === 'actors' && <ActorsRoute />}
         {tab === 'health' && <HealthRoute />}
         {tab === 'sources' && <SourcesRoute />}
         {tab === 'networks' && <AsnLeaderboardRoute />}
-        {tab === 'toolbelt' && <ToolbeltRoute />}
       </div>
     </div>
   )

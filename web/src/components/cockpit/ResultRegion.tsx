@@ -3,6 +3,7 @@ import { LookupStatus } from '../lookup/LookupStates'
 import { AnalyzerResult, type PsState } from '@socdesk/shared/analyzer-ui'
 import { isEnrichable } from '@socdesk/shared/indicators'
 import { ReportButton } from '../report/ReportButton'
+import { navigate, lookupHash } from '../palette/commands'
 import type { CockpitResult } from './useCockpitInput'
 
 /** A light "Analyzing…" line for the command path — the same honest-status
@@ -13,6 +14,30 @@ function PsStatus({ state }: { state: Extract<PsState, { kind: 'analyzing' } | {
     return <p className="font-mono text-micro text-faint">Analyzing…</p>
   }
   return <p className="font-mono text-xs text-muted">Could not analyze: {state.message}</p>
+}
+
+/** A subtle text link off the inline (narrow-column) analyzer result into the
+ *  standalone `/analyzer` route, prefilled via the same `#q=` deep link the
+ *  palette + submitLookup already write (commands.ts::lookupHash) — casual
+ *  paste stays inline, a heavy decode is one click to the full-width
+ *  workspace. Mirrors DeskLink/ActorLink's SPA-intercept pattern (a real
+ *  `<a href>`, ⌘/middle-click still opens a tab; a plain left-click routes
+ *  through pushState instead of a full reload). */
+function ExpandLink({ command }: { command: string }) {
+  const href = `/analyzer${lookupHash(command)}`
+  return (
+    <a
+      href={href}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+        e.preventDefault()
+        navigate(href)
+      }}
+      className="inline-flex w-fit items-center gap-1 font-mono text-micro font-semibold uppercase tracking-label text-accent underline-offset-2 outline-offset-2 transition-colors duration-150 ease-brand hover:text-accent-dim hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+    >
+      Expand <span aria-hidden="true">→</span>
+    </a>
+  )
 }
 
 /**
@@ -71,7 +96,14 @@ export function ResultRegion({
   if (cockpit.kind === 'command') {
     const { state } = cockpit
     if (state.kind === 'idle') return null
-    if (state.kind === 'ok') return <AnalyzerResult result={state.result} />
+    if (state.kind === 'ok') {
+      return (
+        <div className="flex flex-col gap-3">
+          <AnalyzerResult result={state.result} />
+          <ExpandLink command={state.result.input} />
+        </div>
+      )
+    }
     return <PsStatus state={state} />
   }
 

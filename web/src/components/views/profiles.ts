@@ -21,10 +21,10 @@ import type { ClaimedVictim, FeedItem, Profile, RansomIntel, RelationsPayload } 
 import { buildRelationsIndex, relatedFor, type RelatedRow } from './relations'
 import { claimCount } from '../overview/aggregations'
 
-/* ---------------- shared MITRE helpers (pure, mirrors ActorsView) ---------- */
+/* ---------------- shared MITRE helpers (pure) ---------- */
 
-/** ATT&CK deep-link for a group (G####) or software (S####) id. Mirrors
- *  ActorsView.tsx:29-34 — kept here so the profile system is self-contained. */
+/** ATT&CK deep-link for a group (G####) or software (S####) id. Kept here so
+ *  the profile system is self-contained. */
 export function attackUrl(kind: 'actor' | 'malware', id?: string): string {
   if (!id) return ''
   return kind === 'actor'
@@ -32,8 +32,8 @@ export function attackUrl(kind: 'actor' | 'malware', id?: string): string {
     : `https://attack.mitre.org/software/${encodeURIComponent(id)}/`
 }
 
-/** Strip ATT&CK markdown noise so the description reads as prose. Mirrors
- *  ActorsView.tsx:37-43 (citations + `[text](url)` links collapse to text). */
+/** Strip ATT&CK markdown noise so the description reads as prose (citations +
+ *  `[text](url)` links collapse to text). */
 export function cleanDescription(d?: string): string {
   return (d ?? '')
     .replace(/\(Citation:[^)]*\)/g, '')

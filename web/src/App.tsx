@@ -18,7 +18,10 @@ import { About } from './routes/About'
  *
  *   /         → the Overview (three.js globe hero + start-of-shift board)
  *   /lookup   → redirect stub → /#q=<same hash> (the cockpit is the lookup surface)
- *   /desk     → the data desk (feed / vulns / actors / health / sources)
+ *   /analyzer → the PowerShell analyzer (nav:false — the cockpit's command path;
+ *               deep-linkable full-width surface for a heavy paste)
+ *   /desk     → the data desk (feed / vulns / health / sources / ISP abuse)
+ *   /actor    → Threat Intelligence (the actor / ransomware / malware directory)
  *   /gallery  → the design-system gallery (craft-review surface)
  *
  * In-app navigation (topbar links, command palette) goes through pushState +
@@ -52,9 +55,13 @@ const ROUTES: Route[] = [
     ),
   },
   { path: '/lookup', label: 'Lookup', size: 'default', el: <LookupRedirect />, nav: false },
-  { path: '/analyzer', label: 'Analyzer', size: 'default', el: <PowerShellAnalyzer /> },
+  // The omnibox on `/` already classifies a pasted command and docks the same
+  // analyzer result inline (ResultRegion.tsx) — Lookup's twin. Kept nav:false
+  // rather than deleted: the route stays deep-linkable + full-width for a
+  // heavy paste (the inline result's "Expand ->" link targets it).
+  { path: '/analyzer', label: 'Analyzer', size: 'default', el: <PowerShellAnalyzer />, nav: false },
   { path: '/desk', label: 'Desk', size: 'default', el: <DataDeskRoute /> },
-  { path: '/actor', label: 'Profiles', size: 'default', el: <ActorProfileRoute /> },
+  { path: '/actor', label: 'Threat Intelligence', size: 'default', el: <ActorProfileRoute /> },
   { path: '/gallery', label: 'Gallery', size: 'default', el: <Gallery />, nav: false },
   { path: '/reports', label: 'My reports', size: 'default', el: <MyReports />, nav: false },
   { path: '/admin', label: 'Admin', size: 'default', el: <Admin />, nav: false },

@@ -114,7 +114,7 @@ export function ActorProfileRoute() {
       <ViewHeader
         eyebrow="Adversaries"
         kicker={slug ? 'Threat profile' : undefined}
-        title={slug ? profile?.name || 'Threat profile' : 'Threat actor & ransomware profiles'}
+        title={slug ? profile?.name || 'Threat profile' : 'Threat Intelligence'}
         intro={
           slug
             ? 'A single entity, aggregated from ATT&CK, leak-site activity, and open-source reporting — each fact attributed to its source, nothing synthesised.'
@@ -133,7 +133,7 @@ export function ActorProfileRoute() {
           onClick={backToDirectory}
           className="-mt-2 inline-flex w-fit items-center gap-1 font-mono text-micro font-semibold uppercase tracking-label text-accent underline-offset-2 outline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent"
         >
-          <span aria-hidden="true">←</span> All profiles
+          <span aria-hidden="true">←</span> Threat Intelligence
         </a>
       )}
 

