@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
-import { AnalyzerResult, usePsAnalysis } from '@socdesk/shared/analyzer-ui'
+import { AnalyzerResult, usePsAnalysis, useDebounced } from '@socdesk/shared/analyzer-ui'
 import { readLookupQuery } from './lookupModel'
 
 export function PowerShellAnalyzer() {
   // Lazy-init from the `#q=` deep link so a command routed here from the
   // palette or the cockpit (commands.ts::submitLookup) arrives prefilled and
   // auto-analyzes for free — `input` already drives `usePsAnalysis`
-  // reactively, so no separate trigger is needed.
+  // reactively, so no separate trigger is needed. useDebounced returns its
+  // initial value immediately (review 2.6), so this deep-link prefill still
+  // reaches usePsAnalysis on the very first render, with no extra delay.
   const [input, setInput] = useState(readLookupQuery)
-  const state = usePsAnalysis(input)
+  const state = usePsAnalysis(useDebounced(input, 200))
 
   useEffect(() => {
     // hashchange covers a same-route hash edit/resubmit; popstate covers

@@ -221,3 +221,29 @@ describe('analyze — plain base64 inner stage (review 2.1)', () => {
     expect(r.confidence.state).toBe('fully-decoded')
   })
 })
+
+describe('analyze — input size cap (review 2.6)', () => {
+  it('caps a huge paste and reports truncation honestly', async () => {
+    const huge = 'A'.repeat(70_000)
+    const r = await analyze(huge)
+    expect(r.layers.some((l) => l.state === 'opaque' && /truncated/i.test(l.residual?.note ?? ''))).toBe(true)
+  })
+
+  it('flips confidence.state to partial when truncated', async () => {
+    const huge = 'Write-Host ' + 'A'.repeat(70_000)
+    const r = await analyze(huge)
+    expect(r.confidence.state).toBe('partial')
+  })
+
+  it('does not truncate input at or under the 64 KB cap', async () => {
+    const atCap = 'A'.repeat(64 * 1024)
+    const r = await analyze(atCap)
+    expect(r.layers.some((l) => /truncated/i.test(l.residual?.note ?? ''))).toBe(false)
+  })
+
+  it('leaves a normal-sized paste completely unaffected', async () => {
+    const r = await analyze('Get-ChildItem -Recurse | Where Length -gt 1MB | Sort | Select')
+    expect(r.layers.some((l) => /truncated/i.test(l.residual?.note ?? ''))).toBe(false)
+    expect(r.confidence.state).toBe('fully-decoded')
+  })
+})

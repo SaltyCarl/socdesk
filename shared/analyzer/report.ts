@@ -101,7 +101,21 @@ function dedupeFlags(flags: EvasionFlag[]): EvasionFlag[] {
   return out
 }
 
+// Input size cap (review 2.6): a pasted stager can be arbitrarily large, and
+// re-tokenizing/re-scanning an unbounded corpus on every keystroke is a real
+// cost (and, unbounded, a DoS surface). Cap the RAW input BEFORE preprocess()
+// ever sees it, and never truncate silently — the excess is surfaced as an
+// opaque layer + bullet below (review 2.6's "must never silently truncate"),
+// which also flips confidence.state to 'partial' via the existing count logic.
+const MAX_INPUT_BYTES = 64 * 1024
+
 export async function analyze(input: string): Promise<AnalysisResult> {
+  let truncatedNote: string | null = null
+  if (input.length > MAX_INPUT_BYTES) {
+    const notScannedKb = Math.round((input.length - MAX_INPUT_BYTES) / 1024)
+    truncatedNote = `input truncated for analysis — ${notScannedKb} KB not scanned`
+    input = input.slice(0, MAX_INPUT_BYTES)
+  }
   const outer = preprocess(input)
   let { script, encoded, flags } = outer
   let interpreter = outer.interpreter
@@ -238,6 +252,29 @@ export async function analyze(input: string): Promise<AnalysisResult> {
       order: bullets.length + 1,
       verb: 'Contains',
       text: `${res.note} — treat as opaque and escalate for manual review.`,
+      confidence: 'opaque',
+      iocs: [],
+      techniqueIds: [],
+    })
+  }
+
+  // Input size cap (review 2.6), continued: reuse this same opaque-layer +
+  // opaque-bullet machinery for the truncation itself, rather than a special
+  // case — the excess is exactly the same kind of "could not be resolved"
+  // fact as an unopenable stager, and gets the same honest treatment (flips
+  // confidence.state to 'partial' via the count below, never silent).
+  if (truncatedNote) {
+    layers.push({
+      index: layers.length,
+      transform: 'input truncated',
+      text: null,
+      state: 'opaque',
+      residual: { bytes: 0, entropy: 0, note: truncatedNote },
+    })
+    bullets.push({
+      order: bullets.length + 1,
+      verb: 'Note',
+      text: `${truncatedNote} — treat as opaque and escalate.`,
       confidence: 'opaque',
       iocs: [],
       techniqueIds: [],
