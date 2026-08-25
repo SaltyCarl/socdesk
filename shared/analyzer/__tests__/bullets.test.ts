@@ -121,6 +121,12 @@ describe('deriveBullets — fetch/execute family, resolved vs inferred, method-n
     const bullets = deriveBullets(buildContext('', [], 'cmd'), [], [], signals)
     expect(bullets.some((b) => b.text === 'Fetches a command via for /f or finger and executes its output')).toBe(true)
   })
+
+  it('a disk-dropper signal fires the downloads-to-disk-and-executes bullet (review 2.2)', () => {
+    const signals = [sig('disk-dropper', { techniqueIds: ['T1105', 'T1059.001'] })]
+    const bullets = deriveBullets(buildContext('', [], 'powershell'), [], [], signals)
+    expect(bullets.some((b) => b.text === 'Downloads a file to disk and executes it')).toBe(true)
+  })
 })
 
 describe('deriveBullets — per-LOLBin bullets off the generic lolbin signal (SOC must-fix #1)', () => {
@@ -349,12 +355,12 @@ describe('banned-word discipline (D6, mirrors doctrine.ts, widened word list)', 
 
 describe('coverage discipline (D5/D6): every signal maps to a bullet', () => {
   const ALL_SIGNAL_IDS = [
-    'download-cradle', 'cmd-cradle', 'evasion-cluster', 'amsi-reflection', 'amsi-memory-patch',
+    'download-cradle', 'disk-dropper', 'cmd-cradle', 'evasion-cluster', 'amsi-reflection', 'amsi-memory-patch',
     'etw-tamper', 'defender-tamper', 'shadow-recovery-tamper', 'clickfix', 'beaconing', 'reverse-shell', 'fileless-loader',
     'persistence', 'lolbin', 'mshta-interpreter', 'wsh-script-exec', 'wsh-decode-limits', 'wsh-concat-eval-present',
   ]
 
-  it('lists exactly the 18 signal ids defined in techniques.ts (fails loudly if the signal catalog changes without a matching bullets.ts update)', () => {
+  it('lists exactly the 19 signal ids defined in techniques.ts (fails loudly if the signal catalog changes without a matching bullets.ts update)', () => {
     expect(TECHNIQUE_RULES.map((r) => r.id).sort()).toEqual([...ALL_SIGNAL_IDS].sort())
   })
 

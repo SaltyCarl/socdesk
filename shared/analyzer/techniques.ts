@@ -116,6 +116,39 @@ export const RULES: SignatureRule[] = [
     },
   },
   {
+    id: 'disk-dropper',
+    label: 'download-to-disk then execute',
+    techniqueIds: ['T1105', 'T1059.001'],
+    baseSpecificity: 'strong',
+    upgradesWith: ['evasion-cluster', 'defender-tamper', 'clickfix'],
+    test(ctx) {
+      // Discriminator: fetched content must land on DISK (not flow into an
+      // interpreter — that's download-cradle's job), and a separate local-exec
+      // sink must then launch it. Either half alone is routine and benign
+      // (a bare fetch-to-disk with no launch; a bare Start-Process on an
+      // unrelated .exe with no fetch) — both are shipped as negative tests.
+      const DISK_NEEDLES = ['downloadfile', '-outfile', 'start-bitstransfer', 'curl -o', 'wget -o']
+      const EXEC_NEEDLES = ['start-process', 'saps', 'invoke-item', 'ii ']
+      const diskNeedle = DISK_NEEDLES.find((n) => present(ctx, n))
+      const certutilDisk = !diskNeedle && hasAny(ctx, ['certutil']) && hasAny(ctx, ['-urlcache', '-split'])
+      if (!diskNeedle && !certutilDisk) return { hit: false }
+      const execNeedle = EXEC_NEEDLES.find((n) => present(ctx, n))
+      // Fallback exec sink: a bare `.exe` invocation via a statement separator
+      // (`;`/`&`/`|`) or at the start of the corpus — e.g. `& a.exe` — never a
+      // mere `.exe` MENTION (a URL path segment, a destination filename arg)
+      // with no launch context, which is exactly what the fetch-to-disk-only
+      // benign twin contains.
+      const exeMatch = execNeedle ? undefined : /(?:^|[;&|]\s*)&?\s*['"]?[^'"\s]+\.exe\b/i.exec(ctx.text)
+      if (!execNeedle && !exeMatch) return { hit: false }
+      // Trigger needles are built from what ACTUALLY matched on this input
+      // (never a static list that might miss the branch that fired) — the
+      // Task 12 lesson: triggerFor must never fall through to a fabricated
+      // needles[0] default.
+      const triggerNeedles = [diskNeedle ?? 'certutil', execNeedle ?? exeMatch![0].trim()]
+      return { hit: true, trigger: triggerFor(ctx, triggerNeedles) }
+    },
+  },
+  {
     id: 'cmd-cradle',
     label: 'cmd.exe download/exec cradle',
     techniqueIds: ['T1059.003', 'T1105'],

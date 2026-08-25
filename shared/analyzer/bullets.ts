@@ -663,6 +663,19 @@ export const RULES: ActionRule[] = [
       return { verb: 'Executes', text: 'Executes the downloaded content in memory (not written to disk)' }
     },
   },
+  {
+    id: 'disk-drop-exec',
+    requiredFacts: ['signal: disk-dropper'],
+    family: 'execute',
+    fires(ctx) {
+      const s = ctx.signals.find((x) => x.id === 'disk-dropper')
+      if (!s) return null
+      return { layerIndex: 0, confidence: 'resolved', iocs: [], techniqueIds: s.techniqueIds, vars: {} }
+    },
+    render() {
+      return { verb: 'Executes', text: 'Downloads a file to disk and executes it' }
+    },
+  },
 
   // ---- Inject/load (tier 9) ----
   {
