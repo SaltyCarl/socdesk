@@ -77,3 +77,16 @@ describe('resolve output cap', () => {
     expect(resolve(src).length).toBeLessThanOrEqual(1 << 20)
   })
 })
+
+describe('resolve — [char]/-join assembly (review 2.5)', () => {
+  it('folds a [char] number to its character', () => {
+    expect(resolve('[char]73')).toContain('I')
+  })
+  it('folds a joined [char] array to a literal', () => {
+    expect(resolve("([char]73,[char]69,[char]88) -join ''")).toContain('IEX')
+  })
+  it('leaves a non-literal join untouched', () => {
+    const t = "$x -join ','"
+    expect(resolve(t)).toContain('$x')
+  })
+})

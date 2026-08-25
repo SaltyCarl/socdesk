@@ -77,6 +77,25 @@ export function resolveVars(text: string): string {
   return out.join(' ')
 }
 
+/** Fold `[char]NN` → its character and `([char]A,[char]B,…) -join ''` → the
+ *  assembled literal. Numeric literals only — a `[char]$x` with a variable is
+ *  left untouched (never guessed). Whitespace is tolerated inside `[ char ]`
+ *  because this runs on `resolveVars()`'s output, which re-emits every
+ *  punctuation token (`[`, `]`, `,`, `(`, `)`) space-separated. */
+export function foldCharArray(text: string): string {
+  // ([char]73,[char]69,...) -join '' | "" → 'IEX'
+  const joined = text.replace(
+    /\(\s*((?:\[\s*char\s*\]\s*\d+\s*,\s*)+\[\s*char\s*\]\s*\d+)\s*\)\s*-join\s*(?:''|"")/gi,
+    (_m, body: string) => {
+      const codes = [...body.matchAll(/\[\s*char\s*\]\s*(\d+)/gi)].map((x) => Number(x[1]))
+      const s = String.fromCharCode(...codes).replace(/'/g, "''")
+      return `'${s}'`
+    },
+  )
+  // bare [char]73 → 'I'
+  return joined.replace(/\[\s*char\s*\]\s*(\d+)/gi, (_m, n: string) => `'${String.fromCharCode(Number(n)).replace(/'/g, "''")}'`)
+}
+
 /** Re-emit the token stream with no folding or substitution — the whitespace/
  *  quote baseline that separates real deobfuscation from mere reformatting.
  *  resolve(x) === normalize(x) exactly when nothing was folded or substituted. */
@@ -92,7 +111,7 @@ export function resolve(text: string): string {
   const MAX_OUTPUT = 1 << 20 // 1 MiB — bail past this; return the last bounded form
   let cur = text
   for (let i = 0; i < 12; i++) {
-    const next = foldConcat(resolveVars(cur))
+    const next = foldConcat(foldCharArray(resolveVars(cur)))
     if (next.length > MAX_OUTPUT) return cur
     if (next === cur) return next
     cur = next
