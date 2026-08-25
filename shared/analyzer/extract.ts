@@ -11,7 +11,19 @@ const CANDIDATE_RE = /\bhttps?:\/\/[^\s'"()<>]+|\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\
 // with a dotted extension satisfies the TLD-agnostic domain regex. Real domains
 // don't carry these extensions; URL hosts arrive via the URL branch, unaffected
 // by this guard (it only fires on type === 'domain').
-const BINARY_EXT_DENYLIST = /\.(?:exe|dll|sys|bat|cmd|scr|ocx|cpl|msi|vbs|ps1|js|hta)$/i
+const BINARY_EXT_DENYLIST =
+  /\.(?:exe|dll|sys|bat|cmd|scr|ocx|cpl|msi|vbs|ps1|js|hta|json|xml|txt|log|csv|dat|tmp|ini|cfg)$/i
+
+// A lowercase .NET namespace/member-access chain (system.io.memorystream,
+// microsoft.win32.registry) is mis-typed as a domain by the shared
+// detectType — same failure mode as the PascalCase guard below, just without
+// a case signal to key off. Guard on shape instead of a bare prefix: a known
+// .NET root namespace followed by 2+ further dotted segments. Requiring 3+
+// labels (not just the root prefix) matters — a plain prefix match would
+// also swallow a real 2-label domain that starts with the same word, e.g.
+// "microsoft.com" or "net.example.com".
+const DOTNET_MEMBER_RE =
+  /^(?:system|net|io|text|management|microsoft|reflection|runtime)\.[a-z0-9-]+\.[a-z0-9.-]+$/i
 
 // An IPv4 literal (loose octets, matching the app's own detectType arbiter —
 // per-octet range is enforced downstream at lookup time).
@@ -45,6 +57,7 @@ export function extractIocs(layers: { index: number; text: string | null }[]): E
       // domains are conventionally lowercase and URL hosts arrive via the URL branch.
       if (type === 'domain' && /[A-Z]/.test(raw)) continue
       if (type === 'domain' && BINARY_EXT_DENYLIST.test(raw)) continue
+      if (type === 'domain' && DOTNET_MEMBER_RE.test(raw)) continue
       seen.add(raw)
       out.push({ raw, defanged: defang(raw), type, layerIndex: layer.index })
       // A URL whose host is an IP literal yields a second IOC: the IP itself,

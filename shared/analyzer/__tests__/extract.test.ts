@@ -82,3 +82,41 @@ describe('extractIocs', () => {
     expect(iocs.filter((i) => i.raw === '45.9.148.20')).toHaveLength(1)
   })
 })
+
+describe('IOC hygiene (review 2.7)', () => {
+  const scan = (t: string) => extractIocs([{ index: 0, text: t }]).map((i) => i.raw)
+
+  it('does not extract a data.json OutFile as a domain', () => {
+    expect(scan('Invoke-WebRequest http://x.test/a -OutFile data.json')).not.toContain('data.json')
+  })
+
+  it('does not extract lowercase system.io.memorystream as a domain', () => {
+    expect(scan('[system.io.memorystream]::new()')).not.toContain('system.io.memorystream')
+  })
+
+  // NOTE: the brief's literal version of this case was
+  // `scan('http://evil.example.com/a')).toContain('evil.example.com')`. That
+  // string types as a whole 'url' IOC (raw stays the full URL — see the
+  // "pulls URLs + IPs" test above for the same pattern), so it never reaches
+  // the domain-type guard this task adds and the assertion can't pass either
+  // way. Rewritten to a bare domain so it actually exercises the guard.
+  it('still extracts a real domain', () => {
+    expect(scan('beaconing to evil.example.com every 60s')).toContain('evil.example.com')
+  })
+
+  // The .NET-namespace guard must key off shape (a 3+-label member-access
+  // chain), not just a namespace-root prefix — otherwise it swallows a real
+  // 2-label domain that happens to start with the same word, like the
+  // literal "microsoft.com".
+  it('still extracts microsoft.com despite the microsoft. namespace-root prefix', () => {
+    expect(scan('exfil to microsoft.com posing as telemetry')).toContain('microsoft.com')
+  })
+
+  it('does not extract lowercase microsoft.win32.registry as a domain', () => {
+    expect(scan('[microsoft.win32.registry]::getvalue()')).not.toContain('microsoft.win32.registry')
+  })
+
+  it('still extracts a URL host unaffected by the domain-type guards', () => {
+    expect(scan('http://evil.example.com/a')).toContain('http://evil.example.com/a')
+  })
+})
