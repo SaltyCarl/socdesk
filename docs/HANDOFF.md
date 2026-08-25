@@ -1,10 +1,59 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — analyzer-hardening Phase 1: failure legibility + honest narratives — opaque-residue detector, partial-decode notice, regsvr32/rundll32 abuse-only gating, ratcheting review-sample fixture — built on branch `feat/analyzer-hardening`, full suite green, NOT merged) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-24 (session — analyzer-hardening Phase 2: decode-ladder expansion — plain-base64 decode + 4 token-aware constant-folds (char-array, format, replace, reverse) — built on branch `feat/analyzer-hardening`, full suite green, NOT merged) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-24 (session — analyzer-hardening Phase 1: failure legibility + honest narratives, branch built, NOT merged)
+## 0. LATEST — 2026-08-24 (session — analyzer-hardening Phase 2: decode-ladder expansion, branch built, NOT merged)
+
+**Lane:** analyzer hardening per the external analyzer review (2026-08-24), continuing
+Phase 1 (below). Phase 2 goal: convert the opaque residues Phase 1 made honest into real
+decode layers, so the analyzer actually reads the common obfuscated second stages. Branch
+`feat/analyzer-hardening`, commits `20bc8b1..0c201cb`, **NOT merged**.
+
+**Shipped:**
+- **Plain base64 → text decode** — `shared/analyzer/report.ts` (`20bc8b1`). Decodes
+  non-compressed base64 in the embedded-literal loop (UTF-16LE/UTF-8 sniff, gated on
+  decode-API co-occurrence or length ≥32; non-printable results fall through to the residue
+  detector). Core review-2.1 fix: review sample 6 (an `IEX([Convert]::FromBase64String(...))`
+  Mimikatz stager) now fully decodes instead of rendering blank/opaque
+  (`shared/analyzer/__tests__/review-samples.test.ts:13`, "#6 plain-base64 inner stage: now
+  DECODED (Phase 2)").
+- **Four constant-folds chained into `resolve()`'s fixpoint** — `shared/analyzer/resolve.ts`,
+  all token-aware (a construct's text inside a quoted string literal is never reinterpreted
+  as code):
+  - `foldCharArray`: `[char]73` / `([char]73,...) -join ''` → literal (`0242c06`, literal-safety
+    fix `d15f736`).
+  - `foldFormat`: `'{0}{1}' -f 'a','b'` → `'ab'`, plain `{N}` only, format-spec/variable-arg
+    left untouched (`257d874`).
+  - `foldReplace`: `'IqqEqqX' -replace 'qq',''` → `'IEX'` and `.Replace()`, ReDoS-guarded —
+    folds only metacharacter-free patterns via split/join, never `new RegExp` on attacker text
+    (`0c50c29`); guard-rejected clauses consumed atomically so a chained clause is never
+    dropped (`2de5d17`).
+  - `foldReverse`: `'XEI'[-1..-3] -join ''` → `'IEX'`; full-reversal guard rejects partial
+    ranges (N must equal the subject's exact length) rather than mis-folding a slice
+    (`0c201cb`).
+  - Not folded (deferred, both still caught opaque by the residue detector): `[array]::Reverse`
+    and computed-bound reversal `$s[-1..-($s.Length)]` — need variable-mutation tracking
+    outside resolve.ts's straight-line/literal-only doctrine.
+
+**Design note:** every fold matches on the lexer token stream, not raw text — preserves the
+literal-safety guarantee (a `-replace`/`[char]` construct inside a quoted string is data,
+never code). Two early raw-regex attempts were caught in review and rewritten token-aware
+(one injected a NUL byte into a decoy string; one silently dropped a chained `-replace`
+clause) — see the `d15f736` and `2de5d17` fix commits above.
+
+**Verified:** Phase-2 gate green — `npm --prefix web run build` PASS; `cd web && npx vitest
+run ../shared` 422/422; `cd web && npx vitest run src` 152/152 (all three re-run and confirmed
+this session at branch HEAD `0c201cb`). Not deployed — branch not merged, Phases 3-4 of the
+hardening plan still to come.
+
+**Open / next:** Phase 3-4 of the hardening plan, then merge decision on
+`feat/analyzer-hardening` (owner).
+
+---
+
+## 0-RECENT — 2026-08-24 (session — analyzer-hardening Phase 1: failure legibility + honest narratives, branch built, NOT merged)
 
 **Lane:** analyzer hardening per the external analyzer review (2026-08-24) — spec
 `docs/superpowers/specs/2026-08-24-analyzer-hardening-design.md`, plan
