@@ -34,8 +34,25 @@ const claim: FeedItem = {
   published_at: '2026-08-24T00:00:00Z',
 }
 
+/** A second, lower-scored vuln so one renders as a section ROW (the lead is
+ *  excluded from its own section) — exercises the CVE left-rail. */
+const vulnRow: FeedItem = {
+  id: 'v2',
+  source: 'kev',
+  category: 'vulnerability',
+  title: 'KEV: CVE-2026-1111 — Example Overflow',
+  summary: 'Also exploited.',
+  url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
+  entities: { cves: ['CVE-2026-1111'] },
+  score: 70,
+  why: ['KEV-listed'],
+  published_at: '2026-08-23T00:00:00Z',
+}
+
 describe('FeedView — leak-site claim rows', () => {
-  const html = renderToStaticMarkup(<FeedView items={[vuln, claim]} generatedAt="2026-08-25T00:00:00Z" />)
+  const html = renderToStaticMarkup(
+    <FeedView items={[vuln, vulnRow, claim]} generatedAt="2026-08-25T00:00:00Z" />,
+  )
 
   it('never emits the .onion url as a link or a leaked string', () => {
     // the onion host + path must appear NOWHERE (not in an href, not as text)
@@ -61,5 +78,11 @@ describe('FeedView — leak-site claim rows', () => {
 
   it('still renders a live link for a clearnet advisory (the lead)', () => {
     expect(html).toContain('href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog"')
+  })
+
+  it("renders a row's CVE rail as the shared lookup pivot, not a dead span", () => {
+    // The board and the feed share ONE CveLink idiom — a CVE is never plain
+    // text in one surface and a link in another (board-ui.tsx contract).
+    expect(html).toContain('href="/lookup#q=CVE-2026-1111"')
   })
 })

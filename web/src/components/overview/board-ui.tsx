@@ -107,10 +107,12 @@ export function ActorLink({
 /**
  * A CVE id as a real `<a href="/lookup#q=<cve>">` (⌘/middle-click opens a new
  * tab) with a plain left-click intercepted into SPA navigation — the one CVE
- * link idiom the board and the actor profile both reuse, so a CVE never reads
- * as plain text in one surface and a link in another.
+ * link idiom every surface reuses (board, actor profile, feed), so a CVE never
+ * reads as plain text in one surface and a link in another. Appearance is
+ * caller-controllable via `className` (same contract as ActorLink): the default
+ * is the board's chip; a table rail or list can pass its own typography.
  */
-export function CveLink({ cve }: { cve: string }) {
+export function CveLink({ cve, className }: { cve: string; className?: string }) {
   const href = cveLookupHref(cve)
   return (
     <a
@@ -120,7 +122,10 @@ export function CveLink({ cve }: { cve: string }) {
         e.preventDefault()
         navigate(href)
       }}
-      className="rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-accent underline-offset-2 transition-colors duration-150 ease-brand hover:border-line-bright hover:underline"
+      className={
+        className ??
+        'rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-accent underline-offset-2 transition-colors duration-150 ease-brand hover:border-line-bright hover:underline'
+      }
     >
       {cve}
     </a>

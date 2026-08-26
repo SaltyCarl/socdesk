@@ -6,7 +6,7 @@ import { KevBadge, DataChip, ClaimsChip } from './Badges'
 import { EmptyState } from './states'
 import { VictimLogo } from './VictimLogo'
 import { claimCount } from '../overview/aggregations'
-import { ActorLink } from '../overview/board-ui'
+import { ActorLink, CveLink } from '../overview/board-ui'
 
 /**
  * The feed is a BRIEFING, not a console. "The Brief" (approved Direction 1):
@@ -374,11 +374,15 @@ function Row({ item, sig }: { item: FeedItem; sig: Signals }) {
 
   return (
     <article className="grid gap-x-5 gap-y-2 border-b border-line py-4 last:border-0 sm:grid-cols-[7.5rem_minmax(0,1fr)_14rem] sm:items-start">
-      {/* left rail — CVE id, primary actor link, or a category glyph */}
+      {/* left rail — CVE id, primary actor link, or a category glyph. The CVE is
+          the shared CveLink (SPA pivot into /lookup) with the rail's typography —
+          it was a dead <span> here while a live link on the board, exactly the
+          per-surface divergence the shared primitive exists to prevent. */}
       {cve ? (
-        <span className="font-mono text-xs font-semibold tabular-nums text-accent-dim sm:pt-0.5">
-          {cve}
-        </span>
+        <CveLink
+          cve={cve}
+          className="break-words font-mono text-xs font-semibold tabular-nums text-accent-dim underline-offset-2 transition-colors duration-150 ease-brand hover:text-accent hover:underline sm:pt-0.5"
+        />
       ) : actor ? (
         <ActorLink
           name={actor}

@@ -115,13 +115,21 @@
 }
 
 /* Scroll-driven reveal (progressive enhancement).
- * USAGE: add class `sd-reveal` to a block that should fade+rise as it
- * scrolls into view. It is fully VISIBLE by default (no-JS, unsupported
- * browsers, and reduced-motion), and only the enhanced path animates.
- * This is the documented hook for later scroll choreography (hero melt,
- * sticky timelines) — compositor-threaded, zero JS, CSP-perfect. */
+ * USAGE: add class `sd-reveal` to a block that should rise as it scrolls
+ * into view. It is fully VISIBLE by default (no-JS, unsupported browsers,
+ * and reduced-motion), and only the enhanced path animates. This is the
+ * documented hook for later scroll choreography (hero melt, sticky
+ * timelines) — compositor-threaded, zero JS, CSP-perfect.
+ *
+ * TRANSFORM-ONLY on purpose (no opacity): with `fill: both` + a view()
+ * timeline, a fade-from-0 holds every below-fold block PAINTED INVISIBLE
+ * until scrolled — full-page captures showed the lead + thousands of px of
+ * blank space, print pages came out empty, and a design review misread a
+ * profile screenshot as "washed out". A pre-entry state of translateY(16px)
+ * is always legible in any non-scrolling consumer; the rise still reads as
+ * motion for interactive viewers. Do not reintroduce opacity here. */
 @keyframes sd-reveal-kf {
-  from { opacity: 0; transform: translateY(16px); }
+  from { transform: translateY(16px); }
 }
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
@@ -130,6 +138,12 @@
       animation-timeline: view();
       animation-range: entry 0% cover 32%;
     }
+  }
+}
+/* Print is a non-scrolling consumer: no reveal at all, every block at rest. */
+@media print {
+  .sd-reveal {
+    animation: none !important;
   }
 }
 

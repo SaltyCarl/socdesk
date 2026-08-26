@@ -4,6 +4,7 @@ import { MicroLabel } from '../ui'
 import { MonoTag } from './Badges'
 import { rel, safeUrl, num } from './format'
 import { intelSource, isVendorSourced, vendorLabel } from './intelSource'
+import { ExternalLink } from './ExternalLink'
 import { VictimLogo } from './VictimLogo'
 import { PIVOTABLE, provenance, techniqueUrl } from './relations'
 import { ActorLink, BoardPanel, CveLink, PanelEmpty } from '../overview/board-ui'
@@ -29,29 +30,6 @@ function SectionLabel({ children, accent = false }: { children: React.ReactNode;
     <MicroLabel tone={accent ? 'accent' : 'faint'} tick={accent}>
       {children}
     </MicroLabel>
-  )
-}
-
-/** An external link, with .onion / leak-site sources marked plainly. */
-function ExternalLink({
-  href,
-  children,
-  onion = false,
-}: {
-  href: string
-  children: React.ReactNode
-  onion?: boolean
-}) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 text-xs text-accent underline-offset-2 hover:underline"
-    >
-      {children}
-      <span aria-hidden="true">{onion ? '· .onion ↗' : '↗'}</span>
-    </a>
   )
 }
 

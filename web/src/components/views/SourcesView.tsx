@@ -1,6 +1,7 @@
 import { cx } from '@socdesk/shared/lib/cx'
 import type { RegistrySource, RegistryPayload } from './types'
 import { num, safeUrl } from './format'
+import { ExternalLink } from './ExternalLink'
 import { EmptyState } from './states'
 
 /**
@@ -88,14 +89,12 @@ export function SourcesView({ registry }: { registry: RegistryPayload }) {
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-right">
                     {url ? (
-                      <a
+                      <ExternalLink
                         href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-micro uppercase tracking-label text-accent underline-offset-2 hover:underline"
+                        className="inline-flex items-center gap-1 font-mono text-micro uppercase tracking-label text-accent underline-offset-2 hover:underline"
                       >
-                        Open ↗
-                      </a>
+                        Open
+                      </ExternalLink>
                     ) : (
                       <span className="font-mono text-micro text-faint">—</span>
                     )}
