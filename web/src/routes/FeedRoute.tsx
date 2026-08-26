@@ -22,7 +22,7 @@ export function FeedRoute() {
       <ViewHeader
         eyebrow="Security briefing"
         title="Feed"
-        intro="One lead story, then vulnerabilities, ransomware, named actors and reports — each ranked by the pipeline's relevance score, every source attributed."
+        intro="What's landed in the latest collection window — one lead story, then the reports ranked by the pipeline's relevance score. Every source attributed."
         aside={
           status === 'ready' && data ? (
             <MicroLabel tone="faint">

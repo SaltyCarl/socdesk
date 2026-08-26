@@ -2,6 +2,7 @@ import { cx } from '@socdesk/shared/lib/cx'
 import type { AsnLeaderboardPayload, AsnNetwork } from './types'
 import { num } from './format'
 import { EmptyState } from './states'
+import { barWidthClass } from '../overview/widths'
 
 /**
  * The abuse-by-network leaderboard — autonomous systems ranked by the volume of
@@ -31,6 +32,9 @@ const HEADERS = ['#', 'ASN', 'ISP', 'Country', 'Abusive IPs', 'Reported for', 'S
 
 export function AsnLeaderboardView({ payload }: { payload: AsnLeaderboardPayload | null }) {
   const networks: AsnNetwork[] = payload?.networks ?? []
+  // Bar magnitude is relative to the busiest network (pipeline pre-sorts desc,
+  // but Math.max is order-independent). Min 1 avoids a divide-by-zero.
+  const maxIps = Math.max(1, ...networks.map((n) => n.ip_count ?? 0))
 
   if (!networks.length) {
     return (
@@ -81,10 +85,20 @@ export function AsnLeaderboardView({ payload }: { payload: AsnLeaderboardPayload
                 <td className="px-3 py-2.5 font-mono text-xs font-semibold text-paper">{n.asn ?? '—'}</td>
                 <td className="px-3 py-2.5 text-xs text-paper">{n.isp ?? '—'}</td>
                 <td className="px-3 py-2.5 font-mono text-micro text-muted">{n.country ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-sm tabular-nums text-paper">
-                  {num(n.ip_count)}
+                <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-panel-soft sm:inline-block"
+                    >
+                      <span
+                        className={cx('block h-full rounded-full bg-accent', barWidthClass((n.ip_count ?? 0) / maxIps))}
+                      />
+                    </span>
+                    <span className="font-mono text-sm tabular-nums text-paper">{num(n.ip_count)}</span>
+                  </div>
                   {n.report_count ? (
-                    <span className="ml-1 text-micro text-faint">({num(n.report_count)} reported)</span>
+                    <div className="mt-0.5 font-mono text-micro text-faint">({num(n.report_count)} reported)</div>
                   ) : null}
                 </td>
                 <td className="px-3 py-2.5">

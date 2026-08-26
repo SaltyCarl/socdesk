@@ -12,6 +12,41 @@ import { EmptyState } from './states'
  * than hiding behind a green light.
  */
 
+/** Pipeline warnings surface. A HEALTHY run can still emit dozens of
+ *  low-severity drift notices (e.g. "DRIFT: CVE-… not in any seed group") — run
+ *  together as one paragraph they turned this tab into a diagnostic dump. Show a
+ *  handful inline as a scannable list; collapse a flood behind a count so the
+ *  status the analyst actually came for stays legible. Content-agnostic — no
+ *  brittle message-parsing, just a threshold. */
+function PipelineWarnings({ warnings }: { warnings: string[] }) {
+  const box =
+    'rounded-md border border-[var(--edge-gold)] bg-[var(--tint-gold)] px-4 py-2.5 font-mono text-xs text-verdict-amber'
+  const list = (
+    <ul className="flex flex-col gap-1">
+      {warnings.map((w) => (
+        <li key={w} className="break-words">
+          {w}
+        </li>
+      ))}
+    </ul>
+  )
+  if (warnings.length <= 4) {
+    return (
+      <div role="alert" className={box}>
+        {list}
+      </div>
+    )
+  }
+  return (
+    <details className={box}>
+      <summary className="cursor-pointer select-none font-semibold uppercase tracking-label">
+        {warnings.length} pipeline warnings
+      </summary>
+      <div className="mt-2">{list}</div>
+    </details>
+  )
+}
+
 function StatusBanner({ ok, all }: { ok: number; all: number }) {
   const state = all > 0 && ok === all ? 'ok' : ok === 0 ? 'down' : 'partial'
   const skin =
@@ -60,14 +95,7 @@ export function HealthView({ health }: { health: HealthPayload }) {
     <div className="flex flex-col gap-5">
       <StatusBanner ok={ok} all={sources.length} />
 
-      {warnings.length > 0 && (
-        <div
-          role="alert"
-          className="rounded-md border border-[var(--edge-gold)] bg-[var(--tint-gold)] px-4 py-2.5 font-mono text-xs text-verdict-amber"
-        >
-          {warnings.join(' · ')}
-        </div>
-      )}
+      {warnings.length > 0 && <PipelineWarnings warnings={warnings} />}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {sources.map((s) => (

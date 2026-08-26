@@ -108,6 +108,29 @@ function Th({
   )
 }
 
+/** CISA's remediation due date is a YYYY-MM-DD; a KEV CVE is overdue when that
+ *  date is strictly before today. ISO dates sort lexically, so a string compare
+ *  is correct and needs no parsing. */
+function isKevOverdue(due: string | undefined, today: string): boolean {
+  return !!due && /^\d{4}-\d{2}-\d{2}$/.test(due) && due < today
+}
+
+/** The KEV remediation due date — the decision-shaped datum the Status column
+ *  was dropping (WHEN it must be patched, per CISA's binding directive). Past
+ *  due is emphasised in the reserved urgency hue. */
+function KevDue({ due, today }: { due: string; today: string }) {
+  const overdue = isKevOverdue(due, today)
+  return (
+    <span
+      className={cx('font-mono text-micro tabular-nums', overdue ? 'text-verdict-red' : 'text-faint')}
+      title={overdue ? 'Past CISA remediation due date' : 'CISA remediation due date'}
+    >
+      {overdue ? 'overdue · ' : 'due '}
+      {day(due)}
+    </span>
+  )
+}
+
 /* ---------------- view ---------------- */
 
 export function VulnsView({ cves }: { cves: Cve[] }) {
@@ -128,6 +151,8 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
 
   const kevCount = useMemo(() => cves.filter((c) => c.kev).length, [cves])
   const epssCount = useMemo(() => cves.filter((c) => c.epss != null).length, [cves])
+  // Today (UTC date) for the KEV overdue check — read once per render.
+  const today = new Date().toISOString().slice(0, 10)
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -372,7 +397,10 @@ export function VulnsView({ cves }: { cves: Cve[] }) {
                       </td>
                       <td className="px-3 py-2.5">
                         {c.kev ? (
-                          <KevBadge ransomware={c.kev_ransomware} />
+                          <div className="flex flex-col gap-1">
+                            <KevBadge ransomware={c.kev_ransomware} />
+                            {c.kev_due_date && <KevDue due={c.kev_due_date} today={today} />}
+                          </div>
                         ) : (
                           <span className="font-mono text-micro text-faint">—</span>
                         )}

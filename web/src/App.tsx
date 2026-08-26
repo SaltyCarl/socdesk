@@ -23,7 +23,7 @@ import { About } from './routes/About'
  *   /analyzer → the PowerShell analyzer (nav:false — the omnibar's command path;
  *               deep-linkable full-width surface for a heavy paste)
  *   /desk     → the data desk (feed / vulns / health / sources / ISP abuse)
- *   /actor    → Intel (the threat-actor / ransomware / malware directory)
+ *   /actor    → Adversaries (the threat-actor / ransomware / malware directory)
  *   /gallery  → the design-system gallery (craft-review surface)
  *
  * In-app navigation (topbar links, command palette) goes through pushState +
@@ -67,7 +67,7 @@ const ROUTES: Route[] = [
   // heavy paste (the inline result's "Expand ->" link targets it).
   { path: '/analyzer', label: 'Analyzer', size: 'default', el: <PowerShellAnalyzer />, nav: false },
   { path: '/desk', label: 'Desk', size: 'default', el: <DataDeskRoute /> },
-  { path: '/actor', label: 'Intel', size: 'default', el: <ActorProfileRoute /> },
+  { path: '/actor', label: 'Adversaries', size: 'default', el: <ActorProfileRoute /> },
   { path: '/gallery', label: 'Gallery', size: 'default', el: <Gallery />, nav: false },
   { path: '/reports', label: 'My reports', size: 'default', el: <MyReports />, nav: false },
   { path: '/admin', label: 'Admin', size: 'default', el: <Admin />, nav: false },
