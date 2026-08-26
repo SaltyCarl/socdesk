@@ -1,10 +1,48 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-25 (session — nav/IA simplification + 3-lens profile polish + HC3 2nd intel source + copy audit, all shipped + deployed live to socdesk.io) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-25 (session — vendor-reported Tier-3 depth for 5 ungoverned active crews, compliance-reviewed, shipped + deployed live to socdesk.io) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-25 (session — nav/IA simplification, 3-lens profile polish, HC3 2nd intel source, copy audit — all shipped + deployed live)
+## 0. LATEST — 2026-08-25 (session — vendor-reported Tier-3 depth, 5 crews, compliance-reviewed, shipped + deployed live)
+
+**Shipped:**
+- **Vendor-reported Tier-3 depth** (owner-approved, resolves the (a) backlog decision from
+  the prior block) — 5 active ransomware crews with no public-domain (CISA/HHS-HC3/FBI)
+  profile now get an intel panel sourced from reputable vendor threat-reports: DragonForce,
+  INC Ransom, The Gentlemen, Kazu, Coinbase Cartel. MetaEncryptor checked but **omitted**
+  (conflicting IOCs across sources). Compliance model: atomic facts only (CVE /
+  ATT&CK-technique / alias / tool ids, dates) with per-source attribution — no
+  prose/paraphrase/wholesale-list; a vendor entry omits the gov `advisory` field (host-lock
+  `(cisa|hhs).gov` stays gov-only) and carries reports in `sources[]` instead. Render:
+  `web/src/components/views/intelSource.ts` (`isVendorSourced`/`vendorLabel`, + test) +
+  `ActorProfile.tsx` — distinct "Vendor-reported" badge (not "seeded"), "Reported TTPs"
+  panel, unverified/not-a-government-advisory copy with named+linked sources, no
+  `note_image` on the vendor path, CISA/#StopRansomware wording structurally isolated to the
+  gov path. CVE-less vendor entries (Kazu, Coinbase Cartel) render honest-empty. Seed:
+  `data/ransomware_intel.json` now 16 groups (11 gov + 5 vendor). Files also touch
+  `types.ts`, `tests/test_validate.py`. (`3207beb`)
+- **Post-review honesty fix** — dropped Coinbase Cartel's `shinysp1d3r` from tools: an
+  in-development, never-deployed encryptor, not a telemetry hunt-target. (`784969d`)
+- **Backlog cleanup** — vendor-blog Tier-3 decision marked done in `BACKLOG.md` (`6ef8462`);
+  separately, the two CI backlog items (Node-20→24 bump, `concurrency:` group on
+  `collect-and-deploy`) verified **already present** in
+  `.github/workflows/collect-and-deploy.yml` — stale backlog notes, no code change, marked
+  done (`991d126`).
+
+**Verified:** independent compliance reviewer fetched primary vendor pages (Check Point,
+MITRE ATT&CK G1032, Group-IB, FortiGuard, Halcyon, Red Piranha, Securelist) and confirmed
+every shipped fact real + atomic; the two large tool lists (INC Ransom 8, The Gentlemen 7)
+are genuine cross-corroborated reordered subsets, not wholesale copies (The Gentlemen: only
+1 of 7 items even overlaps Check Point's 26-item list) — approved. Gates: pytest 153, vitest
+809, build/lint/tsc clean. Deployed live and live-verified on socdesk.io.
+
+**Open / next:** taste call on renaming the "Overview" tab (candidates: Cockpit/Surface,
+tied to the "Live threat surface" kicker) still open in `BACKLOG.md`.
+
+---
+
+## 0-RECENT — 2026-08-25 (session — nav/IA simplification, 3-lens profile polish, HC3 2nd intel source, copy audit — all shipped + deployed live)
 
 **Shipped:**
 - **Monogram fallback fix** — `web/src/components/views/ActorProfile.tsx`. The favicon
