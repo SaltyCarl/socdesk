@@ -120,7 +120,6 @@
     {
       "slug": "coinbasecartel", "name": "Coinbase Cartel",
       "first_seen": "2025-09", "raas": true,
-      "tools": ["shinysp1d3r"],
       "sources": [
         {"id": "fortiguard", "url": "https://www.fortiguard.com/threat-actor/6386/coinbase-cartel-ransomware"},
         {"id": "halcyon", "url": "https://www.halcyon.ai/threat-group/coinbasecartel"}
