@@ -1,10 +1,86 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-25 (session — analyzer-hardening Phase 4 (final): cmd `set`/`%var%` reassembly, gzip-bomb/input-size hardening, IOC-extraction hygiene — all 8 external-review findings now addressed across 4 phases, branch `feat/analyzer-hardening`, full suite green, NOT merged) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-08-25 (session — nav/IA simplification + 3-lens profile polish + HC3 2nd intel source + copy audit, all shipped + deployed live to socdesk.io) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-25 (session — analyzer-hardening Phase 4: cmd half + robustness + IOC hygiene, branch built, NOT merged)
+## 0. LATEST — 2026-08-25 (session — nav/IA simplification, 3-lens profile polish, HC3 2nd intel source, copy audit — all shipped + deployed live)
+
+**Shipped:**
+- **Monogram fallback fix** — `web/src/components/views/ActorProfile.tsx`. The favicon
+  proxy answers "no icon" with a 1x1 transparent PNG — a SUCCESSFUL image load, so the
+  client's onError→monogram fallback never fired and victim rows showed a blank square
+  (live-observed: 8/17 Qilin victim rows). Fixed via onLoad naturalWidth≤1 → monogram.
+  (`ea68e90`)
+- **Nav/IA simplification** — dropped the Analyzer top-nav tab (route kept deep-linkable —
+  the omnibar IS the analyzer, verified byte-identical), added a sample-command omnibar
+  chip (`Overview.tsx`; `GlobeHero3.tsx` is now dead code) + an "Expand →" link on the
+  inline analyzer result to `/analyzer#q=`; renamed Profiles→**Threat Intelligence**;
+  retired the Desk→Actors tab (ProfileDirectory is its superset — deleted
+  `ActorsView.tsx`/`ActorsRoute.tsx`); renamed Networks→**ISP Abuse Leaderboard**; dropped
+  the Toolbelt tab (deleted `ToolbeltView.tsx`/`ToolbeltRoute.tsx`). Final nav: **Overview ·
+  Desk · Threat Intelligence**. Driven by an external UX PDF
+  (`SOCDesk-Analyzer-Retest-and-UX-2026-08-25.pdf` §4) whose regression scorecard was pure
+  verification (all 2026-08-24 analyzer fixes confirmed live); its 2 "residual nits"
+  (vssadmin evidence 'v'-clip, cmd-var 'text luck') were already fixed by the prior
+  analyzer-hardening session (`shared/analyzer/techniques.ts` look-back, `314a91b`) — cut
+  from scope, vssadmin clip re-confirmed fixed live. Files: `web/src/App.tsx`,
+  `components/cockpit/ResultRegion.tsx`, `components/palette/commands.ts`,
+  `components/views/ProfileDirectory.tsx`, `components/views/profiles.ts`,
+  `routes/ActorProfileRoute.tsx`, `routes/DataDeskRoute.tsx`, `routes/Overview.tsx`.
+  (`b5582e2`)
+- **3-lens profile refinements** — actor-name as page H1 (+ "Threat profile" kicker),
+  ATT&CK-id badge dedup, timeline de-stretch + single reserved-accent bar, RaaS inline note
+  (was button-like pill), Initial-Access panel promoted above Activity, hero-claim-count
+  dedup, "ON-HOST SIGNATURES" copy. `ActorProfile.tsx`, `ActorProfileRoute.tsx`,
+  `ViewFrame.tsx`. (`1a23a88`)
+- **Landing + cleanup** — daily-summary climbing/KEV CVEs now clickable into `/lookup`
+  (`CveLink` promoted to shared `overview/board-ui.tsx`); new **ISP Abuse Leaderboard**
+  Overview landing section (`overview/NetworkAbuseLeaderboard.tsx` + `aggregations.ts`
+  `topNetworks` + test, mirrors the RansomwareActivity idiom, non-flagship,
+  abuse.ch·community attributed); README/`docs/REPO-MAP.md` doc-staleness fixed;
+  `TimelineChart` overflow guard (`.slice(-26)`). (`08780db`)
+- **HC3 active-crew depth** — added **HHS HC3** as a 2nd public-domain intel source; schema
+  `advisory.url`/`note_image` widened from CISA-only to gov-only
+  `^https://([a-z0-9-]+\.)*(cisa|hhs)\.gov/`. Seeded **Qilin** (aliases Agenda, first_seen
+  2022-07, RaaS, tools Cobalt Strike·PsExec·SecureShell) from the TLP:CLEAR HC3 Qilin
+  threat profile (ID 202406181500, 2024-06-18) — an active RaaS crew CISA has no dedicated
+  #StopRansomware advisory for. Render made source-aware (`web/src/components/views/
+  intelSource.ts` + test): badge ("HHS HC3 seeded" vs "CISA seeded"), attribution, and
+  advisory-link all derive from the advisory host. Seed now 11 (10 CISA + 1 HC3).
+  Independently review-verified against the real HC3 PDF (AHA mirror — hhs.gov PDFs 403 to
+  bots) — no fabrication. Spike: `docs/research/vendor-sourcing-spike.md`. (`eb4eff8`)
+- **Copy audit + polish** — opus audit verdict: site copy clean/analyst-grade, zero
+  slop-word hits in shipped UI. 4 tweaks shipped: de-redundant daily-summary header
+  (`SituationalBoard.tsx`), trimmed hero "watch it land live" flourish (`Overview.tsx`) +
+  feed "security intelligence, organized" throat-clear (`FeedRoute.tsx`), palette "Data
+  desk"→"Desk" (`commands.ts`). Audit: `.superpowers/sdd/copy-audit.md`. (`32477d5`)
+
+**Context:** preceded same session by the RANSOMWARE PROFILE REBUILD (attributed
+named-victim layer w/ logos via same-origin favicon proxy, digest-carries-claims coverage
+fix, re-seed by activity + provenance, associated-malware, staleness guard, 3-lens
+SOC/Data/UX review — commits `6fabcb5`..`2d82809`; no dedicated HANDOFF block exists for it,
+referenced here rather than duplicated).
+
+**Deploy:** each item pulled+pushed individually (`git pull --rebase origin main` → push →
+`gh workflow run collect-and-deploy`; the workflow is schedule-triggered, NOT on-push — note
+local commit hashes above differ from any hashes cited mid-session, since the rebase
+rewrites them against interleaved cron `data: refresh snapshots` commits) and live-verified
+on socdesk.io, except the copy-polish tweak (`32477d5`) — deploy in flight at session-report
+time.
+
+**Verified (per session report):** pytest 150, vitest 804, build/lint/tsc clean on the
+shipped tree.
+
+**Open / next:** two owner decisions recorded in `BACKLOG.md` — (a) vendor-blog Tier-3 depth
+for crews with no HC3/CISA profile (DragonForce, INC Ransom, Coinbase Cartel, Kazu, The
+Gentlemen, MetaEncryptor — needs explicit yes, pushes past public-domain); (b) taste call on
+renaming the "Overview" tab (candidates: Cockpit/Surface, tied to the "Live threat surface"
+kicker).
+
+---
+
+## 0-RECENT — 2026-08-25 (session — analyzer-hardening Phase 4: cmd half + robustness + IOC hygiene, branch built, NOT merged)
 
 **Lane:** analyzer hardening per the external analyzer review (2026-08-24), final phase.
 Phase 4 goal: the cmd half + robustness + IOC hygiene (review 2.5, 2.6, 2.7). Branch
