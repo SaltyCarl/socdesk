@@ -62,13 +62,35 @@ redistribution and doesn't touch their terms; a background `fetch()` would
 |---|------|-------|------|
 | R1 | Team adoption / shadow-IT | MEDIUM | Not mandated + no backend/retention shrinks it; colleague-pastes-live-IOC residual remains |
 | R2 | **Employer IP** | **HIGH — the gate** | "Personally owned" does NOT defeat a "relates-to-employer's-business" assignment clause; turns on the actual contract + whether any employer time/equipment/confidential-info was used. Unverifiable here. |
-| R3 | Ransomware.live republication | LOW / resolved | Link-out only, nothing mirrored. Upholds for the ransomware group profile (`/actor#g=`) too: the initial-access/detection panel is a curated CISA #StopRansomware seed (public-domain facts, attributed), not anything mirrored from ransomware.live — leak-site activity there stays a link-out only. |
+| R3 | Ransomware.live / leak-site republication | **MED — accepted with safeguards (re-rated 2026-08-25, see below)** | ⚠ **Behavior CHANGED 2026-08-24:** leak-site CLAIM FACTS (victim org name, domain, sector, country, date, note-filename, exploited CVEs) ARE now republished — attributed to the LEAK SITE (the ultimate source), framed **unverified** ("Unverified claim by \<group\>, per its leak site"). ransomware.live's own editorial `description`/`screenshot` are NOT mirrored; intel panels remain public-domain (CISA/HC3 §105) or attributed-vendor facts. The old "link-out only, nothing mirrored / LOW-resolved" rating is **superseded** — see the dated R3 re-rating below. |
 | R4 | abuse.ch redistribution | LOW / resolved | No corpus held; deep-link ≠ redistribution |
 | R5 | Public verdicts | LOW-MED | KEV/EPSS = "known-exploited / probability", not "malicious" — smaller surface; keep sourced + timestamped |
 | R6 | Escalation template | **RE-OPENED MEDIUM** | Core function (b) revives it — must pass the generic test below |
 | R7 | CMMC/CUI handling | MEDIUM | Behavior-driven; **amplified** by one-click fan-out (faster/wider third-party disclosure) |
 | R8 | SIEM-query gen | LOW | Vendor-neutral framing |
 | R9 | RSS/attribution | LOW-MED | Headline+snippet+link only; attribute feeds |
+
+### R3 re-rating — leak-site victim-claim republication (2026-08-25)
+
+_Documents a deliberate policy change. Prompted by an external site-review that correctly flagged this doc as false about live behavior. This is a documented risk-acceptance position + reasoning, not legal advice; the owner owns the residual-risk acceptance and the operational safeguards below._
+
+**What changed (2026-08-24, `collectors/ransomwarelive.py`):** the collector previously withheld victim names ("victim names are not republished here"). It now republishes, per claim, the **victim organisation name, domain, sector, country, claim date, ransom-note filename, and exploited CVEs** — as the digest's `claims[]` and the profile's claimed-victim ledger. This reverses the earlier "drop victim name" position in the superseded §"Must-fix" list below.
+
+**Why the position is defensible (the considered basis):**
+- **Facts, not expression.** The republished values are discrete FACTS (an org name, a domain, a date) — not copyrightable expression. ransomware.live's own editorial `description` and its `screenshot` asset are NOT mirrored (COMPLIANCE R3's original "don't mirror their expression/assets" line is upheld). Intel-panel depth is public-domain (CISA/HHS-HC3, 17 U.S.C. §105) or attributed atomic vendor facts, never mirrored prose.
+- **Attributed to the leak site, framed unverified.** Every claim renders "Unverified claim by \<group\>, per its leak site" — SOCDesk asserts only that the criminal group PUBLICLY CLAIMS the victim (a true statement about a public event), never that a breach occurred. This is a claim RECORD, not a SOCDesk verdict.
+- **OSINT-liability posture.** The owner's standing posture is to name **publicly-claimed victims WITH attribution** — the leak-site claim is already public; re-surfacing it attributed + unverified is defensible OSINT (consistent with how ransomware.live, and news outlets, report leak-site claims).
+- **Not a permanent static mirror of live claims.** The feed is regenerated from live data twice-hourly, so a claim the group removes drops from the live surface on the next collection (a caveat below covers git-history snapshots).
+
+**Safeguards in place:** unverified/attributed framing on every claim; strings inert-cleaned (`clean_text`), domain hostname-charset-guarded; no ransomware.live editorial/screenshot mirrored; org identity + public domain only (no individual PII); `.onion` claim links rendered as plain non-navigable text.
+
+**Rating: MEDIUM — accepted risk with the safeguards above.** (Not "LOW/resolved" — it is a live, legal-adjacent republication under the owner's real name on a public repo. Not "CRITICAL" — the facts-only + attributed + unverified + no-editorial-mirror design materially reduces the surface the original CRITICAL rating assumed.)
+
+**⚠ OPEN operational gaps (owner to decide — my recommendation, not yet built):**
+1. **A dispute / takedown / correction path** — a contact + a documented "we remove on a credible dispute" stance. The single most important missing mitigation; a public tool naming orgs as claimed victims needs a way to be told "that's wrong / remove it."
+2. **An explicit personal-data stance** in this doc: org identity + public business domain only; never individual names/emails/PII; how a mistakenly-included individual is handled.
+3. **Git-history retention:** committed `data/state` snapshots persist a claim even after the group retracts it and the live feed drops it. Decide whether that's acceptable or whether snapshots should be shallow / periodically pruned.
+4. **ransomware.live API terms:** facts are attributed to the leak site (the ultimate source), but they are DISCOVERED via ransomware.live's API (personal-use free tier). Confirm that discover-via-their-API-then-republish-the-underlying-leak-site-fact sits inside their terms, or move discovery to a more permissive source (the `ransomwatch` spike is on file).
 
 ### Hard design constraints for Phase B (from the re-review)
 1. **Aggregator = explicit user-click deep-links ONLY.** No auto-fan-out
@@ -100,11 +122,11 @@ redistribution and doesn't touch their terms; a background `fetch()` would
 
 ## (superseded) Must-fix BEFORE public launch
 
-- **R3 — CRITICAL — Ransomware.live victim republication.** Their terms bar
+- **R3 — CRITICAL — Ransomware.live victim republication.** _⚠ REVERSED 2026-08-24 → see the dated "R3 re-rating (2026-08-25)" section above, which supersedes this bullet: victim names/domains ARE now republished (attributed, unverified, facts-only). The concerns below were re-weighed there; the operational gaps (dispute path, personal-data stance, git-history retention, API terms) remain open._ Their terms bar
   commercial use and free API is personal-use only; listings are unverified
   criminal claims; a static mirror won't propagate upstream retractions; org
-  names can be personal data. **Action: stop republishing named victims** —
-  group-level activity/counts only, link out for detail. (Pipeline change:
+  names can be personal data. ~~**Action: stop republishing named victims** —
+  group-level activity/counts only, link out for detail.~~ (Pipeline change:
   `collectors/ransomwarelive.py` — drop victim name from title/summary, or
   gate behind written permission.)
 - **R4 — HIGH — abuse.ch redistribution.** Post-Spamhaus terms condition
@@ -159,10 +181,18 @@ redistribution and doesn't touch their terms; a background `fetch()` would
 
 ## Parked — do NOT build as public
 
-Shared team state (Worker + D1 / shared review marks / team watchlist) would
-put investigation metadata on a server and crosses the line. If ever wanted,
-it is a SEPARATE deployment behind authentication (Cloudflare Access), never a
-bolt-on to the public site.
+Shared team state (shared review marks / team watchlist / per-analyst
+investigation metadata on a server) still crosses the line and stays parked —
+if ever wanted, a SEPARATE deployment behind authentication, never a bolt-on to
+the public site.
+
+_Note (2026-08-25): a Worker + D1 path WAS since built — the **community-report**
+feature (public Turnstile-gated submissions → a D1 queue → owner-OAuth
+moderation at `/admin`; only owner-approved reports are shown, no per-analyst
+state). That is a crowdsourced-public-abuse-report queue with an auth-gated
+write/moderate path, deliberately NOT the "shared team investigation state" this
+section forbids — the earlier blanket "do NOT build Worker+D1 public" is
+narrowed to that specific shared-investigation-state case._
 
 Sources: abuse.ch Terms of Use · ThreatFox API terms · Ransomware.live
 disclaimer + API terms · MITRE ATT&CK Terms of Use · cisagov/kev-data (CC0) ·

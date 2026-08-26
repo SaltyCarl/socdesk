@@ -16,10 +16,12 @@ techniques, and flagging the specific signals that make something malicious
 or suspicious. The input is never executed and never leaves the browser.
 
 A React app (Vite + Tailwind + Motion) under a strict Content-Security-Policy.
-Scheduled collectors publish the feed and CVE data as JSON; a single
-same-origin serverless function (`/api/enrich`) queries public reputation
-services on demand for the indicator you paste. No database, no accounts, no
-bill.
+Scheduled collectors publish the feed and CVE data as JSON; same-origin
+serverless functions (`/api/enrich`, `/api/favicon`) query public services on
+demand for the indicator you paste. The core lookup/read path has no database
+and no accounts. (The optional community-report feature adds a Cloudflare D1
+queue and owner OAuth for moderation — report writes are auth-gated; public
+reads of approved reports stay no-account.)
 
 **Live:** https://socdesk.io — a lookup "cockpit": start typing an indicator
 *or* a PowerShell command and the marketing intro folds away, the omnibox

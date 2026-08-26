@@ -11,6 +11,52 @@
 // a 1x1 transparent PNG (HTTP 200), so the <img> never renders a broken-image
 // glyph and the client's onError swaps in a monogram cleanly.
 
+import { ipDecision } from "../../lib/enrich/ratelimit.mjs";
+
+// L1 — in-isolate per-IP soft latch, mirroring enrich.js. ZERO KV: lives only
+// in this isolate's memory. Applied after a cache MISS (a hit costs no upstream
+// fetch), so a flood of unique domains can't drive unbounded DuckDuckGo fetches.
+const ipWindow = new Map(); // ip -> { windowStart, count }
+const ipLatched = new Map(); // ip -> latchedUntilMs
+function rateLimited(ip, nowMs) {
+  if (!ip) return false;
+  const st = ipWindow.get(ip) || { windowStart: 0, count: 0 };
+  const d = ipDecision({ now: nowMs, windowStart: st.windowStart, count: st.count, latchedUntil: ipLatched.get(ip) || 0 });
+  ipWindow.set(ip, { windowStart: d.newWindowStart, count: d.newCount });
+  if (d.newLatchedUntil) ipLatched.set(ip, d.newLatchedUntil);
+  return !d.allow;
+}
+
+// A real favicon is a few KB; cap the proxied body so a hostile/oversized
+// upstream response can't balloon isolate memory. Read is bounded even when the
+// upstream omits or lies about content-length.
+const MAX_ICON_BYTES = 262144; // 256 KB
+async function readCapped(upstream) {
+  const declared = Number(upstream.headers.get("content-length") || 0);
+  if (declared > MAX_ICON_BYTES) return null; // honest-large: reject before reading
+  if (!upstream.body) return null;
+  const reader = upstream.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_ICON_BYTES) {
+      await reader.cancel();
+      return null; // over cap (or a lying content-length) → treat as no icon
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) {
+    out.set(c, off);
+    off += c.byteLength;
+  }
+  return out;
+}
+
 // 1x1 transparent PNG — the honest "no icon" answer.
 const BLANK_PNG = Uint8Array.from(
   atob(
@@ -51,6 +97,10 @@ export async function onRequestGet({ request }) {
   const hit = await cache.match(key);
   if (hit) return hit;
 
+  // Rate-limit only cache MISSES — a hit never touches the upstream. A local
+  // flood gets a silent blank (the client just shows a monogram); no challenge.
+  if (rateLimited(request.headers.get("cf-connecting-ip") || "", Date.now())) return blank();
+
   let upstream;
   try {
     upstream = await fetch(`https://icons.duckduckgo.com/ip3/${domain}.ico`, {
@@ -65,9 +115,9 @@ export async function onRequestGet({ request }) {
   const ct = upstream.headers.get("content-type") || "";
   if (!upstream.ok || !ct.startsWith("image/")) return blank();
 
-  const body = await upstream.arrayBuffer();
+  const body = await readCapped(upstream);
   // DuckDuckGo answers unknown domains with a placeholder too; treat an empty
-  // body as a miss rather than caching a zero-byte "icon".
+  // body (or an over-cap/oversized one → null) as a miss rather than serving it.
   if (!body || body.byteLength === 0) return blank();
 
   const res = new Response(body, {
