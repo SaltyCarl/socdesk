@@ -1,0 +1,63 @@
+name: ci
+
+# Test/lint/typecheck gate. Separate from collect-and-deploy.yml (which is a
+# scheduled data-refresh + deploy and only runs pytest + build): this runs the
+# full web vitest suite + eslint + the tsc typecheck on every code change, so a
+# regression is caught in a PR / on the branch, not discovered live in prod.
+on:
+  push:
+    branches: [main]
+    # Skip the twice-hourly `data: refresh snapshots` cron commits (data/state)
+    # and the Framework's data/brief.json pushes — they change no code, so the
+    # gate would just burn ~1,440 no-op runs a month. A push that touches BOTH
+    # data and code still runs (paths-ignore only skips a push whose every file
+    # matches), which is the safe direction.
+    paths-ignore: ["data/**"]
+  pull_request: {}
+  workflow_dispatch: {}
+
+concurrency:
+  # One in-flight run per ref; a newer push supersedes an older run (safe for a
+  # read-only gate, unlike the deploy workflow which must never be cancelled).
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # --- Python: the collector/pipeline test suite ---
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: pytest
+        run: python -m pytest tests/ -q
+
+      # --- Web: vitest + eslint + the tsc typecheck (via the build) ---
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install web deps
+        run: npm --prefix web ci
+      - name: vitest
+        run: npm --prefix web run test
+      - name: eslint
+        run: npm --prefix web run lint
+      # `build` is `tsc -b && vite build` — the tsc project-references build is
+      # the typecheck (it follows web/tsconfig's references into shared/), and a
+      # clean vite build proves the app still compiles. No deploy step: this
+      # gate never publishes; collect-and-deploy.yml owns the upload.
+      - name: build (typecheck + bundle)
+        env:
+          VITE_TURNSTILE_SITEKEY: ${{ vars.VITE_TURNSTILE_SITEKEY }}
+        run: npm --prefix web run build

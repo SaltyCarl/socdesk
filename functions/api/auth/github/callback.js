@@ -1,4 +1,6 @@
-import { signPayload, verifyPayload, sessionCookie } from '../../../_lib/session.mjs'
+import {
+  signPayload, verifyPayload, sessionCookie, readCookie, clearOauthNonceCookie, OAUTH_NONCE_COOKIE,
+} from '../../../_lib/session.mjs'
 import { upsertAccount } from '../../../../lib/reporting/db.mjs'
 
 const SESSION_TTL = 30 * 24 * 3600 // ~30 days
@@ -8,7 +10,13 @@ export async function onRequestGet({ request, env }) {
   const code = url.searchParams.get('code')
   const state = url.searchParams.get('state')
   const st = state && (await verifyPayload(state, env.SESSION_SECRET, Math.floor(Date.now() / 1000)))
-  if (!code || !st) return new Response('bad oauth state', { status: 400 })
+  // Browser-binding: the state must be signed-valid AND its nonce must match the
+  // cookie set when THIS browser started the flow (start.js). A signed state
+  // replayed from another browser has no matching cookie → rejected (login-CSRF).
+  const cookieNonce = readCookie(request, OAUTH_NONCE_COOKIE)
+  if (!code || !st || !cookieNonce || st.nonce !== cookieNonce) {
+    return new Response('bad oauth state', { status: 400 })
+  }
 
   const tok = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
@@ -33,8 +41,10 @@ export async function onRequestGet({ request, env }) {
   // Same-origin path only: one leading '/', not '//' or '/\' (which browsers
   // normalize to an absolute off-site URL). Anything else falls back to '/'.
   const dest = /^\/($|[^/\\])/.test(st.return || '') ? st.return : '/'
-  return new Response(null, {
-    status: 302,
-    headers: { location: dest, 'set-cookie': sessionCookie(session, SESSION_TTL) },
-  })
+  // Two Set-Cookie headers: issue the session, and retire the one-shot nonce so
+  // it can't linger. Headers.append (not a single object) keeps both.
+  const headers = new Headers({ location: dest })
+  headers.append('set-cookie', sessionCookie(session, SESSION_TTL))
+  headers.append('set-cookie', clearOauthNonceCookie())
+  return new Response(null, { status: 302, headers })
 }
