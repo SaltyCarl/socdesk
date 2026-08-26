@@ -218,3 +218,55 @@ def test_ransomware_intel_schema_accepts_provenance_fields():
          "note_image": "https://www.cisa.gov/sites/default/files/foo.png",
          "sources": [{"id": "ic3-flash", "url": "https://www.ic3.gov/CSA/2026/260824.pdf"}]}]}
     assert validate_payload("ransomware_intel.json", good, "schemas") == []
+
+
+def test_ransomware_intel_schema_accepts_vendor_entry_with_no_advisory():
+    """Vendor-sourced Tier-3 depth (COMPLIANCE-sensitive): a group with NO
+    `advisory` at all — the gov-vs-vendor discriminator the render keys off —
+    but WITH `sources[]` (vendor URLs are allowed there; only `advisory.url`
+    is gov-host-locked) plus atomic facts (aliases/first_seen/raas/
+    initial_access_cves/tools) must still validate. `group.required` is only
+    [slug, name], so omitting `advisory` entirely is legal shape."""
+    good = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "vendor-crew", "name": "Vendor Crew", "aliases": ["VC"],
+         "first_seen": "2025-06", "raas": True,
+         "initial_access_cves": ["CVE-2025-1234"],
+         "tools": ["Rclone", "SmokeLoader"],
+         "sources": [
+             {"id": "unit42", "url": "https://unit42.paloaltonetworks.com/vendor-crew-report/"},
+             {"id": "socradar", "url": "https://socradar.io/blog/vendor-crew/"},
+         ],
+         "last_reviewed": "2026-08-25"}]}
+    errs = validate_payload("ransomware_intel.json", good, "schemas")
+    assert errs == [], errs
+    assert "advisory" not in good["groups"][0]
+
+
+def test_ransomware_intel_schema_still_rejects_non_gov_advisory_even_with_sources():
+    """The vendor path must never be usable to smuggle a vendor URL into the
+    gov-locked `advisory.url` field — sources[] is the ONLY unlocked-host
+    field. A group that supplies both a vendor `sources[]` entry AND a
+    non-gov `advisory.url` must still be rejected."""
+    bad = {"generated_at": "x", "schema_version": 1, "groups": [
+        {"slug": "vendor-crew", "name": "Vendor Crew",
+         "advisory": {"id": "x", "url": "https://unit42.paloaltonetworks.com/x"},
+         "sources": [{"id": "unit42", "url": "https://unit42.paloaltonetworks.com/x"}]}]}
+    assert validate_payload("ransomware_intel.json", bad, "schemas") != []
+
+
+def test_ransomware_intel_seed_vendor_entries_have_no_advisory_or_note_image():
+    """Shape/rule guard over the COMMITTED seed (not content-pinning specific
+    crews): every group that carries `sources[]` but NO `advisory` — the
+    vendor-tier discriminator — must also carry NO `note_image` (vendor
+    figures are not public-domain, per the render's gov-vs-vendor split) and
+    must carry at least one atomic fact (aliases/first_seen/raas/
+    initial_access_cves/tools) rather than an empty stub."""
+    import json
+    from pathlib import Path
+    seed = json.loads(Path("data/ransomware_intel.json").read_text(encoding="utf-8"))
+    vendor_groups = [g for g in seed["groups"] if "advisory" not in g and g.get("sources")]
+    assert len(vendor_groups) >= 1
+    fact_fields = ("aliases", "first_seen", "raas", "initial_access_cves", "tools")
+    for g in vendor_groups:
+        assert "note_image" not in g, f"{g['slug']} is vendor-sourced but carries note_image"
+        assert any(g.get(f) for f in fact_fields), f"{g['slug']} has no atomic facts"

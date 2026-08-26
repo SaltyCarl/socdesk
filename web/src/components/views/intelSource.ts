@@ -38,3 +38,57 @@ export function intelSource(url?: string): IntelSource {
   const hit = KNOWN_SOURCES.find((k) => host === k.host || host.endsWith(`.${k.host}`))
   return hit ? hit.source : FALLBACK
 }
+
+/* ---------------- vendor-reported Tier-3 depth (no gov advisory) -------- */
+//
+// A SEPARATE, lower trust tier from the public-domain seed above. These
+// entries have NO `advisory` (that field stays gov-host-locked — see the
+// schema) — instead they carry `sources[]` (unlocked host) pointing at a
+// reputable vendor threat-report (Unit 42, SOCRadar, FortiGuard, Halcyon,
+// Group-IB, Trend Micro, Check Point, Securelist, Huntress, Red Piranha,
+// WatchGuard, …). Every field on a vendor entry is an ATOMIC FACT the cited
+// report explicitly states (a CVE id, a tool name, an alias, a first-seen
+// date) — never the vendor's own prose, ransom-note text, or curated TTP
+// list reproduced wholesale (Feist: facts aren't copyrightable, a vendor's
+// original expression and curated selection/arrangement are — see
+// docs/research/vendor-sourcing-spike.md). The render MUST NOT reuse the
+// gov advisory panel's language or treatment for these — `isVendorSourced`
+// is the discriminator the render branches on.
+
+/** True when a seed entry is the VENDOR tier: no public-domain advisory, but
+ *  at least one cited source. Never true for a gov-seeded entry (which
+ *  always carries `advisory`) and never true for an entry with neither
+ *  (nothing to attribute — the intel panel doesn't render at all). */
+export function isVendorSourced(intel: { advisory?: unknown; sources?: unknown[] }): boolean {
+  return !intel.advisory && Array.isArray(intel.sources) && intel.sources.length > 0
+}
+
+/** Human-readable display name for a vendor `sources[].id`. Extend this map
+ *  as new vendor reports are curated into the seed — never fabricates a name
+ *  beyond what the cited report's own byline states; an id not yet mapped
+ *  falls back to itself rather than guessing. */
+const VENDOR_NAMES: Record<string, string> = {
+  'group-ib': 'Group-IB',
+  huntress: 'Huntress',
+  fortiguard: 'FortiGuard',
+  halcyon: 'Halcyon',
+  'mitre-attack': 'MITRE ATT&CK',
+  checkpoint: 'Check Point Research',
+  securelist: 'Securelist (Kaspersky)',
+  cybersecuritynews: 'Cybersecurity News',
+  redpiranha: 'Red Piranha',
+  watchguard: 'WatchGuard',
+  unit42: 'Palo Alto Unit 42',
+  socradar: 'SOCRadar',
+  mandiant: 'Mandiant',
+  talos: 'Cisco Talos',
+  bitdefender: 'Bitdefender',
+  trendmicro: 'Trend Micro',
+  microsoft: 'Microsoft',
+}
+
+/** Display label for one vendor source id — the mapped name when known,
+ *  else the raw id verbatim (honest-unknown, never invents a name). */
+export function vendorLabel(id: string): string {
+  return VENDOR_NAMES[id] ?? id
+}

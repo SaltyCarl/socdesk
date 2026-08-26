@@ -3,7 +3,7 @@ import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../ui'
 import { MonoTag } from './Badges'
 import { rel, safeUrl, num } from './format'
-import { intelSource } from './intelSource'
+import { intelSource, isVendorSourced, vendorLabel } from './intelSource'
 import { faviconSrc, monogram } from './logo'
 import { PIVOTABLE, provenance, techniqueUrl } from './relations'
 import { ActorLink, BoardPanel, CveLink, PanelEmpty } from '../overview/board-ui'
@@ -116,9 +116,12 @@ function KindBadges({ profile }: { profile: ProfileResult }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {profile.ransomware && <MonoTag tone="accent">Ransomware group</MonoTag>}
-      {profile.intel && (
-        <MonoTag tone="accent">{intelSource(profile.intel.advisory?.url).org} seeded</MonoTag>
-      )}
+      {profile.intel &&
+        (isVendorSourced(profile.intel) ? (
+          <MonoTag tone="accent">Vendor-reported</MonoTag>
+        ) : (
+          <MonoTag tone="accent">{intelSource(profile.intel.advisory?.url).org} seeded</MonoTag>
+        ))}
       {/* One consistent "ATT&CK <id>" treatment regardless of actor vs. malware
           kind — the metadata rail below no longer repeats it (dedupe). */}
       {fp?.attack_id && <MonoTag tone="muted">ATT&amp;CK {fp.attack_id}</MonoTag>}
@@ -317,30 +320,75 @@ function ActivityPanel({ activity }: { activity: NonNullable<ProfileResult['acti
 
 /* ---------------- initial access & detection (curated public-domain intel seed) --- */
 
-/** Curated triage block sourced from a public-domain US federal advisory
- *  (CISA #StopRansomware or HHS HC3, per the schema's host gate — both 17
- *  U.S.C. §105 public domain): initial-access CVEs (pivot into our lookup),
- *  tools as hunting pivots, on-host attribution signals, the advisory figure
- *  (linked, public-domain), and a provenance footer. The attributing org and
- *  document type are derived from `intel.advisory.url`'s host (`intelSource`)
- *  — never hardcoded to a single publisher. Every fact attributed to the
- *  source; nothing synthesised. Absent entirely when the group is unseeded. */
+/** The vendor-tier attribution line — the render-critical divergence from the
+ *  gov panel above it: no "seeded"/advisory language, an explicit
+ *  unverified/non-government framing, and the cited vendor names linked
+ *  inline from `sources[]`. This sentence is SOCDesk's own words describing
+ *  the facts below; the facts themselves are atomic values (a CVE id, a
+ *  tool name, …), never the vendor's prose. */
+function VendorAttribution({ sources }: { sources: { id: string; url: string }[] }) {
+  return (
+    <p className="text-xs leading-relaxed text-muted">
+      Atomic facts compiled from public vendor threat-reporting — unverified by SOCDesk, not a
+      government advisory. Sources:{' '}
+      {sources.map((s, i) => {
+        const href = safeUrl(s.url)
+        return (
+          <span key={s.id}>
+            {href ? <ExternalLink href={href}>{vendorLabel(s.id)}</ExternalLink> : vendorLabel(s.id)}
+            {i < sources.length - 1 ? ', ' : '.'}
+          </span>
+        )
+      })}
+    </p>
+  )
+}
+
+/** Curated triage block. TWO distinct provenance tiers share this one panel
+ *  shape, discriminated by `isVendorSourced` (no `advisory` field means
+ *  vendor-tier — see intelSource.ts):
+ *
+ *  - GOV tier: sourced from a public-domain US federal advisory (CISA
+ *    #StopRansomware or HHS HC3, per the schema's host gate — both 17
+ *    U.S.C. §105 public domain). The attributing org and document type are
+ *    derived from `intel.advisory.url`'s host (`intelSource`) — never
+ *    hardcoded to a single publisher. Carries the advisory link-out, the
+ *    (public-domain-only) note-image figure, and the "<org> seed" footer.
+ *  - VENDOR tier: NO advisory at all — instead `sources[]` cites one or more
+ *    reputable vendor threat-reports. Framed by `VendorAttribution` above,
+ *    NEVER the gov "seeded"/advisory treatment, and NEVER a note-image
+ *    branch (vendor figures are not public domain — the data model omits
+ *    `note_image` for these entries, and `figureHref` below is force-empty
+ *    as defense in depth against a future data-entry mistake).
+ *
+ *  In both tiers, initial-access CVEs (pivot into our lookup), tools (hunt
+ *  pivots), and on-host signatures render identically — every fact
+ *  attributed to its source, nothing synthesised, honest-empty per field.
+ *  Absent entirely when the group is unseeded. */
 function IntelPanel({ intel }: { intel: RansomIntel }) {
+  const vendor = isVendorSourced(intel)
   const cves = intel.initial_access_cves ?? []
   const tools = intel.tools ?? []
   const notes = intel.ransom_note ?? []
   const exts = intel.extensions ?? []
   const sources = intel.sources ?? []
   const advisoryHref = safeUrl(intel.advisory?.url)
-  const figureHref = safeUrl(intel.note_image)
+  // Vendor entries never carry note_image (vendor figures aren't
+  // public-domain) — force-empty here so a future data-entry mistake can't
+  // resurrect the gov figure treatment for a vendor-sourced group.
+  const figureHref = vendor ? '' : safeUrl(intel.note_image)
   const source = intelSource(intel.advisory?.url ?? intel.note_image)
   const figureHost = figureHref ? new URL(figureHref).hostname : ''
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-xs leading-relaxed text-muted">
-        Initial access, tooling and detection signals below are drawn from the group&rsquo;s{' '}
-        {source.product} — attributed facts, not a SOCDesk assessment.
-      </p>
+      {vendor ? (
+        <VendorAttribution sources={sources} />
+      ) : (
+        <p className="text-xs leading-relaxed text-muted">
+          Initial access, tooling and detection signals below are drawn from the group&rsquo;s{' '}
+          {source.product} — attributed facts, not a SOCDesk assessment.
+        </p>
+      )}
 
       {cves.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -408,27 +456,38 @@ function IntelPanel({ intel }: { intel: RansomIntel }) {
         </ExternalLink>
       )}
 
-      {(intel.last_reviewed || intel.advisory_date || sources.length > 0) && (
-        <div className="flex flex-col gap-2 border-t border-line pt-3">
-          <p className="font-mono text-micro text-faint">
-            {source.org} seed
-            {intel.last_reviewed ? ` · reviewed ${intel.last_reviewed}` : ''}
-            {intel.advisory_date ? ` · advisory ${intel.advisory_date}` : ''}
-          </p>
-          {sources.length > 0 && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              {sources.map((s) => {
-                const href = safeUrl(s.url)
-                return href ? (
-                  <ExternalLink key={s.id} href={href}>
-                    {s.id}
-                  </ExternalLink>
-                ) : null
-              })}
+      {/* Vendor tier: sources are already linked inline in VendorAttribution
+          above — the footer here is just the (honest, optional) reviewed
+          date, never a duplicate "seed"/org line (that language is gov-only
+          — see isVendorSourced). Gov tier: unchanged "<org> seed" footer +
+          its own sources list. */}
+      {vendor
+        ? intel.last_reviewed && (
+            <p className="border-t border-line pt-3 font-mono text-micro text-faint">
+              reviewed {intel.last_reviewed}
+            </p>
+          )
+        : (intel.last_reviewed || intel.advisory_date || sources.length > 0) && (
+            <div className="flex flex-col gap-2 border-t border-line pt-3">
+              <p className="font-mono text-micro text-faint">
+                {source.org} seed
+                {intel.last_reviewed ? ` · reviewed ${intel.last_reviewed}` : ''}
+                {intel.advisory_date ? ` · advisory ${intel.advisory_date}` : ''}
+              </p>
+              {sources.length > 0 && (
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {sources.map((s) => {
+                    const href = safeUrl(s.url)
+                    return href ? (
+                      <ExternalLink key={s.id} href={href}>
+                        {s.id}
+                      </ExternalLink>
+                    ) : null
+                  })}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
     </div>
   )
 }
@@ -715,7 +774,10 @@ export function ActorProfile({
               the most triage-actionable read (CVEs to check, tooling to
               hunt), so it leads when present */}
           {intel && (
-            <BoardPanel eyebrow="Initial access & detection" accent>
+            <BoardPanel
+              eyebrow={isVendorSourced(intel) ? 'Reported TTPs' : 'Initial access & detection'}
+              accent
+            >
               <IntelPanel intel={intel} />
             </BoardPanel>
           )}

@@ -105,6 +105,64 @@
       "advisory": {"id": "202406181500", "url": "https://www.hhs.gov/sites/default/files/qilin-threat-profile-tlpclear.pdf"},
       "advisory_date": "2024-06-18", "last_reviewed": "2026-08-25",
       "tools": ["Cobalt Strike", "PsExec", "SecureShell"]
+    },
+    {
+      "slug": "dragonforce", "name": "DragonForce",
+      "first_seen": "2023-08", "raas": true,
+      "initial_access_cves": ["CVE-2025-5777"],
+      "tools": ["AdFind", "Cobalt Strike", "Mimikatz", "SoftPerfect Network Scanner", "SystemBC"],
+      "sources": [
+        {"id": "group-ib", "url": "https://www.group-ib.com/blog/dragonforce-ransomware/"},
+        {"id": "huntress", "url": "https://www.huntress.com/blog/citrixbleed-2-dragonforce-ransomware"}
+      ],
+      "last_reviewed": "2026-08-25"
+    },
+    {
+      "slug": "coinbasecartel", "name": "Coinbase Cartel",
+      "first_seen": "2025-09", "raas": true,
+      "tools": ["shinysp1d3r"],
+      "sources": [
+        {"id": "fortiguard", "url": "https://www.fortiguard.com/threat-actor/6386/coinbase-cartel-ransomware"},
+        {"id": "halcyon", "url": "https://www.halcyon.ai/threat-group/coinbasecartel"}
+      ],
+      "last_reviewed": "2026-08-25"
+    },
+    {
+      "slug": "incransom", "name": "INC Ransom", "aliases": ["GOLD IONIC"],
+      "first_seen": "2023-08",
+      "initial_access_cves": ["CVE-2023-3519"],
+      "tools": ["AdFind", "Advanced IP Scanner", "AnyDesk", "MegaSync", "PsExec", "PuTTY", "Rclone", "7-Zip"],
+      "ransom_note": ["*.inc-readme.txt", "*.inc-readme.html"], "extensions": [".inc"],
+      "sources": [
+        {"id": "huntress", "url": "https://www.huntress.com/blog/investigating-new-inc-ransom-group-activity"},
+        {"id": "mitre-attack", "url": "https://attack.mitre.org/groups/G1032/"}
+      ],
+      "last_reviewed": "2026-08-25"
+    },
+    {
+      "slug": "thegentlemen", "name": "The Gentlemen",
+      "first_seen": "2025-07", "raas": true,
+      "initial_access_cves": ["CVE-2024-55591", "CVE-2025-32433", "CVE-2025-33073"],
+      "tools": ["Advanced IP Scanner", "MEGAcmd", "NetScan", "PsExec", "Rclone", "Velociraptor", "WinSCP"],
+      "ransom_note": ["README-GENTLEMEN.txt"],
+      "sources": [
+        {"id": "checkpoint", "url": "https://research.checkpoint.com/2026/thus-spoke-the-gentlemen/"},
+        {"id": "halcyon", "url": "https://www.halcyon.ai/ransomware-research-reports/threat-assessment-the-gentlemen-ransomware-group"},
+        {"id": "securelist", "url": "https://securelist.com/the-gentlemen-raas/120447/"},
+        {"id": "cybersecuritynews", "url": "https://cybersecuritynews.com/the-gentlemen-ransomware-group-uses-fortinet-exploits/"}
+      ],
+      "last_reviewed": "2026-08-25"
+    },
+    {
+      "slug": "kazu", "name": "Kazu",
+      "first_seen": "2025-06",
+      "tools": ["SmokeLoader"],
+      "ransom_note": ["ReadMeForDecrypt.txt"],
+      "sources": [
+        {"id": "redpiranha", "url": "https://redpiranha.net/news/threat-intelligence-report-december-9-december-15-2025"},
+        {"id": "watchguard", "url": "https://www.watchguard.com/wgrd-security-hub/ransomware-tracker/kazu"}
+      ],
+      "last_reviewed": "2026-08-25"
     }
   ]
 }

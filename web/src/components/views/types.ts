@@ -231,11 +231,22 @@ export interface RegistryPayload {
 
 /* ---------------- ransomware intel (curated public-domain seed) -------- */
 
-/** One curated group entry sourced from a public-domain US federal advisory
- *  — a CISA #StopRansomware joint advisory or an HHS HC3 threat profile (see
- *  `intelSource`, which derives the attributing org from `advisory.url`'s
- *  host). Fields are optional in TS since a seed entry may honestly omit a
- *  field the source document never covered (honest-empty over a fabricated
+/** One curated group entry, in ONE of two provenance tiers (see
+ *  `isVendorSourced` in intelSource.ts — the discriminator is whether
+ *  `advisory` is present):
+ *  - GOV tier: sourced from a public-domain US federal advisory — a CISA
+ *    #StopRansomware joint advisory or an HHS HC3 threat profile (see
+ *    `intelSource`, which derives the attributing org from `advisory.url`'s
+ *    host). Carries `advisory` (+ optionally `note_image`, gov-host-locked).
+ *  - VENDOR tier: no `advisory` at all — instead `sources[]` cites one or
+ *    more reputable vendor threat-reports (Unit 42, SOCRadar, FortiGuard,
+ *    Halcyon, Group-IB, …; `sources[].url` is NOT host-locked). Every field
+ *    is an atomic fact the cited report explicitly states, never the
+ *    vendor's own prose or curated list reproduced wholesale — see
+ *    docs/research/vendor-sourcing-spike.md. Never carries `note_image`
+ *    (vendor figures aren't public domain).
+ *  Fields are optional in TS since a seed entry may honestly omit a field
+ *  the source document never covered (honest-empty over a fabricated
  *  value). */
 export interface RansomIntel {
   slug: string
