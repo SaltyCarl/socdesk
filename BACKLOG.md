@@ -100,14 +100,8 @@ in-place IOC pivot; Gallery → internal-only (dropped from the public nav); and
   deploy scripts; add enrich keys to the CF **Preview** env scope (fixes the
   GreyNoise-only preview enrich).
 - Verify the privacy-page contact email.
-- **CI: Node-20→24 bump** — every deploy run warns "Node.js 20 is deprecated"
-  (checkout@v4/setup-node@v4/setup-python@v5/wrangler-action@v3 forced onto Node 24).
-  Pin `node-version: 24` (and refresh action majors) in `collect-and-deploy.yml`.
-- **CI: `concurrency:` group on `collect-and-deploy`** — overlapping runs (a cron
-  + a manual `workflow_dispatch`) both regenerate `data/state/*.json` and the commit
-  step's `git pull --rebase` CONFLICTS, failing one run (killed the Track-A cap-fix
-  deploy 2026-08-24; a clean re-run landed it). Add
-  `concurrency: {group: collect-and-deploy, cancel-in-progress: false}`.
+- ~~**CI: Node-20→24 bump**~~ — ✅ DONE (verified 2026-08-25): `collect-and-deploy.yml` is on checkout@v7 / setup-python@v7 / setup-node@v7 (`node-version: "24"`) / wrangler-action@v4.
+- ~~**CI: `concurrency:` group on `collect-and-deploy`**~~ — ✅ DONE (verified 2026-08-25): the workflow already declares `concurrency: {group: collect-and-deploy, cancel-in-progress: false}` (lines 11-13), so overlapping cron/dispatch runs serialize instead of racing the `data/state` commit.
 - **CVE catalog growth** — `cves.json` is ~8 MB and hovers near the (now per-file
   16 MB) publish cap because it carries the 180-day window PLUS every KEV entry
   forever. Needs a windowing/pruning strategy (cap the KEV-forever accumulation)
