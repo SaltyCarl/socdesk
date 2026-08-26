@@ -1,13 +1,24 @@
 # SOCDesk Backlog
 
-> _Refreshed 2026-08-24 (program close-out)._ Shipped this program: **Node-20→24 CI bump** ·
-> **enrich B2 abuse-hardening** (KV rate-limit + per-source budget + WAF-primary; ships dark) ·
-> **Phase 4 ISP/ASN leaderboard** (Networks desk tab) · **domain→IP pivot** · reputation fixes done.
-> Earlier this session: Phase 3 community reports + `/about` + cockpit Report button + Lookup↔Cockpit
-> consolidation. **Two owner activation gates remain:** (1) `IPINFO_TOKEN` → GitHub Actions secret
-> (populates the Phase 4 leaderboard); (2) bind a `KV` namespace + add the `/api/enrich` WAF Block
-> rule (activates B2 — see `docs/OPERATIONS.md`). Next feature candidates: Phase 5 trends · Phase 6
-> upstream push · enrich B3 own-OSINT dataset · give-back honeypot. Refresh at every close-out.
+> _Refreshed 2026-08-26 (sitewide-critique close-out)._ Shipped 2026-08-25/26 from the two external
+> critiques + follow-ups: **CI test gate** (`.github/workflows/ci.yml` — vitest+eslint+tsc+pytest on
+> every push/PR; they never ran in CI before) · **auth hardening** (fail-closed session HMAC; OAuth
+> state browser-bound via nonce cookie) · **.onion render-guard** (safeUrl rejects .onion hosts —
+> closed live leak-site links that contradicted COMPLIANCE.md) · **victim-first leak-claim feed rows**
+> (VictimLogo shared, provenance line) · **nav dissolve** (logo=home, Overview tab dropped) ·
+> **Intel→Adversaries re-label** · **Health warnings de-dump** (`<details>` collapse) · **KEV
+> due-date on Vulns** · **ISP leaderboard bars** · **ATT&CK technique names** (`technique_names.json`
+> id→name catalog, 697 entries) · **capture-safe scroll reveal** (transform-only + print guard) ·
+> **link-primitive unification** (shared CveLink/ExternalLink; feed CVE rail now a live pivot).
+> COMPLIANCE R3 re-rated MED-accepted w/ dated rationale; README no-db/no-accounts clarified.
+> **Two owner activation gates remain:** (1) `IPINFO_TOKEN` → GitHub Actions secret (populates the
+> ISP leaderboard); (2) bind a `KV` namespace + add the `/api/enrich` WAF Block rule (activates B2 —
+> see `docs/OPERATIONS.md`). **Owner-flagged, pending:** a deliberate COMPLIANCE.md reconciliation
+> pass (owner: "generally too rigid") against current posture + what's actually built — proposals
+> for approval, not casual loosening; the `.onion` never-hyperlink rule stays. Next feature
+> candidates: Phase 5 trends · Phase 6 upstream push · enrich B3 own-OSINT dataset · give-back
+> honeypot · the critique's remaining design ideas (Desk `Now · Exposure · Actors` re-cut, Adversaries
+> directory card enrichment, feed sparklines). Refresh at every close-out.
 
 ## North star (owner-set, 2026-08-10 — read before adding ANYTHING)
 
