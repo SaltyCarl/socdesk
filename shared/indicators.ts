@@ -72,13 +72,19 @@ export const refang = (s: unknown): string =>
     .replace(/\bhxxp/gi, 'http')
     .replace(/\[at\]/gi, '@')
 
-/** Only http/https URLs survive; everything else (javascript:, data:, garbage)
- *  becomes "" so an attacker-influenced source.url can never build a live href.
- *  Returns the parsed absolute URL string, safe to assign to an anchor .href. */
+/** A URL safe to assign to an anchor .href; returns "" otherwise (so the caller
+ *  drops the link). Rejects non-http(s) schemes (javascript:, data:, garbage) so
+ *  an attacker-influenced source.url can never build a live href, AND `.onion`
+ *  hosts — SOCDesk never hyperlinks Tor leak-site infra (`.onion` is `http://`,
+ *  so a scheme-only check passed it through). The `.onion` string may still be
+ *  shown as attributed plain text elsewhere; this only stops it becoming a link.
+ *  Mirrors web/src/components/views/format.ts::safeUrl (kept in sync). */
 export function safeUrl(u: unknown): string {
   try {
     const p = new URL(String(u ?? ''))
-    return p.protocol === 'https:' || p.protocol === 'http:' ? p.href : ''
+    if (p.protocol !== 'https:' && p.protocol !== 'http:') return ''
+    if (p.hostname.toLowerCase().endsWith('.onion')) return ''
+    return p.href
   } catch {
     return ''
   }

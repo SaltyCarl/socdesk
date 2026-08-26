@@ -31,12 +31,22 @@ export const num = (n?: number | null): string =>
 export const pct = (n?: number | null): string =>
   n == null ? '—' : `${Math.round(n * 100)}%`
 
-/** http/https only; returns '' for anything else so callers can drop the link
- *  entirely (never render a javascript: or data: href). */
+/** A URL safe to render as a live href; returns '' otherwise, so a caller's
+ *  `href ? <a> : <span>` degrades to plain text. Two rejections:
+ *   - non-http(s) schemes — never emit a `javascript:`/`data:` href; and
+ *   - `.onion` hosts — Tor leak-site infrastructure SOCDesk never hyperlinks
+ *     (a live link one-clicks an analyst onto criminal infra and reads as
+ *     endorsement; `.onion` is `http://`, so a scheme-only check let it slip
+ *     through — the Feed leak this closes). The `.onion` STRING is still kept
+ *     as attributed plain-text provenance (Intel profile, claimedVictims); this
+ *     guard only stops it becoming a link. Centralised on purpose: every current
+ *     AND future caller degrades uniformly, so the per-surface leak can't recur. */
 export function safeUrl(u?: string | null): string {
   try {
     const p = new URL(String(u ?? ''))
-    return p.protocol === 'http:' || p.protocol === 'https:' ? p.href : ''
+    if (p.protocol !== 'http:' && p.protocol !== 'https:') return ''
+    if (p.hostname.toLowerCase().endsWith('.onion')) return ''
+    return p.href
   } catch {
     return ''
   }
