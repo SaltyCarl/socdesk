@@ -42,10 +42,10 @@ export const DEFAULT_VIEWS: CommandItem[] = [
   {
     id: 'view:actor',
     kind: 'view',
-    label: 'Threat Intelligence',
+    label: 'Intel',
     hint: '/actor',
     href: '/actor',
-    keywords: ['actor', 'ransomware', 'group', 'apt', 'malware', 'profile', 'adversary', 'attack'],
+    keywords: ['intel', 'threat intelligence', 'actor', 'ransomware', 'group', 'apt', 'malware', 'profile', 'adversary', 'attack'],
   },
   {
     id: 'view:gallery',

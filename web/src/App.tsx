@@ -16,12 +16,14 @@ import { About } from './routes/About'
  * suffix→component table. Vite preview / Cloudflare Pages both fall back to
  * index.html, so client routing resolves from any deep link.
  *
- *   /         → the Overview (three.js globe hero + start-of-shift board)
- *   /lookup   → redirect stub → /#q=<same hash> (the cockpit is the lookup surface)
- *   /analyzer → the PowerShell analyzer (nav:false — the cockpit's command path;
+ *   /         → home (globe hero + omnibar + start-of-shift board). nav:false —
+ *               reached by the wordmark and the ⌘K palette, not a tab: the nav
+ *               carries destinations only, the landing is where you already are.
+ *   /lookup   → redirect stub → /#q=<same hash> (the omnibar is the lookup surface)
+ *   /analyzer → the PowerShell analyzer (nav:false — the omnibar's command path;
  *               deep-linkable full-width surface for a heavy paste)
  *   /desk     → the data desk (feed / vulns / health / sources / ISP abuse)
- *   /actor    → Threat Intelligence (the actor / ransomware / malware directory)
+ *   /actor    → Intel (the threat-actor / ransomware / malware directory)
  *   /gallery  → the design-system gallery (craft-review surface)
  *
  * In-app navigation (topbar links, command palette) goes through pushState +
@@ -42,7 +44,11 @@ interface Route {
 const ROUTES: Route[] = [
   {
     path: '/',
-    label: 'Overview',
+    label: 'Home',
+    // The root is reached by the wordmark (Topbar → href="/") and the ⌘K
+    // palette, not a tab — nav carries destinations only, the landing is where
+    // you already are. Analyzer/Lookup already fold into the same omni-input.
+    nav: false,
     size: 'wide',
     el: (
       <Overview
@@ -61,7 +67,7 @@ const ROUTES: Route[] = [
   // heavy paste (the inline result's "Expand ->" link targets it).
   { path: '/analyzer', label: 'Analyzer', size: 'default', el: <PowerShellAnalyzer />, nav: false },
   { path: '/desk', label: 'Desk', size: 'default', el: <DataDeskRoute /> },
-  { path: '/actor', label: 'Threat Intelligence', size: 'default', el: <ActorProfileRoute /> },
+  { path: '/actor', label: 'Intel', size: 'default', el: <ActorProfileRoute /> },
   { path: '/gallery', label: 'Gallery', size: 'default', el: <Gallery />, nav: false },
   { path: '/reports', label: 'My reports', size: 'default', el: <MyReports />, nav: false },
   { path: '/admin', label: 'Admin', size: 'default', el: <Admin />, nav: false },
