@@ -55,15 +55,17 @@ function ExternalLink({
   )
 }
 
-function TechniqueChip({ id }: { id: string }) {
+function TechniqueChip({ id, name }: { id: string; name?: string }) {
   return (
     <a
       href={techniqueUrl(id)}
       target="_blank"
       rel="noopener noreferrer"
-      className="rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-muted transition-colors duration-150 ease-brand hover:border-line-bright hover:text-accent"
+      title={name ? `${id} · ${name}` : id}
+      className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 transition-colors duration-150 ease-brand hover:border-line-bright"
     >
-      {id}
+      <span className="font-mono text-micro font-semibold text-accent-dim">{id}</span>
+      {name && <span className="text-micro text-muted">{name}</span>}
     </a>
   )
 }
@@ -563,9 +565,11 @@ function ClaimedVictimsPanel({
 function MitreFingerprintPanel({
   fingerprint,
   slugSet,
+  techniqueNames,
 }: {
   fingerprint: NonNullable<ProfileResult['fingerprint']>
   slugSet: Set<string>
+  techniqueNames?: Record<string, string>
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -585,7 +589,7 @@ function MitreFingerprintPanel({
           <SectionLabel>Techniques · {num(fingerprint.techniques.length)}</SectionLabel>
           <div className="flex flex-wrap gap-1.5">
             {fingerprint.techniques.map((t) => (
-              <TechniqueChip key={t} id={t} />
+              <TechniqueChip key={t} id={t} name={techniqueNames?.[t]} />
             ))}
           </div>
         </div>
@@ -705,9 +709,11 @@ function RelatedPanel({ related }: { related: ProfileResult['related'] }) {
 export function ActorProfile({
   profile,
   slugSet,
+  techniqueNames,
 }: {
   profile: ProfileResult
   slugSet: Set<string>
+  techniqueNames?: Record<string, string>
 }) {
   const { fingerprint, ransomware, reporting, intel, activity, claimedVictims, associatedMalware } =
     profile
@@ -778,7 +784,11 @@ export function ActorProfile({
           {/* ATT&CK fingerprint */}
           {fingerprint && (
             <BoardPanel eyebrow="ATT&CK fingerprint">
-              <MitreFingerprintPanel fingerprint={fingerprint} slugSet={slugSet} />
+              <MitreFingerprintPanel
+                fingerprint={fingerprint}
+                slugSet={slugSet}
+                techniqueNames={techniqueNames}
+              />
             </BoardPanel>
           )}
 

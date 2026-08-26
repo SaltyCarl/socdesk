@@ -270,3 +270,27 @@ def test_ransomware_intel_seed_vendor_entries_have_no_advisory_or_note_image():
     for g in vendor_groups:
         assert "note_image" not in g, f"{g['slug']} is vendor-sourced but carries note_image"
         assert any(g.get(f) for f in fact_fields), f"{g['slug']} has no atomic facts"
+
+
+def test_technique_names_schema_accepts_id_to_name_map():
+    good = {"generated_at": "x", "schema_version": 1,
+            "names": {"T1566": "Phishing", "T1059.001": "PowerShell"}}
+    assert validate_payload("technique_names.json", good, "schemas") == []
+
+
+def test_technique_names_schema_accepts_empty_catalog():
+    """Empty is valid — the first run before the ATT&CK collector fires (or a
+    cached run) publishes {} rather than crashing the gate."""
+    empty = {"generated_at": "x", "schema_version": 1, "names": {}}
+    assert validate_payload("technique_names.json", empty, "schemas") == []
+
+
+def test_technique_names_schema_rejects_non_technique_key_and_nonstring_value():
+    assert validate_payload(
+        "technique_names.json",
+        {"generated_at": "x", "schema_version": 1, "names": {"NOTANID": "x"}},
+        "schemas") != []
+    assert validate_payload(
+        "technique_names.json",
+        {"generated_at": "x", "schema_version": 1, "names": {"T1566": 5}},
+        "schemas") != []

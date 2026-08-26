@@ -99,6 +99,15 @@ export interface ProfilePayload {
   profiles: Profile[]
 }
 
+/** ATT&CK technique id → human name (technique_names.json). A separate catalog
+ *  so the per-actor `techniques` list stays id-only (the relations pipeline
+ *  consumes it as strings); the frontend joins names for display. */
+export interface TechniqueNamesPayload {
+  generated_at?: string
+  schema_version?: number
+  names: Record<string, string>
+}
+
 /** A profile with the origin catalog stamped on, so one merged grid can carry
  *  both actors and malware without losing which is which. */
 export type ProfileKind = 'actor' | 'malware'

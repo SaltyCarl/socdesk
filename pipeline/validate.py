@@ -14,6 +14,7 @@ SCHEMA_FOR = {
     "trends.json": "trends.schema.json",
     "actors.json": "actors.schema.json",
     "malware.json": "actors.schema.json",
+    "technique_names.json": "technique_names.schema.json",
     "relations.json": "relations.schema.json",
     "threat_ips.json": "threat_ips.schema.json",
     "community_reports.json": "community_reports.schema.json",

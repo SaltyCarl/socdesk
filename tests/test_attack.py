@@ -13,3 +13,5 @@ def test_attack_profiles(fake_fetch):
     assert a["software"] == ["TestRAT"]
     malware = r.extra["malware"]
     assert malware[0]["attack_id"] == "S9999"
+    # id -> name catalog for the frontend to label the bare technique ids
+    assert r.extra["technique_names"] == {"T1566": "Phishing"}

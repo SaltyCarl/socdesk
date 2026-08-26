@@ -13,6 +13,7 @@ import type {
   ProfilePayload,
   RansomIntelPayload,
   RelationsPayload,
+  TechniqueNamesPayload,
 } from '../components/views/types'
 
 /**
@@ -47,6 +48,9 @@ export function ActorProfileRoute() {
   const feed = useStateData<FeedPayload>('feed')
   const relations = useStateData<RelationsPayload>('relations')
   const intel = useStateData<RansomIntelPayload>('ransomware_intel')
+  // ATT&CK id→name catalog — labels the fingerprint's bare technique ids. Loads
+  // independently; the profile renders fine (ids only) before/without it.
+  const techniqueNames = useStateData<TechniqueNamesPayload>('technique_names')
 
   const [slug, setSlug] = useState<string>(readSlug)
   useEffect(() => {
@@ -145,7 +149,11 @@ export function ActorProfileRoute() {
       >
         {slug ? (
           hasData && profile ? (
-            <ActorProfile profile={profile} slugSet={slugSet} />
+            <ActorProfile
+              profile={profile}
+              slugSet={slugSet}
+              techniqueNames={techniqueNames.data?.names}
+            />
           ) : (
             <EmptyState title={`No profile on file for “${slug}”`}>
               Nothing in the current snapshot matches this name, alias, or ATT&amp;CK id. It may not

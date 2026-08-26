@@ -57,4 +57,16 @@ def collect(fetch, now):
             })
     actors.sort(key=lambda a: a["attack_id"])
     malware.sort(key=lambda m: m["attack_id"])
-    return CollectorResult(source=SOURCE, extra={"actors": actors, "malware": malware})
+    # id -> human name for every technique, so the frontend can label the bare
+    # T-ids an actor's fingerprint carries (the name is right here in the STIX;
+    # the per-actor `techniques` list stays id-only — relations.py consumes it as
+    # strings — and the names ride a separate committed catalog).
+    technique_names = {
+        aid: o["name"]
+        for o in by_id.values()
+        if o["type"] == "attack-pattern" and (aid := _attack_id(o))
+    }
+    return CollectorResult(
+        source=SOURCE,
+        extra={"actors": actors, "malware": malware, "technique_names": technique_names},
+    )

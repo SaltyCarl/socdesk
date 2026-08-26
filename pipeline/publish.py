@@ -81,8 +81,12 @@ def build_site_data(results, cve_rows, health, prior, now, fetch=None,
     if "attack" in ok:
         payloads["actors.json"] = _envelope(now, profiles=ok["attack"].extra["actors"])
         payloads["malware.json"] = _envelope(now, profiles=ok["attack"].extra["malware"])
+        # id -> technique-name catalog (labels the fingerprint's bare T-ids). .get
+        # so an older attack result without the key can't crash the publish path.
+        payloads["technique_names.json"] = _envelope(
+            now, names=ok["attack"].extra.get("technique_names", {}))
     else:
-        for name in ("actors.json", "malware.json"):
+        for name in ("actors.json", "malware.json", "technique_names.json"):
             if name in prior:
                 payloads[name] = dict(prior[name], generated_at=iso(now))
 

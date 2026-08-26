@@ -24,15 +24,16 @@ def test_build_site_data_shapes():
         CollectorResult(source="attack", extra={
             "actors": [{"name": "A", "attack_id": "G1", "aliases": [],
                         "description": "", "techniques": [], "software": []}],
-            "malware": []}),
+            "malware": [], "technique_names": {"T1566": "Phishing"}}),
     ]
     health = [{"source": "rss", "ok": True, "error": "", "items": 1,
                "last_success_at": iso(FIXED_NOW)}]
     payloads = build_site_data(results, cve_rows=[], health=health,
                                prior={}, now=FIXED_NOW)
     assert set(payloads) == {"feed.json", "cves.json", "health.json",
-                             "actors.json", "malware.json", "relations.json",
-                             "threat_ips.json"}
+                             "actors.json", "malware.json", "technique_names.json",
+                             "relations.json", "threat_ips.json"}
+    assert payloads["technique_names.json"]["names"] == {"T1566": "Phishing"}
     for p in payloads.values():
         assert p["generated_at"] == iso(FIXED_NOW) and p["schema_version"] == 1
 
