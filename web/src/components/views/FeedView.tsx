@@ -4,6 +4,7 @@ import type { FeedItem } from './types'
 import { rel, safeUrl, num, pct } from './format'
 import { KevBadge, DataChip, ClaimsChip } from './Badges'
 import { EmptyState } from './states'
+import { VictimLogo } from './VictimLogo'
 import { claimCount } from '../overview/aggregations'
 import { ActorLink } from '../overview/board-ui'
 
@@ -125,6 +126,28 @@ function railActorName(item: FeedItem): string | null {
 }
 function cveId(item: FeedItem): string | null {
   return item.category === 'vulnerability' ? (item.entities?.cves?.[0] ?? null) : null
+}
+
+/** A ransomware.live item that names a specific victim renders VICTIM-FIRST:
+ *  the org (with its logo + domain) is the attributed fact worth reading; the
+ *  posting group is the claimant, already carried by the row's actor link. Null
+ *  for non-leak or unnamed items, which keep the generic "{group} posted…" title.
+ *  The victim/domain are pipeline-sanitized (ransomwarelive.py) inert text. */
+function leakClaimVictim(item: FeedItem): { victim: string; domain?: string } | null {
+  if (item.source !== 'ransomwarelive' || !item.victim) return null
+  return { victim: item.victim, domain: item.domain }
+}
+
+/** Provenance line for a leak-site claim: the source is a Tor (.onion) leak
+ *  site and the claim is unverified. Replaces the (deliberately) dead .onion
+ *  link — the analyst sees WHERE it came from and that it isn't confirmed,
+ *  without SOCDesk ever hyperlinking criminal infrastructure. */
+function LeakProvenance() {
+  return (
+    <span className="font-mono text-micro text-faint">
+      leak-site claim · .onion (Tor) · unverified
+    </span>
+  )
 }
 
 /** One decorated + pre-keyed item, so the priority sort keys are computed once. */
@@ -267,6 +290,7 @@ function Lead({ item, sig }: { item: FeedItem; sig: Signals }) {
   const href = safeUrl(item.url)
   const meta = catMeta(item.category)
   const actors = item.entities?.actors ?? []
+  const claim = leakClaimVictim(item)
   const title = cleanTitle(item)
 
   return (
@@ -280,7 +304,11 @@ function Lead({ item, sig }: { item: FeedItem; sig: Signals }) {
       </div>
 
       <h2 className="mt-4 max-w-4xl font-display text-xl font-extrabold tracking-display text-paper sm:text-2xl">
-        {href ? (
+        {claim ? (
+          // Victim-first: the claimed org is the headline fact. .onion is never
+          // a link, so this is always plain text — the group is the actor chip.
+          claim.victim
+        ) : href ? (
           <a
             href={href}
             target="_blank"
@@ -294,8 +322,18 @@ function Lead({ item, sig }: { item: FeedItem; sig: Signals }) {
         )}
       </h2>
 
+      {claim?.domain && (
+        <p className="mt-2 font-mono text-sm text-faint">{claim.domain}</p>
+      )}
+
       {item.summary && (
         <p className="mt-3 max-w-2xl text-md text-muted">{item.summary}</p>
+      )}
+
+      {claim && (
+        <div className="mt-3">
+          <LeakProvenance />
+        </div>
       )}
 
       <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -331,6 +369,7 @@ function Row({ item, sig }: { item: FeedItem; sig: Signals }) {
   const actors = item.entities?.actors ?? []
   // The primary actor is already the left-rail link; don't repeat it as a chip.
   const extraActors = actor ? actors.filter((a) => a !== actor) : actors
+  const claim = leakClaimVictim(item)
   const title = cleanTitle(item)
 
   return (
@@ -355,7 +394,23 @@ function Row({ item, sig }: { item: FeedItem; sig: Signals }) {
 
       {/* the report */}
       <div className="min-w-0">
-        {href ? (
+        {claim ? (
+          // Victim-first: the claimed org (with its logo) is the fact; the group
+          // is the left-rail actor link. .onion is never a link (see safeUrl).
+          <div className="flex items-start gap-3">
+            <VictimLogo domain={claim.domain} name={claim.victim} />
+            <div className="min-w-0">
+              <span className="block truncate text-base font-semibold text-paper">
+                {claim.victim}
+              </span>
+              {claim.domain && (
+                <span className="block truncate font-mono text-micro text-faint">
+                  {claim.domain}
+                </span>
+              )}
+            </div>
+          </div>
+        ) : href ? (
           <a
             href={href}
             target="_blank"
@@ -369,6 +424,11 @@ function Row({ item, sig }: { item: FeedItem; sig: Signals }) {
         )}
         {item.summary && (
           <p className="mt-1 line-clamp-2 text-xs text-muted">{item.summary}</p>
+        )}
+        {claim && (
+          <div className="mt-1.5">
+            <LeakProvenance />
+          </div>
         )}
         {extraActors.length > 0 && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">

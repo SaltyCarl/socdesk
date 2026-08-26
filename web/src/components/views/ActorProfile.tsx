@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../ui'
 import { MonoTag } from './Badges'
 import { rel, safeUrl, num } from './format'
 import { intelSource, isVendorSourced, vendorLabel } from './intelSource'
-import { faviconSrc, monogram } from './logo'
+import { VictimLogo } from './VictimLogo'
 import { PIVOTABLE, provenance, techniqueUrl } from './relations'
 import { ActorLink, BoardPanel, CveLink, PanelEmpty } from '../overview/board-ui'
 import type { ProfileResult, TimelineBucket } from './profiles'
@@ -493,42 +493,6 @@ function IntelPanel({ intel }: { intel: RansomIntel }) {
 }
 
 /* ---------------- claimed victims (attributed leak-site facts) ------------ */
-
-/** A victim org's favicon via the same-origin proxy, falling back to a brand-
- *  coloured monogram on any load error (or an absent/invalid domain). The proxy
- *  is what keeps the page CSP at `img-src 'self'` and the victim domain off any
- *  third-party CDN — see functions/api/favicon.js. */
-function VictimLogo({ domain, name }: { domain?: string; name: string }) {
-  const src = faviconSrc(domain)
-  const [failed, setFailed] = useState(false)
-  const monoBox =
-    'flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-[var(--edge-accent)] bg-[var(--tint-accent)] font-mono text-micro font-semibold text-accent'
-
-  if (!src || failed) {
-    return (
-      <span aria-hidden="true" className={monoBox}>
-        {monogram(name)}
-      </span>
-    )
-  }
-  return (
-    <img
-      src={src}
-      alt=""
-      width={28}
-      height={28}
-      loading="lazy"
-      onError={() => setFailed(true)}
-      // The proxy answers "no icon" with a 1×1 transparent PNG (a SUCCESSFUL
-      // load, so onError never fires) — detect that sentinel on load and fall
-      // back to the monogram, else the row shows an empty square.
-      onLoad={(e) => {
-        if (e.currentTarget.naturalWidth <= 1) setFailed(true)
-      }}
-      className="h-7 w-7 shrink-0 rounded-sm border border-line bg-panel-soft object-contain"
-    />
-  )
-}
 
 /** One claimed-victim ledger row. The claim link is a real link only for a
  *  clearnet URL; an .onion address is rendered as PLAIN, non-navigable text
