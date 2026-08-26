@@ -51,12 +51,20 @@ jobs:
         run: python run_pipeline.py
 
       - name: Commit state snapshots
+        # -X theirs: when two runs overlap (cron + a manual dispatch), both
+        # regenerate data/state/*.json and the later run's rebase used to
+        # CONFLICT on every snapshot file and kill the whole run BEFORE the
+        # deploy step (bit three times). During a rebase, "theirs" is the
+        # commit being replayed — THIS run's just-collected snapshots — so
+        # conflicts auto-resolve to the freshest data. Safe by construction:
+        # this commit only ever touches data/state, so the strategy option
+        # can never clobber code or docs.
         run: |
           git config user.name "SaltyCarl"
           git config user.email "CarlosSanchez1994@live.com"
           git add data/state
           git diff --cached --quiet || git commit -m "data: refresh snapshots"
-          git pull --rebase origin main
+          git pull --rebase -X theirs origin main
           git push
         # GITHUB_TOKEN pushes cannot retrigger workflows -> no cron/push loop.
         # The Framework's brief.json pushes use a deploy key, so they DO
