@@ -1,7 +1,7 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MonoTag } from './Badges'
-import { num } from './format'
+import { num, rel } from './format'
 import { CountUp } from './CountUp'
 import { EmptyState } from './states'
 import { ActorLink } from '../overview/board-ui'
@@ -48,7 +48,18 @@ const KIND_LABEL: Record<ProfileKind, string> = {
   malware: 'Malware',
 }
 
+/** The card's density line — whichever ingested facts exist, joined plainly.
+ *  Absent facts render nothing (honest-empty; no filler, no zero-counts). */
+function metaLine(entry: ProfileIndexEntry): string {
+  const parts: string[] = []
+  if (entry.techniqueCount) parts.push(`${num(entry.techniqueCount)} techniques`)
+  if (entry.softwareCount) parts.push(`${num(entry.softwareCount)} tools`)
+  if (entry.lastClaimAt) parts.push(`last claim ${rel(entry.lastClaimAt)}`)
+  return parts.join(' · ')
+}
+
 function ProfileRow({ entry }: { entry: ProfileIndexEntry }) {
+  const meta = metaLine(entry)
   return (
     <ActorLink
       name={entry.slug}
@@ -78,6 +89,10 @@ function ProfileRow({ entry }: { entry: ProfileIndexEntry }) {
           {entry.aliases.slice(0, 3).join(' · ')}
         </span>
       )}
+      {entry.blurb && (
+        <span className="line-clamp-2 text-xs leading-relaxed text-muted">{entry.blurb}</span>
+      )}
+      {meta && <span className="font-mono text-micro text-faint">{meta}</span>}
     </ActorLink>
   )
 }

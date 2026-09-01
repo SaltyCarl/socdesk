@@ -78,6 +78,28 @@ export interface ProfileIndexEntry {
    *  window — mirrors `claimCount > 0`, carried as its own flag so the
    *  directory badge doesn't have to re-derive it from the tally. */
   hasClaims?: boolean
+  /** Word-boundary-capped opener of the ATT&CK description (real ingested
+   *  text, never synthesized) — the card's one-glance "what is this". Only
+   *  for entries backed by a Profile. */
+  blurb?: string
+  /** ATT&CK technique / software list sizes (when > 0) — a cheap density
+   *  read on the card ("130 techniques · 19 tools"). */
+  techniqueCount?: number
+  softwareCount?: number
+  /** Newest leak-site claim timestamp for an actively-claiming group — the
+   *  card renders it as recency ("last claim 2d ago"). */
+  lastClaimAt?: string
+}
+
+/** Card blurb: a word-boundary hard-cap of the cleaned description. NEVER a
+ *  sentence-terminator cut — ATT&CK prose is full of "U.S." / "(TG-2889)."
+ *  constructs that a sentence regex garbage-cuts mid-thought. */
+export function blurbOf(description?: string): string | undefined {
+  const clean = cleanDescription(description ?? '')
+  if (!clean) return undefined
+  if (clean.length <= 160) return clean
+  const cut = clean.slice(0, 160)
+  return cut.slice(0, cut.lastIndexOf(' ')) + '…'
 }
 
 /** Name + alias → profile, first-writer-wins (so a canonical name is never
@@ -120,12 +142,22 @@ export function buildProfileIndex(
   const aliasesOf = (p: Profile): string[] =>
     (p.aliases ?? []).filter((a) => a && a.toLowerCase() !== p.name.toLowerCase())
 
+  /** The card-density fields a backing Profile contributes (blurb + counts) —
+   *  shared by all three passes that resolve one, so an alias-resolved entry
+   *  (Midnight Blizzard → APT29) is never inconsistently bare. */
+  const enrichmentOf = (p: Profile) => ({
+    blurb: blurbOf(p.description),
+    techniqueCount: (p.techniques?.length ?? 0) > 0 ? p.techniques!.length : undefined,
+    softwareCount: (p.software?.length ?? 0) > 0 ? p.software!.length : undefined,
+  })
+
   for (const p of actors) {
     if (!p?.name) continue
     const slug = p.name.toLowerCase()
     if (bySlug.has(slug)) continue
     bySlug.set(slug, {
       slug, name: p.name, kind: 'actor', hasMitre: true, attack_id: p.attack_id, aliases: aliasesOf(p),
+      ...enrichmentOf(p),
     })
   }
   for (const p of malware) {
@@ -134,28 +166,34 @@ export function buildProfileIndex(
     if (bySlug.has(slug)) continue
     bySlug.set(slug, {
       slug, name: p.name, kind: 'malware', hasMitre: true, attack_id: p.attack_id, aliases: aliasesOf(p),
+      ...enrichmentOf(p),
     })
   }
 
-  // ransomware.live groups — sum each group's claims with the board's parser.
-  const claims = new Map<string, { raw: string; count: number }>()
+  // ransomware.live groups — sum each group's claims with the board's parser,
+  // and keep the newest claim timestamp so the card can read as recency.
+  const claims = new Map<string, { raw: string; count: number; last: string }>()
   for (const it of feed) {
     if (it.source !== 'ransomwarelive') continue
     const raw = it.entities?.actors?.[0]
     if (!raw) continue
     const slug = raw.toLowerCase()
-    const cur = claims.get(slug) ?? { raw, count: 0 }
+    const cur = claims.get(slug) ?? { raw, count: 0, last: '' }
     cur.count += claimCount(it)
+    const at = it.published_at ?? ''
+    if (at > cur.last) cur.last = at
     claims.set(slug, cur)
   }
-  for (const [slug, { raw, count }] of claims) {
+  for (const [slug, { raw, count, last }] of claims) {
     const existing = bySlug.get(slug)
     if (existing) {
       existing.claimCount = count
       existing.hasClaims = count > 0
+      if (last) existing.lastClaimAt = last
     } else {
       bySlug.set(slug, {
         slug, name: raw, kind: 'ransomware', hasMitre: false, claimCount: count, hasClaims: count > 0,
+        ...(last ? { lastClaimAt: last } : {}),
       })
     }
   }
@@ -186,6 +224,9 @@ export function buildProfileIndex(
         hasMitre: Boolean(mitre),
         attack_id: mitre?.attack_id,
         aliases: mitre ? aliasesOf(mitre) : undefined,
+        // same enrichment as a direct-name entry — an alias-resolved actor
+        // (Midnight Blizzard → APT29) must not render inconsistently bare.
+        ...(mitre ? enrichmentOf(mitre) : {}),
       })
     }
   }

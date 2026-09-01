@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildProfileIndex, cleanDescription, profileFor } from '../profiles'
+import { blurbOf, buildProfileIndex, cleanDescription, profileFor } from '../profiles'
 import type { FeedItem, Profile, RansomIntel, RelationsPayload } from '../types'
 
 // em-dash (U+2014) is the real separator ransomware.live uses in a single-claim
@@ -324,6 +324,60 @@ describe('buildProfileIndex — union + dedup + merged flags', () => {
   it('does not duplicate a slug', () => {
     const slugs = index.map((e) => e.slug)
     expect(new Set(slugs).size).toBe(slugs.length)
+  })
+})
+
+describe('buildProfileIndex — card enrichment (blurb / counts / recency)', () => {
+  const index = buildProfileIndex(actors, malware, feed, [])
+  const by = (slug: string) => index.find((e) => e.slug === slug)
+
+  it('carries a cleaned blurb + technique/software counts from the backing profile', () => {
+    const axiom = by('axiom')
+    expect(axiom?.blurb).toBe('Axiom is a suspected Chinese espionage group.')
+    expect(axiom?.techniqueCount).toBe(2)
+    expect(axiom?.softwareCount).toBe(2)
+  })
+
+  it('omits blurb and counts when the profile has none (no filler, no zeros)', () => {
+    const kimsuky = by('kimsuky')
+    expect(kimsuky?.blurb).toBeUndefined()
+    expect(kimsuky?.techniqueCount).toBeUndefined()
+    expect(kimsuky?.softwareCount).toBeUndefined()
+  })
+
+  it('carries the NEWEST claim timestamp for an actively-claiming group', () => {
+    // kairos posts r1 (12T20), r2 (12T18), r3 (13T00) — newest wins.
+    expect(by('kairos')?.lastClaimAt).toBe('2026-08-13T00:00:00Z')
+  })
+
+  it('threads enrichment through the alias-resolved reporting pass (Midnight Blizzard → APT29)', () => {
+    const mb = by('midnight blizzard')
+    expect(mb?.blurb).toBe('APT29 is a Russian state-sponsored group.')
+    expect(mb?.techniqueCount).toBe(1)
+    expect(mb?.softwareCount).toBe(1)
+  })
+})
+
+describe('blurbOf — word-boundary hard-cap, never a sentence cut', () => {
+  it('passes a short cleaned description through unchanged', () => {
+    expect(blurbOf('A short description.')).toBe('A short description.')
+  })
+  it('returns undefined for empty/absent text', () => {
+    expect(blurbOf('')).toBeUndefined()
+    expect(blurbOf(undefined)).toBeUndefined()
+  })
+  it('does NOT stop at an abbreviation period ("U.S.") — caps at a word boundary instead', () => {
+    // Real ATT&CK failure shape: a period inside "U.S." well before char 160.
+    const long =
+      'APT17 is a China-based threat group that has conducted network intrusions against U.S. government entities, the defense industry, law firms, information technology companies, mining companies, and non-government organizations.'
+    const b = blurbOf(long)!
+    expect(b.endsWith('…')).toBe(true)
+    expect(b.length).toBeLessThanOrEqual(161)
+    // proof it sailed past "U.S." rather than sentence-cutting there
+    expect(b.length).toBeGreaterThan('APT17 is a China-based threat group that has conducted network intrusions against U.S.'.length)
+    // never cuts mid-word: the char before the ellipsis ends a whole word
+    expect(long.startsWith(b.slice(0, -1))).toBe(true)
+    expect(long[b.length - 1]).toBe(' ')
   })
 })
 
