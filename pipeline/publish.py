@@ -90,6 +90,22 @@ def build_site_data(results, cve_rows, health, prior, now, fetch=None,
             if name in prior:
                 payloads[name] = dict(prior[name], generated_at=iso(now))
 
+    # Name-only ransomware-group coverage (R3: bare names, attributed, link-out).
+    # ⚠ Publish fresh only when NON-EMPTY (or no prior exists): gate() falls back
+    # to prior only on INVALID payloads, so an empty-but-valid names:[] from a
+    # degraded fetch would silently clobber last-known-good. First run keeps the
+    # valid empty envelope so the asset exists from day one.
+    if "ransomwarelive_groups" in ok:
+        group_names = ok["ransomwarelive_groups"].extra.get("group_names", [])
+        if group_names or "ransomware_groups.json" not in prior:
+            payloads["ransomware_groups.json"] = _envelope(now, names=group_names)
+        else:
+            payloads["ransomware_groups.json"] = dict(
+                prior["ransomware_groups.json"], generated_at=iso(now))
+    elif "ransomware_groups.json" in prior:
+        payloads["ransomware_groups.json"] = dict(
+            prior["ransomware_groups.json"], generated_at=iso(now))
+
     # Geolocated threat surface (abuse.ch C2/blocklist IPs). Fresh data wins; a
     # transient upstream failure keeps last-known-good rather than blanking the
     # globe; the very first run with neither publishes the empty envelope.

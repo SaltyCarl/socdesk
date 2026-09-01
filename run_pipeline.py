@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from collectors import CACHED_COLLECTORS, COLLECTORS, attack
+from collectors import CACHED_COLLECTORS, COLLECTORS, GROUPS_COLLECTOR, attack
 from collectors.base import iso, run_all
 from pipeline.asn import build_asn_leaderboard
 from pipeline.community import build_community_reports
@@ -57,6 +57,14 @@ def _attack_is_fresh(state, now):
     return fresh and "technique_names.json" in state
 
 
+def _groups_is_fresh(state, now):
+    """The ransomware.live /v2/groups list is 764 KB behind a 1-req/min
+    personal-use rate limit and changes slowly — fetch it every CACHE_DAYS,
+    not twice-hourly. Absent committed state (cold start) → stale → run once."""
+    gen = state.get("ransomware_groups.json", {}).get("generated_at", "")
+    return gen >= iso(now - timedelta(days=GROUPS_COLLECTOR.CACHE_DAYS))
+
+
 def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
         env=None):
     out_dir, state_dir = Path(out_dir), Path(state_dir)
@@ -66,6 +74,8 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
     modules = list(COLLECTORS)
     if not _attack_is_fresh(state, now):
         modules += CACHED_COLLECTORS
+    if not _groups_is_fresh(state, now):
+        modules.append(GROUPS_COLLECTOR)
     results, health = run_all(modules, fetch, now)
 
     prior_cves = state.get("cves.json", {}).get("cves", [])

@@ -285,6 +285,23 @@ def test_technique_names_schema_accepts_empty_catalog():
     assert validate_payload("technique_names.json", empty, "schemas") == []
 
 
+def test_ransomware_groups_schema_accepts_names_and_empty():
+    good = {"generated_at": "x", "schema_version": 1, "names": ["nitrogen", "Black X"]}
+    assert validate_payload("ransomware_groups.json", good, "schemas") == []
+    empty = {"generated_at": "x", "schema_version": 1, "names": []}
+    assert validate_payload("ransomware_groups.json", empty, "schemas") == []
+
+
+def test_ransomware_groups_schema_rejects_oversize_and_bad_types():
+    over = {"generated_at": "x", "schema_version": 1,
+            "names": [f"g{n}" for n in range(1001)]}
+    assert validate_payload("ransomware_groups.json", over, "schemas") != []
+    long_name = {"generated_at": "x", "schema_version": 1, "names": ["a" * 201]}
+    assert validate_payload("ransomware_groups.json", long_name, "schemas") != []
+    bad = {"generated_at": "x", "schema_version": 1, "names": [5]}
+    assert validate_payload("ransomware_groups.json", bad, "schemas") != []
+
+
 def test_technique_names_schema_rejects_non_technique_key_and_nonstring_value():
     assert validate_payload(
         "technique_names.json",

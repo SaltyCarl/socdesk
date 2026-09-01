@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { blurbOf, buildProfileIndex, cleanDescription, profileFor } from '../profiles'
+import {
+  blurbOf,
+  buildProfileIndex,
+  cleanDescription,
+  compareEntries,
+  matchesFilter,
+  profileFor,
+} from '../profiles'
+import type { ProfileIndexEntry } from '../profiles'
 import type { FeedItem, Profile, RansomIntel, RelationsPayload } from '../types'
 
 // em-dash (U+2014) is the real separator ransomware.live uses in a single-claim
@@ -355,6 +363,57 @@ describe('buildProfileIndex — card enrichment (blurb / counts / recency)', () 
     expect(mb?.blurb).toBe('APT29 is a Russian state-sponsored group.')
     expect(mb?.techniqueCount).toBe(1)
     expect(mb?.softwareCount).toBe(1)
+  })
+})
+
+describe('buildProfileIndex — name-only coverage layer', () => {
+  const index = buildProfileIndex(actors, malware, feed, [], ['Nitrogen', 'kairos', 'Akira', ''])
+
+  it('adds an unlisted tracked group as a nameOnly ransomware entry', () => {
+    const n = index.find((e) => e.slug === 'nitrogen')
+    expect(n).toMatchObject({ name: 'Nitrogen', kind: 'ransomware', hasMitre: false, nameOnly: true })
+  })
+
+  it('never overrides a substantive entry (active group / MITRE actor win)', () => {
+    // kairos posts claims; akira is a MITRE actor — neither becomes nameOnly.
+    expect(index.find((e) => e.slug === 'kairos')?.nameOnly).toBeUndefined()
+    expect(index.find((e) => e.slug === 'kairos')?.claimCount).toBe(7)
+    expect(index.find((e) => e.slug === 'akira')?.kind).toBe('actor')
+    expect(index.find((e) => e.slug === 'akira')?.nameOnly).toBeUndefined()
+  })
+
+  it('skips empty names and never duplicates a slug', () => {
+    const slugs = index.map((e) => e.slug)
+    expect(new Set(slugs).size).toBe(slugs.length)
+    expect(slugs).not.toContain('')
+  })
+})
+
+describe('compareEntries + matchesFilter — coverage-layer ranking & visibility', () => {
+  const nameOnly: ProfileIndexEntry = {
+    slug: 'aaa-crew', name: 'AAA Crew', kind: 'ransomware', hasMitre: false, nameOnly: true,
+  }
+  const active: ProfileIndexEntry = {
+    slug: 'kairos', name: 'kairos', kind: 'ransomware', hasMitre: false, claimCount: 7,
+  }
+  const seededQuiet: ProfileIndexEntry = {
+    slug: 'quiet', name: 'Quiet', kind: 'ransomware', hasMitre: false, hasIntel: true,
+  }
+  const actor: ProfileIndexEntry = { slug: 'apt1', name: 'APT1', kind: 'actor', hasMitre: true }
+
+  it('ranks the nameOnly tier LAST despite alphabetical advantage', () => {
+    const sorted = [nameOnly, active, seededQuiet, actor].sort(compareEntries)
+    expect(sorted[0].slug).toBe('kairos') // claims outrank all
+    expect(sorted[sorted.length - 1].slug).toBe('aaa-crew') // nameOnly last
+  })
+
+  it('the Ransomware chip shows kind=ransomware entries even without claims', () => {
+    // Regression: the old predicate (claimCount != null) hid seeded-quiet
+    // groups and would have hidden the whole coverage layer.
+    expect(matchesFilter(nameOnly, 'ransomware')).toBe(true)
+    expect(matchesFilter(seededQuiet, 'ransomware')).toBe(true)
+    expect(matchesFilter(active, 'ransomware')).toBe(true)
+    expect(matchesFilter(actor, 'ransomware')).toBe(false)
   })
 })
 

@@ -89,6 +89,10 @@ export interface ProfileIndexEntry {
   /** Newest leak-site claim timestamp for an actively-claiming group — the
    *  card renders it as recency ("last claim 2d ago"). */
   lastClaimAt?: string
+  /** Coverage-layer entry: the group exists ONLY as a bare ransomware.live
+   *  name (no claims this window, no ATT&CK, no intel seed). Renders a
+   *  link-out profile stub and sorts below every substantive entry. */
+  nameOnly?: true
 }
 
 /** Card blurb: a word-boundary hard-cap of the cleaned description. NEVER a
@@ -100,6 +104,36 @@ export function blurbOf(description?: string): string | undefined {
   if (clean.length <= 160) return clean
   const cut = clean.slice(0, 160)
   return cut.slice(0, cut.lastIndexOf(' ')) + '…'
+}
+
+/** The directory's kind-filter keys (the chip bar). */
+export type DirectoryFilter = 'all' | 'ransomware' | 'apt' | 'malware'
+
+/** A single filter's membership test — additive flags, so a both-kinds group
+ *  (Akira) legitimately answers to both Ransomware and APT. The ransomware
+ *  predicate includes kind, not just an active claim tally — a claims-only
+ *  test hid seeded-quiet groups and would have hidden the entire name-only
+ *  coverage layer from the exact chip an analyst hunting a group uses. */
+export function matchesFilter(e: ProfileIndexEntry, f: DirectoryFilter): boolean {
+  switch (f) {
+    case 'ransomware':
+      return e.claimCount != null || e.kind === 'ransomware'
+    case 'apt':
+      return e.kind === 'actor'
+    case 'malware':
+      return e.kind === 'malware'
+    default:
+      return true
+  }
+}
+
+/** Directory order: substantive entries first (claim volume desc, then name),
+ *  the name-only coverage tier LAST (alphabetical) — curated/active groups
+ *  must outrank a bare tracked name. */
+export function compareEntries(a: ProfileIndexEntry, b: ProfileIndexEntry): number {
+  const tier = Number(a.nameOnly ?? false) - Number(b.nameOnly ?? false)
+  if (tier !== 0) return tier
+  return (b.claimCount ?? -1) - (a.claimCount ?? -1) || a.name.localeCompare(b.name)
 }
 
 /** Name + alias → profile, first-writer-wins (so a canonical name is never
@@ -136,6 +170,7 @@ export function buildProfileIndex(
   malware: Profile[],
   feed: FeedItem[],
   intel: RansomIntel[],
+  knownGroups: string[] = [],
 ): ProfileIndexEntry[] {
   const bySlug = new Map<string, ProfileIndexEntry>()
 
@@ -229,6 +264,18 @@ export function buildProfileIndex(
         ...(mitre ? enrichmentOf(mitre) : {}),
       })
     }
+  }
+
+  // Name-only coverage layer (ransomware_groups.json, R3-gated bare names) —
+  // LAST, so a substantive entry (claims / seed / ATT&CK / reporting) is never
+  // shadowed or modified by a bare name. Closes the "no Nitrogen" gap: every
+  // ransomware.live-tracked group is at least findable + link-out-able.
+  for (const raw of knownGroups) {
+    const name = (raw ?? '').trim()
+    if (!name) continue
+    const slug = name.toLowerCase()
+    if (bySlug.has(slug)) continue
+    bySlug.set(slug, { slug, name, kind: 'ransomware', hasMitre: false, nameOnly: true })
   }
 
   return [...bySlug.values()]

@@ -5,7 +5,8 @@ import { num, rel } from './format'
 import { CountUp } from './CountUp'
 import { EmptyState } from './states'
 import { ActorLink } from '../overview/board-ui'
-import type { ProfileIndexEntry, ProfileKind } from './profiles'
+import { compareEntries, matchesFilter } from './profiles'
+import type { DirectoryFilter, ProfileIndexEntry, ProfileKind } from './profiles'
 
 /**
  * ProfileDirectory — the searchable index of every addressable profile (MITRE
@@ -18,29 +19,14 @@ import type { ProfileIndexEntry, ProfileKind } from './profiles'
 const INIT = 30
 const STEP = 60
 
-type Filter = 'all' | 'ransomware' | 'apt' | 'malware'
-
-const FILTERS: { key: Filter; label: string }[] = [
+// matchesFilter + compareEntries live in profiles.ts (react-refresh discipline:
+// this file exports only the component) — imported above.
+const FILTERS: { key: DirectoryFilter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'ransomware', label: 'Ransomware' },
   { key: 'apt', label: 'APT' },
   { key: 'malware', label: 'Malware' },
 ]
-
-/** A single filter's membership test — additive flags, so a both-kinds group
- *  (Akira) legitimately answers to both Ransomware and APT. */
-function matchesFilter(e: ProfileIndexEntry, f: Filter): boolean {
-  switch (f) {
-    case 'ransomware':
-      return e.claimCount != null
-    case 'apt':
-      return e.kind === 'actor'
-    case 'malware':
-      return e.kind === 'malware'
-    default:
-      return true
-  }
-}
 
 const KIND_LABEL: Record<ProfileKind, string> = {
   actor: 'APT / actor',
@@ -55,6 +41,9 @@ function metaLine(entry: ProfileIndexEntry): string {
   if (entry.techniqueCount) parts.push(`${num(entry.techniqueCount)} techniques`)
   if (entry.softwareCount) parts.push(`${num(entry.softwareCount)} tools`)
   if (entry.lastClaimAt) parts.push(`last claim ${rel(entry.lastClaimAt)}`)
+  // coverage-layer entry: state the honest fact rather than rendering bare —
+  // the group is tracked upstream but posted nothing in our 30-day window.
+  if (entry.nameOnly) parts.push('no claims this window')
   return parts.join(' · ')
 }
 
@@ -100,7 +89,7 @@ function ProfileRow({ entry }: { entry: ProfileIndexEntry }) {
 export function ProfileDirectory({ entries }: { entries: ProfileIndexEntry[] }) {
   const [rawQuery, setRawQuery] = useState('')
   const query = useDeferredValue(rawQuery)
-  const [filter, setFilter] = useState<Filter>('all')
+  const [filter, setFilter] = useState<DirectoryFilter>('all')
   const [limit, setLimit] = useState(INIT)
 
   const filtered = useMemo(() => {
@@ -113,10 +102,7 @@ export function ProfileDirectory({ entries }: { entries: ProfileIndexEntry[] }) 
           e.name + ' ' + e.slug + ' ' + (e.attack_id ?? '') + ' ' + (e.aliases ?? []).join(' ')
         return hay.toLowerCase().includes(q)
       })
-      .sort(
-        (a, b) =>
-          (b.claimCount ?? -1) - (a.claimCount ?? -1) || a.name.localeCompare(b.name),
-      )
+      .sort(compareEntries)
   }, [entries, query, filter])
 
   const shown = filtered.slice(0, limit)

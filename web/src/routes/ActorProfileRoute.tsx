@@ -8,10 +8,12 @@ import { buildProfileIndex, profileFor } from '../components/views/profiles'
 import { useStateData, type AsyncStatus } from '../components/views/useStateData'
 import { rel } from '../components/views/format'
 import { navigate } from '../components/palette/commands'
+import { KnownGroupNotice } from '../components/views/KnownGroupNotice'
 import type {
   FeedPayload,
   ProfilePayload,
   RansomIntelPayload,
+  RansomwareGroupsPayload,
   RelationsPayload,
   TechniqueNamesPayload,
 } from '../components/views/types'
@@ -51,6 +53,9 @@ export function ActorProfileRoute() {
   // ATT&CK id→name catalog — labels the fingerprint's bare technique ids. Loads
   // independently; the profile renders fine (ids only) before/without it.
   const techniqueNames = useStateData<TechniqueNamesPayload>('technique_names')
+  // Name-only coverage layer (bare ransomware.live group names) — feeds the
+  // directory's long-tail entries + the known-group profile stub.
+  const groups = useStateData<RansomwareGroupsPayload>('ransomware_groups')
 
   const [slug, setSlug] = useState<string>(readSlug)
   useEffect(() => {
@@ -69,12 +74,17 @@ export function ActorProfileRoute() {
   const malwareList = useMemo(() => malware.data?.profiles ?? [], [malware.data])
   const feedItems = useMemo(() => feed.data?.items ?? [], [feed.data])
   const intelList = useMemo(() => intel.data?.groups ?? [], [intel.data])
+  const groupNames = useMemo(() => groups.data?.names ?? [], [groups.data])
 
   const index = useMemo(
-    () => buildProfileIndex(actorList, malwareList, feedItems, intelList),
-    [actorList, malwareList, feedItems, intelList],
+    () => buildProfileIndex(actorList, malwareList, feedItems, intelList, groupNames),
+    [actorList, malwareList, feedItems, intelList, groupNames],
   )
   const slugSet = useMemo(() => new Set(index.map((e) => e.slug)), [index])
+  const knownGroupSet = useMemo(
+    () => new Set(groupNames.map((n) => n.toLowerCase())),
+    [groupNames],
+  )
 
   const profile = useMemo(
     () =>
@@ -153,6 +163,16 @@ export function ActorProfileRoute() {
               profile={profile}
               slugSet={slugSet}
               techniqueNames={techniqueNames.data?.names}
+            />
+          ) : groups.status === 'loading' ? (
+            // The coverage layer loads OUTSIDE the AsyncGate (gated on
+            // actors/malware/feed only) — hold the skeleton until it settles so
+            // a name-only slug never flashes "No profile on file" first.
+            <SkeletonRows rows={8} />
+          ) : knownGroupSet.has(slug) ? (
+            <KnownGroupNotice
+              slug={slug}
+              name={index.find((e) => e.slug === slug)?.name}
             />
           ) : (
             <EmptyState title={`No profile on file for “${slug}”`}>

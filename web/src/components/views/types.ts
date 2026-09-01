@@ -108,6 +108,15 @@ export interface TechniqueNamesPayload {
   names: Record<string, string>
 }
 
+/** Bare ransomware-group names from ransomware.live /v2/groups
+ *  (ransomware_groups.json) — the name-only directory coverage layer.
+ *  Names only by design (R3): no editorial rides along. */
+export interface RansomwareGroupsPayload {
+  generated_at?: string
+  schema_version?: number
+  names: string[]
+}
+
 /** A profile with the origin catalog stamped on, so one merged grid can carry
  *  both actors and malware without losing which is which. */
 export type ProfileKind = 'actor' | 'malware'

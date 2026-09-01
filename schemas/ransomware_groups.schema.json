@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "names"],
+  "properties": {
+    "generated_at": {"type": "string"},
+    "schema_version": {"type": "integer"},
+    "names": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {"type": "string", "minLength": 1, "maxLength": 200}
+    }
+  }
+}

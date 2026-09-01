@@ -84,6 +84,8 @@ _Documents a deliberate policy change. Prompted by an external site-review that 
 
 **Safeguards in place:** unverified/attributed framing on every claim; strings inert-cleaned (`clean_text`), domain hostname-charset-guarded; no ransomware.live editorial/screenshot mirrored; org identity + public domain only (no individual PII); `.onion` claim links rendered as plain non-navigable text.
 
+**Name-only group coverage (2026-09-01, `collectors/ransomwarelive_groups.py`):** the directory additionally lists the bare **group names** from ransomware.live's `/v2/groups` — a name is the minimal fact, attributed, rendered as a link-OUT to ransomware.live's own group page; the endpoint's editorial (`description`, `locations`, `ttps`, `tools`) is discarded at collection and never republished. Strictly less per item than the victim facts accepted above; rides the same open gap #4 (API terms) below.
+
 **Rating: MEDIUM — accepted risk with the safeguards above.** (Not "LOW/resolved" — it is a live, legal-adjacent republication under the owner's real name on a public repo. Not "CRITICAL" — the facts-only + attributed + unverified + no-editorial-mirror design materially reduces the surface the original CRITICAL rating assumed.)
 
 **⚠ OPEN operational gaps (owner to decide — my recommendation, not yet built):**

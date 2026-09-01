@@ -25,6 +25,8 @@ def test_build_site_data_shapes():
             "actors": [{"name": "A", "attack_id": "G1", "aliases": [],
                         "description": "", "techniques": [], "software": []}],
             "malware": [], "technique_names": {"T1566": "Phishing"}}),
+        CollectorResult(source="ransomwarelive_groups",
+                        extra={"group_names": ["nitrogen"]}),
     ]
     health = [{"source": "rss", "ok": True, "error": "", "items": 1,
                "last_success_at": iso(FIXED_NOW)}]
@@ -32,10 +34,45 @@ def test_build_site_data_shapes():
                                prior={}, now=FIXED_NOW)
     assert set(payloads) == {"feed.json", "cves.json", "health.json",
                              "actors.json", "malware.json", "technique_names.json",
+                             "ransomware_groups.json",
                              "relations.json", "threat_ips.json"}
     assert payloads["technique_names.json"]["names"] == {"T1566": "Phishing"}
+    assert payloads["ransomware_groups.json"]["names"] == ["nitrogen"]
     for p in payloads.values():
         assert p["generated_at"] == iso(FIXED_NOW) and p["schema_version"] == 1
+
+
+def test_ransomware_groups_degraded_fetch_keeps_prior():
+    """⚠ BLOCKER-1 regression: an OK collector with an EMPTY names list (a
+    degraded/429'd fetch) must NOT clobber last-known-good — gate() only falls
+    back on INVALID payloads, so empty-but-valid would silently blank the layer."""
+    prior = {"ransomware_groups.json": {
+        "generated_at": "2026-07-01T00:00:00Z", "schema_version": 1,
+        "names": ["nitrogen", "kairos"]}}
+    payloads = build_site_data(
+        [CollectorResult(source="ransomwarelive_groups", extra={"group_names": []})],
+        cve_rows=[], health=[], prior=prior, now=FIXED_NOW)
+    out = payloads["ransomware_groups.json"]
+    assert out["names"] == ["nitrogen", "kairos"]          # prior content kept
+    assert out["generated_at"] == iso(FIXED_NOW)           # timestamp refreshed
+
+
+def test_ransomware_groups_first_run_empty_publishes_valid_envelope():
+    """First run + degraded fetch: no prior exists, so the valid empty envelope
+    publishes (the asset exists from day one; next good fetch fills it)."""
+    payloads = build_site_data(
+        [CollectorResult(source="ransomwarelive_groups", extra={"group_names": []})],
+        cve_rows=[], health=[], prior={}, now=FIXED_NOW)
+    assert payloads["ransomware_groups.json"]["names"] == []
+
+
+def test_ransomware_groups_skipped_module_keeps_prior():
+    """The freshness gate skips the module most cycles — prior re-publishes."""
+    prior = {"ransomware_groups.json": {
+        "generated_at": "2026-07-27T00:00:00Z", "schema_version": 1,
+        "names": ["nitrogen"]}}
+    payloads = build_site_data([], cve_rows=[], health=[], prior=prior, now=FIXED_NOW)
+    assert payloads["ransomware_groups.json"]["names"] == ["nitrogen"]
 
 
 def test_build_site_data_gates_actor_bonus_on_injected_dictionary():
