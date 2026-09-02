@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "rules"],
+  "properties": {
+    "generated_at": {"type": "string", "maxLength": 40},
+    "schema_version": {"type": "integer"},
+    "collected_at": {"type": "string", "maxLength": 40},
+    "allowlist_sha1": {"type": "string", "maxLength": 40},
+    "rules": {
+      "type": "array",
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "kql", "techniques", "dialect", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1, "maxLength": 120},
+          "title": {"type": "string", "minLength": 1, "maxLength": 200},
+          "kql": {"type": "string", "minLength": 1, "maxLength": 16384},
+          "techniques": {
+            "type": "array", "maxItems": 16,
+            "items": {"type": "string", "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$"}
+          },
+          "tables": {
+            "type": "array", "maxItems": 16,
+            "items": {"type": "string", "maxLength": 60}
+          },
+          "dialect": {"enum": ["advanced_hunting", "log_analytics"]},
+          "tested": {"type": "string", "maxLength": 10},
+          "source": {
+            "type": "object",
+            "required": ["kind", "url", "license"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"enum": ["sentinel", "sigma", "socdesk"]},
+              "url": {"type": "string", "maxLength": 500},
+              "license": {"type": "string", "maxLength": 40},
+              "author": {"type": "string", "maxLength": 120},
+              "rule_id": {"type": "string", "maxLength": 120},
+              "modified": {"type": "string", "maxLength": 10}
+            }
+          }
+        }
+      }
+    }
+  }
+}

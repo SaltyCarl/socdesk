@@ -118,6 +118,25 @@ def build_site_data(results, cve_rows, health, prior, now, fetch=None,
         payloads["ransomware_groups.json"] = dict(
             prior["ransomware_groups.json"], generated_at=iso(now))
 
+    # Hunt packs (curated Sentinel-community KQL, MIT — spec §H1). Same
+    # non-empty guard as ransomware_groups: an all-failed fetch cycle must
+    # never clobber last-known-good with a valid-but-empty rules list.
+    # allowlist_sha1 + collected_at mark a REAL collect (keep-prior preserves
+    # both) — run_pipeline's content-keyed freshness gate reads the sha.
+    if "sentinel_hunt" in ok:
+        hunt_rules = ok["sentinel_hunt"].extra.get("rules", [])
+        if hunt_rules or "hunt_packs.json" not in prior:
+            payloads["hunt_packs.json"] = _envelope(
+                now, collected_at=iso(now),
+                allowlist_sha1=ok["sentinel_hunt"].extra.get("allowlist_sha1", ""),
+                rules=hunt_rules)
+        else:
+            payloads["hunt_packs.json"] = dict(
+                prior["hunt_packs.json"], generated_at=iso(now))
+    elif "hunt_packs.json" in prior:
+        payloads["hunt_packs.json"] = dict(
+            prior["hunt_packs.json"], generated_at=iso(now))
+
     # Geolocated threat surface (abuse.ch C2/blocklist IPs). Fresh data wins; a
     # transient upstream failure keeps last-known-good rather than blanking the
     # globe; the very first run with neither publishes the empty envelope.

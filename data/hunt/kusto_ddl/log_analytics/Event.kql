@@ -1,0 +1,25 @@
+// source: https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/event — fetched 2026-09-02
+.create table Event (
+    AzureDeploymentID:string,
+    _BilledSize:real,
+    Computer:string,
+    EventCategory:int,
+    EventData:string,
+    EventID:int,
+    EventLevel:int,
+    EventLevelName:string,
+    EventLog:string,
+    _IsBillable:string,
+    ManagementGroupName:string,
+    Message:string,
+    ParameterXml:string,
+    RenderedDescription:string,
+    _ResourceId:string,
+    Role:string,
+    Source:string,
+    SourceSystem:string,
+    _SubscriptionId:string,
+    TimeGenerated:datetime,
+    Type:string,
+    UserName:string
+)

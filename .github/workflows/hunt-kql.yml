@@ -1,0 +1,64 @@
+name: hunt-kql
+
+# The TESTED gate for hosted hunting queries (spec §1.5): boots the Kusto
+# emulator and semantically validates every allowlisted rule against the
+# committed per-dialect DDL catalog. A SEPARATE workflow (not a ci.yml job):
+# ci.yml ignores data/** on push, which would swallow exactly the
+# allowlist/DDL pushes this gate exists for — GitHub evaluates these `paths`
+# filters server-side for both push and PR events.
+#
+# This validates FROM THE ALLOWLIST (live SHA-pinned fetches through the
+# collector's own parser), never the committed dataset — that file is stale
+# on the very push that edits the allowlist, and the cron's GITHUB_TOKEN
+# data-refresh pushes cannot retrigger workflows.
+#
+# Push-to-main reality: this repo lands most work as direct pushes, so a red
+# run here is a BACKSTOP notification, not a merge blocker — the enforced
+# discipline is running tools/validate_hunt_kql.py locally (docker) before
+# pushing allowlist/DDL changes; use a PR branch for allowlist changes when
+# a pre-merge gate is wanted.
+on:
+  push:
+    paths:
+      - "data/hunt/**"
+      - "collectors/sentinel_hunt.py"
+      - "tools/validate_hunt_kql.py"
+      - "schemas/hunt_packs.schema.json"
+      - ".github/workflows/hunt-kql.yml"
+  pull_request:
+    paths:
+      - "data/hunt/**"
+      - "collectors/sentinel_hunt.py"
+      - "tools/validate_hunt_kql.py"
+      - "schemas/hunt_packs.schema.json"
+      - ".github/workflows/hunt-kql.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      # No HEALTHCHECK in the image and no service-container readiness —
+      # run detached and poll the mgmt endpoint ourselves (the tool does).
+      - name: Start Kustainer
+        run: |
+          docker run -d --name kustainer -m 4G -e ACCEPT_EULA=Y -p 8080:8080 \
+            mcr.microsoft.com/azuredataexplorer/kustainer-linux:latest
+
+      - name: Validate hunt KQL against the emulator
+        run: python tools/validate_hunt_kql.py --from-allowlist
+
+      - name: Emulator logs on failure
+        if: failure()
+        run: docker logs kustainer | tail -50

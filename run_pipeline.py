@@ -5,7 +5,8 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from collectors import CACHED_COLLECTORS, COLLECTORS, GROUPS_COLLECTOR, attack
+from collectors import (CACHED_COLLECTORS, COLLECTORS, GROUPS_COLLECTOR,
+                        HUNT_COLLECTOR, attack)
 from collectors.base import iso, run_all
 from pipeline.asn import build_asn_leaderboard
 from pipeline.community import build_community_reports
@@ -65,6 +66,22 @@ def _attack_is_fresh(state, now):
             and "technique_tactics.json" in state)
 
 
+def _hunt_is_fresh(state, allowlist_path):
+    """CONTENT-keyed, not time-keyed: upstream fetches are SHA-pinned
+    (immutable), so the only reason to re-collect is an allowlist EDIT —
+    which a time gate never sees. Fresh iff the committed dataset was built
+    from the exact bytes of the current allowlist file. Path derives from
+    sources_path (the intel-seed precedent) so fixture-dir tests never
+    trip the collector."""
+    try:
+        import hashlib
+        want = hashlib.sha1(Path(allowlist_path).read_bytes()).hexdigest()
+    except OSError:
+        return True  # no allowlist -> nothing to collect
+    have = state.get("hunt_packs.json", {}).get("allowlist_sha1", "")
+    return have == want
+
+
 def _groups_is_fresh(state, now):
     """The ransomware.live /v2/groups list is 764 KB behind a 1-req/min
     personal-use rate limit and changes slowly — fetch it every CACHE_DAYS,
@@ -85,6 +102,10 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
         modules += CACHED_COLLECTORS
     if not _groups_is_fresh(state, now):
         modules.append(GROUPS_COLLECTOR)
+    hunt_allowlist = Path(sources_path).parent / "hunt" / "sentinel_allowlist.json"
+    if not _hunt_is_fresh(state, hunt_allowlist):
+        HUNT_COLLECTOR.ALLOWLIST_PATH = hunt_allowlist
+        modules.append(HUNT_COLLECTOR)
     results, health = run_all(modules, fetch, now)
 
     prior_cves = state.get("cves.json", {}).get("cves", [])

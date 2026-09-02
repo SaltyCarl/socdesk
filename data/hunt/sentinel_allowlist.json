@@ -1,0 +1,333 @@
+{
+ "comment": "curated 2026-09-02 at sha 6af3c9df762153b8e8b7f32d0a51da1ac436e964, criteria per spec \u00a71.6 (non-empty query, kql<=16KB, catalog tables only, no ASIM/watchlist/externaldata/render/workspace constructs) | 2026-09-02: 2 evaluate-pivot() rules dropped \u2014 pivot's output schema is data-dependent, so the Kustainer take-0 bind cannot verify them (curation criterion: only ship what the gate can verify).",
+ "rules": [
+  {
+   "id": "sentinel-shadow-copies-deletion-using-operating-systems-utilities",
+   "path": "Solutions/Intel471/Hunting Queries/shadow-copies-deletion-using-operating-systems-utilities.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1490"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "2e3e9910-70c1-4822-804a-ee9919b0c419",
+   "modified": "2026-08-27"
+  },
+  {
+   "id": "sentinel-shadow-copy-deletions",
+   "path": "Solutions/Microsoft Defender XDR/Hunting Queries/Ransomware/ShadowCopyDeletion.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1490"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "aa3a8508-c0ff-404d-8d5c-4e7f548b0d86",
+   "modified": "2024-02-22"
+  },
+  {
+   "id": "sentinel-powershell-encoded-command-execution-hunter",
+   "path": "Solutions/Cyborg Security HUNTER/Hunting Queries/Powershell Encoded Command Execution.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1059.001",
+    "T1027"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "d2d3bbc2-6e57-4043-ab24-988a6a6c88db",
+   "modified": "2023-10-31"
+  },
+  {
+   "id": "sentinel-powershell-encoded-command-execution-intel471",
+   "path": "Solutions/Intel471/Hunting Queries/powershell-encoded-command-execution.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1059.001",
+    "T1027"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "3a5a21fd-5a82-45dc-ad37-3fb95f475e11",
+   "modified": "2026-08-27"
+  },
+  {
+   "id": "sentinel-potential-maldoc-execution-chain-observed",
+   "path": "Solutions/Cyborg Security HUNTER/Hunting Queries/Potential Maldoc Execution Chain Observed.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1059.001",
+    "T1566.001",
+    "T1218.011"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "b194088b-c846-4c72-a4b7-933627878db4",
+   "modified": "2023-10-31"
+  },
+  {
+   "id": "sentinel-meshagent-suspicious-child-process-potential-malicious-rmm-tool-usage",
+   "path": "Solutions/Intel471/Hunting Queries/meshagent-suspicious-child-process-potential-malicious-rmm-tool-usage.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1059.001",
+    "T1059.003",
+    "T1219"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "749f7e2c-5eeb-407d-a5ef-cfcecbe5d810",
+   "modified": "2026-07-14"
+  },
+  {
+   "id": "sentinel-methods-for-downloading-files-with-powershell",
+   "path": "Solutions/Intel471/Hunting Queries/methods-for-downloading-files-with-powershell.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1059.001",
+    "T1105"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "c7b320fb-ac67-45b0-92c4-b0f1e10b4e46",
+   "modified": "2026-08-27"
+  },
+  {
+   "id": "sentinel-remote-login-performed-with-wmi",
+   "path": "Solutions/Endpoint Threat Protection Essentials/Hunting Queries/RemoteLoginPerformedwithWMI.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1047"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "8f658a80-7fa9-4524-a95b-d9ab608e8850",
+   "modified": "2024-06-10"
+  },
+  {
+   "id": "sentinel-wmic-windows-internal-discovery-and-enumeration",
+   "path": "Solutions/Intel471/Hunting Queries/wmic-windows-internal-discovery-and-enumeration.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1047",
+    "T1016"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "bc0fd59c-4217-46a7-a167-764727118567",
+   "modified": "2026-07-14"
+  },
+  {
+   "id": "sentinel-attempted-vbscript-stored-in-non-run-currentversion-registry-key-value",
+   "path": "Solutions/Cyborg Security HUNTER/Hunting Queries/Attempted VBScript Stored in Non-Run CurrentVersion Registry Key Value.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1112"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "d7233f14-4705-403e-9db9-e0d677c9506b",
+   "modified": "2023-10-31"
+  },
+  {
+   "id": "sentinel-rare-process-as-a-service",
+   "path": "Solutions/Microsoft Defender XDR/Hunting Queries/Persistence/RareProcessAsService.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1543.003"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "96976bb1-1993-45b8-a477-8236ee93976b",
+   "modified": "2024-03-07"
+  },
+  {
+   "id": "sentinel-scheduled-task-creation-or-update-from-user-writable-directory",
+   "path": "Solutions/Endpoint Threat Protection Essentials/Hunting Queries/ScheduledTaskCreationUpdateFromUserWritableDrectory.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1053.005"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "0b827a49-427e-4721-b05e-b151a8af524e",
+   "modified": "2026-02-18"
+  },
+  {
+   "id": "sentinel-user-added-to-default-privileged-windows-security-groups",
+   "path": "Solutions/Intel471/Hunting Queries/user-added-to-default-privileged-windows-security-groups.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1078.003",
+    "T1136.002"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "b6365ad5-0ccd-4426-97bc-b9484eb9579f",
+   "modified": "2026-07-14"
+  },
+  {
+   "id": "sentinel-potential-impacket-execution",
+   "path": "Solutions/Attacker Tools Threat Protection Essentials/Hunting Queries/PotentialImpacketExecution.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1003.001",
+    "T1558.003",
+    "T1021.002"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "24ae555c-5e33-4b5d-827a-44206e39f6b4",
+   "modified": "2024-01-23"
+  },
+  {
+   "id": "sentinel-detect-potential-kerberoast-activities",
+   "path": "Solutions/Microsoft Defender XDR/Hunting Queries/Execution/PotentialKerberoastActivities.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1558.003"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "35ca729c-04b4-4f6c-b383-caed1b85226e",
+   "modified": "2024-03-07"
+  },
+  {
+   "id": "sentinel-autorun-or-asep-registry-key-modification",
+   "path": "Solutions/Intel471/Hunting Queries/autorun-or-asep-registry-key-modification.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1547.001",
+    "T1112"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "8289e2ad-bc74-4ae3-bfaa-cdeb4335135c",
+   "modified": "2026-08-27"
+  },
+  {
+   "id": "sentinel-file-created-in-startup-folder",
+   "path": "Solutions/Intel471/Hunting Queries/file-created-in-startup-folder.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1547.001"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "8fedb48c-396b-4cd5-9483-69d7fc3eecee",
+   "modified": "2026-07-29"
+  },
+  {
+   "id": "sentinel-metasploit-impacket-psexec-process-creation-activity",
+   "path": "Solutions/Cyborg Security HUNTER/Hunting Queries/Metasploit Impacket PsExec Process Creation Activity.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1569.002",
+    "T1570"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "37cba0d1-8aa5-4f8f-bb26-25a45475ca9a",
+   "modified": "2023-10-31"
+  },
+  {
+   "id": "sentinel-service-installation-from-user-writable-directory",
+   "path": "Solutions/Windows Security Events/Hunting Queries/ServiceInstallationFromUsersWritableDirectory.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1569.002",
+    "T1543.003"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "5a9ccb48-1316-46e1-89d1-aca0355c305e",
+   "modified": "2024-10-01"
+  },
+  {
+   "id": "sentinel-creating-a-shadow-copy",
+   "path": "Solutions/Intel471/Hunting Queries/creating-a-shadow-copy.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1003.003",
+    "T1005"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "262d9692-6d36-4b10-9fc5-159930cff604",
+   "modified": "2026-07-14"
+  },
+  {
+   "id": "sentinel-execution-bat-script-to-unpack-payload",
+   "path": "Solutions/Intel471/Hunting Queries/execution-bat-script-to-unpack-payload.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1140",
+    "T1059.003"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "606cd1ac-622d-4645-9553-2b04df7407d8",
+   "modified": "2026-07-14"
+  },
+  {
+   "id": "sentinel-anydesk-execution-from-abnormal-folder-potential-malicious-use-of-rmm-tool",
+   "path": "Solutions/Intel471/Hunting Queries/anydesk-execution-from-abnormal-folder-potential-malicious-use-of-rmm-tool.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1219"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "93f71607-f35d-4aa6-aec9-c2f8a62cbd8a",
+   "modified": "2026-08-27"
+  },
+  {
+   "id": "sentinel-suspicious-enumeration-using-adfind-tool",
+   "path": "Solutions/Windows Security Events/Hunting Queries/Suspicious_enumeration_using_adfind.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1482",
+    "T1087.002",
+    "T1074"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "dd6fb889-43ef-44e1-a01d-093ab4bb12b2",
+   "modified": "2024-01-23"
+  },
+  {
+   "id": "sentinel-potential-exploitation-of-ms-rprn-printer-bug",
+   "path": "Solutions/Windows Security Events/Hunting Queries/MSRPRN_Printer_Bug_Exploitation.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1134"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "c29a03c6-d074-4934-afae-df1aeb30da70",
+   "modified": "2024-01-23"
+  },
+  {
+   "id": "sentinel-mitre-suspicious-events",
+   "path": "Solutions/Microsoft Defender XDR/Hunting Queries/General Queries/MITRESuspiciousEvents.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1016",
+    "T1007",
+    "T1135"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "8722489a-d6f1-4b66-98e9-e3dfda902019",
+   "modified": "2024-03-07"
+  },
+  {
+   "id": "sentinel-sharepointfileoperation-via-clientip-with-previously-unseen-user-agents",
+   "path": "Solutions/Microsoft 365/Hunting Queries/sharepoint_downloads.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1030"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "e8ae1375-4640-430c-ae8e-2514d09c71eb",
+   "modified": "2023-12-29"
+  },
+  {
+   "id": "sentinel-new-windows-reserved-filenames-staged-on-office-file-services",
+   "path": "Solutions/Microsoft 365/Hunting Queries/New_WindowsReservedFileNamesOnOfficeFileServices.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1105"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "641ecd2d-27c9-4f05-8433-8205096b09fc",
+   "modified": "2023-12-29"
+  },
+  {
+   "id": "sentinel-netsupport-manager-execution-from-abnormal-folder-potential-malicious-use-of-rmm-tool",
+   "path": "Solutions/Intel471/Hunting Queries/netsupport-manager-execution-from-abnormal-folder-potential-malicious-use-of-rmm-tool.yaml",
+   "sha": "6af3c9df762153b8e8b7f32d0a51da1ac436e964",
+   "techniques": [
+    "T1219"
+   ],
+   "dialect": "log_analytics",
+   "upstream_id": "3f329a8c-0102-4a61-8cf3-63948aab5ef4",
+   "modified": "2026-08-27"
+  }
+ ]
+}

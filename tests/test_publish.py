@@ -69,6 +69,35 @@ def test_ransomware_groups_first_run_empty_publishes_valid_envelope():
     assert payloads["ransomware_groups.json"]["names"] == []
 
 
+def test_hunt_packs_publish_trio():
+    """Fresh publish on rules; empty-but-ok keeps prior (never clobber);
+    skipped module keeps prior — the established committed-dataset pattern."""
+    rule = {"id": "r1", "title": "t", "kql": "DeviceFileEvents | take 1",
+            "techniques": ["T1486"], "tables": ["DeviceFileEvents"],
+            "dialect": "advanced_hunting",
+            "source": {"kind": "sentinel", "url": "https://x", "license": "MIT"}}
+    ok_result = [CollectorResult(source="sentinel_hunt",
+                                 extra={"rules": [rule], "allowlist_sha1": "a" * 40})]
+    payloads = build_site_data(ok_result, cve_rows=[], health=[], prior={},
+                               now=FIXED_NOW)
+    hp = payloads["hunt_packs.json"]
+    assert hp["rules"] == [rule] and hp["allowlist_sha1"] == "a" * 40
+    assert hp["collected_at"] == iso(FIXED_NOW)
+
+    prior = {"hunt_packs.json": dict(hp, generated_at="old")}
+    empty = [CollectorResult(source="sentinel_hunt",
+                             extra={"rules": [], "allowlist_sha1": "b" * 40})]
+    kept = build_site_data(empty, cve_rows=[], health=[], prior=prior,
+                           now=FIXED_NOW)["hunt_packs.json"]
+    assert kept["rules"] == [rule]                  # prior content kept
+    assert kept["allowlist_sha1"] == "a" * 40       # sha NOT updated -> retry next run
+    assert kept["generated_at"] == iso(FIXED_NOW)
+
+    skipped = build_site_data([], cve_rows=[], health=[], prior=prior,
+                              now=FIXED_NOW)["hunt_packs.json"]
+    assert skipped["rules"] == [rule]
+
+
 def test_ransomware_groups_skipped_module_keeps_prior():
     """The freshness gate skips the module most cycles — prior re-publishes."""
     prior = {"ransomware_groups.json": {
