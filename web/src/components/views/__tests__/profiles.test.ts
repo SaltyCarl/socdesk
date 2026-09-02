@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   blurbOf,
   buildProfileIndex,
+  busiestDay,
   cleanDescription,
   compareEntries,
+  dailyClaimsFor,
   matchesFilter,
   profileFor,
+  rankedCounts,
 } from '../profiles'
 import type { ProfileIndexEntry } from '../profiles'
 import type { FeedItem, Profile, RansomIntel, RelationsPayload } from '../types'
@@ -430,6 +433,114 @@ describe('compareEntries + matchesFilter — coverage-layer ranking & visibility
     expect(matchesFilter(seededQuiet, 'ransomware')).toBe(true)
     expect(matchesFilter(active, 'ransomware')).toBe(true)
     expect(matchesFilter(actor, 'ransomware')).toBe(false)
+  })
+})
+
+describe('dailyClaimsFor — the 31-day daily claim model', () => {
+  const ANCHOR = '2026-08-14T12:00:00Z' // window = 2026-07-15 .. 2026-08-14
+
+  it('distributes a digest by its carried claims[].date, not the digest date', () => {
+    const digest: FeedItem = {
+      id: 'd1', source: 'ransomwarelive', category: 'ransomware',
+      title: 'g posted 3 victim claims', summary: 'Grouped: X', url: 'https://x',
+      entities: { actors: ['g'] }, grouped: 3, published_at: '2026-08-14T00:00:00Z',
+      claims: [
+        { victim: 'A', date: '2026-08-10T05:00:00Z' },
+        { victim: 'B', date: '2026-08-10T09:00:00Z' },
+        { victim: 'C', date: '2026-08-12T09:00:00Z' },
+      ],
+    }
+    const { daily } = dailyClaimsFor('g', [digest], ANCHOR)
+    const by = Object.fromEntries(daily.map((d) => [d.date, d.count]))
+    expect(by['2026-08-10']).toBe(2)
+    expect(by['2026-08-12']).toBe(1)
+    expect(by['2026-08-14']).toBe(0) // nothing dumped on the digest's own day
+    expect(daily).toHaveLength(31)
+    expect(daily[0].date).toBe('2026-07-15')
+  })
+
+  it('puts the remainder (tally − ALL carried claims) on the digest day — undated claims never double-count', () => {
+    const digest: FeedItem = {
+      id: 'd2', source: 'ransomwarelive', category: 'ransomware',
+      title: 'g posted 4 victim claims', summary: 'Grouped: X', url: 'https://x',
+      entities: { actors: ['g'] }, grouped: 4, published_at: '2026-08-13T00:00:00Z',
+      claims: [
+        { victim: 'A', date: '2026-08-11T00:00:00Z' },
+        { victim: 'B' }, // undated — rides the digest day via the claims loop
+      ],
+    }
+    const { daily } = dailyClaimsFor('g', [digest], ANCHOR)
+    const total = daily.reduce((s, d) => s + d.count, 0)
+    expect(total).toBe(4) // 1 dated + 1 undated + remainder 2, never 5
+    const by = Object.fromEntries(daily.map((d) => [d.date, d.count]))
+    expect(by['2026-08-11']).toBe(1)
+    expect(by['2026-08-13']).toBe(3) // undated claim + remainder 2
+  })
+
+  it('clamps out-of-window claim dates into the edge cells (never lost)', () => {
+    const digest: FeedItem = {
+      id: 'd3', source: 'ransomwarelive', category: 'ransomware',
+      title: 'g posted 2 victim claims', summary: 'Grouped: X', url: 'https://x',
+      entities: { actors: ['g'] }, grouped: 2, published_at: '2026-08-14T00:00:00Z',
+      claims: [
+        { victim: 'Old', date: '2026-06-01T00:00:00Z' },   // far older → oldest cell
+        { victim: 'Future', date: '2026-09-01T00:00:00Z' }, // future → newest cell
+      ],
+    }
+    const { daily } = dailyClaimsFor('g', [digest], ANCHOR)
+    expect(daily[0].count).toBe(1)
+    expect(daily[daily.length - 1].count).toBe(1)
+    expect(daily.reduce((s, d) => s + d.count, 0)).toBe(2)
+  })
+
+  it('flags a legacy claims[]-less digest and lands its tally on the digest day', () => {
+    const legacy: FeedItem = {
+      id: 'd4', source: 'ransomwarelive', category: 'ransomware',
+      title: 'g posted 5 victim claims', summary: 'Grouped: X', url: 'https://x',
+      entities: { actors: ['g'] }, grouped: 5, published_at: '2026-08-01T00:00:00Z',
+    }
+    const { daily, hasLegacyDigest } = dailyClaimsFor('g', [legacy], ANCHOR)
+    expect(hasLegacyDigest).toBe(true)
+    expect(daily.find((d) => d.date === '2026-08-01')?.count).toBe(5)
+  })
+
+  it('reconciles with the fixture group (kairos: 2 singles + a 5-digest = 7)', () => {
+    const { daily, lastClaimAt } = dailyClaimsFor('kairos', feed, '2026-08-14T00:00:00Z')
+    expect(daily.reduce((s, d) => s + d.count, 0)).toBe(7)
+    expect(lastClaimAt).toBe('2026-08-13T00:00:00Z')
+  })
+})
+
+describe('rankedCounts + busiestDay', () => {
+  it('ranks desc with label tiebreak and skips empties', () => {
+    expect(rankedCounts(['A', 'B', 'A', undefined, 'C', 'B', 'A'])).toEqual([
+      { label: 'A', count: 3 },
+      { label: 'B', count: 2 },
+      { label: 'C', count: 1 },
+    ])
+  })
+  it('busiestDay needs count ≥ 2 and resolves ties to the most recent day', () => {
+    expect(busiestDay([{ date: '2026-08-01', count: 1 }])).toBeNull()
+    expect(
+      busiestDay([
+        { date: '2026-08-01', count: 3 },
+        { date: '2026-08-05', count: 3 },
+        { date: '2026-08-06', count: 1 },
+      ]),
+    ).toEqual({ date: '2026-08-05', count: 3 })
+  })
+})
+
+describe('profileFor — activity carries the daily model + singles-only counts', () => {
+  const p = profileFor('kairos', { ...data, generatedAt: '2026-08-14T00:00:00Z' })
+  it('daily sums to the window tally', () => {
+    expect(p.activity?.daily.reduce((s, d) => s + d.count, 0)).toBe(7)
+  })
+  it('sectorCounts count SINGLE claims only (digest sectors stay in the coverage set)', () => {
+    // kairos singles: Manufacturing ×1 (the "Not Found" single is sentinel-dropped);
+    // the digest's Healthcare/Technology appear in `sectors` but never as counts.
+    expect(p.activity?.sectorCounts).toEqual([{ label: 'Manufacturing', count: 1 }])
+    expect(p.activity?.sectors).toContain('Healthcare')
   })
 })
 

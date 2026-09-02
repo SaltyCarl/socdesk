@@ -95,9 +95,11 @@ export function ActorProfileRoute() {
             feed: feedItems,
             relations: relations.data,
             intel: intelList,
+            // deterministic anchor for the 31-day daily claim model
+            generatedAt: feed.data?.generated_at,
           })
         : null,
-    [slug, actorList, malwareList, feedItems, relations.data, intelList],
+    [slug, actorList, malwareList, feedItems, relations.data, intelList, feed.data?.generated_at],
   )
 
   const loading =

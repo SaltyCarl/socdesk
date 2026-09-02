@@ -360,6 +360,18 @@ export interface TimelineBucket {
  *  SAME claim set as `RansomwareActivity` (sectors/countries are identical),
  *  plus a weekly timeline the per-claim list doesn't carry. null when the
  *  group posted no claims (mirrors `ransomware: null`, honest empty). */
+/** One UTC calendar day of claim volume ({date: 'YYYY-MM-DD', count}). */
+export interface DayBucket {
+  date: string
+  count: number
+}
+
+/** A label with its single-claim occurrence count, ranked desc. */
+export interface RankedCount {
+  label: string
+  count: number
+}
+
 export interface ProfileActivity {
   sectors: string[]
   countries: string[]
@@ -369,6 +381,25 @@ export interface ProfileActivity {
    *  "digest claims omit country" caveat so it never shows for a group that has
    *  no digest this window (which would make the honesty note itself false). */
   hasDigest: boolean
+  /** 31 zero-filled UTC day buckets (retention's timestamp cutoff spans 31
+   *  calendar dates), oldest first, anchored to the snapshot's generated_at —
+   *  digests distribute by their carried claims[].date. Older-than-window
+   *  dates clamp into the oldest cell so totals always reconcile. */
+  daily: DayBucket[]
+  /** Newest claim timestamp seen anywhere for this group (item published_at
+   *  or a digest's per-claim date) — the cadence "last claim" fact. */
+  lastClaimAt?: string
+  /** True when a claims[]-less LEGACY digest is in window — its whole tally
+   *  lands on the digest's own date, so the strip is coarser there. Gates a
+   *  one-line honesty caveat. */
+  hasLegacyDigest: boolean
+  /** Single-claim sector/country occurrence counts, ranked desc (ties by
+   *  label). SINGLES ONLY — digest claims[] carry no sector/country and the
+   *  digest summary lists DISTINCT sectors capped at 6, so counting mentions
+   *  would misstate volume for exactly the busiest groups. The distinct
+   *  `sectors`/`countries` sets above keep digest-sourced coverage. */
+  sectorCounts: RankedCount[]
+  countryCounts: RankedCount[]
 }
 
 export interface ProfileResult {
@@ -548,6 +579,116 @@ function weekKey(iso: string): string {
   return `${y}-${m}-${day}`
 }
 
+/** UTC calendar-day key for a timestamp; 'unknown' when unparsable. */
+function dayKey(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return 'unknown'
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** The 31-day daily claim model for a slug (see ProfileActivity.daily).
+ *
+ *  Distribution rules — every carried claim lands exactly once:
+ *   - a SINGLE claim counts 1 at its own published_at day;
+ *   - a digest's carried claims[] each count 1 at their OWN date (fallback:
+ *     the digest's day) — the mis-dating fix: a rolled-up week no longer
+ *     dumps its whole tally on the digest's publish day;
+ *   - a digest's REMAINDER — max(0, tally − carried.length), covering legacy
+ *     digests that carry no claims[] — lands on the digest's day (ALL carried
+ *     claims subtract, dated or not, so nothing double-counts);
+ *   - days outside the window clamp to the nearest edge cell (frozen legacy
+ *     digests carry dates up to ~30d older than the digest) — never dropped,
+ *     so the strip's sum always reconciles with victimCount.
+ *
+ *  Anchored to the snapshot's generated_at (deterministic — never Date.now),
+ *  falling back to the group's newest published_at. */
+export function dailyClaimsFor(
+  slug: string,
+  feed: FeedItem[],
+  anchorIso?: string,
+): { daily: DayBucket[]; lastClaimAt?: string; hasLegacyDigest: boolean } {
+  const matched = feed.filter(
+    (it) => it.source === 'ransomwarelive' && it.entities?.actors?.[0]?.toLowerCase() === slug,
+  )
+  const anchor =
+    anchorIso ??
+    matched.reduce<string>((m, it) => {
+      const p = it.published_at ?? ''
+      return p > m ? p : m
+    }, '')
+  const anchorDay = dayKey(anchor)
+  if (!matched.length || anchorDay === 'unknown') {
+    return { daily: [], hasLegacyDigest: false }
+  }
+
+  // 31 UTC dates, oldest first, ending at the anchor day.
+  const end = new Date(`${anchorDay}T00:00:00Z`).getTime()
+  const days: string[] = []
+  for (let i = 30; i >= 0; i--) days.push(dayKey(new Date(end - i * 86_400_000).toISOString()))
+  const counts = new Map<string, number>(days.map((d) => [d, 0]))
+  const oldest = days[0]
+  const newest = days[days.length - 1]
+  const add = (day: string, n: number) => {
+    // clamp: older → oldest cell, future/unknown → newest cell. Never lost.
+    const k = day === 'unknown' ? newest : day < oldest ? oldest : day > newest ? newest : day
+    counts.set(k, (counts.get(k) ?? 0) + n)
+  }
+
+  let lastClaimAt = ''
+  let hasLegacyDigest = false
+  for (const it of matched) {
+    const at = it.published_at ?? ''
+    if (at > lastClaimAt) lastClaimAt = at
+    if (it.grouped == null) {
+      add(dayKey(at), 1)
+      continue
+    }
+    const carried = it.claims ?? []
+    if (!carried.length) hasLegacyDigest = true
+    for (const c of carried) {
+      const cAt = c.date ?? ''
+      if (cAt > lastClaimAt) lastClaimAt = cAt
+      add(cAt ? dayKey(cAt) : dayKey(at), 1)
+    }
+    const remainder = Math.max(0, claimCount(it) - carried.length)
+    if (remainder) add(dayKey(at), remainder)
+  }
+
+  return {
+    daily: days.map((date) => ({ date, count: counts.get(date) ?? 0 })),
+    lastClaimAt: lastClaimAt || undefined,
+    hasLegacyDigest,
+  }
+}
+
+/** Occurrence counts over the SINGLE-claim items' parsed field (see
+ *  ProfileActivity.sectorCounts for why digests are excluded), desc by count
+ *  then label. */
+export function rankedCounts(values: (string | undefined)[]): RankedCount[] {
+  const m = new Map<string, number>()
+  for (const v of values) {
+    if (!v) continue
+    m.set(v, (m.get(v) ?? 0) + 1)
+  }
+  return [...m.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+}
+
+/** Cadence: the busiest day in the daily model — only when its count ≥ 2 (a
+ *  1-claim group's "busiest day" is noise); ties resolve to the MOST RECENT
+ *  tied day. */
+export function busiestDay(daily: DayBucket[]): DayBucket | null {
+  let best: DayBucket | null = null
+  for (const b of daily) {
+    if (best === null || b.count >= best.count) best = b // later ties win
+  }
+  return best && best.count >= 2 ? best : null
+}
+
 /** The weekly claim timeline for a slug's ransomware.live posts, oldest
  *  bucket first — each bucket's count uses the SAME board parser
  *  (`claimCount`) as the totals, so a digest of 5 contributes 5, not 1. */
@@ -725,6 +866,10 @@ export function profileFor(
     feed: FeedItem[]
     relations: RelationsPayload | null
     intel: RansomIntel[]
+    /** feed.json's generated_at — the deterministic anchor for the 31-day
+     *  daily claim model. Absent (older callers/tests) → the model anchors
+     *  to the group's own newest published_at. */
+    generatedAt?: string
     /** Optional caller-supplied keep-list for reporting-only entities that
      *  are genuinely notable but have no fingerprint/intel/claims on file
      *  (e.g. a named APT the pipeline curates server-side). Absent by
@@ -750,15 +895,25 @@ export function profileFor(
 
   const claimedVictims = claimedVictimsFor(s, data.feed)
   const activity: ProfileActivity | null = ransomware
-    ? {
-        // Copy, don't alias: the render layer may sort/filter these in place,
-        // and sharing the reference with `ransomware.*` would corrupt both.
-        sectors: [...ransomware.sectors],
-        countries: [...ransomware.countries],
-        timeline: timelineFor(s, data.feed),
-        victimCount: ransomware.totalClaims,
-        hasDigest: ransomware.items.some((i) => i.grouped != null),
-      }
+    ? (() => {
+        const { daily, lastClaimAt, hasLegacyDigest } = dailyClaimsFor(
+          s, data.feed, data.generatedAt)
+        const singles = ransomware.items.filter((i) => i.grouped == null)
+        return {
+          // Copy, don't alias: the render layer may sort/filter these in place,
+          // and sharing the reference with `ransomware.*` would corrupt both.
+          sectors: [...ransomware.sectors],
+          countries: [...ransomware.countries],
+          timeline: timelineFor(s, data.feed),
+          victimCount: ransomware.totalClaims,
+          hasDigest: ransomware.items.some((i) => i.grouped != null),
+          daily,
+          lastClaimAt,
+          hasLegacyDigest,
+          sectorCounts: rankedCounts(singles.map((i) => i.sector)),
+          countryCounts: rankedCounts(singles.map((i) => i.country)),
+        }
+      })()
     : null
 
   const index = buildRelationsIndex(data.relations)

@@ -8,7 +8,9 @@ import { ExternalLink } from './ExternalLink'
 import { VictimLogo } from './VictimLogo'
 import { PIVOTABLE, provenance, techniqueUrl } from './relations'
 import { ActorLink, BoardPanel, CveLink, PanelEmpty } from '../overview/board-ui'
-import type { ProfileResult, TimelineBucket } from './profiles'
+import { barWidthClass } from '../overview/widths'
+import { busiestDay } from './profiles'
+import type { DayBucket, ProfileResult, RankedCount } from './profiles'
 import type { ClaimedVictim, RansomIntel } from './types'
 
 /**
@@ -118,14 +120,22 @@ function KindBadges({ profile }: { profile: ProfileResult }) {
  *  bare divider band is chrome without content. The actor's NAME itself is
  *  not repeated here — it is the page H1 immediately above this card. */
 function IdentityHeader({ profile }: { profile: ProfileResult }) {
-  const { fingerprint, intel } = profile
+  const { fingerprint, intel, activity } = profile
   const attackHref = safeUrl(fingerprint?.attackUrl)
   const aliases = fingerprint?.aliases ?? intel?.aliases ?? []
   // raas is tri-state: true / explicit false (both known, both stated) /
   // absent (unknown — say nothing). The seed carries real explicit-false
   // entries (Clop), so the "No" path is live, not speculative.
   const raasKnown = typeof intel?.raas === 'boolean'
-  const hasFacts = Boolean(intel?.first_seen) || raasKnown || aliases.length > 0
+  // Cadence facts (claiming groups only) — pure derivations of attributed
+  // claim dates, stated only when computable.
+  const busiest = activity ? busiestDay(activity.daily) : null
+  const hasFacts =
+    Boolean(intel?.first_seen) ||
+    raasKnown ||
+    aliases.length > 0 ||
+    Boolean(activity?.lastClaimAt) ||
+    busiest !== null
 
   return (
     <header className="flex flex-col gap-4 rounded-lg border border-line bg-raised p-5 shadow-e1">
@@ -153,6 +163,12 @@ function IdentityHeader({ profile }: { profile: ProfileResult }) {
           {raasKnown && (
             <Fact label="RaaS">{intel!.raas ? 'Yes · affiliate model' : 'No'}</Fact>
           )}
+          {activity?.lastClaimAt && <Fact label="Last claim">{rel(activity.lastClaimAt)}</Fact>}
+          {busiest && (
+            <Fact label="Busiest day">
+              {dayLabel(busiest.date)} ({num(busiest.count)})
+            </Fact>
+          )}
           {aliases.length > 0 && <Fact label="Aliases">{num(aliases.length)}</Fact>}
         </div>
       )}
@@ -160,123 +176,108 @@ function IdentityHeader({ profile }: { profile: ProfileResult }) {
   )
 }
 
-/* ---------------- leak-site activity (timeline + geography) ---------------- */
+/* ---------------- leak-site activity (heat strip + geography) --------------- */
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** ISO `YYYY-MM-DD` → terse `Mon D`, from the string parts only (deterministic,
- *  no Date/locale — the timeline weeks are already UTC Monday keys). */
-function weekLabel(iso: string): string {
+ *  no Date/locale — the daily buckets are already UTC date keys). */
+function dayLabel(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
   if (!m) return iso
   return `${MONTHS[Number(m[2]) - 1] ?? m[2]} ${Number(m[3])}`
 }
 
-/** Deterministic inline-SVG column chart of weekly claim volume — no chart
- *  dependency. Every bar is the same reserved-accent shade (periwinkle is the
- *  established claim-VOLUME colour, per ClaimsChip — a count, never a
- *  verdict) at full strength; the peak week is called out in the caption
- *  row instead of a second opacity/shade, so there is exactly one accent
- *  tone on the chart in either theme. Bar width and gap are fixed in chart
- *  units and the sequence is LEFT-anchored, so a sparse 2-3-week window
- *  clusters near the left on a baseline that still spans the full card,
- *  rather than a couple of bars stretching to fill the width. Each bar
- *  carries a native <title> for hover/keyboard, and the whole chart carries
- *  an aria summary. Static by design (no entrance animation) so it renders
- *  identically every time and needs no reduced-motion guard. */
-function TimelineChart({ buckets }: { buckets: TimelineBucket[] }) {
-  // Cap to the most recent 26 weeks (buckets arrive oldest-first): barW's
-  // Math.max(2, …) floor below can't shrink past 2 chart units, so past
-  // ~33 bars the fixed GAP alone would overflow the fixed 320-unit viewBox.
-  // Unreachable today (30-day feed retention → ~5 buckets) but guarded in
-  // case that retention constant ever grows.
-  const data = buckets.filter((b) => b.week !== 'unknown').slice(-26)
-  const W = 320
-  const H = 76
-  const padTop = 6
-  const padBottom = 12
-  const plotH = H - padTop - padBottom
-  const max = Math.max(1, ...data.map((d) => d.count))
-  const peak = data.reduce((a, b) => (b.count > a.count ? b : a), data[0])
-  const total = data.reduce((s, d) => s + d.count, 0)
+/** Literal Tailwind opacity classes for the heat ladder (JIT can't see a
+ *  computed string — the widths.ts trap). Floor 30%: a fainter periwinkle is
+ *  near-invisible on the light theme's panel; lit cells also carry a border
+ *  so a single-claim day still reads. Note: this quartile ladder deliberately
+ *  supersedes the retired weekly chart's one-accent-tone rule — a heat strip
+ *  IS its opacity ramp; the tone is still the single volume accent. */
+function heatClass(count: number, max: number): string {
+  if (count <= 0) return 'bg-panel-soft'
+  const q = count / Math.max(1, max)
+  const o = q > 0.75 ? 'opacity-100' : q > 0.5 ? 'opacity-75' : q > 0.25 ? 'opacity-50' : 'opacity-30'
+  return `border border-line bg-accent ${o}`
+}
 
-  // Fixed bar width + gap (chart units), left-anchored from x=0. Only shrinks
-  // below the cap once enough weeks are packed in to need it — a 2-3 bar
-  // window keeps the same bar width as a full one, just clustered left.
-  const GAP = 8
-  const MAX_BAR = 20
-  const barW = Math.max(2, Math.min(MAX_BAR, (W - GAP * (data.length - 1)) / data.length))
-
+/** 31-day daily claim heat strip — always renders when the group has ≥1 claim
+ *  in the window (the retired weekly chart refused to draw under 2 distinct
+ *  weeks, which was most claiming groups). Digest tallies distribute by their
+ *  carried per-claim dates (profiles.ts::dailyClaimsFor). Static, no SVG lib;
+ *  cell titles are hover-only (touch-inert) so the cells are aria-hidden and
+ *  the container carries the summary sentence. */
+function HeatStrip({ daily }: { daily: DayBucket[] }) {
+  const max = Math.max(1, ...daily.map((d) => d.count))
+  const total = daily.reduce((s, d) => s + d.count, 0)
+  const peak = daily.reduce((a, b) => (b.count >= a.count ? b : a), daily[0])
   return (
     <div className="flex flex-col gap-1.5">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        className="h-[76px] w-full"
+      <div
         role="img"
-        aria-label={`Weekly claim volume across ${data.length} weeks, peaking at ${peak.count} in the week of ${weekLabel(peak.week)}. ${total} claims total.`}
+        aria-label={`Daily claim volume, ${dayLabel(daily[0].date)} to ${dayLabel(daily[daily.length - 1].date)}: ${total} claims, peaking at ${peak.count} on ${dayLabel(peak.date)}.`}
+        className="grid grid-cols-[repeat(31,minmax(0,1fr))] gap-0.5"
       >
-        {/* baseline — always spans the full card width, even when the bars
-            themselves cluster left for a sparse window */}
-        <line
-          x1={0}
-          y1={padTop + plotH + 0.5}
-          x2={W}
-          y2={padTop + plotH + 0.5}
-          className="stroke-line"
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
-        />
-        {data.map((d, i) => {
-          const h = Math.max(d.count > 0 ? 2 : 0, (d.count / max) * plotH)
-          const x = i * (barW + GAP)
-          const y = padTop + plotH - h
-          return (
-            <rect key={d.week} x={x} y={y} width={barW} height={h} rx={1.5} className="fill-accent">
-              <title>{`Week of ${weekLabel(d.week)}: ${d.count} claim${d.count === 1 ? '' : 's'}`}</title>
-            </rect>
-          )
-        })}
-      </svg>
+        {daily.map((d) => (
+          <div
+            key={d.date}
+            aria-hidden="true"
+            title={`${dayLabel(d.date)} · ${d.count} claim${d.count === 1 ? '' : 's'}`}
+            className={cx('h-6 rounded-[2px]', heatClass(d.count, max))}
+          />
+        ))}
+      </div>
       <div className="flex items-center justify-between font-mono text-micro text-faint">
-        <span>{weekLabel(data[0].week)}</span>
+        <span>{dayLabel(daily[0].date)}</span>
         <span className="text-accent">peak {num(peak.count)}</span>
-        <span>{weekLabel(data[data.length - 1].week)}</span>
+        <span>{dayLabel(daily[daily.length - 1].date)}</span>
       </div>
     </div>
   )
 }
 
-/** Sectors / countries the leak site attributed for a group — honest-empty per
- *  field, and countries carry the digest-partiality caveat the source forces. */
-function GeoTags({ label, values, partial }: { label: string; values: string[]; partial?: boolean }) {
+/** Guarded region-name lookup: only a clean 2-letter code goes to
+ *  Intl.DisplayNames (upstream emits junk + 3-letter codes); anything else —
+ *  or a lookup throw — falls back to the raw label. Text, never emoji flags
+ *  (Windows renders regional indicators as letter pairs). */
+function countryLabel(code: string): string {
+  if (!/^[A-Za-z]{2}$/.test(code)) return code
+  try {
+    const name = new Intl.DisplayNames(['en'], { type: 'region' }).of(code.toUpperCase())
+    return name && name !== code.toUpperCase() ? `${code.toUpperCase()} · ${name}` : code
+  } catch {
+    return code
+  }
+}
+
+/** Ranked label · count · volume-bar rows (the ISP-leaderboard idiom). */
+function RankedBars({ rows, format }: { rows: RankedCount[]; format?: (label: string) => string }) {
+  const max = Math.max(1, ...rows.map((r) => r.count))
   return (
-    <div className="flex flex-col gap-2">
-      <SectionLabel>{label}</SectionLabel>
-      {values.length ? (
-        <>
-          <div className="flex flex-wrap gap-1.5">
-            {values.map((v) => (
-              <MonoTag key={v} tone="ghost">
-                {v}
-              </MonoTag>
-            ))}
-          </div>
-          {partial && (
-            <p className="text-micro text-faint">
-              Partial — rolled-up digest claims omit country, so more may be affected.
-            </p>
-          )}
-        </>
-      ) : (
-        <p className="text-xs text-muted">None attributed by the source.</p>
-      )}
+    <div className="flex flex-col gap-1.5">
+      {rows.map((r) => (
+        <div key={r.label} className="flex items-center gap-3">
+          <span className="w-40 shrink-0 truncate text-xs text-paper">
+            {(format ?? ((l: string) => l))(r.label)}
+          </span>
+          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-panel-soft">
+            <span className={cx('block h-full rounded-full bg-accent', barWidthClass(r.count / max))} />
+          </span>
+          <span className="w-8 shrink-0 text-right font-mono text-xs tabular-nums text-paper">
+            {num(r.count)}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
 
 function ActivityPanel({ activity }: { activity: NonNullable<ProfileResult['activity']> }) {
-  const weeks = activity.timeline.filter((b) => b.week !== 'unknown')
+  // Sectors seen only via digests (distinct coverage, no per-claim count) —
+  // rendered as plain chips under the counted bars so digest coverage isn't
+  // silently dropped while counts stay honest (singles only).
+  const counted = new Set(activity.sectorCounts.map((r) => r.label))
+  const digestOnlySectors = activity.sectors.filter((s) => !counted.has(s))
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-end justify-between gap-4">
@@ -286,21 +287,54 @@ function ActivityPanel({ activity }: { activity: NonNullable<ProfileResult['acti
             {num(activity.victimCount)}
           </span>
         </div>
-        {weeks.length >= 2 && (
-          <span className="font-mono text-micro text-faint">{num(weeks.length)} weeks</span>
-        )}
+        <span className="font-mono text-micro text-faint">last 31 days</span>
       </div>
 
-      {weeks.length >= 2 ? (
-        <TimelineChart buckets={activity.timeline} />
-      ) : (
-        <p className="text-xs text-muted">
-          Too few weeks in the window to chart a trend — the tally above is the window total.
+      {activity.daily.length > 0 && <HeatStrip daily={activity.daily} />}
+      {activity.hasLegacyDigest && (
+        <p className="text-micro text-faint">
+          One or more rolled-up digests carry no per-claim dates — their tallies land on the
+          digest&rsquo;s own day.
         </p>
       )}
 
-      <GeoTags label="Target sectors" values={activity.sectors} />
-      <GeoTags label="Target countries" values={activity.countries} partial={activity.hasDigest} />
+      <div className="flex flex-col gap-2">
+        <SectionLabel>Target sectors</SectionLabel>
+        {activity.sectorCounts.length > 0 ? (
+          <RankedBars rows={activity.sectorCounts} />
+        ) : activity.sectors.length === 0 ? (
+          <p className="text-xs text-muted">None attributed by the source.</p>
+        ) : null}
+        {digestOnlySectors.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {digestOnlySectors.map((s) => (
+              <MonoTag key={s} tone="ghost">
+                {s}
+              </MonoTag>
+            ))}
+          </div>
+        )}
+        {activity.hasDigest && (
+          <p className="text-micro text-faint">
+            Counts cover individually-posted claims only — rolled-up digests list sectors without
+            per-claim counts.
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <SectionLabel>Target countries</SectionLabel>
+        {activity.countryCounts.length > 0 ? (
+          <RankedBars rows={activity.countryCounts} format={countryLabel} />
+        ) : (
+          <p className="text-xs text-muted">None attributed by the source.</p>
+        )}
+        {activity.hasDigest && (
+          <p className="text-micro text-faint">
+            Partial — rolled-up digest claims omit country, so more may be affected.
+          </p>
+        )}
+      </div>
     </div>
   )
 }
