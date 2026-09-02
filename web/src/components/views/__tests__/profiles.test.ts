@@ -193,6 +193,22 @@ describe('cleanDescription — strips ATT&CK citation noise', () => {
     // match — the scraper artifact the design review flagged as an AI-slop tell.
     expect(cleanDescription('…healthcare sectors.(Citation: Tren')).toBe('…healthcare sectors.')
   })
+  it('strips a citation cut one char BEFORE the colon (live APT38 shape)', () => {
+    expect(cleanDescription('…have been destructive.(Citation')).toBe('…have been destructive.')
+  })
+  it('keeps the alias text of a link cut mid-url (live APT29 shape)', () => {
+    expect(
+      cleanDescription('…the [SolarWinds Compromise](https://attack.mitre.org/campaigns/C'),
+    ).toBe('…the SolarWinds Compromise')
+  })
+  it('keeps the alias text of a link cut between ] and (', () => {
+    expect(cleanDescription('…used [Cobalt Strike]')).toBe('…used Cobalt Strike')
+  })
+  it('drops a bare "[text" stub opened just before the cut', () => {
+    expect(cleanDescription('…deployed tooling including [Mimika')).toBe(
+      '…deployed tooling including',
+    )
+  })
 })
 
 describe('profileFor — activity.hasDigest true when a digest is present', () => {

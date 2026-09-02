@@ -34,15 +34,26 @@ export function attackUrl(kind: 'actor' | 'malware', id?: string): string {
 }
 
 /** Strip ATT&CK markdown noise so the description reads as prose (citations +
- *  `[text](url)` links collapse to text). */
+ *  `[text](url)` links collapse to text). The ingest hard-caps descriptions,
+ *  so a cut can land ANYWHERE — every dangling-tail shape the cap can produce
+ *  needs its own rule here; this function is the render-side backstop even
+ *  after the ingest cut moves to a word boundary. */
 export function cleanDescription(d?: string): string {
   return (d ?? '')
     .replace(/\(Citation:[^)]*\)/g, '')
-    // ATT&CK descriptions are length-truncated at ingest, which can cut mid
-    // citation — leaving a dangling "(Citation: Foo" with no closing paren the
-    // rule above (which requires the close) can't strip. Drop that tail too.
-    .replace(/\s*\(Citation:[^)]*$/, '')
+    // Dangling citation tail: the cut landed inside "(Citation: Foo". The
+    // colon is OPTIONAL — live data (APT38, Cinnamon Tempest) had the cut
+    // land one character before it, leaving "(Citation" that a colon-required
+    // rule missed and shipped raw.
+    .replace(/\s*\(Citation:?[^)]*$/, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Dangling markdown-link tails: "[text](https://cut-mid-url" (keep the
+    // text, drop the half-open target — live on APT28/APT29), "[text]" cut
+    // between ] and ( (keep the text), and a bare "[text" opened just before
+    // the cut (drop it; it is an unreadable stub).
+    .replace(/\[([^\]]*)\]\([^)]*$/, '$1')
+    .replace(/\[([^\]]*)\]$/, '$1')
+    .replace(/\s*\[[^\]]*$/, '')
     .replace(/\s{2,}/g, ' ')
     .trim()
 }

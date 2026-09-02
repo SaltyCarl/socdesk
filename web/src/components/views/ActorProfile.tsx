@@ -111,17 +111,21 @@ function KindBadges({ profile }: { profile: ProfileResult }) {
 }
 
 /** The identity block: classification badges (incl. the single ATT&CK-id
- *  treatment), aliases, the ATT&CK deep-link, and a rail of status FACTS
- *  (first-seen, RaaS, victim count, slug) — each stated only when known,
- *  never synthesised. The actor's NAME itself is not repeated here — it is
- *  the page H1 immediately above this card (ActorProfileRoute), so restating
- *  it at similar weight would be a pure duplicate. The claim-count tally
- *  likewise lives only in the activity panel below, not twice at hero
- *  weight. */
+ *  treatment), aliases, the ATT&CK deep-link, and a rail of status FACTS —
+ *  each stated ONLY when known, never synthesised: an absent seed flag renders
+ *  nothing (a "RaaS · No" for a seed that merely omitted the flag was a
+ *  falsehood, not a fact). The whole rail hides when no fact is known — a
+ *  bare divider band is chrome without content. The actor's NAME itself is
+ *  not repeated here — it is the page H1 immediately above this card. */
 function IdentityHeader({ profile }: { profile: ProfileResult }) {
   const { fingerprint, intel } = profile
   const attackHref = safeUrl(fingerprint?.attackUrl)
   const aliases = fingerprint?.aliases ?? intel?.aliases ?? []
+  // raas is tri-state: true / explicit false (both known, both stated) /
+  // absent (unknown — say nothing). The seed carries real explicit-false
+  // entries (Clop), so the "No" path is live, not speculative.
+  const raasKnown = typeof intel?.raas === 'boolean'
+  const hasFacts = Boolean(intel?.first_seen) || raasKnown || aliases.length > 0
 
   return (
     <header className="flex flex-col gap-4 rounded-lg border border-line bg-raised p-5 shadow-e1">
@@ -143,12 +147,15 @@ function IdentityHeader({ profile }: { profile: ProfileResult }) {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-x-6 gap-y-3 border-t border-line pt-4">
-        {intel?.first_seen && <Fact label="First seen">{intel.first_seen}</Fact>}
-        {intel && <Fact label="RaaS">{intel.raas ? 'Yes · affiliate model' : 'No'}</Fact>}
-        {aliases.length > 0 && <Fact label="Aliases">{num(aliases.length)}</Fact>}
-        <Fact label="Slug">g={profile.slug}</Fact>
-      </div>
+      {hasFacts && (
+        <div className="flex flex-wrap gap-x-6 gap-y-3 border-t border-line pt-4">
+          {intel?.first_seen && <Fact label="First seen">{intel.first_seen}</Fact>}
+          {raasKnown && (
+            <Fact label="RaaS">{intel!.raas ? 'Yes · affiliate model' : 'No'}</Fact>
+          )}
+          {aliases.length > 0 && <Fact label="Aliases">{num(aliases.length)}</Fact>}
+        </div>
+      )}
     </header>
   )
 }
@@ -555,13 +562,8 @@ function MitreFingerprintPanel({
         <p className="text-xs leading-relaxed text-muted">{fingerprint.description}</p>
       )}
 
-      {fingerprint.aliases.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <SectionLabel>Also tracked as</SectionLabel>
-          <AliasChips aliases={fingerprint.aliases} />
-        </div>
-      )}
-
+      {/* Aliases render ONCE — the IdentityHeader chips are the canonical spot
+          (an "Also tracked as" block here was the same array a third time). */}
       {fingerprint.techniques.length > 0 && (
         <div className="flex flex-col gap-2">
           <SectionLabel>Techniques · {num(fingerprint.techniques.length)}</SectionLabel>
@@ -622,8 +624,8 @@ function AssociatedMalware({ names, slugSet }: { names: string[]; slugSet: Set<s
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs leading-relaxed text-muted">
-        Families observed alongside this group in ATT&amp;CK and the feed — a co-occurrence surface,
-        not a &ldquo;uses&rdquo; assertion.
+        Families co-occurring with this group in feed reporting, beyond its ATT&amp;CK software
+        list — a co-occurrence surface, not a &ldquo;uses&rdquo; assertion.
       </p>
       <div className="flex flex-wrap gap-1.5">
         {names.map((n) => (
@@ -695,6 +697,21 @@ export function ActorProfile({
 }) {
   const { fingerprint, ransomware, reporting, intel, activity, claimedVictims, associatedMalware } =
     profile
+
+  // The fusion UNIONS fingerprint.software into associatedMalware, so on an
+  // actor page the same names rendered twice (fingerprint "Software & malware"
+  // AND this rail). Keep the rail for what its copy actually promises — feed
+  // co-occurrence BEYOND ATT&CK — by filtering the fingerprint names out here,
+  // and gate the panel on the FILTERED list (an intro sentence over zero chips
+  // is not an honest empty). No-op on malware pages (their software is []).
+  const fingerprintSoftware = useMemo(
+    () => new Set((fingerprint?.software ?? []).map((s) => s.toLowerCase())),
+    [fingerprint],
+  )
+  const feedOnlyMalware = useMemo(
+    () => associatedMalware.filter((n) => !fingerprintSoftware.has(n.toLowerCase())),
+    [associatedMalware, fingerprintSoftware],
+  )
 
   // A ransomware-live full-profile link-out for an active group (a plain link,
   // not embedded editorial — R3). Memoised only to keep the render tidy.
@@ -793,9 +810,9 @@ export function ActorProfile({
             <RelatedPanel related={profile.related} />
           </BoardPanel>
 
-          {associatedMalware.length > 0 && (
+          {feedOnlyMalware.length > 0 && (
             <BoardPanel eyebrow="Associated malware">
-              <AssociatedMalware names={associatedMalware} slugSet={slugSet} />
+              <AssociatedMalware names={feedOnlyMalware} slugSet={slugSet} />
             </BoardPanel>
           )}
         </div>

@@ -13,6 +13,23 @@ def _attack_id(obj):
     return ""
 
 
+def _clip(text, cap=800):
+    """Cap a description at a WORD boundary, never mid-word/mid-token.
+
+    A blind [:800] cut shipped dangling markdown tails ("...the [SolarWinds
+    Compromise](https://attack.mitre.org/campaigns/C") that leaked raw into the
+    UI. Cutting at the last whitespace <= cap removes most of those shapes at
+    the source; the frontend's cleanDescription remains the backstop for the
+    ones a word cut can still produce (link ALIAS text itself contains spaces).
+    """
+    t = text or ""
+    if len(t) <= cap:
+        return t
+    cut = t[:cap]
+    ws = cut.rfind(" ")
+    return cut[:ws] if ws > 0 else cut
+
+
 def collect(fetch, now):
     bundle = fetch(URL)
     objs = bundle.get("objects", [])
@@ -44,7 +61,7 @@ def collect(fetch, now):
             actors.append({
                 "name": o["name"], "attack_id": _attack_id(o),
                 "aliases": o.get("aliases", []),
-                "description": (o.get("description") or "")[:800],
+                "description": _clip(o.get("description")),
                 "techniques": sorted(t for t in techniques if t),
                 "software": sorted(software),
             })
@@ -52,7 +69,7 @@ def collect(fetch, now):
             malware.append({
                 "name": o["name"], "attack_id": _attack_id(o),
                 "aliases": o.get("x_mitre_aliases", []),
-                "description": (o.get("description") or "")[:800],
+                "description": _clip(o.get("description")),
                 "techniques": [], "software": [],
             })
     actors.sort(key=lambda a: a["attack_id"])
