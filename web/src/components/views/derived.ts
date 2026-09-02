@@ -12,10 +12,12 @@ import type { Profile } from './types'
  */
 
 /** One shared-technique peer row: `shared` techniques in common, out of the
- *  peer's `total`. Ranked by OVERLAP COEFFICIENT (shared / min(|A|,|B|)) —
- *  raw shared-count ranking is size-dominated (the biggest technique sets
- *  crowd every list); the coefficient surfaces genuinely similar peers while
- *  the row still displays the plain shared count. */
+ *  peer's `total`. Ranked by JACCARD (shared / union): raw shared-count is
+ *  size-dominated (mega-actors crowd every list), and the overlap
+ *  coefficient (shared/min) over-rewards TINY near-subset actors — live
+ *  dogfood showed 5-technique actors outranking APT28 on APT29's panel.
+ *  Jaccard penalizes both extremes; the row still displays the plain
+ *  shared count. */
 export interface OverlapRow {
   name: string
   slug: string
@@ -45,7 +47,7 @@ export function techniqueOverlap(
     let shared = 0
     for (const t of p.techniques!) if (mine.has(t)) shared++
     if (shared < MIN_SHARED) continue
-    const coeff = shared / Math.min(mine.size, p.techniques!.length)
+    const coeff = shared / (mine.size + p.techniques!.length - shared)
     rows.push({ name: p.name, slug: p.name.toLowerCase(), shared, total: p.techniques!.length, coeff })
   }
   return rows
