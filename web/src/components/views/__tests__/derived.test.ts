@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   distinctiveSplit,
+  seededToolCounts,
   techniqueOverlap,
   techniquePrevalence,
   usedByCounts,
@@ -59,6 +60,21 @@ describe('techniquePrevalence + distinctiveSplit', () => {
     const input = ACTORS[0].techniques!
     const { distinctive, common } = distinctiveSplit(input, prev)
     expect([...distinctive, ...common].sort()).toEqual([...input].sort())
+  })
+})
+
+describe('seededToolCounts', () => {
+  it('counts case-insensitively across seed variants (Rclone/RClone are one tool)', () => {
+    const intel = [
+      { tools: ['PsExec', 'Rclone'] },
+      { tools: ['psexec', 'RClone', 'Mimikatz'] },
+      { tools: ['PsExec'] },
+      {},
+    ]
+    const m = seededToolCounts(intel)
+    expect(m.get('psexec')).toBe(3)
+    expect(m.get('rclone')).toBe(2)
+    expect(m.get('mimikatz')).toBe(1)
   })
 })
 

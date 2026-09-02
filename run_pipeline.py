@@ -9,7 +9,7 @@ from collectors import CACHED_COLLECTORS, COLLECTORS, GROUPS_COLLECTOR, attack
 from collectors.base import iso, run_all
 from pipeline.asn import build_asn_leaderboard
 from pipeline.community import build_community_reports
-from pipeline.cves import build_cve_rows, enrich_epss
+from pipeline.cves import build_cve_context, build_cve_rows, enrich_epss
 from pipeline.history import (build_trends, daily_snapshot, prune_history,
                               snapshot_name)
 from pipeline.intel_staleness import check_intel_staleness
@@ -104,6 +104,10 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
     if intel_path.exists():
         payloads["ransomware_intel.json"] = dict(
             json.loads(intel_path.read_text(encoding="utf-8")), generated_at=iso(now))
+        # KEV/EPSS/CVSS join for the seed's initial-access CVEs — published
+        # envelope only, the committed seed file stays pure curation.
+        payloads["ransomware_intel.json"]["cve_context"] = build_cve_context(
+            payloads["ransomware_intel.json"].get("groups", []), cve_rows)
 
     # Staleness/drift guard (spec §3.4): soft warnings only, never a publish
     # blocker — run against the seed groups actually loaded above and the

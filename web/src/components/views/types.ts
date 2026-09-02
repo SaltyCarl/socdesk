@@ -108,6 +108,18 @@ export interface TechniqueNamesPayload {
   names: Record<string, string>
 }
 
+/** Publish-time KEV/EPSS/CVSS join for a seed group's initial-access CVEs
+ *  (ransomware_intel.json `cve_context`) — so the profile page can
+ *  priority-order its CVE chips without loading the ~10 MB catalog. Fields
+ *  are OMITTED when unknown, never null/false noise. */
+export interface CveContext {
+  kev?: boolean
+  kev_ransomware?: boolean
+  epss?: number
+  cvss?: number
+  kev_due_date?: string
+}
+
 /** ATT&CK technique id → tactic slugs, plus the matrix's OWN kill-chain
  *  order + display names (technique_tactics.json). The order ships from the
  *  bundle because the tactic vocabulary drifts — never hardcode it. */
@@ -306,6 +318,8 @@ export interface RansomIntelPayload {
   generated_at?: string
   schema_version?: number
   groups?: RansomIntel[]
+  /** Publish-time KEV/EPSS join for the seed's initial-access CVEs. */
+  cve_context?: Record<string, CveContext>
 }
 
 /* ---------------- claimed victims (attributed leak-site facts) ------------ */

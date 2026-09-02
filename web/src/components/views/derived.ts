@@ -108,6 +108,22 @@ export function usedByGroups(
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }
 
+/** How many SEEDED crews list each tool (lowercased name → count) — the
+ *  commodity-vs-signature context for the intel panel's hunt chips. A count
+ *  over the curated seed, stated as a count with its denominator; never a
+ *  danger characterization. Case-insensitive is load-bearing: the seed
+ *  really carries Rclone/RClone, Mega/MEGA variants. */
+export function seededToolCounts(intel: { tools?: string[] }[]): Map<string, number> {
+  const m = new Map<string, number>()
+  for (const g of intel) {
+    for (const t of g?.tools ?? []) {
+      const k = t.toLowerCase()
+      m.set(k, (m.get(k) ?? 0) + 1)
+    }
+  }
+  return m
+}
+
 /** Directory-scale reverse-index counts: lowercased software name → number of
  *  tracked groups listing it. One pass; joined onto malware index entries. */
 export function usedByCounts(actors: Profile[]): Map<string, number> {

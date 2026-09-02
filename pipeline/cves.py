@@ -54,6 +54,38 @@ def epss_url(cve_ids):
     return f"{EPSS_BASE}?cve={','.join(cve_ids)}"
 
 
+def build_cve_context(groups, cve_rows):
+    """KEV/EPSS/CVSS context for every initial-access CVE the intel seed names.
+
+    Joined AT PUBLISH into the ransomware_intel payload so the profile page can
+    priority-order its "check whether these are exposed" chips without ever
+    loading the ~10 MB catalog client-side. None/empty fields are OMITTED
+    (absence renders nothing — the frontend's honesty rule); a CVE missing from
+    the catalog is simply absent from the map. The committed seed file itself
+    is never touched — this rides the published envelope only.
+    """
+    wanted = {c for g in groups for c in (g.get("initial_access_cves") or [])}
+    out = {}
+    for row in cve_rows:
+        cve = row.get("cve")
+        if cve not in wanted:
+            continue
+        ctx = {}
+        if row.get("kev"):
+            ctx["kev"] = True
+        if row.get("kev_ransomware"):
+            ctx["kev_ransomware"] = True
+        if isinstance(row.get("epss"), (int, float)):
+            ctx["epss"] = row["epss"]
+        if isinstance(row.get("cvss"), (int, float)):
+            ctx["cvss"] = row["cvss"]
+        if row.get("kev_due_date"):
+            ctx["kev_due_date"] = row["kev_due_date"]
+        if ctx:
+            out[cve] = ctx
+    return out
+
+
 def enrich_epss(fetch, rows, now):
     """Mutates rows in place; returns a health entry for the epss enrichment."""
     try:

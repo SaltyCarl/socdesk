@@ -6,6 +6,22 @@
   "properties": {
     "generated_at": {"type": "string", "maxLength": 40},
     "schema_version": {"type": "integer"},
+    "cve_context": {
+      "type": "object",
+      "maxProperties": 512,
+      "propertyNames": {"pattern": "^CVE-[0-9]{4}-[0-9]{4,7}$"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kev": {"type": "boolean"},
+          "kev_ransomware": {"type": "boolean"},
+          "epss": {"type": "number", "minimum": 0, "maximum": 1},
+          "cvss": {"type": "number", "minimum": 0, "maximum": 10},
+          "kev_due_date": {"type": "string", "maxLength": 10}
+        }
+      }
+    },
     "groups": {"type": "array", "maxItems": 500, "items": {
       "type": "object",
       "required": ["slug", "name"],

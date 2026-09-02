@@ -5,7 +5,7 @@ import { AsyncGate, SkeletonRows, EmptyState } from '../components/views/states'
 import { ActorProfile } from '../components/views/ActorProfile'
 import { ProfileDirectory } from '../components/views/ProfileDirectory'
 import { buildProfileIndex, profileFor } from '../components/views/profiles'
-import { techniqueOverlap, techniquePrevalence, usedByGroups } from '../components/views/derived'
+import { seededToolCounts, techniqueOverlap, techniquePrevalence, usedByGroups } from '../components/views/derived'
 import { useStateData, type AsyncStatus } from '../components/views/useStateData'
 import { rel } from '../components/views/format'
 import { navigate } from '../components/palette/commands'
@@ -125,6 +125,8 @@ export function ActorProfileRoute() {
     () => (fp && fp.kind === 'malware' ? usedByGroups(fp.name, actorList) : []),
     [fp, actorList],
   )
+  // Seeded-tool commodity counts (arithmetic over the curated seed).
+  const toolCounts = useMemo(() => seededToolCounts(intelList), [intelList])
 
   const loading =
     actors.status === 'loading' || malware.status === 'loading' || feed.status === 'loading'
@@ -194,6 +196,9 @@ export function ActorProfileRoute() {
               prevalence={prevalence}
               actorCount={actorList.length}
               tacticsCatalog={techniqueTactics.data ?? undefined}
+              cveContext={intel.data?.cve_context}
+              toolCounts={toolCounts}
+              seedCount={intelList.length}
             />
           ) : groups.status === 'loading' ? (
             // The coverage layer loads OUTSIDE the AsyncGate (gated on

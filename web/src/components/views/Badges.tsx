@@ -156,10 +156,13 @@ export function MonoTag({
   children,
   tone = 'muted',
   className,
+  title,
 }: {
   children: ReactNode
   tone?: 'muted' | 'accent' | 'faint' | 'ghost'
   className?: string
+  /** Native hover hint (the KevBadge/ScoreBadge idiom). */
+  title?: string
 }) {
   const ink =
     tone === 'accent'
@@ -172,5 +175,5 @@ export function MonoTag({
           tone === 'ghost'
           ? 'border-line text-muted'
           : 'border-line bg-panel-soft text-muted'
-  return <span className={cx(BADGE_BASE, ink, className)}>{children}</span>
+  return <span title={title} className={cx(BADGE_BASE, ink, className)}>{children}</span>
 }

@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../ui'
-import { MonoTag } from './Badges'
-import { rel, safeUrl, num } from './format'
+import { KevBadge, MonoTag } from './Badges'
+import { pct, rel, safeUrl, num } from './format'
 import { intelSource, isVendorSourced, vendorLabel } from './intelSource'
 import { ExternalLink } from './ExternalLink'
 import { VictimLogo } from './VictimLogo'
@@ -13,7 +13,7 @@ import { busiestDay } from './profiles'
 import { distinctiveSplit } from './derived'
 import type { OverlapRow } from './derived'
 import type { DayBucket, ProfileResult, RankedCount } from './profiles'
-import type { ClaimedVictim, RansomIntel, TechniqueTacticsPayload } from './types'
+import type { ClaimedVictim, CveContext, RansomIntel, TechniqueTacticsPayload } from './types'
 
 /**
  * ActorProfile — the fused info-card for one threat actor / ransomware group /
@@ -406,9 +406,36 @@ function VendorAttribution({ sources }: { sources: { id: string; url: string }[]
  *  pivots), and on-host signatures render identically — every fact
  *  attributed to its source, nothing synthesised, honest-empty per field.
  *  Absent entirely when the group is unseeded. */
-function IntelPanel({ intel }: { intel: RansomIntel }) {
+function IntelPanel({
+  intel,
+  cveContext,
+  toolCounts,
+  seedCount = 0,
+}: {
+  intel: RansomIntel
+  /** Publish-time KEV/EPSS join (ransomware_intel.json cve_context). */
+  cveContext?: Record<string, CveContext>
+  /** How many seeded crews list each tool (derived.ts::seededToolCounts). */
+  toolCounts?: Map<string, number>
+  seedCount?: number
+}) {
   const vendor = isVendorSourced(intel)
-  const cves = intel.initial_access_cves ?? []
+  const rawCves = intel.initial_access_cves ?? []
+  // Priority order: EPSS desc (the only real discriminator — every current
+  // seed CVE is KEV-listed), unknowns last, id tiebreak. NO overdue boolean:
+  // the lookup doctrine (lookupModel.ts) pins that nearly every KEV entry is
+  // past due, so a boolean flags ~everything and reads as wallpaper.
+  const cves = [...rawCves].sort((a, b) => {
+    const ea = cveContext?.[a]?.epss ?? -1
+    const eb = cveContext?.[b]?.epss ?? -1
+    return eb - ea || a.localeCompare(b)
+  })
+  const kevCount = cves.filter((c) => cveContext?.[c]?.kev).length
+  const allKev = cves.length > 0 && kevCount === cves.length
+  // The "no mark = not in KEV/NVD" caveat is only TRUE once the join actually
+  // ran — pre-refresh (no cve_context at all) absence means "unjoined", and
+  // stating otherwise would itself be a falsehood.
+  const someUnmarked = cveContext != null && cves.some((c) => !cveContext[c])
   const tools = intel.tools ?? []
   const notes = intel.ransom_note ?? []
   const exts = intel.extensions ?? []
@@ -434,12 +461,46 @@ function IntelPanel({ intel }: { intel: RansomIntel }) {
       {cves.length > 0 && (
         <div className="flex flex-col gap-2">
           <SectionLabel accent>Known initial-access CVEs</SectionLabel>
-          <div className="flex flex-wrap gap-1.5">
-            {cves.map((c) => (
-              <CveLink key={c} cve={c} />
-            ))}
+          {allKev && (
+            <p className="text-micro text-faint">
+              All {num(cves.length)} are in CISA&rsquo;s KEV catalog — actively exploited in the
+              wild. Ordered by EPSS exploitation probability.
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+            {cves.map((c) => {
+              const ctx = cveContext?.[c]
+              return (
+                <span key={c} className="inline-flex items-center gap-1">
+                  <CveLink cve={c} />
+                  {/* only mark KEV per-chip in a MIXED panel — when everything
+                      is KEV (today's reality) the panel line above carries it */}
+                  {!allKev && ctx?.kev && <KevBadge ransomware={ctx.kev_ransomware} />}
+                  {ctx?.epss != null && (
+                    <span
+                      title={`EPSS ${pct(ctx.epss)} — probability of exploitation activity (FIRST)`}
+                      className="font-mono text-micro tabular-nums text-faint"
+                    >
+                      {pct(ctx.epss)}
+                    </span>
+                  )}
+                  {allKev && ctx?.kev_ransomware && (
+                    <span
+                      title="known ransomware campaign use (CISA KEV)"
+                      className="font-mono text-micro font-semibold text-faint"
+                    >
+                      R
+                    </span>
+                  )}
+                </span>
+              )
+            })}
           </div>
-          <p className="text-micro text-faint">Check whether these are exposed on the affected customer.</p>
+          <p className="text-micro text-faint">
+            Check whether these are exposed on the affected customer.
+            {someUnmarked &&
+              ' A CVE without a mark isn’t in the KEV catalog or the current NVD window.'}
+          </p>
         </div>
       )}
 
@@ -456,11 +517,22 @@ function IntelPanel({ intel }: { intel: RansomIntel }) {
         <div className="flex flex-col gap-2">
           <SectionLabel>Tooling — hunt for these in telemetry</SectionLabel>
           <div className="flex flex-wrap gap-1.5">
-            {tools.map((t) => (
-              <MonoTag key={t} tone="ghost">
-                {t}
-              </MonoTag>
-            ))}
+            {tools.map((t) => {
+              // Shared-tradecraft context: a count over the curated seed,
+              // stated with its denominator — never a "commodity" verdict.
+              const n = toolCounts?.get(t.toLowerCase()) ?? 0
+              const shared = n >= 2 && seedCount > 0
+              return (
+                <MonoTag
+                  key={t}
+                  tone="ghost"
+                  title={shared ? `listed by ${num(n)} of ${num(seedCount)} seeded crews` : undefined}
+                >
+                  {t}
+                  {shared && <span className="text-faint"> · {num(n)}/{num(seedCount)}</span>}
+                </MonoTag>
+              )
+            })}
           </div>
         </div>
       )}
@@ -962,6 +1034,9 @@ export function ActorProfile({
   prevalence,
   actorCount = 0,
   tacticsCatalog,
+  cveContext,
+  toolCounts,
+  seedCount = 0,
 }: {
   profile: ProfileResult
   slugSet: Set<string>
@@ -975,6 +1050,11 @@ export function ActorProfile({
   actorCount?: number
   /** technique_tactics.json — drives the tactic-grouped matrix layout. */
   tacticsCatalog?: TechniqueTacticsPayload
+  /** Publish-time KEV/EPSS join for the seed's initial-access CVEs. */
+  cveContext?: Record<string, CveContext>
+  /** Seeded-crew tool counts (derived.ts::seededToolCounts) + denominator. */
+  toolCounts?: Map<string, number>
+  seedCount?: number
 }) {
   const { fingerprint, ransomware, reporting, intel, activity, claimedVictims, associatedMalware } =
     profile
@@ -1024,7 +1104,7 @@ export function ActorProfile({
               eyebrow={isVendorSourced(intel) ? 'Reported TTPs' : 'Initial access & detection'}
               accent
             >
-              <IntelPanel intel={intel} />
+              <IntelPanel intel={intel} cveContext={cveContext} toolCounts={toolCounts} seedCount={seedCount} />
             </BoardPanel>
           )}
 

@@ -97,6 +97,81 @@ describe('ActorProfile — de-duplicated software & aliases (occurrence counts)'
   })
 })
 
+describe('ActorProfile — seeded-intel depth (cve_context + tool counts)', () => {
+  const intel = {
+    ...INTEL_BASE,
+    initial_access_cves: ['CVE-2020-1111', 'CVE-2023-2222', 'CVE-2021-3333'],
+    tools: ['PsExec', 'RareTool'],
+  }
+  const ctx = {
+    'CVE-2020-1111': { kev: true, epss: 0.18 },
+    'CVE-2023-2222': { kev: true, kev_ransomware: true, epss: 0.94 },
+    // CVE-2021-3333 deliberately absent — the unmarked case
+  }
+
+  it('orders CVE chips by EPSS desc, unknowns last', () => {
+    const html = renderToStaticMarkup(
+      <ActorProfile
+        profile={withOverrides({ intel })}
+        slugSet={new Set()}
+        cveContext={ctx}
+      />,
+    )
+    const i22 = html.indexOf('CVE-2023-2222')
+    const i11 = html.indexOf('CVE-2020-1111')
+    const i33 = html.indexOf('CVE-2021-3333')
+    expect(i22).toBeGreaterThan(-1)
+    expect(i22).toBeLessThan(i11)
+    expect(i11).toBeLessThan(i33)
+    expect(html).toContain('94%')
+    // mixed panel (one CVE unmarked): the honesty caveat renders
+    expect(html).toContain('isn’t in the KEV catalog')
+  })
+
+  it('hoists KEV to one panel line when EVERY chip is KEV (the live reality)', () => {
+    const allKevCtx = {
+      'CVE-2020-1111': { kev: true, epss: 0.18 },
+      'CVE-2023-2222': { kev: true, kev_ransomware: true, epss: 0.94 },
+      'CVE-2021-3333': { kev: true, epss: 0.5 },
+    }
+    const html = renderToStaticMarkup(
+      <ActorProfile
+        profile={withOverrides({ intel })}
+        slugSet={new Set()}
+        cveContext={allKevCtx}
+      />,
+    )
+    expect(html).toContain('All 3 are in CISA’s KEV catalog')
+    expect(html).not.toContain('isn’t in the KEV catalog')
+  })
+
+  it('degrades to plain chips with no context (pre-refresh deploys)', () => {
+    const html = renderToStaticMarkup(
+      <ActorProfile profile={withOverrides({ intel })} slugSet={new Set()} />,
+    )
+    expect(html).toContain('CVE-2020-1111')
+    expect(html).not.toContain('%')
+    expect(html).not.toContain('KEV catalog')
+  })
+
+  it('shows a seeded-crew count on shared tools only (n ≥ 2), never on singles', () => {
+    const counts = new Map([
+      ['psexec', 8],
+      ['raretool', 1],
+    ])
+    const html = renderToStaticMarkup(
+      <ActorProfile
+        profile={withOverrides({ intel })}
+        slugSet={new Set()}
+        toolCounts={counts}
+        seedCount={16}
+      />,
+    )
+    expect(html).toContain('8/16')
+    expect(html).not.toContain('1/16')
+  })
+})
+
 describe('ActorProfile — tactic matrix', () => {
   const catalog = {
     tactics: {
