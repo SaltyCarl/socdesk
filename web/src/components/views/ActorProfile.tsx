@@ -903,9 +903,12 @@ const DIALECT_CAVEAT: Record<string, string> = {
 function HuntRowView({ row, techniqueNames }: { row: HuntRow; techniqueNames?: Record<string, string> }) {
   const r = row.rule
   const href = safeUrl(r.source.url)
+  const kindLabel =
+    r.source.kind === 'sentinel' ? 'Microsoft Sentinel community' : r.source.kind === 'sigma' ? 'SigmaHQ' : 'SOCDesk'
   const provenance = [
-    r.source.kind === 'sentinel' ? 'Microsoft Sentinel community' : r.source.kind === 'sigma' ? 'SigmaHQ' : 'SOCDesk',
-    r.source.author,
+    kindLabel,
+    // drop a redundant author that just repeats the kind label (SOCDesk's own rules)
+    r.source.author && r.source.author !== kindLabel ? r.source.author : undefined,
     r.source.license === 'DRL' ? 'DRL 1.1' : r.source.license,
     r.source.modified ? `modified ${r.source.modified}` : undefined,
     r.tested ? `tested ${r.tested}` : undefined,
