@@ -6,6 +6,7 @@ import { ActorProfile } from '../components/views/ActorProfile'
 import { ProfileDirectory } from '../components/views/ProfileDirectory'
 import { buildProfileIndex, profileFor } from '../components/views/profiles'
 import { seededToolCounts, techniqueOverlap, techniquePrevalence, usedByGroups } from '../components/views/derived'
+import { buildHuntPack } from '../components/views/huntpack'
 import { useStateData, type AsyncStatus } from '../components/views/useStateData'
 import { rel } from '../components/views/format'
 import { navigate } from '../components/palette/commands'
@@ -14,6 +15,7 @@ import type {
   FeedPayload,
   ProfilePayload,
   RansomIntelPayload,
+  HuntPacksPayload,
   RansomwareGroupsPayload,
   RelationsPayload,
   TechniqueNamesPayload,
@@ -57,6 +59,8 @@ export function ActorProfileRoute() {
   const techniqueNames = useStateData<TechniqueNamesPayload>('technique_names')
   // Tactic catalog — the matrix layout; absent/loading falls back cleanly.
   const techniqueTactics = useStateData<TechniqueTacticsPayload>('technique_tactics')
+  // Validated hunting queries — the hunt-pack panel; 404/error -> absent.
+  const huntPacks = useStateData<HuntPacksPayload>('hunt_packs')
   // Name-only coverage layer (bare ransomware.live group names) — feeds the
   // directory's long-tail entries + the known-group profile stub.
   const groups = useStateData<RansomwareGroupsPayload>('ransomware_groups')
@@ -127,6 +131,15 @@ export function ActorProfileRoute() {
   )
   // Seeded-tool commodity counts (arithmetic over the curated seed).
   const toolCounts = useMemo(() => seededToolCounts(intelList), [intelList])
+  // Hunt-pack join — keyed on the resolved fingerprint + the two payloads
+  // (stable refs; a bare `?? []` here would defeat the memo).
+  const huntPack = useMemo(
+    () =>
+      fp && huntPacks.data
+        ? buildHuntPack(fp.techniques, huntPacks.data.rules ?? [], techniqueTactics.data ?? undefined)
+        : undefined,
+    [fp, huntPacks.data, techniqueTactics.data],
+  )
 
   const loading =
     actors.status === 'loading' || malware.status === 'loading' || feed.status === 'loading'
@@ -196,6 +209,7 @@ export function ActorProfileRoute() {
               prevalence={prevalence}
               actorCount={actorList.length}
               tacticsCatalog={techniqueTactics.data ?? undefined}
+              huntPack={huntPack}
               cveContext={intel.data?.cve_context}
               toolCounts={toolCounts}
               seedCount={intelList.length}

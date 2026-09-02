@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../ui'
 import { KevBadge, MonoTag } from './Badges'
@@ -11,6 +11,8 @@ import { ActorLink, BoardPanel, CveLink, PanelEmpty } from '../overview/board-ui
 import { barWidthClass } from '../overview/widths'
 import { busiestDay } from './profiles'
 import { distinctiveSplit } from './derived'
+import { attackDetectionUrl, sigmaSearchUrl } from './huntpack'
+import type { HuntPack, HuntRow } from './huntpack'
 import type { OverlapRow } from './derived'
 import type { DayBucket, ProfileResult, RankedCount } from './profiles'
 import type { ClaimedVictim, CveContext, RansomIntel, TechniqueTacticsPayload } from './types'
@@ -857,6 +859,175 @@ function MitreFingerprintPanel({
   )
 }
 
+/* ---------------- hunt pack (validated hunting queries) ---------------- */
+
+/** Truth-returning clipboard write — this project has shipped a button that
+ *  claimed success while the clipboard silently rejected the write
+ *  (shared/verdict-cards/copy.ts lesson); never claim what didn't happen. */
+async function copyPlain(text: string): Promise<boolean> {
+  try {
+    if (!navigator.clipboard?.writeText) return false
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function CopyKqlButton({ kql }: { kql: string }) {
+  const [state, setState] = useState<'idle' | 'copied' | 'blocked'>('idle')
+  const label = state === 'copied' ? 'Copied' : state === 'blocked' ? 'Clipboard blocked' : 'Copy KQL'
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void copyPlain(kql).then((ok) => {
+          setState(ok ? 'copied' : 'blocked')
+          setTimeout(() => setState('idle'), 2000)
+        })
+      }}
+      className="inline-flex items-center rounded-md border border-line bg-panel px-2.5 py-1 font-mono text-micro font-semibold text-muted transition-colors duration-150 ease-brand hover:border-line-bright hover:text-paper focus-visible:outline-2 focus-visible:outline-accent"
+    >
+      {label}
+    </button>
+  )
+}
+
+const DIALECT_CAVEAT: Record<string, string> = {
+  log_analytics:
+    'Written for a Sentinel workspace (TimeGenerated); in Defender advanced hunting swap TimeGenerated → Timestamp and re-validate.',
+  advanced_hunting:
+    'Written for Defender advanced hunting (Timestamp); in a Sentinel workspace swap Timestamp → TimeGenerated and re-validate.',
+}
+
+function HuntRowView({ row, techniqueNames }: { row: HuntRow; techniqueNames?: Record<string, string> }) {
+  const r = row.rule
+  const href = safeUrl(r.source.url)
+  const provenance = [
+    r.source.kind === 'sentinel' ? 'Microsoft Sentinel community' : r.source.kind === 'sigma' ? 'SigmaHQ' : 'SOCDesk',
+    r.source.author,
+    r.source.license === 'DRL' ? 'DRL 1.1' : r.source.license,
+    r.source.modified ? `modified ${r.source.modified}` : undefined,
+    r.tested ? `tested ${r.tested}` : undefined,
+  ].filter(Boolean).join(' · ')
+  return (
+    <div className="flex flex-col gap-2 border-b border-line py-3 first:pt-0 last:border-0 last:pb-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold text-paper">{r.title}</span>
+        <MonoTag tone="ghost">{r.dialect === 'log_analytics' ? 'Sentinel LA' : 'Adv. hunting'}</MonoTag>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {row.matched.map((t) => (
+          <TechniqueChip key={t} id={t} name={techniqueNames?.[t]} />
+        ))}
+      </div>
+      <details>
+        <summary className="cursor-pointer select-none font-mono text-micro font-semibold uppercase tracking-label text-accent">
+          View KQL
+        </summary>
+        {/* whitespace-pre + horizontal scroll — wrap/break-all would split KQL
+            identifiers mid-token (differs from DecodeLadder on purpose). */}
+        <pre className="mt-2 overflow-x-auto whitespace-pre rounded-md border border-line bg-panel p-3 font-mono text-micro text-paper">
+          {r.kql}
+        </pre>
+        <div className="mt-2">
+          <CopyKqlButton kql={r.kql} />
+        </div>
+      </details>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-micro text-faint">
+        <span>{provenance}</span>
+        {href && <ExternalLink href={href}>source</ExternalLink>}
+      </div>
+    </div>
+  )
+}
+
+/** The hunt pack: validated hunting queries joined to this profile's
+ *  technique fingerprint, kill-chain-ordered. Every row is a community or
+ *  SOCDesk-authored query that passed the emulator validation gate —
+ *  syntax-validated, NOT a detection guarantee. */
+function HuntPackPanel({
+  pack,
+  techniqueNames,
+}: {
+  pack: HuntPack
+  techniqueNames?: Record<string, string>
+}) {
+  const dialects = new Set(pack.sections.flatMap((s) => s.rows.map((r) => r.rule.dialect)))
+  const hasSigma = pack.sections.some((s) => s.rows.some((r) => r.rule.source.kind === 'sigma'))
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-xs leading-relaxed text-muted">
+        Community hunting queries matched to this fingerprint, validated for syntax against the
+        Kusto emulator — validate table names and thresholds against the customer&rsquo;s schema
+        before running. A starting point, not a detection guarantee.
+      </p>
+      {[...dialects].sort().map((d) => (
+        <p key={d} className="text-micro text-faint">
+          {DIALECT_CAVEAT[d]}
+        </p>
+      ))}
+      {hasSigma && (
+        <p className="text-micro text-faint">
+          Sigma-derived rules republished under the{' '}
+          <ExternalLink href="https://github.com/SigmaHQ/Detection-Rule-License/blob/main/LICENSE.Detection.Rules.md">
+            Detection Rule License
+          </ExternalLink>
+        </p>
+      )}
+
+      {pack.totalMatched === 0 ? (
+        <p className="text-xs text-muted" role="status">
+          No curated queries match this fingerprint yet — the corpus is young. Upstream detection
+          references for each technique are linked below.
+        </p>
+      ) : (
+        pack.sections.map((s) => (
+          <div key={s.slug} className="flex flex-col gap-1.5">
+            <SectionLabel>
+              {s.name} · {num(s.rows.length)}
+            </SectionLabel>
+            <div className="flex flex-col">
+              {s.rows.map((row) => (
+                <HuntRowView key={row.rule.id} row={row} techniqueNames={techniqueNames} />
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+      {pack.overflow > 0 && (
+        <p className="text-micro text-faint">
+          {num(pack.overflow)} further matching queries not shown — the panel caps at 50.
+        </p>
+      )}
+
+      {pack.uncovered.length > 0 && (
+        <details>
+          <summary className="cursor-pointer select-none font-mono text-micro font-semibold uppercase tracking-label text-faint">
+            {num(pack.uncovered.length)} techniques with no curated query
+          </summary>
+          <div className="mt-2 flex flex-col gap-1">
+            {pack.uncovered.map((t) => (
+              <div key={t} className="flex flex-wrap items-center gap-x-2 font-mono text-micro">
+                <span className="font-semibold text-accent-dim">{t}</span>
+                <span className="text-muted">{techniqueNames?.[t] ?? ''}</span>
+                <ExternalLink href={attackDetectionUrl(t)}>ATT&amp;CK detection</ExternalLink>
+                <ExternalLink href={sigmaSearchUrl(t)}>SigmaHQ search (GitHub sign-in)</ExternalLink>
+              </div>
+            ))}
+            {pack.preCompromiseOmitted > 0 && (
+              <p className="mt-1 text-micro text-faint">
+                {num(pack.preCompromiseOmitted)} pre-compromise techniques (reconnaissance /
+                resource development) omitted — not host-huntable.
+              </p>
+            )}
+          </div>
+        </details>
+      )}
+    </div>
+  )
+}
+
 /* ---------------- reporting (link-outs) ---------------- */
 
 function ReportingList({ reporting }: { reporting: ProfileResult['reporting'] }) {
@@ -1034,6 +1205,7 @@ export function ActorProfile({
   prevalence,
   actorCount = 0,
   tacticsCatalog,
+  huntPack,
   cveContext,
   toolCounts,
   seedCount = 0,
@@ -1052,6 +1224,8 @@ export function ActorProfile({
   tacticsCatalog?: TechniqueTacticsPayload
   /** Publish-time KEV/EPSS join for the seed's initial-access CVEs. */
   cveContext?: Record<string, CveContext>
+  /** The validated-hunting-query join for this fingerprint (huntpack.ts). */
+  huntPack?: HuntPack
   /** Seeded-crew tool counts (derived.ts::seededToolCounts) + denominator. */
   toolCounts?: Map<string, number>
   seedCount?: number
@@ -1148,6 +1322,15 @@ export function ActorProfile({
                 actorCount={actorCount}
                 tacticsCatalog={tacticsCatalog}
               />
+            </BoardPanel>
+          )}
+
+          {/* hunt pack — only when the profile HAS a fingerprint (the join
+              input); floor-only packs still render (the links carry value and
+              absence is stated, per doctrine). */}
+          {fingerprint && huntPack && (
+            <BoardPanel eyebrow="Hunt pack">
+              <HuntPackPanel pack={huntPack} techniqueNames={techniqueNames} />
             </BoardPanel>
           )}
 

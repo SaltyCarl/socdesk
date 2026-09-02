@@ -172,6 +172,70 @@ describe('ActorProfile — seeded-intel depth (cve_context + tool counts)', () =
   })
 })
 
+describe('ActorProfile — hunt pack panel', () => {
+  const pack = {
+    sections: [
+      {
+        slug: 'impact',
+        name: 'Impact',
+        rows: [
+          {
+            rule: {
+              id: 'shadow', title: 'Shadow copy deletion', kql: 'SecurityEvent | take 1',
+              techniques: ['T1490'], dialect: 'log_analytics' as const,
+              source: { kind: 'sentinel' as const, url: 'https://github.com/x', license: 'MIT', modified: '2026-06-01' },
+            },
+            exact: true,
+            matched: ['T1490'],
+          },
+        ],
+      },
+    ],
+    uncovered: ['T1486'],
+    preCompromiseOmitted: 2,
+    totalMatched: 1,
+    overflow: 0,
+  }
+  const html = renderToStaticMarkup(
+    <ActorProfile profile={profile} slugSet={new Set()} huntPack={pack} />,
+  )
+
+  it('renders the row with provenance, dialect tag, and collapsed KQL', () => {
+    expect(html).toContain('Shadow copy deletion')
+    expect(html).toContain('Microsoft Sentinel community · MIT · modified 2026-06-01')
+    expect(html).toContain('Sentinel LA')
+    expect(html).toContain('View KQL')
+    expect(html).toContain('SecurityEvent | take 1')
+  })
+
+  it('renders the honesty framing and exactly one dialect caveat', () => {
+    expect(html).toContain('not a detection guarantee')
+    expect((html.match(/swap TimeGenerated/g) ?? []).length).toBe(1)
+    // no sigma rules -> no DRL link
+    expect(html).not.toContain('Detection Rule License')
+  })
+
+  it('renders the floor with both link targets and the pre-compromise note', () => {
+    expect(html).toContain('techniques with no curated query')
+    expect(html).toContain('https://attack.mitre.org/techniques/T1486/#detection')
+    expect(html).toContain('SigmaHQ search (GitHub sign-in)')
+    expect(html).toContain('2 pre-compromise techniques')
+  })
+
+  it('renders the explicit 0-match state (floor-only pack)', () => {
+    const emptyPack = { ...pack, sections: [], totalMatched: 0 }
+    const h = renderToStaticMarkup(
+      <ActorProfile profile={profile} slugSet={new Set()} huntPack={emptyPack} />,
+    )
+    expect(h).toContain('No curated queries match this fingerprint yet')
+  })
+
+  it('is absent entirely without a huntPack (pre-deploy degrade)', () => {
+    const h = renderToStaticMarkup(<ActorProfile profile={profile} slugSet={new Set()} />)
+    expect(h).not.toContain('Hunt pack')
+  })
+})
+
 describe('ActorProfile — tactic matrix', () => {
   const catalog = {
     tactics: {

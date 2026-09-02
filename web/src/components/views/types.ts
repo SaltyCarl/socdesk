@@ -130,6 +130,34 @@ export interface TechniqueTacticsPayload {
   order: { slug: string; name: string }[]
 }
 
+/** One validated hunting query (hunt_packs.json). kql is the verbatim
+ *  upstream/authored query; source carries the license trail. */
+export interface HuntRule {
+  id: string
+  title: string
+  kql: string
+  techniques: string[]
+  tables?: string[]
+  dialect: 'advanced_hunting' | 'log_analytics'
+  tested?: string
+  source: {
+    kind: 'sentinel' | 'sigma' | 'socdesk'
+    url: string
+    license: string
+    author?: string
+    rule_id?: string
+    modified?: string
+  }
+}
+
+export interface HuntPacksPayload {
+  generated_at?: string
+  schema_version?: number
+  collected_at?: string
+  allowlist_sha1?: string
+  rules: HuntRule[]
+}
+
 /** Bare ransomware-group names from ransomware.live /v2/groups
  *  (ransomware_groups.json) — the name-only directory coverage layer.
  *  Names only by design (R3): no editorial rides along. */

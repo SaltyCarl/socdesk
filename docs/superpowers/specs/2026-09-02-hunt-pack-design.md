@@ -117,7 +117,7 @@ modified 2026-06" / "SigmaHQ · <author> · DRL 1.1" / "SOCDesk · tested
 techniques):** ≤3 rules per technique (priority: socdesk > sentinel > sigma,
 then modified recency, deterministic), ~50 rows per panel with a collapsed
 remainder; techniques with no hosted rule get the link-out floor row (ATT&CK
-#detections + SigmaHQ search). **Join rule:** parent-technique normalization —
+#detection + SigmaHQ search). **Join rule:** parent-technique normalization —
 exact sub-technique matches rank above family-level matches (fingerprints
 carry 321 sub-ids; Sentinel keys parent-heavy, Sigma sub-heavy). Panel copy:
 "Community/authored hunting queries — validate table names and thresholds
