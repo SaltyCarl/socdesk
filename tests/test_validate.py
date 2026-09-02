@@ -302,6 +302,35 @@ def test_ransomware_groups_schema_rejects_oversize_and_bad_types():
     assert validate_payload("ransomware_groups.json", bad, "schemas") != []
 
 
+def test_technique_tactics_schema_is_shape_only_never_an_enum():
+    """⚠ The tactic vocabulary DRIFTS (defense-evasion no longer exists in the
+    live matrix; stealth + defense-impairment do). The schema validates SHAPE
+    only — an enum of well-known names would go invalid on the first real run,
+    lose the payload, and (via the freshness gate) re-fetch the 54 MB bundle
+    every cycle. Good-case uses the REAL current shortnames."""
+    good = {"generated_at": "x", "schema_version": 1,
+            "tactics": {"T1566": ["initial-access"],
+                        "T1027": ["stealth", "defense-impairment"],
+                        "T1059.001": ["execution"]},
+            "order": [{"slug": "stealth", "name": "Stealth"},
+                      {"slug": "defense-impairment", "name": "Defense Impairment"}]}
+    assert validate_payload("technique_tactics.json", good, "schemas") == []
+    empty = {"generated_at": "x", "schema_version": 1, "tactics": {}, "order": []}
+    assert validate_payload("technique_tactics.json", empty, "schemas") == []
+
+
+def test_technique_tactics_schema_rejects_bad_shapes():
+    bad_key = {"generated_at": "x", "schema_version": 1,
+               "tactics": {"NOTID": ["impact"]}, "order": []}
+    assert validate_payload("technique_tactics.json", bad_key, "schemas") != []
+    bad_slug = {"generated_at": "x", "schema_version": 1,
+                "tactics": {"T1566": ["Not A Slug!"]}, "order": []}
+    assert validate_payload("technique_tactics.json", bad_slug, "schemas") != []
+    bad_order = {"generated_at": "x", "schema_version": 1,
+                 "tactics": {}, "order": [{"slug": "impact"}]}
+    assert validate_payload("technique_tactics.json", bad_order, "schemas") != []
+
+
 def test_technique_names_schema_rejects_non_technique_key_and_nonstring_value():
     assert validate_payload(
         "technique_names.json",

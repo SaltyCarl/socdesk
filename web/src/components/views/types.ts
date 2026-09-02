@@ -108,6 +108,16 @@ export interface TechniqueNamesPayload {
   names: Record<string, string>
 }
 
+/** ATT&CK technique id → tactic slugs, plus the matrix's OWN kill-chain
+ *  order + display names (technique_tactics.json). The order ships from the
+ *  bundle because the tactic vocabulary drifts — never hardcode it. */
+export interface TechniqueTacticsPayload {
+  generated_at?: string
+  schema_version?: number
+  tactics: Record<string, string[]>
+  order: { slug: string; name: string }[]
+}
+
 /** Bare ransomware-group names from ransomware.live /v2/groups
  *  (ransomware_groups.json) — the name-only directory coverage layer.
  *  Names only by design (R3): no editorial rides along. */

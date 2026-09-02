@@ -153,3 +153,22 @@ def test_asn_leaderboard_keeps_last_known_good_on_none(fake_fetch, tmp_path, mon
     kept = json.loads((out / "asn_leaderboard.json").read_text(encoding="utf-8"))
     assert kept["networks"] == []                      # prior retained (not blanked)
     assert kept["generated_at"] != prior["generated_at"]   # re-stamped this run
+
+
+def test_attack_is_fresh_requires_derived_catalogs():
+    """The freshness gate must treat attack as STALE until every derived
+    catalog exists — else a catalog added after actors.json never generates
+    (and, inverted, a missing-catalog bug would re-fetch the 54 MB bundle
+    every cycle: the gate is the only thing standing between the two)."""
+    from run_pipeline import _attack_is_fresh
+    from tests.conftest import FIXED_NOW
+    from collectors.base import iso
+    fresh_gen = {"generated_at": iso(FIXED_NOW)}
+    full = {"actors.json": fresh_gen, "technique_names.json": {},
+            "technique_tactics.json": {}}
+    assert _attack_is_fresh(full, FIXED_NOW) is True
+    for missing in ("technique_names.json", "technique_tactics.json"):
+        state = {k: v for k, v in full.items() if k != missing}
+        assert _attack_is_fresh(state, FIXED_NOW) is False
+    stale = dict(full, **{"actors.json": {"generated_at": "2020-01-01T00:00:00Z"}})
+    assert _attack_is_fresh(stale, FIXED_NOW) is False

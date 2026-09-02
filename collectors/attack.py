@@ -33,7 +33,7 @@ def _clip(text, cap=800):
 def collect(fetch, now):
     bundle = fetch(URL)
     objs = bundle.get("objects", [])
-    by_id, rels = {}, []
+    by_id, rels, tactics, matrices = {}, [], {}, []
     for o in objs:
         if o.get("revoked") or o.get("x_mitre_deprecated"):
             continue
@@ -41,6 +41,10 @@ def collect(fetch, now):
             by_id[o["id"]] = o
         elif o["type"] == "relationship" and o.get("relationship_type") == "uses":
             rels.append(o)
+        elif o["type"] == "x-mitre-tactic":
+            tactics[o["id"]] = o
+        elif o["type"] == "x-mitre-matrix":
+            matrices.append(o)
 
     uses = {}
     for r in rels:
@@ -66,11 +70,21 @@ def collect(fetch, now):
                 "software": sorted(software),
             })
         elif o["type"] in ("malware", "tool"):
+            # A malware/tool's own `uses` rels target attack-patterns — the
+            # same map the actor branch consumes; hardcoding [] here left 825
+            # profiles techniqueless while the data sat already-parsed.
+            # sorted(set(...)): real bundles carry duplicate rels. software
+            # stays [] — malware→malware uses rels don't exist in the bundle.
+            mw_techniques = {
+                _attack_id(by_id[tgt])
+                for tgt in uses.get(o["id"], [])
+                if tgt in by_id and by_id[tgt]["type"] == "attack-pattern"
+            }
             malware.append({
                 "name": o["name"], "attack_id": _attack_id(o),
                 "aliases": o.get("x_mitre_aliases", []),
                 "description": _clip(o.get("description")),
-                "techniques": [], "software": [],
+                "techniques": sorted(t for t in mw_techniques if t), "software": [],
             })
     actors.sort(key=lambda a: a["attack_id"])
     malware.sort(key=lambda m: m["attack_id"])
@@ -83,7 +97,36 @@ def collect(fetch, now):
         for o in by_id.values()
         if o["type"] == "attack-pattern" and (aid := _attack_id(o))
     }
+    # Technique -> tactic slugs (mitre-attack kill chain only), plus the
+    # matrix's OWN tactic order + display names. NEVER hardcode a tactic list
+    # client-side: the live matrix has drifted from the classic 14 (e.g.
+    # defense-evasion no longer exists — stealth + defense-impairment do), so
+    # the order ships from the bundle itself via x-mitre-matrix.tactic_refs.
+    technique_tactics = {}
+    for o in by_id.values():
+        if o["type"] != "attack-pattern":
+            continue
+        aid = _attack_id(o)
+        if not aid:
+            continue
+        phases = sorted({
+            p.get("phase_name", "")
+            for p in o.get("kill_chain_phases", [])
+            if p.get("kill_chain_name") == "mitre-attack" and p.get("phase_name")
+        })
+        if phases:
+            technique_tactics[aid] = phases
+    tactic_order = [
+        {"slug": t["x_mitre_shortname"], "name": t["name"]}
+        for m in matrices
+        for ref in m.get("tactic_refs", [])
+        if (t := tactics.get(ref)) and t.get("x_mitre_shortname") and t.get("name")
+    ]
     return CollectorResult(
         source=SOURCE,
-        extra={"actors": actors, "malware": malware, "technique_names": technique_names},
+        extra={
+            "actors": actors, "malware": malware,
+            "technique_names": technique_names,
+            "technique_tactics": {"tactics": technique_tactics, "order": tactic_order},
+        },
     )

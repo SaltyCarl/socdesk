@@ -17,6 +17,7 @@ import type {
   RansomwareGroupsPayload,
   RelationsPayload,
   TechniqueNamesPayload,
+  TechniqueTacticsPayload,
 } from '../components/views/types'
 
 /**
@@ -54,6 +55,8 @@ export function ActorProfileRoute() {
   // ATT&CK id→name catalog — labels the fingerprint's bare technique ids. Loads
   // independently; the profile renders fine (ids only) before/without it.
   const techniqueNames = useStateData<TechniqueNamesPayload>('technique_names')
+  // Tactic catalog — the matrix layout; absent/loading falls back cleanly.
+  const techniqueTactics = useStateData<TechniqueTacticsPayload>('technique_tactics')
   // Name-only coverage layer (bare ransomware.live group names) — feeds the
   // directory's long-tail entries + the known-group profile stub.
   const groups = useStateData<RansomwareGroupsPayload>('ransomware_groups')
@@ -190,6 +193,7 @@ export function ActorProfileRoute() {
               usedBy={usedBy}
               prevalence={prevalence}
               actorCount={actorList.length}
+              tacticsCatalog={techniqueTactics.data ?? undefined}
             />
           ) : groups.status === 'loading' ? (
             // The coverage layer loads OUTSIDE the AsyncGate (gated on

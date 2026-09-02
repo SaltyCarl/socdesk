@@ -13,7 +13,7 @@ import { busiestDay } from './profiles'
 import { distinctiveSplit } from './derived'
 import type { OverlapRow } from './derived'
 import type { DayBucket, ProfileResult, RankedCount } from './profiles'
-import type { ClaimedVictim, RansomIntel } from './types'
+import type { ClaimedVictim, RansomIntel, TechniqueTacticsPayload } from './types'
 
 /**
  * ActorProfile — the fused info-card for one threat actor / ransomware group /
@@ -601,12 +601,82 @@ function ClaimedVictimsPanel({
 
 /* ---------------- ATT&CK fingerprint ---------------- */
 
+/** Tactic-grouped technique matrix: stacked labeled sections in the BUNDLE'S
+ *  own kill-chain order (never a hardcoded tactic list — the vocabulary
+ *  drifts), chips wrapping within each — same semantic as a Navigator layer,
+ *  zero horizontal scroll. A multi-tactic technique renders under EACH of its
+ *  tactics (ATT&CK's own semantic); the honesty line states the fan-out.
+ *  Techniques with no catalog entry (or an unknown phase) land in an appended
+ *  "Other" bucket — never dropped. */
+function TacticMatrix({
+  techniques,
+  catalog,
+  techniqueNames,
+  distinctiveSet,
+  hintFor,
+}: {
+  techniques: string[]
+  catalog: TechniqueTacticsPayload
+  techniqueNames?: Record<string, string>
+  distinctiveSet: Set<string>
+  hintFor: (t: string) => string | undefined
+}) {
+  const known = new Map(catalog.order.map((o) => [o.slug, o.name]))
+  const buckets = new Map<string, string[]>()
+  for (const t of techniques) {
+    const phases = (catalog.tactics[t] ?? []).filter((p) => known.has(p))
+    const targets = phases.length ? phases : ['other']
+    for (const p of targets) {
+      const arr = buckets.get(p) ?? []
+      arr.push(t)
+      buckets.set(p, arr)
+    }
+  }
+  const sections = [
+    ...catalog.order.filter((o) => buckets.has(o.slug)),
+    ...(buckets.has('other') ? [{ slug: 'other', name: 'Other' }] : []),
+  ]
+  const cells = [...buckets.values()].reduce((s, a) => s + a.length, 0)
+  return (
+    <div className="flex flex-col gap-4">
+      {cells > techniques.length && (
+        <p className="text-micro text-faint">
+          {num(techniques.length)} techniques · {num(cells)} cells across {num(sections.length)}{' '}
+          tactics (a multi-tactic technique appears under each of its tactics).
+        </p>
+      )}
+      {sections.map((s) => {
+        const ids = buckets.get(s.slug)!
+        return (
+          <div key={s.slug} className="flex flex-col gap-1.5">
+            <SectionLabel>
+              {s.name} · {num(ids.length)}
+            </SectionLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {ids.map((t) => (
+                <TechniqueChip
+                  key={`${s.slug}:${t}`}
+                  id={t}
+                  name={techniqueNames?.[t]}
+                  hint={hintFor(t)}
+                  distinctive={distinctiveSet.has(t)}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function MitreFingerprintPanel({
   fingerprint,
   slugSet,
   techniqueNames,
   prevalence,
   actorCount = 0,
+  tacticsCatalog,
 }: {
   fingerprint: NonNullable<ProfileResult['fingerprint']>
   slugSet: Set<string>
@@ -615,6 +685,10 @@ function MitreFingerprintPanel({
    *  the distinctive/common split. Absent → the plain flat wall. */
   prevalence?: Map<string, number>
   actorCount?: number
+  /** technique_tactics.json — present ⇒ the tactic-grouped matrix layout;
+   *  absent/loading ⇒ the distinctive/common (or flat) chip layout, so
+   *  pre-refresh deploys degrade cleanly. */
+  tacticsCatalog?: TechniqueTacticsPayload
 }) {
   // Rarity split: distinctive (≤3 tracked groups in this snapshot) leads;
   // the commodity tail collapses. 42% of actors have ZERO distinctive
@@ -622,6 +696,9 @@ function MitreFingerprintPanel({
   // over an everything-collapsed page.
   const split = prevalence ? distinctiveSplit(fingerprint.techniques, prevalence) : null
   const useSplit = split !== null && split.distinctive.length > 0
+  const distinctiveSet = new Set(split?.distinctive ?? [])
+  const useMatrix =
+    tacticsCatalog != null && tacticsCatalog.order.length > 0 && fingerprint.techniques.length > 0
   const hintFor = (t: string): string | undefined => {
     const p = prevalence?.get(t)
     return p ? `used by ${num(p)} of ${num(actorCount)} tracked groups in this snapshot` : undefined
@@ -634,7 +711,18 @@ function MitreFingerprintPanel({
 
       {/* Aliases render ONCE — the IdentityHeader chips are the canonical spot
           (an "Also tracked as" block here was the same array a third time). */}
-      {fingerprint.techniques.length > 0 &&
+      {useMatrix && (
+        <TacticMatrix
+          techniques={fingerprint.techniques}
+          catalog={tacticsCatalog!}
+          techniqueNames={techniqueNames}
+          distinctiveSet={distinctiveSet}
+          hintFor={hintFor}
+        />
+      )}
+
+      {!useMatrix &&
+        fingerprint.techniques.length > 0 &&
         (useSplit ? (
           <>
             <div className="flex flex-col gap-2">
@@ -873,6 +961,7 @@ export function ActorProfile({
   usedBy,
   prevalence,
   actorCount = 0,
+  tacticsCatalog,
 }: {
   profile: ProfileResult
   slugSet: Set<string>
@@ -884,6 +973,8 @@ export function ActorProfile({
   /** Derived (route-computed): snapshot technique prevalence. */
   prevalence?: Map<string, number>
   actorCount?: number
+  /** technique_tactics.json — drives the tactic-grouped matrix layout. */
+  tacticsCatalog?: TechniqueTacticsPayload
 }) {
   const { fingerprint, ransomware, reporting, intel, activity, claimedVictims, associatedMalware } =
     profile
@@ -975,6 +1066,7 @@ export function ActorProfile({
                 techniqueNames={techniqueNames}
                 prevalence={prevalence}
                 actorCount={actorCount}
+                tacticsCatalog={tacticsCatalog}
               />
             </BoardPanel>
           )}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "tactics", "order"],
+  "properties": {
+    "generated_at": {"type": "string"},
+    "schema_version": {"type": "integer"},
+    "tactics": {
+      "type": "object",
+      "propertyNames": {"pattern": "^T[0-9]{4}(\\.[0-9]{3})?$"},
+      "additionalProperties": {
+        "type": "array",
+        "maxItems": 8,
+        "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,39}$"}
+      }
+    },
+    "order": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["slug", "name"],
+        "properties": {
+          "slug": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,39}$"},
+          "name": {"type": "string", "minLength": 1, "maxLength": 60}
+        }
+      }
+    }
+  }
+}

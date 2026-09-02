@@ -51,10 +51,12 @@ def _load_state(state_dir):
 def _attack_is_fresh(state, now):
     gen = state.get("actors.json", {}).get("generated_at", "")
     fresh = gen >= iso(now - timedelta(days=attack.CACHE_DAYS))
-    # Also require the technique-name catalog: it landed after actors.json, so a
-    # fresh actors snapshot can predate it. Absent it, treat attack as stale so
-    # the collector runs once and produces the catalog (then caches normally).
-    return fresh and "technique_names.json" in state
+    # Also require the derived ATT&CK catalogs (technique names + tactics):
+    # each landed after actors.json, so a fresh actors snapshot can predate
+    # them. Absent either, treat attack as stale so the collector runs once
+    # and produces them (then caches normally).
+    return (fresh and "technique_names.json" in state
+            and "technique_tactics.json" in state)
 
 
 def _groups_is_fresh(state, now):

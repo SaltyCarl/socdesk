@@ -97,6 +97,61 @@ describe('ActorProfile — de-duplicated software & aliases (occurrence counts)'
   })
 })
 
+describe('ActorProfile — tactic matrix', () => {
+  const catalog = {
+    tactics: {
+      T1566: ['initial-access'],
+      T1486: ['impact', 'defense-impairment'],
+      T9999: ['not-in-order-list'],
+    },
+    order: [
+      { slug: 'initial-access', name: 'Initial Access' },
+      { slug: 'defense-impairment', name: 'Defense Impairment' },
+      { slug: 'impact', name: 'Impact' },
+    ],
+  }
+  const fp = {
+    ...profile.fingerprint!,
+    techniques: ['T1566', 'T1486', 'T9999', 'T0000'], // T0000 has no catalog entry
+  }
+  const html = renderToStaticMarkup(
+    <ActorProfile
+      profile={{ ...profile, fingerprint: fp }}
+      slugSet={new Set()}
+      tacticsCatalog={catalog}
+    />,
+  )
+
+  it('groups techniques under their tactic headers, in the catalog order', () => {
+    expect(html).toContain('Initial Access')
+    expect(html).toContain('Defense Impairment')
+    expect(html).toContain('Impact')
+    expect(html.indexOf('Initial Access')).toBeLessThan(html.indexOf('Defense Impairment'))
+    expect(html.indexOf('Defense Impairment')).toBeLessThan(html.indexOf('Impact'))
+  })
+
+  it('renders a multi-tactic technique under EACH tactic and states the fan-out', () => {
+    // count rendered chip TEXT (>id<) — the id also echoes in href/title
+    expect((html.match(/>T1486</g) ?? []).length).toBe(2)
+    expect(html).toContain('4 techniques')
+    expect(html).toContain('cells across')
+  })
+
+  it('never drops a technique: unknown phases + uncatalogued ids land in Other', () => {
+    expect(html).toContain('Other')
+    expect(html).toContain('T9999')
+    expect(html).toContain('T0000')
+  })
+
+  it('falls back to the flat layout when no catalog is provided', () => {
+    const flat = renderToStaticMarkup(
+      <ActorProfile profile={{ ...profile, fingerprint: fp }} slugSet={new Set()} />,
+    )
+    expect(flat).not.toContain('Initial Access')
+    expect(flat).toContain('T1566')
+  })
+})
+
 describe('ActorProfile — technique names', () => {
   it('labels a technique id with its name when the catalog has it', () => {
     const html = renderToStaticMarkup(

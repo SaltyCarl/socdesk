@@ -34,9 +34,12 @@ def test_build_site_data_shapes():
                                prior={}, now=FIXED_NOW)
     assert set(payloads) == {"feed.json", "cves.json", "health.json",
                              "actors.json", "malware.json", "technique_names.json",
-                             "ransomware_groups.json",
+                             "technique_tactics.json", "ransomware_groups.json",
                              "relations.json", "threat_ips.json"}
     assert payloads["technique_names.json"]["names"] == {"T1566": "Phishing"}
+    # defensive .get: an attack result without the key publishes empty shapes
+    assert payloads["technique_tactics.json"]["tactics"] == {}
+    assert payloads["technique_tactics.json"]["order"] == []
     assert payloads["ransomware_groups.json"]["names"] == ["nitrogen"]
     for p in payloads.values():
         assert p["generated_at"] == iso(FIXED_NOW) and p["schema_version"] == 1

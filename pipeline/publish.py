@@ -85,8 +85,12 @@ def build_site_data(results, cve_rows, health, prior, now, fetch=None,
         # so an older attack result without the key can't crash the publish path.
         payloads["technique_names.json"] = _envelope(
             now, names=ok["attack"].extra.get("technique_names", {}))
+        tt = ok["attack"].extra.get("technique_tactics", {})
+        payloads["technique_tactics.json"] = _envelope(
+            now, tactics=tt.get("tactics", {}), order=tt.get("order", []))
     else:
-        for name in ("actors.json", "malware.json", "technique_names.json"):
+        for name in ("actors.json", "malware.json", "technique_names.json",
+                     "technique_tactics.json"):
             if name in prior:
                 payloads[name] = dict(prior[name], generated_at=iso(now))
 
