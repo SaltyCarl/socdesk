@@ -163,12 +163,17 @@ def test_attack_is_fresh_requires_derived_catalogs():
     from run_pipeline import _attack_is_fresh
     from tests.conftest import FIXED_NOW
     from collectors.base import iso
-    fresh_gen = {"generated_at": iso(FIXED_NOW)}
-    full = {"actors.json": fresh_gen, "technique_names.json": {},
+    fresh_col = {"collected_at": iso(FIXED_NOW)}
+    full = {"actors.json": fresh_col, "technique_names.json": {},
             "technique_tactics.json": {}}
     assert _attack_is_fresh(full, FIXED_NOW) is True
     for missing in ("technique_names.json", "technique_tactics.json"):
         state = {k: v for k, v in full.items() if k != missing}
         assert _attack_is_fresh(state, FIXED_NOW) is False
-    stale = dict(full, **{"actors.json": {"generated_at": "2020-01-01T00:00:00Z"}})
+    stale = dict(full, **{"actors.json": {"collected_at": "2020-01-01T00:00:00Z"}})
     assert _attack_is_fresh(stale, FIXED_NOW) is False
+    # ⚠ the bug this gate fixes: a FRESH generated_at (keep-prior re-stamps it
+    # every cycle) with an old/absent collected_at must read STALE, not fresh —
+    # the ATT&CK snapshot sat frozen 35 days on the generated_at version.
+    restamped = dict(full, **{"actors.json": {"generated_at": iso(FIXED_NOW)}})
+    assert _attack_is_fresh(restamped, FIXED_NOW) is False

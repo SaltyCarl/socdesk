@@ -49,8 +49,14 @@ def _load_state(state_dir):
 
 
 def _attack_is_fresh(state, now):
-    gen = state.get("actors.json", {}).get("generated_at", "")
-    fresh = gen >= iso(now - timedelta(days=attack.CACHE_DAYS))
+    # ⚠ collected_at, NEVER generated_at: publish's keep-prior branches
+    # re-stamp generated_at every cycle, so a generated_at gate reads as
+    # permanently fresh after the first success — the ATT&CK snapshot sat
+    # frozen 2026-07-29 → 09-02 under a 7-day cache intent. collected_at is
+    # stamped only on a REAL collection and carried through keep-prior.
+    # Absent (pre-fix state) → stale → one regen, then normal caching.
+    col = state.get("actors.json", {}).get("collected_at", "")
+    fresh = col >= iso(now - timedelta(days=attack.CACHE_DAYS))
     # Also require the derived ATT&CK catalogs (technique names + tactics):
     # each landed after actors.json, so a fresh actors snapshot can predate
     # them. Absent either, treat attack as stale so the collector runs once
@@ -62,9 +68,10 @@ def _attack_is_fresh(state, now):
 def _groups_is_fresh(state, now):
     """The ransomware.live /v2/groups list is 764 KB behind a 1-req/min
     personal-use rate limit and changes slowly — fetch it every CACHE_DAYS,
-    not twice-hourly. Absent committed state (cold start) → stale → run once."""
-    gen = state.get("ransomware_groups.json", {}).get("generated_at", "")
-    return gen >= iso(now - timedelta(days=GROUPS_COLLECTOR.CACHE_DAYS))
+    not twice-hourly. collected_at (real collections only), same rationale
+    as _attack_is_fresh; absent → stale → run once."""
+    col = state.get("ransomware_groups.json", {}).get("collected_at", "")
+    return col >= iso(now - timedelta(days=GROUPS_COLLECTOR.CACHE_DAYS))
 
 
 def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,

@@ -79,7 +79,14 @@ def build_site_data(results, cve_rows, health, prior, now, fetch=None,
     }
 
     if "attack" in ok:
-        payloads["actors.json"] = _envelope(now, profiles=ok["attack"].extra["actors"])
+        # collected_at marks a REAL collection and is PRESERVED by the
+        # keep-prior branches below (dict(prior, generated_at=…) carries it
+        # forward untouched). The freshness gates read collected_at, never
+        # generated_at — keep-prior re-stamps generated_at every cycle, which
+        # made a generated_at-based gate permanently fresh after the first
+        # success (ATT&CK data sat frozen for 35 days before this fix).
+        payloads["actors.json"] = _envelope(
+            now, collected_at=iso(now), profiles=ok["attack"].extra["actors"])
         payloads["malware.json"] = _envelope(now, profiles=ok["attack"].extra["malware"])
         # id -> technique-name catalog (labels the fingerprint's bare T-ids). .get
         # so an older attack result without the key can't crash the publish path.
@@ -102,7 +109,8 @@ def build_site_data(results, cve_rows, health, prior, now, fetch=None,
     if "ransomwarelive_groups" in ok:
         group_names = ok["ransomwarelive_groups"].extra.get("group_names", [])
         if group_names or "ransomware_groups.json" not in prior:
-            payloads["ransomware_groups.json"] = _envelope(now, names=group_names)
+            payloads["ransomware_groups.json"] = _envelope(
+                now, collected_at=iso(now), names=group_names)
         else:
             payloads["ransomware_groups.json"] = dict(
                 prior["ransomware_groups.json"], generated_at=iso(now))
