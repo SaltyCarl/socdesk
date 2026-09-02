@@ -69,33 +69,54 @@ def test_ransomware_groups_first_run_empty_publishes_valid_envelope():
     assert payloads["ransomware_groups.json"]["names"] == []
 
 
-def test_hunt_packs_publish_trio():
-    """Fresh publish on rules; empty-but-ok keeps prior (never clobber);
-    skipped module keeps prior — the established committed-dataset pattern."""
-    rule = {"id": "r1", "title": "t", "kql": "DeviceFileEvents | take 1",
-            "techniques": ["T1486"], "tables": ["DeviceFileEvents"],
-            "dialect": "advanced_hunting",
-            "source": {"kind": "sentinel", "url": "https://x", "license": "MIT"}}
-    ok_result = [CollectorResult(source="sentinel_hunt",
-                                 extra={"rules": [rule], "allowlist_sha1": "a" * 40})]
-    payloads = build_site_data(ok_result, cve_rows=[], health=[], prior={},
-                               now=FIXED_NOW)
-    hp = payloads["hunt_packs.json"]
-    assert hp["rules"] == [rule] and hp["allowlist_sha1"] == "a" * 40
+def test_hunt_packs_per_kind_composition():
+    """Two-collector semantics: each ok collector contributes fresh rules +
+    advances ITS sha; a failed/skipped collector carries its PRIOR rules of
+    that kind and its sha does NOT advance (partial failure self-retries via
+    the freshness gate). ok-but-empty = an emptied allowlist (all-failed
+    raises) — honest empty, not a clobber."""
+    sen = {"id": "s1", "title": "t", "kql": "SecurityEvent | take 1",
+           "techniques": ["T1490"], "tables": ["SecurityEvent"],
+           "dialect": "log_analytics",
+           "source": {"kind": "sentinel", "url": "https://x", "license": "MIT"}}
+    sig = {"id": "g1", "title": "t", "kql": "DeviceFileEvents | take 1",
+           "techniques": ["T1486"], "tables": ["DeviceFileEvents"],
+           "dialect": "advanced_hunting",
+           "source": {"kind": "sigma", "url": "https://y", "license": "DRL"}}
+
+    both = [CollectorResult(source="sentinel_hunt",
+                            extra={"rules": [sen], "allowlist_sha1": "a" * 40}),
+            CollectorResult(source="sigma_hunt",
+                            extra={"rules": [sig], "allowlist_sha1": "b" * 40})]
+    hp = build_site_data(both, cve_rows=[], health=[], prior={},
+                         now=FIXED_NOW)["hunt_packs.json"]
+    assert hp["rules"] == [sen, sig]
+    assert hp["allowlist_sha1"] == "a" * 40
+    assert hp["sigma_allowlist_sha1"] == "b" * 40
     assert hp["collected_at"] == iso(FIXED_NOW)
 
+    # sigma FAILED this cycle (not in ok): its prior rules carry, its sha
+    # stays put — the freshness gate re-runs both next cycle.
     prior = {"hunt_packs.json": dict(hp, generated_at="old")}
-    empty = [CollectorResult(source="sentinel_hunt",
-                             extra={"rules": [], "allowlist_sha1": "b" * 40})]
-    kept = build_site_data(empty, cve_rows=[], health=[], prior=prior,
+    sen_only = [CollectorResult(source="sentinel_hunt",
+                                extra={"rules": [sen], "allowlist_sha1": "c" * 40})]
+    part = build_site_data(sen_only, cve_rows=[], health=[], prior=prior,
                            now=FIXED_NOW)["hunt_packs.json"]
-    assert kept["rules"] == [rule]                  # prior content kept
-    assert kept["allowlist_sha1"] == "a" * 40       # sha NOT updated -> retry next run
-    assert kept["generated_at"] == iso(FIXED_NOW)
+    assert part["rules"] == [sen, sig]
+    assert part["allowlist_sha1"] == "c" * 40           # sentinel advanced
+    assert part["sigma_allowlist_sha1"] == "b" * 40     # sigma did NOT
 
+    # both skipped (fresh gate): prior carries wholesale
     skipped = build_site_data([], cve_rows=[], health=[], prior=prior,
                               now=FIXED_NOW)["hunt_packs.json"]
-    assert skipped["rules"] == [rule]
+    assert skipped["rules"] == [sen, sig]
+
+    # ok-but-empty allowlist publishes honestly empty for that kind
+    emptied = [CollectorResult(source="sentinel_hunt",
+                               extra={"rules": [], "allowlist_sha1": "d" * 40})]
+    out = build_site_data(emptied, cve_rows=[], health=[], prior=prior,
+                          now=FIXED_NOW)["hunt_packs.json"]
+    assert out["rules"] == [sig]                        # sentinel gone, sigma carried
 
 
 def test_ransomware_groups_skipped_module_keeps_prior():

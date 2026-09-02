@@ -110,17 +110,31 @@ def validate_rules(rules, db):
 
 
 def rules_from_allowlist(path):
-    # Route through the collector's own parser so CI validates exactly what
-    # the pipeline will publish.
+    # Route through the collectors' own parsers + the authored loader so CI
+    # validates EXACTLY what the pipeline will publish — all three sources.
+    # (No longer urllib-only in this mode: the collectors use the pipeline's
+    # httpx fetch, and the sigma lane needs pysigma installed.)
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from collectors import sentinel_hunt
+    from collectors import sentinel_hunt, sigma_hunt
     from pipeline.http import http_fetch  # the real fetch the pipeline uses
+    from pipeline.hunt import load_authored_rules
 
     now = datetime.now(timezone.utc)
-    result = sentinel_hunt.collect(http_fetch, now, allowlist_path=path)
-    if result.error:
-        print(f"collector warnings: {result.error}")
-    return result.extra["rules"]
+    rules = []
+    hunt_dir = Path(path).parent
+    for mod, fname in ((sentinel_hunt, "sentinel_allowlist.json"),
+                       (sigma_hunt, "sigma_allowlist.json")):
+        p = hunt_dir / fname
+        if not p.exists():
+            continue
+        result = mod.collect(http_fetch, now, allowlist_path=p)
+        if result.error:
+            print(f"{mod.SOURCE} warnings: {result.error}")
+        rules += result.extra["rules"]
+    authored, warnings = load_authored_rules(hunt_dir / "authored")
+    for w in warnings:
+        print(f"authored warning: {w}")
+    return rules + authored
 
 
 def main():

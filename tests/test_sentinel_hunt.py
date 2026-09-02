@@ -120,14 +120,25 @@ def test_validate_tool_wrap_handles_the_three_trap_shapes():
     assert "render" not in w and w.endswith("| take 0")
 
 
-def test_hunt_freshness_is_content_keyed(tmp_path):
+def test_hunt_freshness_is_content_keyed_per_file(tmp_path):
     from run_pipeline import _hunt_is_fresh
-    al = _allowlist(tmp_path, [ENTRY])
     import hashlib
-    sha = hashlib.sha1(al.read_bytes()).hexdigest()
-    assert _hunt_is_fresh({"hunt_packs.json": {"allowlist_sha1": sha}}, al) is True
-    # an allowlist EDIT flips it stale — the thing a time gate never sees
-    assert _hunt_is_fresh({"hunt_packs.json": {"allowlist_sha1": "old"}}, al) is False
-    assert _hunt_is_fresh({}, al) is False
-    # no allowlist file at all -> nothing to collect -> fresh
-    assert _hunt_is_fresh({}, tmp_path / "missing.json") is True
+    sen = _allowlist(tmp_path, [ENTRY])
+    sig = tmp_path / "sigma_allowlist.json"
+    sig.write_text('{"rules": []}', encoding="utf-8")
+    sha_sen = hashlib.sha1(sen.read_bytes()).hexdigest()
+    sha_sig = hashlib.sha1(sig.read_bytes()).hexdigest()
+    fresh = {"hunt_packs.json": {"allowlist_sha1": sha_sen,
+                                 "sigma_allowlist_sha1": sha_sig}}
+    assert _hunt_is_fresh(fresh, sen, sig) is True
+    # EITHER file's edit flips stale — one collector's success must not mask
+    # the other's failure (the partial-failure self-retry contract)
+    stale_sigma = {"hunt_packs.json": {"allowlist_sha1": sha_sen,
+                                       "sigma_allowlist_sha1": "old"}}
+    assert _hunt_is_fresh(stale_sigma, sen, sig) is False
+    stale_sen = {"hunt_packs.json": {"allowlist_sha1": "old",
+                                     "sigma_allowlist_sha1": sha_sig}}
+    assert _hunt_is_fresh(stale_sen, sen, sig) is False
+    assert _hunt_is_fresh({}, sen, sig) is False
+    # missing files contribute nothing -> nothing to collect -> fresh
+    assert _hunt_is_fresh({}, tmp_path / "no1.json", tmp_path / "no2.json") is True

@@ -22,6 +22,7 @@ on:
     paths:
       - "data/hunt/**"
       - "collectors/sentinel_hunt.py"
+      - "collectors/sigma_hunt.py"
       - "tools/validate_hunt_kql.py"
       - "schemas/hunt_packs.schema.json"
       - ".github/workflows/hunt-kql.yml"
@@ -29,6 +30,7 @@ on:
     paths:
       - "data/hunt/**"
       - "collectors/sentinel_hunt.py"
+      - "collectors/sigma_hunt.py"
       - "tools/validate_hunt_kql.py"
       - "schemas/hunt_packs.schema.json"
       - ".github/workflows/hunt-kql.yml"

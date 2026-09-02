@@ -7,6 +7,7 @@
     "schema_version": {"type": "integer"},
     "collected_at": {"type": "string", "maxLength": 40},
     "allowlist_sha1": {"type": "string", "maxLength": 40},
+    "sigma_allowlist_sha1": {"type": "string", "maxLength": 40},
     "rules": {
       "type": "array",
       "maxItems": 512,

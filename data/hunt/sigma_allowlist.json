@@ -1,0 +1,241 @@
+{
+ "comment": "curated 2026-09-02 from SigmaHQ/sigma @ 8375f87fc85224a96ec133266ea934a3338246ba via pySigma 1.5.0 + pySigma-backend-kusto 1.0.1 (microsoft_xdr pipeline); admission criteria: converts to exactly one KQL query, plain operators only (single advanced-hunting table + `| where` predicates \u2014 no regex/join/union/summarize/mv-expand/parse/externaldata), <=16000 bytes; techniques uppercased from each rule's attack.t* tags; 10 T1486 ransomware anchors + 18 rules filling techniques with zero Sentinel-hunting coverage (coverage sweep sentinel_family==0, sigma_family>0)",
+ "rules": [
+  {
+   "id": "sigma-suspicious-reg-add-bitlocker",
+   "path": "rules/windows/process_creation/proc_creation_win_reg_bitlocker.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1486"
+   ]
+  },
+  {
+   "id": "sigma-portable-gpg-exe-execution",
+   "path": "rules/windows/process_creation/proc_creation_win_gpg4win_portable_execution.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1486"
+   ]
+  },
+  {
+   "id": "sigma-renamed-gpg-exe-execution",
+   "path": "rules/windows/process_creation/proc_creation_win_renamed_gpg4win.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1486"
+   ]
+  },
+  {
+   "id": "sigma-load-of-rstrtmgr-dll-by-a-suspicious-process",
+   "path": "rules/windows/image_load/image_load_dll_rstrtmgr_suspicious_load.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1486",
+    "T1685"
+   ]
+  },
+  {
+   "id": "sigma-load-of-rstrtmgr-dll-by-an-uncommon-process",
+   "path": "rules/windows/image_load/image_load_dll_rstrtmgr_uncommon_load.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1486",
+    "T1685"
+   ]
+  },
+  {
+   "id": "sigma-suspicious-creation-txt-file-in-user-desktop",
+   "path": "rules-threat-hunting/windows/file/file_event/file_event_win_susp_desktop_txt.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1486"
+   ]
+  },
+  {
+   "id": "sigma-wannacry-ransomware-activity",
+   "path": "rules-emerging-threats/2017/Malware/WannaCry/proc_creation_win_malware_wannacry.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1083",
+    "T1210",
+    "T1222.001",
+    "T1486",
+    "T1490"
+   ]
+  },
+  {
+   "id": "sigma-lockergoga-ransomware-activity",
+   "path": "rules-emerging-threats/2019/Malware/LockerGoga/proc_creation_win_malware_lockergoga_ransomware.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1486"
+   ]
+  },
+  {
+   "id": "sigma-potential-conti-ransomware-activity",
+   "path": "rules-emerging-threats/2021/Malware/Conti/proc_creation_win_malware_conti_ransomware_commands.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1486"
+   ]
+  },
+  {
+   "id": "sigma-funklocker-ransomware-file-creation",
+   "path": "rules-emerging-threats/2025/Malware/file_event_win_malware_funklocker_ransomware_extension.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1486"
+   ]
+  },
+  {
+   "id": "sigma-exports-critical-registry-keys-to-a-file",
+   "path": "rules/windows/process_creation/proc_creation_win_regedit_export_critical_keys.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1012"
+   ]
+  },
+  {
+   "id": "sigma-windows-internet-hosted-webdav-share-mount-via-net-exe",
+   "path": "rules/windows/process_creation/proc_creation_win_net_use_mount_internet_share.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1021.002"
+   ]
+  },
+  {
+   "id": "sigma-potential-obfuscated-ordinal-call-via-rundll32",
+   "path": "rules/windows/process_creation/proc_creation_win_rundll32_obfuscated_ordinal_call.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1027.010"
+   ]
+  },
+  {
+   "id": "sigma-renamed-whoami-execution",
+   "path": "rules/windows/process_creation/proc_creation_win_renamed_whoami.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1033"
+   ]
+  },
+  {
+   "id": "sigma-suspicious-process-masquerading-as-svchost-exe",
+   "path": "rules/windows/process_creation/proc_creation_win_svchost_masqueraded_execution.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1036.005"
+   ]
+  },
+  {
+   "id": "sigma-mavinject-inject-dll-into-running-process",
+   "path": "rules/windows/process_creation/proc_creation_win_lolbin_mavinject_process_injection.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1055.001",
+    "T1218.013"
+   ]
+  },
+  {
+   "id": "sigma-suspicious-group-and-account-reconnaissance-activity-using-net-exe",
+   "path": "rules/windows/process_creation/proc_creation_win_net_groups_and_accounts_recon.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1087.001",
+    "T1087.002"
+   ]
+  },
+  {
+   "id": "sigma-msiexec-web-install",
+   "path": "rules/windows/process_creation/proc_creation_win_msiexec_web_install.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1105",
+    "T1218.007"
+   ]
+  },
+  {
+   "id": "sigma-remote-access-tool-anydesk-silent-installation",
+   "path": "rules/windows/process_creation/proc_creation_win_remote_access_tools_anydesk_silent_install.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1219.002"
+   ]
+  },
+  {
+   "id": "sigma-potential-ransomware-activity-using-legalnotice-message",
+   "path": "rules/windows/registry/registry_set/registry_set_legalnotice_susp_message.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1491.001"
+   ]
+  },
+  {
+   "id": "sigma-sysmon-discovery-via-default-driver-altitude-using-findstr-exe",
+   "path": "rules/windows/process_creation/proc_creation_win_findstr_sysmon_discovery_via_default_altitude.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1518.001"
+   ]
+  },
+  {
+   "id": "sigma-winlogon-notify-key-logon-persistence",
+   "path": "rules/windows/registry/registry_set/registry_set_winlogon_notify_key.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1547.004"
+   ]
+  },
+  {
+   "id": "sigma-hacktool-empire-powershell-uac-bypass",
+   "path": "rules/windows/process_creation/proc_creation_win_hktl_empire_powershell_uac_bypass.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1548.002"
+   ]
+  },
+  {
+   "id": "sigma-rar-usage-with-password-and-compression-level",
+   "path": "rules/windows/process_creation/proc_creation_win_rar_compression_with_password.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1560.001"
+   ]
+  },
+  {
+   "id": "sigma-renamed-sysinternals-debugview-execution",
+   "path": "rules/windows/process_creation/proc_creation_win_renamed_sysinternals_debugview.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1588.002"
+   ]
+  },
+  {
+   "id": "sigma-suspicious-eventlog-clearing-or-configuration-change-activity",
+   "path": "rules/windows/process_creation/proc_creation_win_susp_eventlog_clear.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1685.001",
+    "T1685.005"
+   ]
+  },
+  {
+   "id": "sigma-hacktool-edrsilencer-execution",
+   "path": "rules/windows/process_creation/proc_creation_win_hktl_edrsilencer.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1685"
+   ]
+  },
+  {
+   "id": "sigma-pua-process-hacker-execution",
+   "path": "rules/windows/process_creation/proc_creation_win_pua_process_hacker.yml",
+   "sha": "8375f87fc85224a96ec133266ea934a3338246ba",
+   "techniques": [
+    "T1543",
+    "T1564",
+    "T1622"
+   ]
+  }
+ ]
+}

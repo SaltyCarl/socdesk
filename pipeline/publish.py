@@ -118,24 +118,35 @@ def build_site_data(results, cve_rows, health, prior, now, fetch=None,
         payloads["ransomware_groups.json"] = dict(
             prior["ransomware_groups.json"], generated_at=iso(now))
 
-    # Hunt packs (curated Sentinel-community KQL, MIT — spec §H1). Same
-    # non-empty guard as ransomware_groups: an all-failed fetch cycle must
-    # never clobber last-known-good with a valid-but-empty rules list.
-    # allowlist_sha1 + collected_at mark a REAL collect (keep-prior preserves
-    # both) — run_pipeline's content-keyed freshness gate reads the sha.
-    if "sentinel_hunt" in ok:
-        hunt_rules = ok["sentinel_hunt"].extra.get("rules", [])
-        if hunt_rules or "hunt_packs.json" not in prior:
-            payloads["hunt_packs.json"] = _envelope(
-                now, collected_at=iso(now),
-                allowlist_sha1=ok["sentinel_hunt"].extra.get("allowlist_sha1", ""),
-                rules=hunt_rules)
-        else:
-            payloads["hunt_packs.json"] = dict(
-                prior["hunt_packs.json"], generated_at=iso(now))
-    elif "hunt_packs.json" in prior:
-        payloads["hunt_packs.json"] = dict(
-            prior["hunt_packs.json"], generated_at=iso(now))
+    # Hunt packs (curated Sentinel-community + Sigma-converted KQL — spec
+    # §H1/§H2). PER-KIND composition: each collector that ran contributes its
+    # fresh rules (an ok-but-empty result can only mean an emptied allowlist —
+    # all-entries-failed RAISES — so empty is honest, not a clobber); a
+    # collector that failed/skipped carries its PRIOR rules of that kind, and
+    # its allowlist sha is NOT advanced — so a partial failure self-retries
+    # next cycle (the freshness gate sees the stale sha). Authored (socdesk)
+    # rules are merged later in run() — never here, never carried from prior.
+    prior_hp = prior.get("hunt_packs.json", {})
+    prior_rules = prior_hp.get("rules", [])
+
+    def _kind_rules(name, kind):
+        if name in ok:
+            return ok[name].extra.get("rules", [])
+        return [r for r in prior_rules if r.get("source", {}).get("kind") == kind]
+
+    def _kind_sha(name, field):
+        if name in ok:
+            return ok[name].extra.get("allowlist_sha1", "")
+        return prior_hp.get(field, "")
+
+    ran_hunt = "sentinel_hunt" in ok or "sigma_hunt" in ok
+    if ran_hunt or "hunt_packs.json" in prior:
+        payloads["hunt_packs.json"] = _envelope(
+            now,
+            collected_at=iso(now) if ran_hunt else prior_hp.get("collected_at", iso(now)),
+            allowlist_sha1=_kind_sha("sentinel_hunt", "allowlist_sha1"),
+            sigma_allowlist_sha1=_kind_sha("sigma_hunt", "sigma_allowlist_sha1"),
+            rules=_kind_rules("sentinel_hunt", "sentinel") + _kind_rules("sigma_hunt", "sigma"))
 
     # Geolocated threat surface (abuse.ch C2/blocklist IPs). Fresh data wins; a
     # transient upstream failure keeps last-known-good rather than blanking the

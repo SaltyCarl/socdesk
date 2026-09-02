@@ -1,5 +1,6 @@
 from collectors import (attack, feodotracker, kev, nvd, ransomwarelive,
-                        ransomwarelive_groups, rss, sentinel_hunt, threatfox)
+                        ransomwarelive_groups, rss, sentinel_hunt, sigma_hunt,
+                        threatfox)
 
 # Aggregator model (see COMPLIANCE.md): SOCDESK holds only data it may clearly
 # redistribute — CISA KEV (CC0), NVD (US-Gov public domain), FIRST EPSS
@@ -22,3 +23,4 @@ COLLECTORS = [kev, nvd, ransomwarelive, rss, feodotracker, threatfox]
 CACHED_COLLECTORS = [attack]
 GROUPS_COLLECTOR = ransomwarelive_groups
 HUNT_COLLECTOR = sentinel_hunt
+SIGMA_COLLECTOR = sigma_hunt

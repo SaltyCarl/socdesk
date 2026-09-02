@@ -1,0 +1,27 @@
+id: socdesk-mfa-method-added-after-risky-signin
+title: MFA method registered shortly after a risky sign-in
+dialect: log_analytics
+techniques: [T1098.005]
+tables: [AuditLogs, SigninLogs]
+tested: "2026-09-02"
+rationale: >
+  Account-takeover persistence: an attacker who has a session enrolls their
+  OWN authentication method so they survive a password reset. Correlate a
+  security-info registration (AuditLogs) to a preceding risky sign-in for the
+  same user within 24h — the sequence is the signal, not either event alone.
+  Operation name and correlation approach per Microsoft identity-protection
+  guidance and community Sentinel detections. Written fresh; emulator-validated.
+kql: |
+  let reg = AuditLogs
+  | where OperationName has "registered security info"
+  | extend RegUser = tostring(parse_json(tostring(InitiatedBy.user)).userPrincipalName)
+  | project RegTime = TimeGenerated, RegUser, RegResult = Result;
+  let risky = SigninLogs
+  | where RiskState in ("atRisk", "confirmedCompromised")
+       or RiskLevelDuringSignIn in ("high", "medium")
+  | project RiskTime = TimeGenerated, UserPrincipalName, IPAddress, RiskState;
+  reg
+  | join kind=inner risky on $left.RegUser == $right.UserPrincipalName
+  | where RegTime between (RiskTime .. (RiskTime + 24h))
+  | project RegTime, RegUser, RiskTime, IPAddress, RiskState, RegResult
+  | order by RegTime desc

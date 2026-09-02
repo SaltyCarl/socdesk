@@ -1,0 +1,29 @@
+id: socdesk-inbox-rule-forward-or-hide
+title: Inbox rules that forward externally or hide mail (BEC)
+dialect: log_analytics
+techniques: [T1114.003]
+tables: [OfficeActivity]
+tested: "2026-09-02"
+rationale: >
+  Parameter-level BEC verdict rather than a bare New-InboxRule match: parse
+  the rule Parameters bag and flag the combinations that matter —
+  ForwardTo/RedirectTo (auto-exfil of mail) and Delete/MoveToDeletedItems or
+  MarkAsRead (hide the evidence from the victim). These are the automation
+  primitives of business-email-compromise persistence. OfficeActivity
+  Parameters is a JSON string. Written fresh for SOCDesk; emulator-validated.
+kql: |
+  OfficeActivity
+  | where Operation in ("New-InboxRule", "Set-InboxRule", "UpdateInboxRules")
+  | extend Params = parse_json(Parameters)
+  | mv-apply p = Params on (
+      summarize ParamNames = make_set(tostring(p.Name)),
+                ParamBag = make_bag(pack(tostring(p.Name), tostring(p.Value)))
+    )
+  | extend Forwards = ParamNames has_any ("ForwardTo", "RedirectTo", "ForwardAsAttachmentTo"),
+           Hides = ParamNames has_any ("DeleteMessage", "MoveToFolder", "MarkAsRead")
+  | where Forwards or Hides
+  | extend Verdict = case(Forwards and Hides, "FORWARD+HIDE (BEC)",
+                          Forwards, "EXTERNAL FORWARD",
+                          "HIDE RULE")
+  | project TimeGenerated, UserId, Operation, Verdict, ParamNames, ClientIP
+  | order by TimeGenerated desc

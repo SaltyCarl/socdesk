@@ -1,0 +1,38 @@
+id: socdesk-signin-unfamiliar-baseline
+title: Unfamiliar sign-in vs 14-day baseline, trust-reduced
+dialect: log_analytics
+techniques: [T1078.004]
+tables: [SigninLogs]
+tested: "2026-09-02"
+rationale: >
+  Per-user novelty scoring over country/ASN/OS with TRUST REDUCTION — a
+  compliant/managed device subtracts from the anomaly score, suppressing the
+  travel-and-new-laptop false positives that plague bare geo alerts. New-ASN
+  weighting over new-geo follows the VPN-safe principle: location only
+  matters when the network path is also new. Written fresh for SOCDesk;
+  validated against the Kusto emulator.
+kql: |
+  let lookback = 14d;
+  let recent = 1d;
+  let baseline = SigninLogs
+  | where TimeGenerated between (ago(lookback) .. ago(recent))
+  | where ResultType == "0"
+  | summarize KnownCountries = make_set(tostring(LocationDetails.countryOrRegion)),
+              KnownASNs = make_set(AutonomousSystemNumber),
+              KnownOS = make_set(tostring(DeviceDetail.operatingSystem))
+    by UserPrincipalName;
+  SigninLogs
+  | where TimeGenerated > ago(recent)
+  | where ResultType == "0"
+  | extend Country = tostring(LocationDetails.countryOrRegion),
+           OS = tostring(DeviceDetail.operatingSystem),
+           Managed = tobool(DeviceDetail.isManaged)
+  | join kind=inner baseline on UserPrincipalName
+  | extend Score =
+      toint(not(set_has_element(KnownCountries, Country))) * 3
+    + toint(not(set_has_element(KnownASNs, AutonomousSystemNumber))) * 3
+    + toint(not(set_has_element(KnownOS, OS))) * 1
+    - toint(Managed == true) * 2
+  | where Score >= 4
+  | project TimeGenerated, UserPrincipalName, IPAddress, Country, OS, Managed, Score, AppDisplayName
+  | order by Score desc

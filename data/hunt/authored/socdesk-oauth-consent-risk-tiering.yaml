@@ -1,0 +1,29 @@
+id: socdesk-oauth-consent-risk-tiering
+title: OAuth consent grants tiered by permission risk
+dialect: log_analytics
+techniques: [T1528]
+tables: [AuditLogs]
+tested: "2026-09-02"
+rationale: >
+  Illicit-consent-grant hunting with built-in scope scoring rather than bare
+  event listing: high-privilege scopes (full_access_as_app,
+  Directory.ReadWrite.All, Mail.ReadWrite, Files.ReadWrite.All) indicate an
+  app that can read/exfiltrate broadly. Operation name and investigation
+  approach per Microsoft's incident-response playbook for app consent grants
+  (learn.microsoft.com/en-us/security/operations/incident-response-playbook-app-consent).
+  Written fresh for SOCDesk; validated against the Kusto emulator.
+kql: |
+  AuditLogs
+  | where OperationName == "Consent to application"
+  | extend AppName = tostring(TargetResources[0].displayName)
+  | extend Actor = tostring(parse_json(tostring(InitiatedBy.user)).userPrincipalName)
+  | mv-expand Prop = TargetResources[0].modifiedProperties
+  | where tostring(Prop.displayName) == "ConsentAction.Permissions"
+  | extend Permissions = tostring(Prop.newValue)
+  | extend RiskTier = case(
+      Permissions has_any ("full_access_as_app", "Directory.ReadWrite.All", "Mail.ReadWrite", "Files.ReadWrite.All"), "HIGH",
+      Permissions has_any ("Mail.Read", "Mail.Send", "Files.Read.All", "offline_access"), "MEDIUM",
+      "LOW")
+  | where RiskTier in ("HIGH", "MEDIUM")
+  | project TimeGenerated, Actor, AppName, RiskTier, Permissions, Result
+  | order by TimeGenerated desc

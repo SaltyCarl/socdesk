@@ -6,11 +6,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from collectors import (CACHED_COLLECTORS, COLLECTORS, GROUPS_COLLECTOR,
-                        HUNT_COLLECTOR, attack)
+                        HUNT_COLLECTOR, SIGMA_COLLECTOR, attack)
 from collectors.base import iso, run_all
 from pipeline.asn import build_asn_leaderboard
 from pipeline.community import build_community_reports
 from pipeline.cves import build_cve_context, build_cve_rows, enrich_epss
+from pipeline.hunt import load_authored_rules, merge_authored
 from pipeline.history import (build_trends, daily_snapshot, prune_history,
                               snapshot_name)
 from pipeline.intel_staleness import check_intel_staleness
@@ -66,20 +67,27 @@ def _attack_is_fresh(state, now):
             and "technique_tactics.json" in state)
 
 
-def _hunt_is_fresh(state, allowlist_path):
+def _hunt_is_fresh(state, sentinel_path, sigma_path):
     """CONTENT-keyed, not time-keyed: upstream fetches are SHA-pinned
     (immutable), so the only reason to re-collect is an allowlist EDIT —
-    which a time gate never sees. Fresh iff the committed dataset was built
-    from the exact bytes of the current allowlist file. Path derives from
-    sources_path (the intel-seed precedent) so fixture-dir tests never
-    trip the collector."""
-    try:
-        import hashlib
-        want = hashlib.sha1(Path(allowlist_path).read_bytes()).hexdigest()
-    except OSError:
-        return True  # no allowlist -> nothing to collect
-    have = state.get("hunt_packs.json", {}).get("allowlist_sha1", "")
-    return have == want
+    which a time gate never sees. PER-FILE shas (a combined digest is not
+    derivable from the collectors' per-file hashes, and a single field would
+    let one collector's success mask the other's failure): stale if EITHER
+    recorded sha mismatches its current file — both collectors then re-run
+    together (cheap, SHA-pinned), and a partially-failed cycle self-retries
+    because publish never advances a failed collector's sha. A missing
+    allowlist file contributes nothing (fixture-dir tests never trip)."""
+    import hashlib
+    hp = state.get("hunt_packs.json", {})
+    for path, field in ((sentinel_path, "allowlist_sha1"),
+                        (sigma_path, "sigma_allowlist_sha1")):
+        try:
+            want = hashlib.sha1(Path(path).read_bytes()).hexdigest()
+        except OSError:
+            continue
+        if hp.get(field, "") != want:
+            return False
+    return True
 
 
 def _groups_is_fresh(state, now):
@@ -102,10 +110,18 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
         modules += CACHED_COLLECTORS
     if not _groups_is_fresh(state, now):
         modules.append(GROUPS_COLLECTOR)
-    hunt_allowlist = Path(sources_path).parent / "hunt" / "sentinel_allowlist.json"
-    if not _hunt_is_fresh(state, hunt_allowlist):
-        HUNT_COLLECTOR.ALLOWLIST_PATH = hunt_allowlist
-        modules.append(HUNT_COLLECTOR)
+    hunt_dir = Path(sources_path).parent / "hunt"
+    hunt_sentinel = hunt_dir / "sentinel_allowlist.json"
+    hunt_sigma = hunt_dir / "sigma_allowlist.json"
+    if not _hunt_is_fresh(state, hunt_sentinel, hunt_sigma):
+        # append only lanes whose allowlist exists — a missing file is
+        # "nothing to collect", not a red health row.
+        if hunt_sentinel.exists():
+            HUNT_COLLECTOR.ALLOWLIST_PATH = hunt_sentinel
+            modules.append(HUNT_COLLECTOR)
+        if hunt_sigma.exists():
+            SIGMA_COLLECTOR.ALLOWLIST_PATH = hunt_sigma
+            modules.append(SIGMA_COLLECTOR)
     results, health = run_all(modules, fetch, now)
 
     prior_cves = state.get("cves.json", {}).get("cves", [])
@@ -136,6 +152,17 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
         # envelope only, the committed seed file stays pure curation.
         payloads["ransomware_intel.json"]["cve_context"] = build_cve_context(
             payloads["ransomware_intel.json"].get("groups", []), cve_rows)
+
+    # Authored hunt rules (curation, not collection — the intel-seed pattern):
+    # re-read EVERY run so an authored-file edit ships next cron with no
+    # collector involved. Merged over whatever publish produced (fresh or
+    # keep-prior), replacing any prior socdesk-kind rows.
+    authored, authored_warnings = load_authored_rules(hunt_dir / "authored")
+    merged_hp = merge_authored(
+        payloads.get("hunt_packs.json"), authored,
+        {"generated_at": iso(now), "schema_version": 1})
+    if merged_hp is not None:
+        payloads["hunt_packs.json"] = merged_hp
 
     # Staleness/drift guard (spec §3.4): soft warnings only, never a publish
     # blocker — run against the seed groups actually loaded above and the
@@ -186,7 +213,7 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
             state["asn_leaderboard.json"], generated_at=iso(now))
 
     published, problems = gate(payloads, state, schemas_dir)
-    warnings = problems + stale
+    warnings = problems + stale + authored_warnings
     if warnings:
         published["health.json"] = dict(
             published.get("health.json", payloads["health.json"]),
