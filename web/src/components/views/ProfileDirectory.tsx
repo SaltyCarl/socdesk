@@ -41,6 +41,10 @@ function metaLine(entry: ProfileIndexEntry): string {
   if (entry.techniqueCount) parts.push(`${num(entry.techniqueCount)} techniques`)
   if (entry.softwareCount) parts.push(`${num(entry.softwareCount)} tools`)
   if (entry.lastClaimAt) parts.push(`last claim ${rel(entry.lastClaimAt)}`)
+  // derived reverse index (ATT&CK fingerprints): ranks the malware scroll.
+  if (entry.usedByCount) {
+    parts.push(`used by ${num(entry.usedByCount)} group${entry.usedByCount === 1 ? '' : 's'}`)
+  }
   // coverage-layer entry: state the honest fact rather than rendering bare —
   // the group is tracked upstream but posted nothing in our 30-day window.
   if (entry.nameOnly) parts.push('no claims this window')
@@ -102,7 +106,15 @@ export function ProfileDirectory({ entries }: { entries: ProfileIndexEntry[] }) 
           e.name + ' ' + e.slug + ' ' + (e.attack_id ?? '') + ' ' + (e.aliases ?? []).join(' ')
         return hay.toLowerCase().includes(q)
       })
-      .sort(compareEntries)
+      // The Malware lens ranks by the derived reverse index (usedByCount desc)
+      // — an unranked alphabetical scroll buried Mimikatz (51 groups) behind
+      // Load-more. Other lenses keep the substantive-first tier order.
+      .sort(
+        filter === 'malware'
+          ? (a, b) =>
+              (b.usedByCount ?? 0) - (a.usedByCount ?? 0) || a.name.localeCompare(b.name)
+          : compareEntries,
+      )
   }, [entries, query, filter])
 
   const shown = filtered.slice(0, limit)

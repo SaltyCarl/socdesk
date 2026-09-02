@@ -20,6 +20,7 @@
 
 import type { ClaimedVictim, FeedItem, Profile, RansomIntel, RelationsPayload } from './types'
 import { buildRelationsIndex, relatedFor, type RelatedRow } from './relations'
+import { usedByCounts } from './derived'
 import { claimCount } from '../overview/aggregations'
 
 /* ---------------- shared MITRE helpers (pure) ---------- */
@@ -104,6 +105,10 @@ export interface ProfileIndexEntry {
    *  name (no claims this window, no ATT&CK, no intel seed). Renders a
    *  link-out profile stub and sorts below every substantive entry. */
   nameOnly?: true
+  /** Malware entries: how many tracked groups' ATT&CK fingerprints list this
+   *  family (derived reverse index) — the one datum that ranks the malware
+   *  scroll. Present only when > 0. */
+  usedByCount?: number
 }
 
 /** Card blurb: a word-boundary hard-cap of the cleaned description. NEVER a
@@ -206,13 +211,18 @@ export function buildProfileIndex(
       ...enrichmentOf(p),
     })
   }
+  // Derived reverse index (ATT&CK-only): how many tracked groups list each
+  // software name — joined onto malware cards below.
+  const usedBy = usedByCounts(actors)
   for (const p of malware) {
     if (!p?.name) continue
     const slug = p.name.toLowerCase()
     if (bySlug.has(slug)) continue
+    const used = usedBy.get(slug) ?? 0
     bySlug.set(slug, {
       slug, name: p.name, kind: 'malware', hasMitre: true, attack_id: p.attack_id, aliases: aliasesOf(p),
       ...enrichmentOf(p),
+      ...(used > 0 ? { usedByCount: used } : {}),
     })
   }
 

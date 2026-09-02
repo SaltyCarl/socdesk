@@ -5,6 +5,7 @@ import { AsyncGate, SkeletonRows, EmptyState } from '../components/views/states'
 import { ActorProfile } from '../components/views/ActorProfile'
 import { ProfileDirectory } from '../components/views/ProfileDirectory'
 import { buildProfileIndex, profileFor } from '../components/views/profiles'
+import { techniqueOverlap, techniquePrevalence, usedByGroups } from '../components/views/derived'
 import { useStateData, type AsyncStatus } from '../components/views/useStateData'
 import { rel } from '../components/views/format'
 import { navigate } from '../components/palette/commands'
@@ -102,6 +103,26 @@ export function ActorProfileRoute() {
     [slug, actorList, malwareList, feedItems, relations.data, intelList, feed.data?.generated_at],
   )
 
+  // Derived analytics (client-side arithmetic over the catalogs — derived.ts).
+  // All memoized on the stable payload list refs; computed from the RESOLVED
+  // fingerprint so alias-reached pages resolve and self-exclusion holds.
+  const prevalence = useMemo(() => techniquePrevalence(actorList), [actorList])
+  const fp = profile?.fingerprint ?? null
+  const sharedActors = useMemo(
+    () =>
+      fp && fp.kind === 'actor'
+        ? techniqueOverlap(
+            { attack_id: fp.attack_id, name: fp.name, techniques: fp.techniques },
+            actorList,
+          )
+        : [],
+    [fp, actorList],
+  )
+  const usedBy = useMemo(
+    () => (fp && fp.kind === 'malware' ? usedByGroups(fp.name, actorList) : []),
+    [fp, actorList],
+  )
+
   const loading =
     actors.status === 'loading' || malware.status === 'loading' || feed.status === 'loading'
   const errored =
@@ -165,6 +186,10 @@ export function ActorProfileRoute() {
               profile={profile}
               slugSet={slugSet}
               techniqueNames={techniqueNames.data?.names}
+              sharedActors={sharedActors}
+              usedBy={usedBy}
+              prevalence={prevalence}
+              actorCount={actorList.length}
             />
           ) : groups.status === 'loading' ? (
             // The coverage layer loads OUTSIDE the AsyncGate (gated on

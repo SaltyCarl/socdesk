@@ -10,6 +10,8 @@ import { PIVOTABLE, provenance, techniqueUrl } from './relations'
 import { ActorLink, BoardPanel, CveLink, PanelEmpty } from '../overview/board-ui'
 import { barWidthClass } from '../overview/widths'
 import { busiestDay } from './profiles'
+import { distinctiveSplit } from './derived'
+import type { OverlapRow } from './derived'
 import type { DayBucket, ProfileResult, RankedCount } from './profiles'
 import type { ClaimedVictim, RansomIntel } from './types'
 
@@ -35,14 +37,32 @@ function SectionLabel({ children, accent = false }: { children: React.ReactNode;
   )
 }
 
-function TechniqueChip({ id, name }: { id: string; name?: string }) {
+function TechniqueChip({
+  id,
+  name,
+  hint,
+  distinctive = false,
+}: {
+  id: string
+  name?: string
+  /** Extra title text (e.g. the snapshot-prevalence derivation). */
+  hint?: string
+  /** Accent-tinted treatment for a low-prevalence technique. */
+  distinctive?: boolean
+}) {
+  const base = name ? `${id} · ${name}` : id
   return (
     <a
       href={techniqueUrl(id)}
       target="_blank"
       rel="noopener noreferrer"
-      title={name ? `${id} · ${name}` : id}
-      className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 transition-colors duration-150 ease-brand hover:border-line-bright"
+      title={hint ? `${base} — ${hint}` : base}
+      className={cx(
+        'inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 transition-colors duration-150 ease-brand',
+        distinctive
+          ? 'border-[var(--edge-accent)] bg-[var(--tint-accent)] hover:border-line-bright'
+          : 'border-line bg-panel-soft hover:border-line-bright',
+      )}
     >
       <span className="font-mono text-micro font-semibold text-accent-dim">{id}</span>
       {name && <span className="text-micro text-muted">{name}</span>}
@@ -585,11 +605,27 @@ function MitreFingerprintPanel({
   fingerprint,
   slugSet,
   techniqueNames,
+  prevalence,
+  actorCount = 0,
 }: {
   fingerprint: NonNullable<ProfileResult['fingerprint']>
   slugSet: Set<string>
   techniqueNames?: Record<string, string>
+  /** Snapshot technique prevalence (id → tracked groups using it) — drives
+   *  the distinctive/common split. Absent → the plain flat wall. */
+  prevalence?: Map<string, number>
+  actorCount?: number
 }) {
+  // Rarity split: distinctive (≤3 tracked groups in this snapshot) leads;
+  // the commodity tail collapses. 42% of actors have ZERO distinctive
+  // techniques — they keep today's flat wall rather than an empty header
+  // over an everything-collapsed page.
+  const split = prevalence ? distinctiveSplit(fingerprint.techniques, prevalence) : null
+  const useSplit = split !== null && split.distinctive.length > 0
+  const hintFor = (t: string): string | undefined => {
+    const p = prevalence?.get(t)
+    return p ? `used by ${num(p)} of ${num(actorCount)} tracked groups in this snapshot` : undefined
+  }
   return (
     <div className="flex flex-col gap-5">
       {fingerprint.description && (
@@ -598,16 +634,51 @@ function MitreFingerprintPanel({
 
       {/* Aliases render ONCE — the IdentityHeader chips are the canonical spot
           (an "Also tracked as" block here was the same array a third time). */}
-      {fingerprint.techniques.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <SectionLabel>Techniques · {num(fingerprint.techniques.length)}</SectionLabel>
-          <div className="flex flex-wrap gap-1.5">
-            {fingerprint.techniques.map((t) => (
-              <TechniqueChip key={t} id={t} name={techniqueNames?.[t]} />
-            ))}
+      {fingerprint.techniques.length > 0 &&
+        (useSplit ? (
+          <>
+            <div className="flex flex-col gap-2">
+              <SectionLabel accent>
+                Distinctive techniques · {num(split.distinctive.length)}
+              </SectionLabel>
+              <p className="text-micro text-faint">
+                Listed by ≤3 of the {num(actorCount)} tracked groups in this snapshot — what
+                makes this fingerprint unusual. A derived count over ATT&amp;CK data, not an
+                exclusivity claim.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {split.distinctive.map((t) => (
+                  <TechniqueChip
+                    key={t}
+                    id={t}
+                    name={techniqueNames?.[t]}
+                    hint={hintFor(t)}
+                    distinctive
+                  />
+                ))}
+              </div>
+            </div>
+            <details className="flex flex-col gap-2">
+              <summary className="cursor-pointer select-none font-mono text-micro font-semibold uppercase tracking-label text-faint">
+                Common techniques · {num(split.common.length)}
+              </summary>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {split.common.map((t) => (
+                  <TechniqueChip key={t} id={t} name={techniqueNames?.[t]} hint={hintFor(t)} />
+                ))}
+              </div>
+            </details>
+          </>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <SectionLabel>Techniques · {num(fingerprint.techniques.length)}</SectionLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {fingerprint.techniques.map((t) => (
+                <TechniqueChip key={t} id={t} name={techniqueNames?.[t]} hint={hintFor(t)} />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        ))}
 
       {fingerprint.software.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -651,6 +722,80 @@ function ReportingList({ reporting }: { reporting: ProfileResult['reporting'] })
     </div>
   )
 }
+
+/* ---------------- derived panels (right rail) ---------------- */
+
+/** Top peers by shared ATT&CK techniques — arithmetic over the two actors'
+ *  technique lists, labeled as such (never an asserted relationship). */
+function SharedTechniqueActors({ rows, selfTotal }: { rows: OverlapRow[]; selfTotal: number }) {
+  const max = Math.max(1, ...rows.map((r) => r.shared))
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs leading-relaxed text-muted">
+        Computed from each actor&rsquo;s ATT&amp;CK technique list — a shared count, not an
+        asserted relationship.
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {rows.map((r) => (
+          <div key={r.slug} className="flex items-center gap-3">
+            <ActorLink
+              name={r.slug}
+              className="w-32 shrink-0 truncate font-mono text-xs font-semibold text-accent-dim hover:text-accent hover:underline"
+            >
+              {r.name}
+            </ActorLink>
+            <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-panel-soft">
+              <span className={cx('block h-full rounded-full bg-accent', barWidthClass(r.shared / max))} />
+            </span>
+            <span className="shrink-0 whitespace-nowrap font-mono text-micro tabular-nums text-paper">
+              {num(r.shared)} of {num(Math.min(selfTotal, r.total))}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** The malware reverse index: every tracked group whose ATT&CK fingerprint
+ *  lists this family. ATT&CK-derived only (the feed co-occurrence rail keeps
+ *  its own separate, explicitly non-"uses" framing). */
+function UsedByGroups({
+  rows,
+  actorCount,
+  slugSet,
+}: {
+  rows: { name: string; slug: string }[]
+  actorCount: number
+  slugSet: Set<string>
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs leading-relaxed text-muted">
+        Listed in {num(rows.length)} of the {num(actorCount)} tracked groups&rsquo; ATT&amp;CK
+        profiles.
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {rows.map((r) =>
+          slugSet.has(r.slug) ? (
+            <ActorLink key={r.slug} name={r.slug} className={CHIP_LINK}>
+              {r.name}
+            </ActorLink>
+          ) : (
+            <span key={r.slug} className={CHIP_PLAIN}>
+              {r.name}
+            </span>
+          ),
+        )}
+      </div>
+    </div>
+  )
+}
+
+const CHIP_LINK =
+  'inline-flex items-center rounded-sm border border-[var(--edge-accent)] bg-[var(--tint-accent)] px-1.5 py-0.5 font-mono text-micro font-semibold text-accent hover:underline'
+const CHIP_PLAIN =
+  'inline-flex items-center rounded-sm border border-line bg-panel-soft px-1.5 py-0.5 font-mono text-micro text-muted'
 
 /* ---------------- associated malware (right rail) ---------------- */
 
@@ -724,10 +869,21 @@ export function ActorProfile({
   profile,
   slugSet,
   techniqueNames,
+  sharedActors,
+  usedBy,
+  prevalence,
+  actorCount = 0,
 }: {
   profile: ProfileResult
   slugSet: Set<string>
   techniqueNames?: Record<string, string>
+  /** Derived (route-computed): top peers by shared ATT&CK techniques. */
+  sharedActors?: OverlapRow[]
+  /** Derived (route-computed): groups whose fingerprints list this malware. */
+  usedBy?: { name: string; slug: string }[]
+  /** Derived (route-computed): snapshot technique prevalence. */
+  prevalence?: Map<string, number>
+  actorCount?: number
 }) {
   const { fingerprint, ransomware, reporting, intel, activity, claimedVictims, associatedMalware } =
     profile
@@ -817,6 +973,8 @@ export function ActorProfile({
                 fingerprint={fingerprint}
                 slugSet={slugSet}
                 techniqueNames={techniqueNames}
+                prevalence={prevalence}
+                actorCount={actorCount}
               />
             </BoardPanel>
           )}
@@ -840,6 +998,18 @@ export function ActorProfile({
 
         {/* right rail */}
         <div className="flex flex-col gap-5 lg:sticky lg:top-20 lg:self-start">
+          {sharedActors && sharedActors.length > 0 && fingerprint && (
+            <BoardPanel eyebrow="Shared techniques">
+              <SharedTechniqueActors rows={sharedActors} selfTotal={fingerprint.techniques.length} />
+            </BoardPanel>
+          )}
+
+          {fingerprint?.kind === 'malware' && usedBy && usedBy.length > 0 && (
+            <BoardPanel eyebrow="Used by tracked groups">
+              <UsedByGroups rows={usedBy} actorCount={actorCount} slugSet={slugSet} />
+            </BoardPanel>
+          )}
+
           <BoardPanel eyebrow="Related entities">
             <RelatedPanel related={profile.related} />
           </BoardPanel>
