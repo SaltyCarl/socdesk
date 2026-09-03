@@ -1,10 +1,69 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-09-02 (session — Adversaries directory triage sort shipped + deployed live; BACKLOG refreshed for the Adversaries-critique + hunt-pack close-out) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-09-03 (session — Adversaries RE-RUN Batch 1 shipped + live-dogfooded: N3 LockBit slug-alias seed resolution + N2 malware reverse-index de-dup; N1 progressive-disclosure IA DECISION locked, spec pending) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-09-02 (session — Adversaries directory triage sort + BACKLOG close-out refresh)
+## 0. LATEST — 2026-09-03 (session — Adversaries RE-RUN Batch 1: N3 LockBit slug-alias + N2 reverse-index de-dup shipped; N1 IA decision locked)
+
+**Context:** responds to the 2026-09-03 Adversaries RE-RUN critique
+(`SOCDesk-Adversaries-Rerun-2026-09-03.pdf`). The re-run confirmed the AAA content
+transformation LANDED and raised 4 new findings N1–N4; one-line takeaway — "the content
+is now premium; the work left is make the substance consumable." This block records
+Batch 1 (2 of 4 findings, shipped + live) and the locked-but-unbuilt N1 decision.
+
+**Shipped (Batch 1 — each adversarially vetted, reviewer caught 5 load-bearing issues all
+corrected before code; verified 913 vitest + lint + build + 186 pytest green):**
+- **N3 (partial) — LockBit seed-slug aliasing.** The LockBit CISA seed was keyed to slug
+  `lockbit` while the active leak-site slug is `lockbit5` (`lockbit2`/`3`/`3_fs` are bare
+  names), so the most-documented crew rendered as a name-only stub. Added a **match-only
+  `slug_aliases`** schema field (kept OUT of display `aliases` so no lowercase-slug chips
+  leak), made `intelFor` resolve it, and added a **final `buildProfileIndex` reconciliation
+  pass** (after the name-only layer) to light the directory `seeded` badge on variant rows
+  without minting phantoms. Curated, NOT auto-generalized — explicitly avoided the
+  Medusa↔MedusaLocker (3 live claims) and Play↔Playboy misattributions the reviewer flagged.
+  Files: `schemas/ransomware_intel.schema.json`, `data/ransomware_intel.json`,
+  `web/src/components/views/types.ts`, `web/src/components/views/profiles.ts`,
+  `web/src/components/views/__tests__/profiles.test.ts`. (`d57d1c4`)
+- **N2 — malware reverse-index vs Related-entities de-dup.** On malware pages the
+  "Used by tracked groups" reverse-index and "Related entities" listed the same actors
+  twice. New pure helper `relatedMinusUsedBy` (`relations.ts`) drops actor rows already in
+  the reverse-index (case-safe; keeps non-actor rows + actors not in the index); the panel
+  is gated to **OMIT** rather than render a now-false "no related entities recorded" empty —
+  but only when a reverse-index is present, so actor/ransomware pages keep their
+  honest-empty. Files: `web/src/components/views/relations.ts`,
+  `web/src/components/views/ActorProfile.tsx`,
+  `web/src/components/views/__tests__/relations.test.ts`. (`a2821ea`)
+
+**Verified:** 913 vitest + lint + build + 186 pytest all green. Deployed via
+collect-and-deploy run 33754987398 (green). Live-dogfooded on socdesk.io: `lockbit5` now
+shows the `seeded` badge + CISA AA23-325A intel panel; Cobalt Strike shows the reverse-index
+with NO duplicate Related-entities panel; APT29 (actor page) unchanged (regression check
+passed).
+
+**DECISION locked — N1 progressive disclosure (NOT built, spec pending).** Carl ruled the
+profile-IA rebuild: **defer + orient, never hide.**
+- **Always-on decision layer** — identity + synthesis band (incl. the N4 "Distinctive
+  TTPs · N" lead + activity heat-strip). Never collapsed.
+- **Native `<details>/<summary>` accordions for the heavy reference sections ONLY**
+  (hunt-pack, full ATT&CK matrix, victim ledger, related/reporting) so collapsed content
+  **stays in the DOM** — SEO / print / Ctrl-F preserved.
+- **Sticky scrollspy jump-nav** — Overview · Fingerprint · Activity · Hunt pack · Related;
+  mobile "Jump to ▾".
+- **Deep-link + print force sections open.** Impl note: CSS has no `open` property, so the
+  "pure-CSS :target/print open" is done with a few lines of the app's own JS
+  (hashchange→open, beforeprint→open-all, IntersectionObserver scrollspy) + CSS
+  `scroll-margin`.
+- **Guardrail:** NO "accordion soup." **Rejected tabs** (hide content from crawl/Ctrl-F).
+- **NEXT STEP:** write the N1+N4 spec for Carl's review **before** building.
+
+**Open / next:**
+- **N1 + N4** — spec pending (write for review before building; decision above).
+- **N3 remainder** — directory sector/country/seeded facets + card-height normalization.
+
+---
+
+## 0-RECENT — 2026-09-02 (session — Adversaries directory triage sort + BACKLOG close-out refresh)
 
 **Shipped:**
 - **Directory triage sort** — closes the last unaddressed Adversaries-critique priority
