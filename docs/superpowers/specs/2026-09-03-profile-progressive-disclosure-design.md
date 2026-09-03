@@ -135,7 +135,7 @@ The IA/mechanism above is settled here. The VISUAL treatment (synthesis-band lay
 ## Deploy
 build/lint/full-vitest/pytest green → `git pull --rebase origin main` → push → `gh workflow run collect-and-deploy` → live-dogfood: one-screen synthesis renders; jump-nav scrollspy + mobile "Jump to ▾"; `…#huntpack` deep-link lands+opens; print opens all; distinctive TTPs lead; SEO (view-source shows collapsed content).
 
-## Open questions for owner review
-1. **Intel panel placement:** keep "Initial access & detection" always-open in the decision layer (my recommendation — it's the most triage-actionable), or make it a collapsed reference section? 
-2. **Synthesis description line:** include a 1-line cleaned description in the synthesis band, or keep the band purely to the four signal cells + rely on the identity header?
-3. **Fingerprint default:** collapse the full matrix by default (my recommendation, distinctive lead is hoisted), or leave the matrix open and only collapse hunt-pack + victims + reporting?
+## Resolved decisions (owner-approved 2026-09-03)
+1. **Intel panel placement:** ✅ KEEP always-open in the decision layer (most triage-actionable). Not collapsed.
+2. **Synthesis band content:** ✅ FOUR signal cells only (Distinctive TTPs · Top hunts · Activity spark · Flagship access) — no description line; the identity header carries identity.
+3. **Fingerprint default:** ✅ COLLAPSE the full 87-cell matrix by default (the distinctive lead is hoisted to the synthesis band). Collapsed reference set = Claimed victims · ATT&CK matrix · Hunt pack · Reporting.
