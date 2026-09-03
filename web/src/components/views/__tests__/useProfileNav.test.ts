@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { navSections, targetIdFromHash } from '../useProfileNav'
+import { navSections } from '../useProfileNav'
 
 describe('navSections — jump-nav landmarks', () => {
   it('always leads with Overview, in document order, gated on existence', () => {
@@ -15,16 +15,5 @@ describe('navSections — jump-nav landmarks', () => {
   it('keeps document order when only some exist', () => {
     const some = navSections({ hasActivity: false, hasFingerprint: true, hasHuntpack: true, hasRelated: false })
     expect(some.map((s) => s.id)).toEqual(['overview', 'fingerprint', 'huntpack'])
-  })
-})
-
-describe('targetIdFromHash', () => {
-  it('strips the leading # and trims', () => {
-    expect(targetIdFromHash('#huntpack')).toBe('huntpack')
-  })
-  it('returns null for empty / bare-hash fragments', () => {
-    expect(targetIdFromHash('')).toBeNull()
-    expect(targetIdFromHash('#')).toBeNull()
-    expect(targetIdFromHash('  ')).toBeNull()
   })
 })

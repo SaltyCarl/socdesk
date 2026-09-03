@@ -1,12 +1,14 @@
 import { cx } from '@socdesk/shared/lib/cx'
+import { openAndScrollTo } from './useProfileNav'
 import type { NavSection } from './useProfileNav'
 
 /**
  * The profile jump-nav — a sticky landmark bar under the app header (56px),
  * orienting the analyst across the decision layer + collapsed reference sections
- * without a 7,000px scroll. Anchors are real `#id` links (crawlable, JS-off
- * friendly); scrollspy sets `aria-current` on the section in view. On mobile it
- * folds into a "Jump to ▾" disclosure so a long collapsed scroll stays clean.
+ * without a 7,000px scroll. The app is HASH-ROUTED (`#g=<slug>`), so these are
+ * BUTTONS that scroll+open by id (not `#id` anchors, which would wipe the route);
+ * scrollspy sets `aria-current` on the section in view. On mobile it folds into a
+ * "Jump to ▾" disclosure so a long collapsed scroll stays clean.
  *
  * Offsets are the shared sticky stack: header `top-0 h-14` (56px) → this bar
  * `top-14 h-11` (→ 100px), matched by every section's `scroll-mt-[6.5rem]`.
@@ -15,9 +17,10 @@ export function ProfileNav({ sections, activeId }: { sections: NavSection[]; act
   if (sections.length <= 1) return null // only Overview — nothing to orient with
 
   const link = (s: NavSection) => (
-    <a
+    <button
       key={s.id}
-      href={`#${s.id}`}
+      type="button"
+      onClick={() => openAndScrollTo(s.id)}
       aria-current={activeId === s.id ? 'true' : undefined}
       className={cx(
         'whitespace-nowrap rounded-md px-2.5 py-1 font-mono text-micro uppercase tracking-label',
@@ -26,7 +29,7 @@ export function ProfileNav({ sections, activeId }: { sections: NavSection[]; act
       )}
     >
       {s.label}
-    </a>
+    </button>
   )
 
   return (

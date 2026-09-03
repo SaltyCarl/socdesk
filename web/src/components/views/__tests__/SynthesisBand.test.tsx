@@ -37,7 +37,9 @@ describe('SynthesisBand', () => {
     expect(html).toContain('T1') // the rare technique chip
     expect(html).not.toContain('T2') // the commodity one is not distinctive
     expect(html).toContain('176 tracked groups')
-    expect(html).toContain('href="#fingerprint"') // router link
+    // routes to its section via a hash-safe button, never an #id anchor
+    expect(html).toContain('<button')
+    expect(html).not.toContain('href="#')
   })
 
   it('shows the hunt count + titles when the pack has matches', () => {
@@ -47,7 +49,6 @@ describe('SynthesisBand', () => {
     )
     expect(html).toContain('Top hunts · 7')
     expect(html).toContain('PowerShell Encoded Command')
-    expect(html).toContain('href="#huntpack"')
   })
 
   it('omits the hunts cell for a floor-only pack (totalMatched 0)', () => {
@@ -64,7 +65,6 @@ describe('SynthesisBand', () => {
     )
     expect(html).toContain('Recent activity')
     expect(html).toContain('4 claims')
-    expect(html).toContain('href="#activity"')
   })
 
   it('teases the initial-access CVE count + KEV pressure (no chip duplicate of the always-open panel)', () => {

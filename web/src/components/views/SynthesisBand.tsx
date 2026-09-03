@@ -2,6 +2,7 @@ import { cx } from '@socdesk/shared/lib/cx'
 import { num, rel } from './format'
 import { TechniqueChip } from './TechniqueChip'
 import { HeatStrip } from './HeatStrip'
+import { openAndScrollTo } from './useProfileNav'
 import { distinctiveSplit } from './derived'
 import type { HuntPack } from './huntpack'
 import type { MitreFingerprint, ProfileActivity } from './profiles'
@@ -15,12 +16,18 @@ import type { CveContext, RansomIntel } from './types'
  * is one click away. No new analysis — it re-surfaces existing artifacts
  * (distinctiveSplit / huntPack / activity.daily / intel) as the lead.
  */
-function CellLabel({ href, children }: { href?: string; children: React.ReactNode }) {
+function CellLabel({ target, children }: { target?: string; children: React.ReactNode }) {
+  // The app is hash-routed (#g=<slug>), so a cell that routes to its full section
+  // is a BUTTON that scroll+opens by id — an `#id` anchor would wipe the route.
   const cls = 'font-mono text-micro uppercase tracking-label text-faint'
-  return href ? (
-    <a href={href} className={cx(cls, 'transition-colors duration-150 ease-brand hover:text-accent')}>
+  return target ? (
+    <button
+      type="button"
+      onClick={() => openAndScrollTo(target)}
+      className={cx(cls, 'text-left transition-colors duration-150 ease-brand hover:text-accent')}
+    >
       {children}
-    </a>
+    </button>
   ) : (
     <span className={cls}>{children}</span>
   )
@@ -60,7 +67,7 @@ export function SynthesisBand({
   if (distinctive.length > 0) {
     cells.push(
       <div key="ttp" className="flex flex-col gap-2">
-        <CellLabel href="#fingerprint">Distinctive TTPs · {num(distinctive.length)}</CellLabel>
+        <CellLabel target="fingerprint">Distinctive TTPs · {num(distinctive.length)}</CellLabel>
         <div className="flex flex-wrap items-center gap-1.5">
           {distinctive.slice(0, 5).map((t) => (
             <TechniqueChip key={t} id={t} name={techniqueNames?.[t]} distinctive />
@@ -81,7 +88,7 @@ export function SynthesisBand({
   if (huntTitles.length > 0) {
     cells.push(
       <div key="hunts" className="flex flex-col gap-2">
-        <CellLabel href="#huntpack">Top hunts · {num(huntPack!.totalMatched)}</CellLabel>
+        <CellLabel target="huntpack">Top hunts · {num(huntPack!.totalMatched)}</CellLabel>
         <ul className="flex flex-col gap-1 text-xs text-muted">
           {huntTitles.slice(0, 3).map((t, i) => (
             <li key={i} className="line-clamp-1">
@@ -96,7 +103,7 @@ export function SynthesisBand({
   if (hasSpark && activity) {
     cells.push(
       <div key="activity" className="flex flex-col gap-2">
-        <CellLabel href="#activity">Recent activity</CellLabel>
+        <CellLabel target="activity">Recent activity</CellLabel>
         <HeatStrip compact daily={activity.daily} />
         <span className="font-mono text-micro text-faint">
           {num(activity.victimCount)} claim{activity.victimCount === 1 ? '' : 's'}

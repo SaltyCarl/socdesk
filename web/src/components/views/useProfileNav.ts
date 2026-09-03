@@ -1,10 +1,18 @@
 // useProfileNav.ts — the profile's jump-nav model + the DOM wiring that makes the
-// native <details> accordions deep-linkable, print-whole, and scrollspy-aware.
+// native <details> accordions print-whole and scrollspy-aware.
 //
-// SSR-SAFE BY CONTRACT: ActorProfile is rendered via renderToStaticMarkup in the
-// node-env test harness, so NOTHING here may touch window / document /
-// IntersectionObserver during render or in a useState initializer. Every DOM
-// access lives inside useEffect (which never runs under renderToStaticMarkup).
+// IMPORTANT: SOCDesk is HASH-ROUTED — the profile route lives in the URL hash
+// (`/actor#g=<slug>`). So in-page navigation must NOT use `#section` fragments
+// (that would overwrite `g=<slug>` and break the page). The jump-nav and the
+// synthesis-band links therefore scroll+open by element id via `openAndScrollTo`
+// WITHOUT touching the URL. (Deep-linking a section via a shareable URL would need
+// a non-hash channel, e.g. a `?s=` query param — deferred; it must not collide
+// with the hash router.)
+//
+// SSR-SAFE BY CONTRACT: ActorProfile renders via renderToStaticMarkup in the
+// node-env test harness, so nothing here touches window/document during render or
+// in a useState initializer — every DOM access is inside useEffect / an event
+// handler (neither runs under renderToStaticMarkup).
 
 import { useEffect, useState } from 'react'
 
@@ -30,29 +38,21 @@ export function navSections(flags: {
   return out
 }
 
-/** `#huntpack` → `huntpack`; a bare `#` or empty string → null. */
-export function targetIdFromHash(hash: string): string | null {
-  const id = hash.replace(/^#/, '').trim()
-  return id ? id : null
-}
-
-/** Opens the `<details>` a fragment targets and scrolls to it (used on mount and
- *  on every hashchange). No-op when the target isn't a details (decision-layer
- *  anchors are plain sections). Exported for direct unit reasoning; DOM-touching,
- *  so only ever called from inside the effect / event handlers. */
-function openAndScrollTo(id: string | null): void {
-  if (!id) return
+/** Open a section's `<details>` (if it is one) and scroll it into view under the
+ *  sticky stack. DOM-touching — call ONLY from a client event handler. Used by the
+ *  nav buttons + synthesis-band links so a jump never mutates the URL hash (which
+ *  the app reserves for its `g=<slug>` route). `scroll-mt-[6.5rem]` on each anchor
+ *  supplies the sticky-header offset. */
+export function openAndScrollTo(id: string): void {
   const el = document.getElementById(id)
   if (!el) return
   if (el instanceof HTMLDetailsElement) el.open = true
-  el.scrollIntoView()
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 /**
- * Wires deep-link-open + print-whole + scrollspy for the profile.
- * Returns the id of the section currently in view (`''` until the observer
- * fires, and always `''` under SSR — the nav simply renders with no active item).
- *
+ * Wires print-whole + scrollspy for the profile. Returns the id of the section
+ * currently in view (`''` until the observer fires, and always `''` under SSR).
  * The caller MUST pass a STABLE `sections` reference (memoize on the existence
  * flags) — the effect re-subscribes only when the set of section ids changes.
  */
@@ -61,12 +61,7 @@ export function useProfileNav(sections: NavSection[]): { activeId: string } {
   const key = sections.map((s) => s.id).join(',')
 
   useEffect(() => {
-    // (1) deep-link: open + scroll to the hash target now and on every change.
-    const onHashChange = () => openAndScrollTo(targetIdFromHash(window.location.hash))
-    onHashChange()
-    window.addEventListener('hashchange', onHashChange)
-
-    // (2) print: open every collapsed reference section, restore afterwards.
+    // (1) print: open every collapsed reference section, restore afterwards.
     let reclosed: HTMLDetailsElement[] = []
     const onBeforePrint = () => {
       reclosed = Array.from(
@@ -81,7 +76,7 @@ export function useProfileNav(sections: NavSection[]): { activeId: string } {
     window.addEventListener('beforeprint', onBeforePrint)
     window.addEventListener('afterprint', onAfterPrint)
 
-    // (3) scrollspy: the topmost section crossing below the sticky stack wins.
+    // (2) scrollspy: the topmost section crossing below the sticky stack wins.
     let observer: IntersectionObserver | null = null
     const els = key
       .split(',')
@@ -105,7 +100,6 @@ export function useProfileNav(sections: NavSection[]): { activeId: string } {
     }
 
     return () => {
-      window.removeEventListener('hashchange', onHashChange)
       window.removeEventListener('beforeprint', onBeforePrint)
       window.removeEventListener('afterprint', onAfterPrint)
       observer?.disconnect()

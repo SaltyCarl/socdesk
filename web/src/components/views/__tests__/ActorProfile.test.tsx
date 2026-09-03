@@ -316,11 +316,12 @@ describe('ActorProfile — progressive disclosure restructure (N1 + N4)', () => 
     },
   })
 
-  it('renders the jump-nav with anchors for the present sections', () => {
+  it('renders the jump-nav with landmark buttons for the present sections (hash-safe)', () => {
     const html = renderToStaticMarkup(<ActorProfile profile={profile} slugSet={new Set()} />)
     expect(html).toContain('aria-label="Profile sections"')
-    expect(html).toContain('href="#overview"')
-    expect(html).toContain('href="#fingerprint"')
+    expect(html).toContain('Fingerprint')
+    // buttons, NOT #id anchors — the app is hash-routed (#g=<slug>)
+    expect(html).not.toContain('href="#')
   })
 
   it('collapses the ATT&CK fingerprint into a <details> yet keeps its content in the DOM (SEO)', () => {
@@ -336,7 +337,7 @@ describe('ActorProfile — progressive disclosure restructure (N1 + N4)', () => 
     const html = renderToStaticMarkup(<ActorProfile profile={claiming} slugSet={new Set()} />)
     expect(html).toContain('id="activity"')
     expect(html).not.toMatch(/<details[^>]*id="activity"/)
-    expect(html).toContain('href="#activity"')
+    expect(html).toContain('Activity') // nav landmark label present
   })
 
   it('hoists the distinctive-TTP lead into the synthesis band (N4), above the collapsed matrix', () => {
