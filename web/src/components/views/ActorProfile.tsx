@@ -6,7 +6,7 @@ import { pct, rel, safeUrl, num } from './format'
 import { intelSource, isVendorSourced, vendorLabel } from './intelSource'
 import { ExternalLink } from './ExternalLink'
 import { VictimLogo } from './VictimLogo'
-import { PIVOTABLE, provenance, techniqueUrl } from './relations'
+import { PIVOTABLE, provenance, relatedMinusUsedBy, techniqueUrl } from './relations'
 import { ActorLink, BoardPanel, CveLink, PanelEmpty } from '../overview/board-ui'
 import { barWidthClass } from '../overview/widths'
 import { busiestDay } from './profiles'
@@ -1251,6 +1251,18 @@ export function ActorProfile({
     [associatedMalware, fingerprintSoftware],
   )
 
+  // N2 de-dup (2026-09-03 re-run): on a MALWARE page the "Used by tracked groups"
+  // reverse-index is the canonical home for the using-actors, so the same actors
+  // in "Related entities" are a redundant second copy. Strip the reverse-index
+  // actors out of the related list here; the panel is then gated on the FILTERED
+  // list below so an emptied list omits the panel rather than rendering the now
+  // FALSE "no related entities recorded" empty (there were ATT&CK links). No-op on
+  // actor pages (usedBy is undefined there → the list passes through unchanged).
+  const dedupedRelated = useMemo(
+    () => (usedBy?.length ? relatedMinusUsedBy(profile.related, usedBy) : profile.related),
+    [profile.related, usedBy],
+  )
+
   // A ransomware-live full-profile link-out for an active group (a plain link,
   // not embedded editorial — R3). Memoised only to keep the render tidy.
   const ransomLiveHref = useMemo(
@@ -1368,9 +1380,15 @@ export function ActorProfile({
             </BoardPanel>
           )}
 
-          <BoardPanel eyebrow="Related entities">
-            <RelatedPanel related={profile.related} />
-          </BoardPanel>
+          {/* Omit only when the malware-page dedup emptied the list (a rendered
+              "no related entities" there would be FALSE — the actors moved to the
+              reverse-index). On pages with no reverse-index (usedBy absent) the
+              panel still renders, keeping the genuinely-empty honest state. */}
+          {(dedupedRelated.length > 0 || !usedBy?.length) && (
+            <BoardPanel eyebrow="Related entities">
+              <RelatedPanel related={dedupedRelated} />
+            </BoardPanel>
+          )}
 
           {feedOnlyMalware.length > 0 && (
             <BoardPanel eyebrow="Associated malware">

@@ -92,3 +92,22 @@ export const PIVOTABLE = new Set(['actor', 'malware'])
 
 export const techniqueUrl = (id: string): string =>
   `https://attack.mitre.org/techniques/${encodeURIComponent(id).replace(/\./g, '/')}/`
+
+/** Drop the related rows a malware page's "Used by tracked groups" reverse-index
+ *  already surfaces (N2 de-duplication, 2026-09-03 re-run). The reverse-index is
+ *  the canonical home for the actors that use a malware family, so re-listing
+ *  them under "Related entities" is redundant. Only ACTOR-type rows whose name
+ *  matches a `usedBy` slug are removed; non-actor rows (techniques / CVEs /
+ *  products / vendors) and actor rows NOT in the reverse-index survive — they are
+ *  genuine additional co-occurrence signal, not duplicates. `usedBy` slugs are
+ *  already lowercased (`name.toLowerCase()`), so the match is case-safe. */
+export function relatedMinusUsedBy(
+  related: RelatedRow[],
+  usedBy: { slug: string }[],
+): RelatedRow[] {
+  if (!usedBy.length) return related
+  const seen = new Set(usedBy.map((u) => u.slug))
+  return related.filter(
+    (r) => !(r.node.type === 'actor' && seen.has(r.node.name.toLowerCase())),
+  )
+}
