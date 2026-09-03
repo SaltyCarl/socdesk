@@ -30,6 +30,7 @@
         "slug": {"type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-z0-9 ._-]+$"},
         "name": {"type": "string", "minLength": 1, "maxLength": 64},
         "aliases": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 64}},
+        "slug_aliases": {"type": "array", "maxItems": 16, "items": {"type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-z0-9 ._-]+$"}},
         "first_seen": {"type": "string", "maxLength": 10},
         "raas": {"type": "boolean"},
         "initial_access_cves": {"type": "array", "maxItems": 32,

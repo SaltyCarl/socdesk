@@ -320,6 +320,11 @@ export interface RansomIntel {
   slug: string
   name: string
   aliases?: string[]
+  /** Match-only lowercase leak-site / name-only slug variants that are the SAME
+   *  operation as this seed (LockBit's CISA advisory is keyed `lockbit`, but the
+   *  active leak-site slug is `lockbit5`). Resolves the intel panel + seeded
+   *  badge for a variant slug WITHOUT rendering as display aliases. */
+  slug_aliases?: string[]
   first_seen?: string
   raas?: boolean
   initial_access_cves?: string[]

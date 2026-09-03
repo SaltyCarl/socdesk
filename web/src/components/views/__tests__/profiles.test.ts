@@ -662,6 +662,38 @@ describe('intel fusion', () => {
   })
 })
 
+// N3 (2026-09-03 re-run): a seed keyed to a canonical slug (`lockbit`) must
+// resolve for the SAME-operation leak-site slug variant (`lockbit5`) via the
+// match-only `slug_aliases` field — the most-documented crew was rendering as a
+// bare name-only stub because its live slug != the seed slug.
+const LOCKBIT_INTEL: RansomIntel[] = [
+  { slug: 'lockbit', name: 'LockBit', slug_aliases: ['lockbit5', 'lockbit3', 'lockbit3_fs'],
+    advisory: { id: 'AA23-325A', url: 'https://www.cisa.gov/x' } },
+]
+
+describe('intel slug_aliases — same-operation variant slugs', () => {
+  it('resolves the profile intel panel for a variant slug (lockbit5 → LockBit seed)', () => {
+    const p = profileFor('lockbit5', { actors: [], malware: [], feed: [], relations: null, intel: LOCKBIT_INTEL })
+    expect(p.intel?.name).toBe('LockBit')
+    expect(p.intel?.advisory?.id).toBe('AA23-325A')
+  })
+
+  it('lights the directory seeded badge on a name-only variant added AFTER the intel pass', () => {
+    // lockbit3 exists only in the name-only coverage layer (added in the LAST
+    // pre-reconciliation pass) — the fix must run after it to flag hasIntel.
+    const idx = buildProfileIndex([], [], [], LOCKBIT_INTEL, ['lockbit3'])
+    const row = idx.find((e) => e.slug === 'lockbit3')
+    expect(row?.hasIntel).toBe(true)
+    expect(row?.nameOnly).toBe(true) // still a bare-name row; only the flag is added
+  })
+
+  it('never creates a phantom row for a variant slug that is present nowhere', () => {
+    const idx = buildProfileIndex([], [], [], LOCKBIT_INTEL) // no knownGroups, no claims
+    // only the canonical `lockbit` seed row exists; lockbit5/lockbit3/_fs do not
+    expect(idx.filter((e) => e.slug.startsWith('lockbit')).map((e) => e.slug)).toEqual(['lockbit'])
+  })
+})
+
 /* ---------------- fusion: claimed victims + activity + reportsFor gate ---- */
 
 describe('profileFor — claimed-victim list + activity aggregates', () => {

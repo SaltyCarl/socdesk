@@ -345,6 +345,21 @@ export function buildProfileIndex(
     bySlug.set(slug, { slug, name, kind: 'ransomware', hasMitre: false, nameOnly: true })
   }
 
+  // Seed slug-alias reconciliation (LAST pass): a curated intel seed can be keyed
+  // to a canonical slug while the live leak-site / name-only slug is a variant of
+  // the SAME operation (LockBit's CISA advisory is `lockbit`, but the active
+  // leak-site slug is `lockbit5`). Light the seeded flag on any ALREADY-PRESENT
+  // entry whose slug is one of a seed's match-only `slug_aliases`. Runs after
+  // every other pass so it catches variants added by the claims OR the name-only
+  // layer; never creates an entry (a bare alias with no directory presence stays
+  // absent, not a phantom seeded row).
+  for (const g of intel) {
+    for (const alias of g.slug_aliases ?? []) {
+      const existing = bySlug.get(alias.toLowerCase())
+      if (existing) existing.hasIntel = true
+    }
+  }
+
   return [...bySlug.values()]
 }
 
@@ -571,7 +586,8 @@ export function intelFor(slug: string, intel: RansomIntel[]): RansomIntel | null
     intel.find(
       (g) =>
         g.slug.toLowerCase() === slug ||
-        (g.aliases ?? []).some((a) => a?.toLowerCase() === slug),
+        (g.aliases ?? []).some((a) => a?.toLowerCase() === slug) ||
+        (g.slug_aliases ?? []).some((a) => a?.toLowerCase() === slug),
     ) ?? null
   )
 }

@@ -33,6 +33,7 @@
     },
     {
       "slug": "lockbit", "name": "LockBit",
+      "slug_aliases": ["lockbit5", "lockbit3", "lockbit2", "lockbit3_fs"],
       "initial_access_cves": ["CVE-2023-4966"],
       "advisory": {"id": "AA23-325A", "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-325a"},
       "advisory_date": "2023-11-21", "last_reviewed": "2026-08-24",
