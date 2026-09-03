@@ -1,10 +1,40 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-08-25 (session — vendor-reported Tier-3 depth for 5 ungoverned active crews, compliance-reviewed, shipped + deployed live to socdesk.io) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-09-02 (session — Adversaries directory triage sort shipped + deployed live; BACKLOG refreshed for the Adversaries-critique + hunt-pack close-out) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-08-25 (session — vendor-reported Tier-3 depth, 5 crews, compliance-reviewed, shipped + deployed live)
+## 0. LATEST — 2026-09-02 (session — Adversaries directory triage sort + BACKLOG close-out refresh)
+
+**Shipped:**
+- **Directory triage sort** — closes the last unaddressed Adversaries-critique priority
+  ("the directory can't answer analyst questions — no sort, no way to rank by activity").
+  Added a sort `<select>` to the Adversaries directory (`/actor`). The `Relevance` default
+  reproduces the prior shipped order byte-for-byte (malware lens → used-by reverse-index
+  desc; every other lens → `compareEntries` tier). Four explicit nulls-last, name-tie-broken
+  single-key sorts: Most claims, Recently active, Most techniques, Name (A–Z). All fields
+  already rode on `ProfileIndexEntry`; comparators live in the pure `profiles.ts` module
+  (react-refresh-safe). Files: `web/src/components/views/profiles.ts` (DirectorySort type,
+  SORT_OPTIONS, sortComparator), `web/src/components/views/ProfileDirectory.tsx` (sort state
+  + select), `web/src/components/views/__tests__/profiles.test.ts`,
+  `web/src/components/views/__tests__/ProfileDirectory.test.tsx`. (`47a32e0`)
+- **BACKLOG refresh** — `BACKLOG.md` refreshed for the Adversaries-critique + hunt-pack-program
+  close-out; the new 2026-09-02 header lists Adversaries batches A–E, seeded-intel depth, the
+  hunt-pack program H0→H4 + H2 + H3 = 61 emulator-validated rules, the cached-collector
+  `collected_at` freshness fix, and the `-X theirs` snapshot-race deploy fix. (`ed89bee`)
+
+**Verified:** sort adversarially vetted (verdict APPROVE, no load-bearing defects); 8 new
+comparator unit tests + 1 control-presence test; 905 vitest + lint + build green. Deployed via
+collect-and-deploy run 33712771429 (green, 3m46s). Live-dogfooded on socdesk.io: sort reorders
+correctly (Name→alphabetical, Most techniques→Kimsuky/APT28/Lazarus,
+Relevance→krybit/incransom/Akira).
+
+**Open / next:** owner activation gates still open in `BACKLOG.md` — IPINFO_TOKEN + KV/WAF;
+COMPLIANCE.md reconciliation pending.
+
+---
+
+## 0-RECENT — 2026-08-25 (session — vendor-reported Tier-3 depth, 5 crews, compliance-reviewed, shipped + deployed live)
 
 **Shipped:**
 - **Vendor-reported Tier-3 depth** (owner-approved, resolves the (a) backlog decision from
