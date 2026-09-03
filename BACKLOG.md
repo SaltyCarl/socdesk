@@ -1,6 +1,33 @@
 # SOCDesk Backlog
 
-> _Refreshed 2026-08-26 (sitewide-critique close-out)._ Shipped 2026-08-25/26 from the two external
+> _Refreshed 2026-09-02 (Adversaries-critique + hunt-pack program close-out)._ Shipped 2026-09-01/02,
+> each via an adversarially-vetted plan (10 plans this arc, every one returned REVISE with a
+> would-have-shipped-broken finding): **Adversaries directory enrichment** (blurb/counts/recency) ·
+> **ransomware long-tail** (`ransomware_groups.json`, ~393 name-only coverage entries + link-out stub) ·
+> **flagship bug fixes** (RaaS tri-state, description de-corruption, de-triplication) ·
+> **31-day claim heat-strip + ranked sector/country bars + cadence facts** · **derived artifacts**
+> (shared-technique peers by Jaccard, distinctive-TTP split, malware reverse-index) ·
+> **tactic-grouped technique matrix** (`technique_tactics.json`, 15-tactic bundle order) + **malware
+> technique ingest** (825 profiles un-hardcoded) · **seeded-intel depth** (KEV/EPSS priority on seed
+> CVEs via `cve_context`, seeded-tool commodity counts) · **the HUNT-PACK PROGRAM** (H0 gauge → H1
+> Sentinel collector + Kustainer CI gate → H4 panel → H2 Sigma conversion lane → H3 authored identity
+> rules): `hunt_packs.json` = **61 emulator-validated hunting queries** (28 Sentinel MIT + 28 Sigma DRL
+> + 5 SOCDesk-authored), the panel on every fingerprinted profile. Plus a latent-bug fix:
+> **cached-collector freshness** now reads `collected_at` (keep-prior re-stamped `generated_at` → 35-day
+> silent ATT&CK freeze).
+> **Two owner activation gates STILL open:** (1) `IPINFO_TOKEN` → GitHub Actions secret (ISP
+> leaderboard); (2) bind `KV` + `/api/enrich` WAF Block rule (activates B2 — `docs/OPERATIONS.md`).
+> **Owner-flagged, pending:** COMPLIANCE.md reconciliation pass ("generally too rigid" — proposals for
+> approval, `.onion` rule stays). **Hunt-pack future lanes** (owner-directed, non-blocking): more
+> authored identity rules from the 15-candidate list (`theLab/docs/hunt-pack-legacy-inventory`); the
+> 12 truly-uncovered techniques; broader Sigma curation (10 of 39 sigma-only techniques had no windows
+> candidates). Next feature candidates: Phase 5 trends · Phase 6 upstream push · enrich B3 own-OSINT
+> dataset · give-back honeypot · Desk `Now · Exposure · Actors` re-cut · feed sparklines · the small
+> relations self-row fix (Related-entities can list the entity itself). Refresh at every close-out.
+>
+> ---
+>
+> _Prior refresh 2026-08-26 (sitewide-critique close-out)._ Shipped 2026-08-25/26 from the two external
 > critiques + follow-ups: **CI test gate** (`.github/workflows/ci.yml` — vitest+eslint+tsc+pytest on
 > every push/PR; they never ran in CI before) · **auth hardening** (fail-closed session HMAC; OAuth
 > state browser-bound via nonce cookie) · **.onion render-guard** (safeUrl rejects .onion hosts —
