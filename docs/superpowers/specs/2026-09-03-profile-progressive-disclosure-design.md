@@ -30,7 +30,7 @@
 1. Initial access & detection — `IntelPanel`, `accent`, gated on `intel` (`:1291`)
 2. Leak-site activity — `ActivityPanel`, gated on `activity` (`:1301`)
 3. Claimed victims — ledger, gated on `claimedVictims`/`ransomware` (`:1308`)
-4. ATT&CK fingerprint — `MitreFingerprintPanel` (`:1330`); **this panel already computes `distinctiveSplit` (`:771`), tints distinctive cells in `TacticMatrix` (`:736`), and renders a "Distinctive techniques · N" block (`:804`) — but buried below the 87-cell matrix, deep in the page.**
+4. ATT&CK fingerprint — `MitreFingerprintPanel` (`:1330`); **this panel already computes `distinctiveSplit` (`:771`) and tints distinctive cells inside the `TacticMatrix` (`:736`). A standalone "Distinctive techniques · N" block (`:802-822`) exists ONLY in the no-catalog FALLBACK branch (`!useMatrix`); in production the catalog loads and the matrix renders, so distinctive TTPs surface only as an in-matrix tint — deep in the page, and (after this rebuild) inside a collapsed section. The fallback block is left untouched; the synthesis band ADDS a lead surfacing, it does not move the existing one.**
 5. Hunt pack — `HuntPackPanel`, gated on `fingerprint && huntPack` (`:1346`) — the largest section (dozens of rows).
 6. Reporting — `ReportingList` (`:1353`).
 
@@ -53,7 +53,7 @@ A sticky **jump-nav** under the app header, then a **decision layer** (always op
 | — | Initial access & detection | (part of `overview`) | **open** | flagship, most triage-actionable; stays open when present |
 | — | Leak-site activity | `activity` | **open** | the "who now" |
 | A | Claimed victims | `victims` | **collapsed** | `<details>` — "Claimed victims · N ▸" |
-| B | ATT&CK fingerprint (full matrix) | `fingerprint` | **collapsed** | `<details>` — "ATT&CK fingerprint · 66 techniques ▸"; the distinctive lead is HOISTED out (below) so the collapsed body is the full 87-cell detail |
+| B | ATT&CK fingerprint (full matrix) | `fingerprint` | **collapsed** | `<details>` — "ATT&CK fingerprint · 66 techniques ▸"; `MitreFingerprintPanel` (incl. its in-matrix distinctive tint) is UNCHANGED — the synthesis band ADDS a distinctive lead, it does not remove this |
 | C | Hunt pack | `huntpack` | **collapsed** | `<details>` — "Hunt pack · N queries ▸" (the reference library; the re-run's #1 ask) |
 | D | Reporting | `reporting` | **collapsed** | `<details>` — "Reporting · N ▸" (only when non-empty) |
 | — | Right rail (Shared / Used-by / Related) | `related` | rail; mobile-collapsed | anchor "Related" jumps here |
@@ -63,7 +63,7 @@ Guardrail honoured: only A–D (the heavy/reference sections) collapse. Identity
 ### Synthesis band (NEW) — the decision layer's summary (N4 lives here)
 
 A compact band directly under `IdentityHeader`, always open, each cell honest-empty independently:
-- **Distinctive TTPs · N** — the top ~5 of the existing `distinctiveSplit(fingerprint.techniques, prevalence).distinctive` (≤3-tracked-groups rarity), rendered as tinted technique chips with the stated denominator. Absent when the split is empty (~42% of actors) — renders nothing. This is the re-run's N4: the differentiated artifact promoted from buried to lead.
+- **Distinctive TTPs · N** — the top ~5 of the existing `distinctiveSplit(fingerprint.techniques, prevalence).distinctive` (≤3-tracked-groups rarity), rendered as tinted technique chips (the extracted `TechniqueChip`) with the stated denominator. Absent when the split is empty (~42% of actors) — renders nothing. This is the re-run's N4: promoting the differentiated artifact from an in-matrix tint (deep, now collapsed) to a lead band.
 - **Top hunts · N** — `huntPack` query count + the top 2–3 titles (link/anchor to the collapsed Hunt-pack section). Absent when no pack.
 - **Activity spark** — a mini inline 31-day strip from `activity.daily` + "last claim / peak" cadence facts (anchor to Activity). Absent for non-claiming groups.
 - **Flagship access** — 1-line tease of `intel` initial-access CVEs / KEV chips (anchor to the intel panel). Absent when unseeded.
@@ -138,4 +138,4 @@ build/lint/full-vitest/pytest green → `git pull --rebase origin main` → push
 ## Resolved decisions (owner-approved 2026-09-03)
 1. **Intel panel placement:** ✅ KEEP always-open in the decision layer (most triage-actionable). Not collapsed.
 2. **Synthesis band content:** ✅ FOUR signal cells only (Distinctive TTPs · Top hunts · Activity spark · Flagship access) — no description line; the identity header carries identity.
-3. **Fingerprint default:** ✅ COLLAPSE the full 87-cell matrix by default (the distinctive lead is hoisted to the synthesis band). Collapsed reference set = Claimed victims · ATT&CK matrix · Hunt pack · Reporting.
+3. **Fingerprint default:** ✅ COLLAPSE the full 87-cell matrix by default (the synthesis band ADDS a distinctive lead above it; `MitreFingerprintPanel` itself is unchanged). Collapsed reference set = Claimed victims · ATT&CK matrix · Hunt pack · Reporting.
