@@ -1,10 +1,59 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-09-03 (session — Adversaries RE-RUN Batch 1 shipped + live-dogfooded: N3 LockBit slug-alias seed resolution + N2 malware reverse-index de-dup; N1 progressive-disclosure IA DECISION locked, spec pending) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-09-03 (session — N1+N4 progressive-disclosure profile rebuild SHIPPED + live-dogfooded: always-on decision layer + SynthesisBand + `<details>` accordions + scrollspy jump-nav; closes N1 density + N4 distinctive-TTP lead) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-09-03 (session — Adversaries RE-RUN Batch 1: N3 LockBit slug-alias + N2 reverse-index de-dup shipped; N1 IA decision locked)
+## 0. LATEST — 2026-09-03 (session — N1+N4 progressive-disclosure profile rebuild SHIPPED + live)
+
+**Context:** builds the N1 decision locked earlier today (see the demoted 0-RECENT block
+below) from the 2026-09-03 Adversaries RE-RUN critique. Closes **N1** (profile density /
+7,200px scroll) + **N4** (distinctive-TTP lead). Plan was adversarially vetted before code —
+the reviewer caught a factually-wrong "distinctive block below the matrix" premise that
+would have been a `noUnusedLocals` build error; corrected before implementation.
+
+**Shipped:**
+- **ActorProfile restructured** into an always-open **decision layer** (identity + NEW
+  SynthesisBand + Initial-access panel + Leak-site activity) over native `<details>`
+  **collapsed reference sections** (Claimed victims · ATT&CK matrix · Hunt pack · Reporting),
+  oriented by a sticky scrollspy **jump-nav** (ProfileNav). Collapsed content stays in the
+  DOM (SEO / print / Ctrl-F preserved). File: `web/src/components/views/ActorProfile.tsx`.
+  (`ae5abce`)
+- **BoardPanel** gained `collapsible` / `defaultOpen` / `id` — renders as
+  `<details data-collapsible>` with the SAME shell (header→summary + CSS-only `group-open`
+  chevron); backward-compatible with every existing call site. File:
+  `web/src/components/overview/board-ui.tsx`. (`ae5abce`)
+- **New components/hook:** `SynthesisBand.tsx` (4 honest-empty router cells: **Distinctive
+  TTPs** [hoisted from the existing `distinctiveSplit`, N4] · Top hunts · activity spark ·
+  KEV tease), `ProfileNav.tsx`, `useProfileNav.ts` (navSections + `openAndScrollTo` +
+  SSR-safe print-open + IntersectionObserver scrollspy). (`ae5abce`)
+- **Extracted** (react-refresh, no behaviour change): `TechniqueChip.tsx`, `HeatStrip.tsx`
+  (+compact), `activity-ui.ts`. **`MitreFingerprintPanel` LEFT UNTOUCHED** — its in-matrix
+  distinctive tint stays. (`ae5abce`)
+
+**⚠️ DECISION / load-bearing gotcha — SOCDesk is HASH-ROUTED (`/actor#g=<slug>`).** The
+first cut used `href="#fingerprint"` nav/synthesis anchors, which **wiped the `g=<slug>`
+route param on click and broke the page** — caught ONLY in live dogfood (SSR tests were
+green). Fix: jump-nav + synthesis links are **BUTTONS calling `openAndScrollTo(id)`**
+(scroll + open by id, never touch the URL hash). Consequence: **deep-linking a section via a
+shareable URL is NOT supported** (needs a non-hash channel like `?s=`) — **DEFERRED**.
+Files: `web/src/components/views/ProfileNav.tsx`, `SynthesisBand.tsx`, `useProfileNav.ts`.
+(`07317be`)
+
+**Verified:** 934 vitest + lint + build all green. Deployed via collect-and-deploy run
+33811321802. Live-dogfooded on socdesk.pages.dev / APT29 — decision layer + Distinctive
+TTPs·18 + Top hunts·34 render; collapsed Fingerprint(66) / Hunt pack(34); nav scroll+open
+works.
+
+**Open / next:**
+- **Deep-link `?s=` channel** — deferred non-hash section deep-link (hash router can't
+  coexist with `#section` anchors).
+- **N3 remainder** — directory sector/country/seeded facets + card-height normalization.
+  (N2 + N3-LockBit already shipped earlier today — see demoted block.)
+
+---
+
+## 0-RECENT — 2026-09-03 (session — Adversaries RE-RUN Batch 1: N3 LockBit slug-alias + N2 reverse-index de-dup shipped; N1 IA decision locked)
 
 **Context:** responds to the 2026-09-03 Adversaries RE-RUN critique
 (`SOCDesk-Adversaries-Rerun-2026-09-03.pdf`). The re-run confirmed the AAA content
