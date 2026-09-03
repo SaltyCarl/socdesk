@@ -148,6 +148,9 @@ export function BoardPanel({
   accent = false,
   className,
   children,
+  collapsible = false,
+  defaultOpen,
+  id,
 }: {
   eyebrow: string
   title?: ReactNode
@@ -156,44 +159,86 @@ export function BoardPanel({
   accent?: boolean
   className?: string
   children: ReactNode
+  /** Render the panel as a native `<details>` — the collapsed content stays in
+   *  the DOM (SEO/print/Ctrl-F preserved). The header becomes the `<summary>`
+   *  and the `aside` slot rides alongside a rotating chevron. Default false, so
+   *  every existing call site is unchanged. */
+  collapsible?: boolean
+  /** Only meaningful with `collapsible`; defaults to collapsed. */
+  defaultOpen?: boolean
+  /** Anchor id (jump-nav / deep-link / scrollspy target). */
+  id?: string
 }) {
-  return (
-    <section
-      className={cx(
-        'sd-reveal flex h-full flex-col gap-4 rounded-lg border p-5',
-        // Rank by SIZE + shadow, not colour: the flagship lifts to e1 at rest and
-        // e2 on hover (mirrors Card's `interactive`), never e3 — e2/e3 are for
-        // overlays only (index.css). Non-flagship stays a flat recessive surface.
-        accent
-          ? 'border-[var(--edge-accent)] bg-raised shadow-e1 transition-shadow duration-150 ease-brand hover:shadow-e2'
-          : 'border-line bg-panel',
-        className,
-      )}
-    >
-      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-        <div className="flex flex-col gap-1.5">
-          <MicroLabel tone={accent ? 'accent' : 'muted'} tick={accent}>
-            {eyebrow}
-          </MicroLabel>
-          {title != null && (
-            <h3
-              className={cx(
-                'font-display tracking-tight text-paper',
-                accent ? 'text-lg font-extrabold' : 'text-md font-bold',
-              )}
-            >
-              {title}
-            </h3>
+  // Shell shared by both renders so a collapsed section is visually identical to
+  // an open one (same border / padding / background / eyebrow treatment).
+  const shell = cx(
+    'sd-reveal flex h-full flex-col gap-4 rounded-lg border p-5',
+    // Rank by SIZE + shadow, not colour: the flagship lifts to e1 at rest and
+    // e2 on hover (mirrors Card's `interactive`), never e3 — e2/e3 are for
+    // overlays only (index.css). Non-flagship stays a flat recessive surface.
+    accent
+      ? 'border-[var(--edge-accent)] bg-raised shadow-e1 transition-shadow duration-150 ease-brand hover:shadow-e2'
+      : 'border-line bg-panel',
+    collapsible && 'group scroll-mt-[6.5rem]',
+    className,
+  )
+
+  const headBlock = (
+    <div className="flex flex-col gap-1.5">
+      <MicroLabel tone={accent ? 'accent' : 'muted'} tick={accent}>
+        {eyebrow}
+      </MicroLabel>
+      {title != null && (
+        <h3
+          className={cx(
+            'font-display tracking-tight text-paper',
+            accent ? 'text-lg font-extrabold' : 'text-md font-bold',
           )}
-        </div>
-        {aside && <div className="shrink-0 pt-0.5">{aside}</div>}
-      </header>
+        >
+          {title}
+        </h3>
+      )}
+    </div>
+  )
+
+  const body = (
+    <>
       <div className="flex flex-1 flex-col">{children}</div>
       {footer && (
         <footer className="flex items-center justify-between gap-3 border-t border-line pt-3">
           {footer}
         </footer>
       )}
+    </>
+  )
+
+  if (collapsible) {
+    return (
+      <details id={id} data-collapsible open={defaultOpen ?? false} className={shell}>
+        <summary className="flex cursor-pointer list-none select-none flex-wrap items-start justify-between gap-x-4 gap-y-1 marker:content-none [&::-webkit-details-marker]:hidden">
+          {headBlock}
+          <div className="flex shrink-0 items-center gap-2 pt-0.5">
+            {aside}
+            <span
+              aria-hidden="true"
+              className="font-mono text-micro text-faint transition-transform duration-150 ease-brand group-open:rotate-90"
+            >
+              ▸
+            </span>
+          </div>
+        </summary>
+        {body}
+      </details>
+    )
+  }
+
+  return (
+    <section id={id} className={shell}>
+      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+        {headBlock}
+        {aside && <div className="shrink-0 pt-0.5">{aside}</div>}
+      </header>
+      {body}
     </section>
   )
 }

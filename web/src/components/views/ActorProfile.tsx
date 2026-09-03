@@ -12,9 +12,15 @@ import { barWidthClass } from '../overview/widths'
 import { busiestDay } from './profiles'
 import { distinctiveSplit } from './derived'
 import { attackDetectionUrl, sigmaSearchUrl } from './huntpack'
+import { TechniqueChip } from './TechniqueChip'
+import { HeatStrip } from './HeatStrip'
+import { dayLabel } from './activity-ui'
+import { SynthesisBand } from './SynthesisBand'
+import { ProfileNav } from './ProfileNav'
+import { navSections, useProfileNav } from './useProfileNav'
 import type { HuntPack, HuntRow } from './huntpack'
 import type { OverlapRow } from './derived'
-import type { DayBucket, ProfileResult, RankedCount } from './profiles'
+import type { ProfileResult, RankedCount } from './profiles'
 import type { ClaimedVictim, CveContext, RansomIntel, TechniqueTacticsPayload } from './types'
 
 /**
@@ -36,39 +42,6 @@ function SectionLabel({ children, accent = false }: { children: React.ReactNode;
     <MicroLabel tone={accent ? 'accent' : 'faint'} tick={accent}>
       {children}
     </MicroLabel>
-  )
-}
-
-function TechniqueChip({
-  id,
-  name,
-  hint,
-  distinctive = false,
-}: {
-  id: string
-  name?: string
-  /** Extra title text (e.g. the snapshot-prevalence derivation). */
-  hint?: string
-  /** Accent-tinted treatment for a low-prevalence technique. */
-  distinctive?: boolean
-}) {
-  const base = name ? `${id} · ${name}` : id
-  return (
-    <a
-      href={techniqueUrl(id)}
-      target="_blank"
-      rel="noopener noreferrer"
-      title={hint ? `${base} — ${hint}` : base}
-      className={cx(
-        'inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 transition-colors duration-150 ease-brand',
-        distinctive
-          ? 'border-[var(--edge-accent)] bg-[var(--tint-accent)] hover:border-line-bright'
-          : 'border-line bg-panel-soft hover:border-line-bright',
-      )}
-    >
-      <span className="font-mono text-micro font-semibold text-accent-dim">{id}</span>
-      {name && <span className="text-micro text-muted">{name}</span>}
-    </a>
   )
 }
 
@@ -199,64 +172,6 @@ function IdentityHeader({ profile }: { profile: ProfileResult }) {
 }
 
 /* ---------------- leak-site activity (heat strip + geography) --------------- */
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-/** ISO `YYYY-MM-DD` → terse `Mon D`, from the string parts only (deterministic,
- *  no Date/locale — the daily buckets are already UTC date keys). */
-function dayLabel(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
-  if (!m) return iso
-  return `${MONTHS[Number(m[2]) - 1] ?? m[2]} ${Number(m[3])}`
-}
-
-/** Literal Tailwind opacity classes for the heat ladder (JIT can't see a
- *  computed string — the widths.ts trap). Floor 30%: a fainter periwinkle is
- *  near-invisible on the light theme's panel; lit cells also carry a border
- *  so a single-claim day still reads. Note: this quartile ladder deliberately
- *  supersedes the retired weekly chart's one-accent-tone rule — a heat strip
- *  IS its opacity ramp; the tone is still the single volume accent. */
-function heatClass(count: number, max: number): string {
-  if (count <= 0) return 'bg-panel-soft'
-  const q = count / Math.max(1, max)
-  const o = q > 0.75 ? 'opacity-100' : q > 0.5 ? 'opacity-75' : q > 0.25 ? 'opacity-50' : 'opacity-30'
-  return `border border-line bg-accent ${o}`
-}
-
-/** 31-day daily claim heat strip — always renders when the group has ≥1 claim
- *  in the window (the retired weekly chart refused to draw under 2 distinct
- *  weeks, which was most claiming groups). Digest tallies distribute by their
- *  carried per-claim dates (profiles.ts::dailyClaimsFor). Static, no SVG lib;
- *  cell titles are hover-only (touch-inert) so the cells are aria-hidden and
- *  the container carries the summary sentence. */
-function HeatStrip({ daily }: { daily: DayBucket[] }) {
-  const max = Math.max(1, ...daily.map((d) => d.count))
-  const total = daily.reduce((s, d) => s + d.count, 0)
-  const peak = daily.reduce((a, b) => (b.count >= a.count ? b : a), daily[0])
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div
-        role="img"
-        aria-label={`Daily claim volume, ${dayLabel(daily[0].date)} to ${dayLabel(daily[daily.length - 1].date)}: ${total} claims, peaking at ${peak.count} on ${dayLabel(peak.date)}.`}
-        className="grid grid-cols-[repeat(31,minmax(0,1fr))] gap-0.5"
-      >
-        {daily.map((d) => (
-          <div
-            key={d.date}
-            aria-hidden="true"
-            title={`${dayLabel(d.date)} · ${d.count} claim${d.count === 1 ? '' : 's'}`}
-            className={cx('h-6 rounded-[2px]', heatClass(d.count, max))}
-          />
-        ))}
-      </div>
-      <div className="flex items-center justify-between font-mono text-micro text-faint">
-        <span>{dayLabel(daily[0].date)}</span>
-        <span className="text-accent">peak {num(peak.count)}</span>
-        <span>{dayLabel(daily[daily.length - 1].date)}</span>
-      </div>
-    </div>
-  )
-}
 
 /** Guarded region-name lookup: only a clean 2-letter code goes to
  *  Intl.DisplayNames (upstream emits junk + 3-letter codes); anything else —
@@ -1276,18 +1191,53 @@ export function ActorProfile({
   const nothingOnFile =
     !activity && !intel && !fingerprint && !reporting.length && !claimedVictims.length
 
+  // Jump-nav landmarks (document order, gated on existence). `hasRelated` mirrors
+  // the right-rail visibility below — the rail carries the Related-entities panel
+  // on every page except a malware page whose reverse-index absorbed all related
+  // actors (that page still has the reverse-index, so the rail is non-empty).
+  const hasActivity = Boolean(activity)
+  const hasFingerprint = Boolean(fingerprint)
+  const hasHuntpack = Boolean(fingerprint && huntPack)
+  const hasRelated =
+    Boolean(sharedActors && sharedActors.length > 0 && fingerprint) ||
+    Boolean(fingerprint?.kind === 'malware' && usedBy && usedBy.length > 0) ||
+    dedupedRelated.length > 0 ||
+    !usedBy?.length ||
+    feedOnlyMalware.length > 0
+  // Memoise on the primitive flags so useProfileNav re-subscribes only when the
+  // set of sections changes (a new array each render would thrash the observer).
+  const sections = useMemo(
+    () => navSections({ hasActivity, hasFingerprint, hasHuntpack, hasRelated }),
+    [hasActivity, hasFingerprint, hasHuntpack, hasRelated],
+  )
+  const { activeId } = useProfileNav(sections)
+
   return (
     <div className="flex flex-col gap-6">
-      <IdentityHeader profile={profile} />
+      {/* decision layer — identity + the one-screen synthesis, always open */}
+      <div id="overview" className="flex scroll-mt-[6.5rem] flex-col gap-6">
+        <IdentityHeader profile={profile} />
+        <SynthesisBand
+          fingerprint={fingerprint}
+          prevalence={prevalence}
+          actorCount={actorCount}
+          huntPack={huntPack}
+          activity={activity}
+          intel={intel}
+          cveContext={cveContext}
+          techniqueNames={techniqueNames}
+        />
+      </div>
+
+      <ProfileNav sections={sections} activeId={activeId} />
 
       {/* items-start keeps each column content-height, so the panels inherit
           BoardPanel's h-full harmlessly (a stretched column would force two
           full-height panels to overlap). */}
       <div className="grid gap-5 lg:grid-cols-[1fr_340px] lg:items-start">
         <div className="flex flex-col gap-5">
-          {/* initial access & detection (public-domain intel seed) — the flagship, and
-              the most triage-actionable read (CVEs to check, tooling to
-              hunt), so it leads when present */}
+          {/* initial access & detection (public-domain intel seed) — the flagship,
+              the most triage-actionable read, kept OPEN in the decision layer */}
           {intel && (
             <BoardPanel
               eyebrow={isVendorSourced(intel) ? 'Reported TTPs' : 'Initial access & detection'}
@@ -1297,16 +1247,18 @@ export function ActorProfile({
             </BoardPanel>
           )}
 
-          {/* leak-site activity — the "who now" read */}
+          {/* leak-site activity — the "who now" read, kept OPEN */}
           {activity && (
-            <BoardPanel eyebrow="Leak-site activity">
+            <BoardPanel id="activity" eyebrow="Leak-site activity" className="scroll-mt-[6.5rem]">
               <ActivityPanel activity={activity} />
             </BoardPanel>
           )}
 
-          {/* claimed victims — the attributed leak-site ledger */}
+          {/* claimed victims — collapsed reference (attributed leak-site ledger) */}
           {claimedVictims.length > 0 ? (
             <BoardPanel
+              id="victims"
+              collapsible
               eyebrow="Claimed victims"
               aside={<MicroLabel tone="faint">{num(claimedVictims.length)} listed</MicroLabel>}
               footer={
@@ -1318,7 +1270,7 @@ export function ActorProfile({
               <ClaimedVictimsPanel victims={claimedVictims} totalClaims={ransomware?.totalClaims} />
             </BoardPanel>
           ) : ransomware ? (
-            <BoardPanel eyebrow="Claimed victims">
+            <BoardPanel id="victims" collapsible eyebrow="Claimed victims">
               <PanelEmpty>
                 Only rolled-up digest claims this window — no individually-named victim posts to
                 list.
@@ -1326,9 +1278,14 @@ export function ActorProfile({
             </BoardPanel>
           ) : null}
 
-          {/* ATT&CK fingerprint */}
+          {/* ATT&CK fingerprint — collapsed reference (the full tactic matrix) */}
           {fingerprint && (
-            <BoardPanel eyebrow="ATT&CK fingerprint">
+            <BoardPanel
+              id="fingerprint"
+              collapsible
+              eyebrow="ATT&CK fingerprint"
+              aside={<MicroLabel tone="faint">{num(fingerprint.techniques.length)} techniques</MicroLabel>}
+            >
               <MitreFingerprintPanel
                 fingerprint={fingerprint}
                 slugSet={slugSet}
@@ -1340,18 +1297,32 @@ export function ActorProfile({
             </BoardPanel>
           )}
 
-          {/* hunt pack — only when the profile HAS a fingerprint (the join
-              input); floor-only packs still render (the links carry value and
-              absence is stated, per doctrine). */}
+          {/* hunt pack — collapsed reference. Renders whenever the profile HAS a
+              fingerprint (the join input); floor-only packs still render (the
+              links carry value and absence is stated, per doctrine). */}
           {fingerprint && huntPack && (
-            <BoardPanel eyebrow="Hunt pack">
+            <BoardPanel
+              id="huntpack"
+              collapsible
+              eyebrow="Hunt pack"
+              aside={
+                huntPack.totalMatched > 0 ? (
+                  <MicroLabel tone="faint">{num(huntPack.totalMatched)} queries</MicroLabel>
+                ) : undefined
+              }
+            >
               <HuntPackPanel pack={huntPack} techniqueNames={techniqueNames} />
             </BoardPanel>
           )}
 
-          {/* reporting */}
+          {/* reporting — collapsed reference */}
           {reporting.length > 0 && (
-            <BoardPanel eyebrow="Reporting">
+            <BoardPanel
+              id="reporting"
+              collapsible
+              eyebrow="Reporting"
+              aside={<MicroLabel tone="faint">{num(reporting.length)}</MicroLabel>}
+            >
               <ReportingList reporting={reporting} />
             </BoardPanel>
           )}
@@ -1367,7 +1338,10 @@ export function ActorProfile({
         </div>
 
         {/* right rail */}
-        <div className="flex flex-col gap-5 lg:sticky lg:top-20 lg:self-start">
+        <div
+          id="related"
+          className="flex scroll-mt-[6.5rem] flex-col gap-5 lg:sticky lg:top-[6.5rem] lg:self-start"
+        >
           {sharedActors && sharedActors.length > 0 && fingerprint && (
             <BoardPanel eyebrow="Shared techniques">
               <SharedTechniqueActors rows={sharedActors} selfTotal={fingerprint.techniques.length} />

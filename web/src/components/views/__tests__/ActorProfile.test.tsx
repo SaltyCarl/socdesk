@@ -306,3 +306,53 @@ describe('ActorProfile — technique names', () => {
     expect(html).not.toContain('Phishing')
   })
 })
+
+describe('ActorProfile — progressive disclosure restructure (N1 + N4)', () => {
+  const claiming = withOverrides({
+    activity: {
+      sectors: [], countries: [], timeline: [], victimCount: 3, hasDigest: false,
+      daily: [{ date: '2026-08-13', count: 3 }, { date: '2026-08-14', count: 0 }],
+      lastClaimAt: '2026-08-13T00:00:00Z', hasLegacyDigest: false, sectorCounts: [], countryCounts: [],
+    },
+  })
+
+  it('renders the jump-nav with anchors for the present sections', () => {
+    const html = renderToStaticMarkup(<ActorProfile profile={profile} slugSet={new Set()} />)
+    expect(html).toContain('aria-label="Profile sections"')
+    expect(html).toContain('href="#overview"')
+    expect(html).toContain('href="#fingerprint"')
+  })
+
+  it('collapses the ATT&CK fingerprint into a <details> yet keeps its content in the DOM (SEO)', () => {
+    const html = renderToStaticMarkup(<ActorProfile profile={profile} slugSet={new Set()} />)
+    expect(html).toMatch(/<details[^>]*id="fingerprint"[^>]*data-collapsible/)
+    // collapsed by default → no open attribute…
+    expect(html).not.toMatch(/<details[^>]*id="fingerprint"[^>]*\sopen[=\s>]/)
+    // …but the technique still ships to crawlers/print
+    expect(html).toContain('T1566')
+  })
+
+  it('keeps leak-site activity OPEN (decision layer) — anchored, not wrapped in a <details>', () => {
+    const html = renderToStaticMarkup(<ActorProfile profile={claiming} slugSet={new Set()} />)
+    expect(html).toContain('id="activity"')
+    expect(html).not.toMatch(/<details[^>]*id="activity"/)
+    expect(html).toContain('href="#activity"')
+  })
+
+  it('hoists the distinctive-TTP lead into the synthesis band (N4), above the collapsed matrix', () => {
+    // T1566 as the sole technique with prevalence 1 → distinctive (≤3 groups)
+    const html = renderToStaticMarkup(
+      <ActorProfile
+        profile={claiming}
+        slugSet={new Set()}
+        prevalence={new Map([['T1566', 1]])}
+        actorCount={176}
+      />,
+    )
+    expect(html).toContain('Distinctive TTPs')
+    // the synthesis spark also renders for the claiming group
+    expect(html).toContain('Recent activity')
+    // the distinctive lead precedes the collapsed fingerprint section in the DOM
+    expect(html.indexOf('Distinctive TTPs')).toBeLessThan(html.indexOf('id="fingerprint"'))
+  })
+})
