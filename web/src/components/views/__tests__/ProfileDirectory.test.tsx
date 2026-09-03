@@ -49,4 +49,14 @@ describe('ProfileDirectory — enriched cards', () => {
     // the bare card still renders its identity
     expect(html).toContain('Barebones')
   })
+
+  it('renders the triage sort control with every sort option', () => {
+    expect(html).toContain('aria-label="Sort profiles"')
+    expect(html).toContain('Relevance')
+    expect(html).toContain('Most claims')
+    expect(html).toContain('Recently active')
+    expect(html).toContain('Most techniques')
+    // en-dash U+2013, exact — mirrors the SORT_OPTIONS label byte-for-byte
+    expect(html).toContain('Name (A–Z)')
+  })
 })

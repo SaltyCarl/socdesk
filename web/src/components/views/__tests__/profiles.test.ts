@@ -9,6 +9,7 @@ import {
   matchesFilter,
   profileFor,
   rankedCounts,
+  sortComparator,
 } from '../profiles'
 import type { ProfileIndexEntry } from '../profiles'
 import type { FeedItem, Profile, RansomIntel, RelationsPayload } from '../types'
@@ -433,6 +434,52 @@ describe('compareEntries + matchesFilter — coverage-layer ranking & visibility
     expect(matchesFilter(seededQuiet, 'ransomware')).toBe(true)
     expect(matchesFilter(active, 'ransomware')).toBe(true)
     expect(matchesFilter(actor, 'ransomware')).toBe(false)
+  })
+})
+
+describe('sortComparator — directory triage sorts (nulls-last, stable)', () => {
+  const e = (over: Partial<ProfileIndexEntry> & { slug: string; name: string }): ProfileIndexEntry => ({
+    kind: 'ransomware', hasMitre: false, ...over,
+  })
+  const hi = e({ slug: 'hi', name: 'Hi', claimCount: 7, techniqueCount: 130, lastClaimAt: '2026-08-13T00:00:00Z', usedByCount: 51 })
+  const mid = e({ slug: 'mid', name: 'Mid', claimCount: 2, techniqueCount: 2, lastClaimAt: '2026-07-01T00:00:00Z', usedByCount: 4 })
+  const bare = e({ slug: 'bare', name: 'Bare' }) // no claimCount / techniqueCount / lastClaimAt
+
+  const order = (sort: Parameters<typeof sortComparator>[0], filter: Parameters<typeof sortComparator>[1] = 'all') =>
+    [bare, mid, hi].sort(sortComparator(sort, filter)).map((x) => x.slug)
+
+  it('claims: higher claimCount first, absent count LAST', () => {
+    expect(order('claims')).toEqual(['hi', 'mid', 'bare'])
+  })
+
+  it('recent: newer lastClaimAt first, no-date entry LAST', () => {
+    expect(order('recent')).toEqual(['hi', 'mid', 'bare'])
+  })
+
+  it('techniques: higher techniqueCount first, absent count LAST', () => {
+    expect(order('techniques')).toEqual(['hi', 'mid', 'bare'])
+  })
+
+  it('name: pure alphabetical, independent of every count', () => {
+    expect(order('name')).toEqual(['bare', 'hi', 'mid'])
+  })
+
+  it('claims ties break by name (stable, total order)', () => {
+    const zed = e({ slug: 'zed', name: 'Zed', claimCount: 5 })
+    const abe = e({ slug: 'abe', name: 'Abe', claimCount: 5 })
+    expect([zed, abe].sort(sortComparator('claims', 'all')).map((x) => x.slug)).toEqual(['abe', 'zed'])
+  })
+
+  it('relevance + malware filter reproduces the used-by reverse-index rank', () => {
+    // hi(51) > mid(4) > bare(0) — matches the directory malware lens default.
+    expect(order('relevance', 'malware')).toEqual(['hi', 'mid', 'bare'])
+  })
+
+  it('relevance + non-malware filter is identical to compareEntries', () => {
+    const set = [bare, mid, hi]
+    const viaRelevance = [...set].sort(sortComparator('relevance', 'all')).map((x) => x.slug)
+    const viaCompare = [...set].sort(compareEntries).map((x) => x.slug)
+    expect(viaRelevance).toEqual(viaCompare)
   })
 })
 

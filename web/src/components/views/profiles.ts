@@ -152,6 +152,52 @@ export function compareEntries(a: ProfileIndexEntry, b: ProfileIndexEntry): numb
   return (b.claimCount ?? -1) - (a.claimCount ?? -1) || a.name.localeCompare(b.name)
 }
 
+/** The directory's triage sort keys. 'relevance' is the context-aware DEFAULT —
+ *  it reproduces the directory's shipped order exactly (malware lens → the
+ *  used-by reverse-index desc, every other lens → `compareEntries`). The rest
+ *  are explicit single-key sorts, all NULLS-LAST with a name tie-break, so an
+ *  entry that LACKS the sort field sinks below every entry that has it rather
+ *  than floating up on an absent value — the directory reorders published facts
+ *  and never hides or invents one. */
+export type DirectorySort = 'relevance' | 'claims' | 'recent' | 'techniques' | 'name'
+
+/** The sort control's options, in menu order. */
+export const SORT_OPTIONS: { key: DirectorySort; label: string }[] = [
+  { key: 'relevance', label: 'Relevance' },
+  { key: 'claims', label: 'Most claims' },
+  { key: 'recent', label: 'Recently active' },
+  { key: 'techniques', label: 'Most techniques' },
+  { key: 'name', label: 'Name (A–Z)' },
+]
+
+/** Comparator for a chosen sort under the active filter. `relevance` is
+ *  character-for-character the directory's prior inline sort, so leaving the
+ *  control untouched changes nothing. `?? -1` maps only *absent* numeric fields
+ *  below any real count (0 included); `String(x ?? '')` maps an absent date to
+ *  '' which localeCompare places below any ISO timestamp under the desc order. */
+export function sortComparator(
+  sort: DirectorySort,
+  filter: DirectoryFilter,
+): (a: ProfileIndexEntry, b: ProfileIndexEntry) => number {
+  switch (sort) {
+    case 'claims':
+      return (a, b) => (b.claimCount ?? -1) - (a.claimCount ?? -1) || a.name.localeCompare(b.name)
+    case 'recent':
+      return (a, b) =>
+        String(b.lastClaimAt ?? '').localeCompare(String(a.lastClaimAt ?? '')) ||
+        a.name.localeCompare(b.name)
+    case 'techniques':
+      return (a, b) =>
+        (b.techniqueCount ?? -1) - (a.techniqueCount ?? -1) || a.name.localeCompare(b.name)
+    case 'name':
+      return (a, b) => a.name.localeCompare(b.name)
+    default:
+      return filter === 'malware'
+        ? (a, b) => (b.usedByCount ?? 0) - (a.usedByCount ?? 0) || a.name.localeCompare(b.name)
+        : compareEntries
+  }
+}
+
 /** Name + alias → profile, first-writer-wins (so a canonical name is never
  *  shadowed by another profile's alias collision). */
 function aliasIndex(profiles: Profile[]): Map<string, Profile> {

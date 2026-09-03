@@ -5,8 +5,8 @@ import { num, rel } from './format'
 import { CountUp } from './CountUp'
 import { EmptyState } from './states'
 import { ActorLink } from '../overview/board-ui'
-import { compareEntries, matchesFilter } from './profiles'
-import type { DirectoryFilter, ProfileIndexEntry, ProfileKind } from './profiles'
+import { matchesFilter, sortComparator, SORT_OPTIONS } from './profiles'
+import type { DirectoryFilter, DirectorySort, ProfileIndexEntry, ProfileKind } from './profiles'
 
 /**
  * ProfileDirectory — the searchable index of every addressable profile (MITRE
@@ -19,8 +19,8 @@ import type { DirectoryFilter, ProfileIndexEntry, ProfileKind } from './profiles
 const INIT = 30
 const STEP = 60
 
-// matchesFilter + compareEntries live in profiles.ts (react-refresh discipline:
-// this file exports only the component) — imported above.
+// matchesFilter + sortComparator + SORT_OPTIONS live in profiles.ts
+// (react-refresh discipline: this file exports only the component) — imported above.
 const FILTERS: { key: DirectoryFilter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'ransomware', label: 'Ransomware' },
@@ -94,6 +94,7 @@ export function ProfileDirectory({ entries }: { entries: ProfileIndexEntry[] }) 
   const [rawQuery, setRawQuery] = useState('')
   const query = useDeferredValue(rawQuery)
   const [filter, setFilter] = useState<DirectoryFilter>('all')
+  const [sort, setSort] = useState<DirectorySort>('relevance')
   const [limit, setLimit] = useState(INIT)
 
   const filtered = useMemo(() => {
@@ -106,16 +107,12 @@ export function ProfileDirectory({ entries }: { entries: ProfileIndexEntry[] }) 
           e.name + ' ' + e.slug + ' ' + (e.attack_id ?? '') + ' ' + (e.aliases ?? []).join(' ')
         return hay.toLowerCase().includes(q)
       })
-      // The Malware lens ranks by the derived reverse index (usedByCount desc)
-      // — an unranked alphabetical scroll buried Mimikatz (51 groups) behind
-      // Load-more. Other lenses keep the substantive-first tier order.
-      .sort(
-        filter === 'malware'
-          ? (a, b) =>
-              (b.usedByCount ?? 0) - (a.usedByCount ?? 0) || a.name.localeCompare(b.name)
-          : compareEntries,
-      )
-  }, [entries, query, filter])
+      // 'relevance' (default) keeps the substantive-first tier order, and the
+      // Malware lens's used-by reverse-index rank — an unranked alphabetical
+      // scroll buried Mimikatz (51 groups) behind Load-more. The explicit sorts
+      // let an analyst re-rank by claims / recency / technique breadth / name.
+      .sort(sortComparator(sort, filter))
+  }, [entries, query, filter, sort])
 
   const shown = filtered.slice(0, limit)
 
@@ -135,7 +132,22 @@ export function ProfileDirectory({ entries }: { entries: ProfileIndexEntry[] }) 
           aria-label="Search profiles"
           className="h-9 w-full max-w-sm rounded-md border border-line bg-field px-3 font-mono text-base text-paper outline-offset-2 placeholder:text-faint focus-visible:outline-2 focus-visible:outline-accent"
         />
-        <span className="ml-auto font-mono text-micro uppercase tracking-label text-faint">
+        <select
+          value={sort}
+          onChange={(e) => {
+            setSort(e.target.value as DirectorySort)
+            reset()
+          }}
+          aria-label="Sort profiles"
+          className="ml-auto h-9 rounded-md border border-line bg-field px-2 font-mono text-micro uppercase tracking-label text-muted outline-offset-2 hover:border-line-bright focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          {SORT_OPTIONS.map((o) => (
+            <option key={o.key} value={o.key}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <span className="font-mono text-micro uppercase tracking-label text-faint">
           <CountUp value={filtered.length} /> of <CountUp value={entries.length} /> profiles
         </span>
       </div>
