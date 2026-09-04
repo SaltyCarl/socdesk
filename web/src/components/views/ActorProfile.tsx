@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../ui'
 import { KevBadge, MonoTag } from './Badges'
@@ -13,6 +13,8 @@ import { busiestDay } from './profiles'
 import { distinctiveSplit } from './derived'
 import { attackDetectionUrl, sigmaSearchUrl } from './huntpack'
 import { TechniqueChip } from './TechniqueChip'
+import { KqlBlock } from './HuntKql'
+import { DIALECT_CAVEAT } from './huntCaveat'
 import { HeatStrip } from './HeatStrip'
 import { dayLabel } from './activity-ui'
 import { SynthesisBand } from './SynthesisBand'
@@ -776,45 +778,6 @@ function MitreFingerprintPanel({
 
 /* ---------------- hunt pack (validated hunting queries) ---------------- */
 
-/** Truth-returning clipboard write — this project has shipped a button that
- *  claimed success while the clipboard silently rejected the write
- *  (shared/verdict-cards/copy.ts lesson); never claim what didn't happen. */
-async function copyPlain(text: string): Promise<boolean> {
-  try {
-    if (!navigator.clipboard?.writeText) return false
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    return false
-  }
-}
-
-function CopyKqlButton({ kql }: { kql: string }) {
-  const [state, setState] = useState<'idle' | 'copied' | 'blocked'>('idle')
-  const label = state === 'copied' ? 'Copied' : state === 'blocked' ? 'Clipboard blocked' : 'Copy KQL'
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        void copyPlain(kql).then((ok) => {
-          setState(ok ? 'copied' : 'blocked')
-          setTimeout(() => setState('idle'), 2000)
-        })
-      }}
-      className="inline-flex items-center rounded-md border border-line bg-panel px-2.5 py-1 font-mono text-micro font-semibold text-muted transition-colors duration-150 ease-brand hover:border-line-bright hover:text-paper focus-visible:outline-2 focus-visible:outline-accent"
-    >
-      {label}
-    </button>
-  )
-}
-
-const DIALECT_CAVEAT: Record<string, string> = {
-  log_analytics:
-    'Written for a Sentinel workspace (TimeGenerated); in Defender advanced hunting swap TimeGenerated → Timestamp and re-validate.',
-  advanced_hunting:
-    'Written for Defender advanced hunting (Timestamp); in a Sentinel workspace swap Timestamp → TimeGenerated and re-validate.',
-}
-
 function HuntRowView({ row, techniqueNames }: { row: HuntRow; techniqueNames?: Record<string, string> }) {
   const r = row.rule
   const href = safeUrl(r.source.url)
@@ -839,19 +802,7 @@ function HuntRowView({ row, techniqueNames }: { row: HuntRow; techniqueNames?: R
           <TechniqueChip key={t} id={t} name={techniqueNames?.[t]} />
         ))}
       </div>
-      <details>
-        <summary className="cursor-pointer select-none font-mono text-micro font-semibold uppercase tracking-label text-accent">
-          View KQL
-        </summary>
-        {/* whitespace-pre + horizontal scroll — wrap/break-all would split KQL
-            identifiers mid-token (differs from DecodeLadder on purpose). */}
-        <pre className="mt-2 overflow-x-auto whitespace-pre rounded-md border border-line bg-panel p-3 font-mono text-micro text-paper">
-          {r.kql}
-        </pre>
-        <div className="mt-2">
-          <CopyKqlButton kql={r.kql} />
-        </div>
-      </details>
+      <KqlBlock kql={r.kql} />
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-micro text-faint">
         <span>{provenance}</span>
         {href && <ExternalLink href={href}>source</ExternalLink>}
