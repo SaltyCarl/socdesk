@@ -1,0 +1,60 @@
+id: unfamiliar-signin-properties
+title: Unfamiliar sign-in properties
+alert_sources: [Entra ID Protection]
+ioc_types: [ipv4, ipv6]
+techniques: [T1078.004, T1621]
+tested: "2026-09-04"
+rationale: >
+  Public-framework motion: scope the IP to surface the accounts, then run the
+  trust-reduced novelty hunt (adapted from socdesk-signin-unfamiliar-baseline,
+  MIT) for one of them. Validated against the Kusto emulator.
+steps:
+  - id: signins-from-ip
+    title: Every sign-in from this IP (surfaces the accounts to pivot on)
+    kind: pivot
+    param: ip
+    dialect: log_analytics
+    tables: [SigninLogs]
+    kql: |
+      SigninLogs
+      | where TimeGenerated > ago(7d)
+      | where IPAddress == "{{ip}}"
+      | summarize Signins = count(),
+                  Results = make_set(ResultType),
+                  Apps = make_set(AppDisplayName),
+                  Countries = make_set(tostring(LocationDetails.countryOrRegion))
+        by UserPrincipalName
+      | order by Signins desc
+  - id: novelty-baseline
+    title: Trust-reduced novelty for an account this IP touched (replace <upn>)
+    kind: scenario
+    param: upn
+    dialect: log_analytics
+    tables: [SigninLogs]
+    kql: |
+      let lookback = 14d;
+      let recent = 1d;
+      let baseline = SigninLogs
+      | where TimeGenerated between (ago(lookback) .. ago(recent))
+      | where UserPrincipalName == "{{upn}}"
+      | where ResultType == "0"
+      | summarize KnownCountries = make_set(tostring(LocationDetails.countryOrRegion)),
+                  KnownASNs = make_set(AutonomousSystemNumber),
+                  KnownOS = make_set(tostring(DeviceDetail.operatingSystem))
+        by UserPrincipalName;
+      SigninLogs
+      | where TimeGenerated > ago(recent)
+      | where UserPrincipalName == "{{upn}}"
+      | where ResultType == "0"
+      | extend Country = tostring(LocationDetails.countryOrRegion),
+               OS = tostring(DeviceDetail.operatingSystem),
+               Managed = tobool(DeviceDetail.isManaged)
+      | join kind=inner baseline on UserPrincipalName
+      | extend Score =
+          toint(not(set_has_element(KnownCountries, Country))) * 3
+        + toint(not(set_has_element(KnownASNs, AutonomousSystemNumber))) * 3
+        + toint(not(set_has_element(KnownOS, OS))) * 1
+        - toint(Managed == true) * 2
+      | where Score >= 4
+      | project TimeGenerated, UserPrincipalName, IPAddress, Country, OS, Managed, Score, AppDisplayName
+      | order by Score desc
