@@ -1,10 +1,49 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-09-03 (session — N1+N4 progressive-disclosure profile rebuild SHIPPED + live-dogfooded: always-on decision layer + SynthesisBand + `<details>` accordions + scrollspy jump-nav; closes N1 density + N4 distinctive-TTP lead) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-09-03 (session — N3 remainder SHIPPED + live: directory sector/country/seeded facets + card-height normalization; **CLOSES the entire 2026-09-03 Adversaries re-run — N1-N4 all done**) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-09-03 (session — N1+N4 progressive-disclosure profile rebuild SHIPPED + live)
+## 0. LATEST — 2026-09-03 (session — N3 remainder SHIPPED + live: directory facets + card-height normalization — CLOSES Adversaries re-run N1-N4)
+
+**Context:** ships the last piece of the 2026-09-03 Adversaries RE-RUN
+(`SOCDesk-Adversaries-Rerun-2026-09-03.pdf`): N1 progressive disclosure · N2 reverse-index
+de-dup · N3 lockbit5 seed + facets + heights · N4 distinctive-TTP lead. With this the
+**entire re-run is CLOSED** — scorecard **N1 ✅ · N2 ✅ · N3 ✅ · N4 ✅**. Adversarially
+vetted before code: reviewer confirmed the load-bearing risk (sector vocabulary) is safe —
+it's a clean **13-value ransomware.live taxonomy** — and caught a real **useMemo-deps bug**
++ that the aggregation is **two-stage**; both corrected before ship.
+
+**Shipped:**
+- **Directory sector/country/seeded facets.** New optional `ProfileIndexEntry.sectors?` /
+  `countries?`, aggregated in `buildProfileIndex`: stage-1 claims Map gains sector/country
+  Sets via `parseSectors` / `parseCountry` (sectors from **singles + digests**; countries
+  from **SINGLES only** = honest-partial), attached in BOTH `bySlug` branches.
+  `ProfileDirectory` adds a facet row — **Seeded** toggle + **Sector** `<select>` (13 clean
+  ransomware.live options) + **Country** `<select>` (36 ISO-2 codes → readable names via
+  `Intl.DisplayNames`); facet state wired into the `filtered` useMemo **and its deps array**.
+  Files: `web/src/components/views/profiles.ts`,
+  `web/src/components/views/ProfileDirectory.tsx` (+ their tests).
+  (`1dbe232` stage-1 aggregation · `b548580` facets)
+- **Card-height normalization.** Grid `items-start` (kills the stretched empty bordered
+  boxes when a rich card shares a row with bare crews) + `min-h-[7rem]` floor; blurb clamped
+  `line-clamp-1`; meta `mt-auto` bottom-anchored. File: `ProfileDirectory.tsx`. (`b548580`)
+- **Backlog close-out** — 2026-09-03 Adversaries re-run marked fully closed (N1-N4).
+  (`553a968`)
+
+**Verified:** 937 vitest + lint + build all green. Deployed via collect-and-deploy run
+33821267751. Live-dogfooded on socdesk.pages.dev — **Healthcare** sector facet narrowed
+1,361 → 18 ransomware crews; country facet shows "AR · Argentina" etc.; grid renders clean
+(no empty boxes — screenshot confirmed).
+
+**Open / next (non-re-run — the re-run itself is CLOSED):**
+- **`?s=` section deep-link channel** — the hash router reserves `#g=<slug>`, so `#section`
+  fragments can't be used (DEFERRED from N1); needs a non-hash channel.
+- **Owner activation gates (×2)** — `IPINFO_TOKEN` secret; KV bind + `/api/enrich` WAF rule.
+
+---
+
+## 0-RECENT — 2026-09-03 (session — N1+N4 progressive-disclosure profile rebuild SHIPPED + live)
 
 **Context:** builds the N1 decision locked earlier today (see the demoted 0-RECENT block
 below) from the 2026-09-03 Adversaries RE-RUN critique. Closes **N1** (profile density /
