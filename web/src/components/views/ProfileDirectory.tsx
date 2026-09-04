@@ -34,6 +34,25 @@ const KIND_LABEL: Record<ProfileKind, string> = {
   malware: 'Malware',
 }
 
+// ISO-2 → readable region name for the country facet ("US · United States").
+// Built once; a guarded fallback to the bare code if Intl.DisplayNames is absent
+// or throws (some runtimes/codes).
+const REGION = (() => {
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' })
+  } catch {
+    return null
+  }
+})()
+function countryLabel(code: string): string {
+  try {
+    const n = REGION?.of(code)
+    return n && n !== code ? `${code} · ${n}` : code
+  } catch {
+    return code
+  }
+}
+
 /** The card's density line — whichever ingested facts exist, joined plainly.
  *  Absent facts render nothing (honest-empty; no filler, no zero-counts). */
 function metaLine(entry: ProfileIndexEntry): string {
@@ -56,7 +75,7 @@ function ProfileRow({ entry }: { entry: ProfileIndexEntry }) {
   return (
     <ActorLink
       name={entry.slug}
-      className="sd-reveal flex flex-col items-start gap-2 rounded-lg border border-line bg-panel p-4 hover:border-line-bright"
+      className="sd-reveal flex min-h-[7rem] flex-col items-start gap-2 rounded-lg border border-line bg-panel p-4 hover:border-line-bright"
     >
       <div className="flex w-full items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -83,9 +102,9 @@ function ProfileRow({ entry }: { entry: ProfileIndexEntry }) {
         </span>
       )}
       {entry.blurb && (
-        <span className="line-clamp-2 text-xs leading-relaxed text-muted">{entry.blurb}</span>
+        <span className="line-clamp-1 text-xs leading-relaxed text-muted">{entry.blurb}</span>
       )}
-      {meta && <span className="font-mono text-micro text-faint">{meta}</span>}
+      {meta && <span className="mt-auto font-mono text-micro text-faint">{meta}</span>}
     </ActorLink>
   )
 }
@@ -95,12 +114,29 @@ export function ProfileDirectory({ entries }: { entries: ProfileIndexEntry[] }) 
   const query = useDeferredValue(rawQuery)
   const [filter, setFilter] = useState<DirectoryFilter>('all')
   const [sort, setSort] = useState<DirectorySort>('relevance')
+  const [sector, setSector] = useState('') // '' = all sectors
+  const [country, setCountry] = useState('') // '' = all countries
+  const [seededOnly, setSeededOnly] = useState(false)
   const [limit, setLimit] = useState(INIT)
+
+  // Facet option lists — the sorted distinct union across every entry. Sectors are
+  // a bounded ransomware.live taxonomy (~13); countries are ISO-2 (~36).
+  const sectorOptions = useMemo(
+    () => [...new Set(entries.flatMap((e) => e.sectors ?? []))].sort(),
+    [entries],
+  )
+  const countryOptions = useMemo(
+    () => [...new Set(entries.flatMap((e) => e.countries ?? []))].sort(),
+    [entries],
+  )
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return entries
       .filter((e) => matchesFilter(e, filter))
+      .filter((e) => (seededOnly ? Boolean(e.hasIntel) : true))
+      .filter((e) => (sector ? Boolean(e.sectors?.includes(sector)) : true))
+      .filter((e) => (country ? Boolean(e.countries?.includes(country)) : true))
       .filter((e) => {
         if (!q) return true
         const hay =
@@ -112,7 +148,7 @@ export function ProfileDirectory({ entries }: { entries: ProfileIndexEntry[] }) 
       // scroll buried Mimikatz (51 groups) behind Load-more. The explicit sorts
       // let an analyst re-rank by claims / recency / technique breadth / name.
       .sort(sortComparator(sort, filter))
-  }, [entries, query, filter, sort])
+  }, [entries, query, filter, sort, sector, country, seededOnly])
 
   const shown = filtered.slice(0, limit)
 
@@ -175,6 +211,68 @@ export function ProfileDirectory({ entries }: { entries: ProfileIndexEntry[] }) 
         ))}
       </div>
 
+      {/* facets — narrow the tracked set to a claimed sector / country / seeded
+          crews. Sectors/countries are attributed leak-site facts; a selected
+          sector naturally leaves only ransomware groups that claimed a victim
+          there (APT/malware have none), which is exactly "who's hitting X". */}
+      {(sectorOptions.length > 0 || countryOptions.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSeededOnly((v) => !v)
+              reset()
+            }}
+            aria-pressed={seededOnly}
+            className={cx(
+              'rounded-md border px-3 py-1 font-mono text-micro uppercase tracking-label transition-colors duration-150 ease-brand',
+              'outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent',
+              seededOnly
+                ? 'border-[var(--edge-accent)] bg-[var(--tint-accent)] text-accent'
+                : 'border-line bg-panel text-muted hover:border-line-bright hover:text-paper',
+            )}
+          >
+            Seeded
+          </button>
+          {sectorOptions.length > 0 && (
+            <select
+              value={sector}
+              onChange={(e) => {
+                setSector(e.target.value)
+                reset()
+              }}
+              aria-label="Filter by target sector"
+              className="h-8 rounded-md border border-line bg-field px-2 font-mono text-micro uppercase tracking-label text-muted outline-offset-2 hover:border-line-bright focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <option value="">All sectors</option>
+              {sectorOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          )}
+          {countryOptions.length > 0 && (
+            <select
+              value={country}
+              onChange={(e) => {
+                setCountry(e.target.value)
+                reset()
+              }}
+              aria-label="Filter by target country"
+              className="h-8 rounded-md border border-line bg-field px-2 font-mono text-micro uppercase tracking-label text-muted outline-offset-2 hover:border-line-bright focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <option value="">All countries</option>
+              {countryOptions.map((c) => (
+                <option key={c} value={c}>
+                  {countryLabel(c)}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <EmptyState title="No profile matches that search">
           Try a shorter term, an alias, or an ATT&amp;CK id like G0001 — the catalog is loaded, this
@@ -182,7 +280,7 @@ export function ProfileDirectory({ entries }: { entries: ProfileIndexEntry[] }) 
         </EmptyState>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {shown.map((e) => (
               <ProfileRow key={e.slug} entry={e} />
             ))}

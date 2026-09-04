@@ -25,6 +25,9 @@ const entries: ProfileIndexEntry[] = [
     claimCount: 7,
     hasClaims: true,
     lastClaimAt: '2026-08-13T00:00:00Z',
+    hasIntel: true,
+    sectors: ['Healthcare', 'Manufacturing'],
+    countries: ['US'],
   },
   { slug: 'barebones', name: 'Barebones', kind: 'malware', hasMitre: true, attack_id: 'S9999' },
 ]
@@ -58,5 +61,14 @@ describe('ProfileDirectory — enriched cards', () => {
     expect(html).toContain('Most techniques')
     // en-dash U+2013, exact — mirrors the SORT_OPTIONS label byte-for-byte
     expect(html).toContain('Name (A–Z)')
+  })
+
+  it('renders the sector / country / seeded facet controls populated from the entries', () => {
+    expect(html).toContain('Seeded') // the seeded toggle
+    expect(html).toContain('aria-label="Filter by target sector"')
+    expect(html).toContain('All sectors')
+    expect(html).toContain('Healthcare') // aggregated sector option
+    expect(html).toContain('aria-label="Filter by target country"')
+    expect(html).toContain('United States') // ISO-2 mapped to a readable label
   })
 })
