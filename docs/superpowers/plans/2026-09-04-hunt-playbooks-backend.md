@@ -269,20 +269,39 @@ def load_playbooks(playbooks_dir):
 from pipeline.hunt import load_authored_rules, load_playbooks, merge_authored
 ```
 
-- [ ] **Step 2: Compose the payload** — in `run_pipeline.py`, immediately AFTER the `if merged_hp is not None: payloads["hunt_packs.json"] = merged_hp` block (line ~165), add:
+- [ ] **Step 2: Compose the payload with per-playbook schema isolation** — in `run_pipeline.py`, immediately AFTER the `if merged_hp is not None: payloads["hunt_packs.json"] = merged_hp` block (line ~165), add. This validates EACH playbook standalone and skips+warns the offender, so one bad future playbook can't make the whole `playbooks.json` schema-invalid (which `gate()` would then revert wholesale to last-known-good — the freeze pattern the codebase guards against). `schemas_dir` is the `run()` param (line 102); `validate_payload` must be importable (Step 0 below):
 
 ```python
     # Alert→KQL hunt playbooks (authored-local, spec Hunt-Playbooks): re-read
     # every run, published FRESH (no keep-prior — an emptied dir means the
-    # author deleted them; playbooks:[] is the honest publish).
+    # author deleted them; playbooks:[] is the honest publish). Validate each
+    # playbook individually so one bad file can't revert the whole catalog.
     playbooks, playbook_warnings = load_playbooks(hunt_dir / "playbooks")
+    valid_playbooks = []
+    for pb in playbooks:
+        errs = validate_payload(
+            "playbooks.json",
+            {"generated_at": iso(now), "schema_version": 1, "playbooks": [pb]},
+            schemas_dir)
+        if errs:
+            playbook_warnings.append(f"playbook {pb['id']}: schema {errs[0]}")
+        else:
+            valid_playbooks.append(pb)
     payloads["playbooks.json"] = {
-        "generated_at": iso(now), "schema_version": 1, "playbooks": playbooks}
+        "generated_at": iso(now), "schema_version": 1, "playbooks": valid_playbooks}
 ```
 
-- [ ] **Step 3: Surface warnings the same way authored_warnings are** — find where `authored_warnings` is logged/collected below (grep `authored_warnings` in run_pipeline.py) and append `playbook_warnings` into the same sink (e.g. `warnings.extend(playbook_warnings)` or the same `print`/log call). Match the existing pattern exactly.
+- [ ] **Step 0 (do first): ensure `validate_payload` is imported** — grep `run_pipeline.py` for `validate_payload`. If absent, add it to the existing `from pipeline.validate import ...` line (or add that import). Confirm the exact current import line before editing.
 
-- [ ] **Step 4: Verify the pipeline still imports + a smoke run composes the key** — `python -c "import run_pipeline"` (no ImportError), and the full `python -m pytest tests/ -q` stays green.
+- [ ] **Step 3: Append `playbook_warnings` to the REAL sink** — the warnings sink is a single list concat. Grep `authored_warnings` → it is assigned at `run_pipeline.py:160` and consumed ONCE at `run_pipeline.py:216`: `warnings = problems + stale + authored_warnings`. Edit THAT line to:
+
+```python
+    warnings = problems + stale + authored_warnings + playbook_warnings
+```
+
+(There is no `print`/`log`/`.extend` for warnings — it is pure concatenation into `health.json`'s `pipeline_warnings`. Do not invent one.)
+
+- [ ] **Step 4: Verify** — `python -c "import run_pipeline"` (no ImportError) AND `python -m pytest tests/ -q` stays green (the mandatory net — `tests/test_pipeline.py::test_end_to_end_with_one_source_down` calls the real `run()` so a bad sink/NameError or schema mismatch surfaces here; the import check alone would NOT catch a runtime NameError).
 
 - [ ] **Step 5: Commit** — `git add run_pipeline.py && git commit -m "feat(playbooks): publish playbooks.json fresh each run"`
 
@@ -332,7 +351,7 @@ def substitute_samples(kql):
     return kql
 ```
 
-In `rules_from_allowlist`, after the authored rules are appended (`return rules + authored` at the end), fold in the playbook steps as pseudo-rules. Change the tail of `rules_from_allowlist` to:
+In `rules_from_allowlist`, after the authored rules are appended (`return rules + authored` at the end), fold in the playbook steps as pseudo-rules — HARD-FAILING if any placeholder survives substitution (a surviving `{{typo}}` inside `"…"` is a VALID string literal that would bind + pass CI silently, shipping a step whose IOC never injects — the fail-open the reviewer flagged). The existing single import `from pipeline.hunt import load_authored_rules` (validate_hunt_kql.py:120) becomes the combined import below; delete the old line so there is no duplicate. Change the tail of `rules_from_allowlist` to:
 
 ```python
     from pipeline.hunt import load_authored_rules, load_playbooks
@@ -342,25 +361,29 @@ In `rules_from_allowlist`, after the authored rules are appended (`return rules 
     playbooks, pb_warnings = load_playbooks(hunt_dir / "playbooks")
     for w in pb_warnings:
         print(f"playbook warning: {w}")
-    step_rules = [
-        {"id": f"{pb['id']}::{s['id']}", "dialect": s["dialect"],
-         "kql": substitute_samples(s["kql"])}
-        for pb in playbooks for s in pb["steps"]]
+    step_rules = []
+    for pb in playbooks:
+        for s in pb["steps"]:
+            kql = substitute_samples(s["kql"])
+            if "{{" in kql:
+                raise SystemExit(
+                    f"playbook {pb['id']}::{s['id']}: unresolved placeholder after "
+                    f"substitution — a surviving {{{{...}}}} binds as a string literal "
+                    f"and would pass CI silently")
+            step_rules.append({"id": f"{pb['id']}::{s['id']}",
+                               "dialect": s["dialect"], "kql": kql})
     return rules + authored + step_rules
 ```
 
-(The existing `load_authored_rules` import line at the top of `rules_from_allowlist` becomes the combined import above; remove the now-duplicate single import.)
-
 - [ ] **Step 4: Run to verify pass** — `python -m pytest tests/test_playbooks.py -q` → all passed.
 
-- [ ] **Step 5: Add the schema to the workflow trigger** — in `.github/workflows/hunt-kql.yml`, in BOTH the `push:` and `pull_request:` `paths:` lists, add the playbook schema next to the existing `schemas/hunt_packs.schema.json` line:
+- [ ] **Step 5: Add the schema to the workflow trigger** — `data/hunt/**` (hunt-kql.yml:23 push, :31 pull_request) ALREADY covers `data/hunt/playbooks/**`, but schema files are enumerated individually (only `schemas/hunt_packs.schema.json` at :27 and :35). Add ONLY the schema line to BOTH `paths:` lists, matching the file's existing DOUBLE-quote style + 6-space indent:
 
 ```yaml
-      - 'schemas/hunt_playbooks.schema.json'
-      - 'data/hunt/playbooks/**'
+      - "schemas/hunt_playbooks.schema.json"
 ```
 
-(Confirm `data/hunt/**` already covers `playbooks/**`; if it does, add only the schema line. Match the file's exact indentation.)
+(Do NOT add a redundant `data/hunt/playbooks/**` line — `data/hunt/**` already fires on it.)
 
 - [ ] **Step 6: Commit** — `git add tools/validate_hunt_kql.py .github/workflows/hunt-kql.yml tests/test_playbooks.py && git commit -m "feat(playbooks): Kustainer validation lane + workflow trigger"`
 
