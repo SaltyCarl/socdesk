@@ -1,10 +1,65 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-09-03 (session — N3 remainder SHIPPED + live: directory sector/country/seeded facets + card-height normalization; **CLOSES the entire 2026-09-03 Adversaries re-run — N1-N4 all done**) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-09-04 (session — Hunt Playbooks Plan 1 (backend) SHIPPED + live in state: schema/loader/fresh-publish/Kustainer CI lane + 2 exemplar identity playbooks; `data/state/playbooks.json` LIVE via green CI) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-09-03 (session — N3 remainder SHIPPED + live: directory facets + card-height normalization — CLOSES Adversaries re-run N1-N4)
+## 0. LATEST — 2026-09-04 (session — Hunt Playbooks Plan 1 (backend) SHIPPED + live in state)
+
+**Context:** first plan of the new **Hunt Playbooks** feature — KQL at the *enrichment*
+stage: analyst enriches an IOC, picks the triggering alert, gets an ordered,
+IOC-parameterized, Kustainer-validated KQL playbook. Provenance: brainstormed → owner
+chose **"B with a touch of A"** (pick the alert → playbook of queries incl. a general IP
+pivot), curated catalog, **identity-first v1**. Spec
+`docs/superpowers/specs/2026-09-03-hunt-playbooks-design.md` (adversarially vetted →
+revised: v1 **log_analytics-ONLY** because the AH sign-in table has no DDL; injectIoc maps
+`ipv4`/`ipv6`→`ip`; publish fresh, no keep-prior; deep-link + full-width route deferred to
+v2; decomposed into 2 plans). Plan
+`docs/superpowers/plans/2026-09-04-hunt-playbooks-backend.md` (vetted → revised: real
+warnings sink at `run_pipeline.py:216`, CI fail-open guard on surviving `{{placeholder}}`,
+per-playbook schema isolation, workflow paths).
+
+**Shipped (Plan 1 = backend):**
+- **Schema + validator wiring.** NEW `schemas/hunt_playbooks.schema.json` +
+  `pipeline/validate.py` `SCHEMA_FOR` entry for `playbooks.json`. (`801041b`)
+- **Loader.** NEW `pipeline/hunt.py::load_playbooks` (sibling of `load_authored_rules`;
+  strips `rationale`; `source.url` = the file's GitHub blob; SOCDesk · MIT). (`801041b`)
+- **Fresh publish + real warnings sink.** `run_pipeline.py` publishes `playbooks.json`
+  **FRESH every run** (no keep-prior — authored-local), with **per-playbook schema
+  isolation** so one bad file can't revert the whole catalog via `gate()`; warnings appended
+  to the real sink (`warnings = problems + stale + authored_warnings + playbook_warnings`).
+  (`801041b`)
+- **Kustainer CI lane.** `tools/validate_hunt_kql.py` playbook lane — `substitute_samples`
+  (canonical IOC per param) folds each step in as a pseudo-rule and **HARD-FAILS on any
+  surviving `{{placeholder}}`** (the fail-open the vet caught); `.github/workflows/hunt-kql.yml`
+  triggers on the new schema. (`801041b`)
+- **2 exemplar playbooks.** NEW `data/hunt/playbooks/socdesk-unfamiliar-signin-properties.yaml`
+  + `socdesk-password-spray.yaml` — each opens with the **general SigninLogs IP pivot**
+  (surfaces the accounts), then a `{{upn}}`/IP-scoped scenario step adapted from the authored
+  identity rules. (`a39fd81`)
+
+**Verified:** 194 pytest green; local Kustainer 65/65 (all 4 playbook steps bind);
+**hunt-kql CI run 33881687866 GREEN** (KQL validated in the emulator in CI);
+**collect-and-deploy run 33881715556 GREEN** → `data/state/playbooks.json` **LIVE**
+(2 playbooks, `rationale` stripped, published by the pipeline).
+
+**DECISION:** v1 is **log_analytics (Sentinel) ONLY**; `advanced_hunting` is **v2** (needs an
+`AADSignInEventsBeta` DDL sourced into `kusto_ddl/advanced_hunting/` first). Placeholder
+syntax `{{ip}}` / `{{upn}}`; CI substitutes canonical samples.
+
+**Open / next:**
+- **Plan 1 fast-follow** — the remaining **4 v1 playbooks** (impossible-travel, mfa-fatigue,
+  malicious-inbox-rule, risky-oauth-consent), data-only same shape, each Kustainer-validated.
+- **Plan 2 (client)** — extract shared **HuntRow** renderer; **injectIoc**
+  (ipv4/ipv6→ip family map + KQL-literal escaping); **HuntPlaybookPanel** under `EscalationCard`
+  in `ResultRegion` (scenario chips filtered by IOC type, zero-click IP pivot, local-state
+  selection).
+- **v2** — AH dialect + toggle; `alert=` deep-link + full-width lookup route; domain/hash
+  scenarios.
+
+---
+
+## 0-RECENT — 2026-09-03 (session — N3 remainder SHIPPED + live: directory facets + card-height normalization — CLOSES Adversaries re-run N1-N4)
 
 **Context:** ships the last piece of the 2026-09-03 Adversaries RE-RUN
 (`SOCDesk-Adversaries-Rerun-2026-09-03.pdf`): N1 progressive disclosure · N2 reverse-index
