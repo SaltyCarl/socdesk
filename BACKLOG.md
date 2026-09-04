@@ -1,6 +1,23 @@
 # SOCDesk Backlog
 
-> _Refreshed 2026-09-02 (Adversaries-critique + hunt-pack program close-out)._ Shipped 2026-09-01/02,
+> _Refreshed 2026-09-03 (Adversaries RE-RUN fully closed)._ The 2026-09-03 re-run critique
+> ("content is now premium; make it consumable") raised 4 findings — **all shipped & live-dogfooded**,
+> each adversarially vetted (every plan returned REVISE with a would-have-shipped-broken finding — e.g.
+> a Medusa↔MedusaLocker misattribution, a `noUnusedLocals` build error, and a hash-route collision the
+> mocked tests missed): **N1 progressive disclosure** — ActorProfile rebuilt into an always-on decision
+> layer over native `<details>` reference sections + sticky scrollspy jump-nav (BoardPanel gained
+> `collapsible`; new SynthesisBand/ProfileNav/useProfileNav; the ~7,200px wall → ~2 screens);
+> **N4 distinctive-TTP lead** hoisted into the synthesis band; **N2** malware reverse-index / Related-
+> entities de-dup; **N3** lockbit5 seed-slug aliasing + **directory sector/country/seeded facets**
+> (`ProfileIndexEntry.sectors/countries` aggregated in `buildProfileIndex`; Healthcare → 18 crews) +
+> **card-height normalization** (grid `items-start` kills the stretched empty boxes). Next candidates:
+> `?s=` section-deep-link channel (hash router blocks `#section` fragments) · feed sparklines · more
+> authored identity hunt rules · the 12 uncovered techniques · Phase 5 trends. **Owner activation gates
+> STILL open:** IPINFO_TOKEN secret; KV bind + `/api/enrich` WAF rule. Refresh at every close-out.
+>
+> ---
+>
+> _Prior refresh 2026-09-02 (Adversaries-critique + hunt-pack program close-out)._ Shipped 2026-09-01/02,
 > each via an adversarially-vetted plan (10 plans this arc, every one returned REVISE with a
 > would-have-shipped-broken finding): **Adversaries directory enrichment** (blurb/counts/recency) ·
 > **ransomware long-tail** (`ransomware_groups.json`, ~393 name-only coverage entries + link-out stub) ·
