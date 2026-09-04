@@ -1,10 +1,58 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-09-04 (session — Hunt Playbooks Plan 1 (backend) SHIPPED + live in state: schema/loader/fresh-publish/Kustainer CI lane + 2 exemplar identity playbooks; `data/state/playbooks.json` LIVE via green CI) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-09-04 (session — Hunt Playbooks Plan 2 (client) SHIPPED + live + dogfooded: `HuntPlaybookPanel` under the EscalationCard in `ResultRegion` — scenario chips filtered by IOC type, IOC-injected KQL steps, shared `KqlBlock`/`DIALECT_CAVEAT`; dogfooded live on socdesk.pages.dev) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-09-04 (session — Hunt Playbooks Plan 1 (backend) SHIPPED + live in state)
+## 0. LATEST — 2026-09-04 (session — Hunt Playbooks Plan 2 (client) SHIPPED + live + dogfooded)
+
+**Context:** second/final plan of **Hunt Playbooks** — makes the feature visible *end-to-end*
+(Plan 1 backend already published `data/state/playbooks.json`). Plan
+`docs/superpowers/plans/2026-09-04-hunt-playbooks-client.md` (`40f04c2`; adversarially vetted →
+**6 findings folded in**: build-breaking escape regex, async-load dead-but-green selection bug,
+unused `useState` import break, non-existent `MonoLabel`, `state.data` outside the ok narrowing,
+and split the pure View from the data wrapper).
+
+**Shipped (Plan 2 = client):**
+- **Pure playbook logic.** NEW `web/src/components/views/playbooks.ts` — `PARAM_FOR_TYPE`
+  (ipv4/ipv6→`ip`), `playbooksForType`, `injectIoc` (safe KQL-literal escaping via `/\p{Cc}/gu` +
+  backslash-before-quote; leaves a non-matching follow-on `{{upn}}` **visible**, never guessed).
+  Types (`Playbook`/`PlaybookStep`/`PlaybooksPayload`) in `types.ts`. (`9696167`)
+- **Shared KQL extraction.** NEW `HuntKql.tsx` (shared `KqlBlock` + `CopyKqlButton`, module-local
+  `copyPlain`) + `huntCaveat.ts` (`DIALECT_CAVEAT` moved to a `.ts` for react-refresh
+  cleanliness); `ActorProfile.tsx` HuntRowView now renders `<KqlBlock/>`, dropped its unused
+  `useState` import. (`7f51883`)
+- **Enrichment-stage panel.** NEW `HuntPlaybookPanel.tsx` — pure
+  `HuntPlaybookPanelView({playbooks,iocType,iocValue})` (async-safe **derived** selection
+  `find ?? matches[0]`) + a thin `HuntPlaybookPanel` wrapper self-fetching
+  `useStateData('playbooks')`. Wired into `web/src/components/cockpit/ResultRegion.tsx` **below the
+  EscalationCard**, gated on `isEnrichable(state.data.type)`, inside a fragment (keeps `state.data`
+  in the ok narrowing). (`9696167`)
+
+**Verified:** typecheck + lint clean; **950 vitest (+13)**; build green; **deploy run 33884545301
+GREEN**. **Live dogfood on socdesk.pages.dev** (enriched IP `45.83.193.150`): panel renders
+"Investigate in your SIEM" with **2 chips** (password-spray default + unfamiliar-signin); step-1
+pivot KQL shows the injected IP (**no `{{ip}}` left**); selecting *Unfamiliar sign-in* shows the
+`{{upn}}` follow-on step with the "Replace the remaining `{{upn}}` … never guessed" note; technique
+chips + **SOCDesk · MIT · tested** provenance. Screenshot captured.
+
+**DECISION:** the enrichment surface is the cockpit **`ResultRegion` ONLY** (`/lookup` retired);
+v1 = **local selection state** (no `alert=` deep-link, no full-width route — those are v2); the
+shared `KqlBlock` / `DIALECT_CAVEAT` are the **single source** for both the Adversaries hunt-pack
+and the playbook panel.
+
+**Open / next:**
+- **Task 5 of Plan 2** — the remaining **4 v1 playbooks** (impossible-travel, mfa-fatigue,
+  malicious-inbox-rule, risky-oauth-consent), data-only same shape. Vet's authoring caveats:
+  OfficeActivity has **no** `IPAddress`/`UserPrincipalName` (use `ClientIP` / `UserId`); AuditLogs
+  UPN lives in the InitiatedBy/TargetResources dynamics
+  (`tostring(InitiatedBy.user.userPrincipalName)`) — each must pass the **Kustainer lane**.
+- **v2** — `advanced_hunting` dialect + toggle (needs an `AADSignInEventsBeta` DDL); `alert=`
+  deep-link + full-width lookup route; domain/hash scenario families.
+
+---
+
+## 0-RECENT — 2026-09-04 (session — Hunt Playbooks Plan 1 (backend) SHIPPED + live in state)
 
 **Context:** first plan of the new **Hunt Playbooks** feature — KQL at the *enrichment*
 stage: analyst enriches an IOC, picks the triggering alert, gets an ordered,
