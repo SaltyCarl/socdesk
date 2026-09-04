@@ -158,6 +158,38 @@ export interface HuntPacksPayload {
   rules: HuntRule[]
 }
 
+/** One step of an enrichment Hunt Playbook (playbooks.json). `param` is the
+ *  placeholder family the step's `{{param}}` token injects (ip/upn/...); `kind`
+ *  is pivot (the general IOC search) or scenario (the alert-specific hunt). */
+export interface PlaybookStep {
+  id: string
+  title: string
+  kind: 'pivot' | 'scenario'
+  param: string
+  dialect: string
+  tables?: string[]
+  kql: string
+}
+
+/** One alert->KQL playbook: pick the alert that triggered the lookup, get an
+ *  ordered set of IOC-parameterized steps. Sourced from data/hunt/playbooks. */
+export interface Playbook {
+  id: string
+  title: string
+  alert_sources?: string[]
+  ioc_types: string[]
+  techniques: string[]
+  tested?: string
+  source: { kind: string; url: string; license: string; author?: string }
+  steps: PlaybookStep[]
+}
+
+export interface PlaybooksPayload {
+  generated_at: string
+  schema_version: number
+  playbooks: Playbook[]
+}
+
 /** Bare ransomware-group names from ransomware.live /v2/groups
  *  (ransomware_groups.json) — the name-only directory coverage layer.
  *  Names only by design (R3): no editorial rides along. */
