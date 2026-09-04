@@ -109,6 +109,13 @@ export interface ProfileIndexEntry {
    *  family (derived reverse index) — the one datum that ranks the malware
    *  scroll. Present only when > 0. */
   usedByCount?: number
+  /** Distinct target sectors this group has claimed in the window (parsed from
+   *  its leak-site summaries, singles + digests), sorted. Powers the directory
+   *  sector facet — "active crews hitting healthcare". Present only when >0. */
+  sectors?: string[]
+  /** Distinct target countries (ISO-2) from SINGLE claims only (digests drop
+   *  country — honestly partial), sorted. Powers the country facet. >0 only. */
+  countries?: string[]
 }
 
 /** Card blurb: a word-boundary hard-cap of the cleaned description. NEVER a
@@ -274,28 +281,48 @@ export function buildProfileIndex(
 
   // ransomware.live groups — sum each group's claims with the board's parser,
   // and keep the newest claim timestamp so the card can read as recency.
-  const claims = new Map<string, { raw: string; count: number; last: string }>()
+  // Stage 1: sum claims per group, keep the newest timestamp, and aggregate the
+  // distinct target sectors/countries (`it.summary`/`it.grouped` are only in
+  // scope here) — sectors from singles + digests, countries from SINGLES only
+  // (digests drop country, matching ransomwareActivity's honest-partial rule).
+  const claims = new Map<
+    string,
+    { raw: string; count: number; last: string; sectors: Set<string>; countries: Set<string> }
+  >()
   for (const it of feed) {
     if (it.source !== 'ransomwarelive') continue
     const raw = it.entities?.actors?.[0]
     if (!raw) continue
     const slug = raw.toLowerCase()
-    const cur = claims.get(slug) ?? { raw, count: 0, last: '' }
+    const cur =
+      claims.get(slug) ?? { raw, count: 0, last: '', sectors: new Set<string>(), countries: new Set<string>() }
     cur.count += claimCount(it)
     const at = it.published_at ?? ''
     if (at > cur.last) cur.last = at
+    const isGrouped = it.grouped != null
+    for (const s of parseSectors(it.summary, isGrouped)) cur.sectors.add(s)
+    if (!isGrouped) {
+      const c = parseCountry(it.summary)
+      if (c) cur.countries.add(c)
+    }
     claims.set(slug, cur)
   }
-  for (const [slug, { raw, count, last }] of claims) {
+  for (const [slug, { raw, count, last, sectors, countries }] of claims) {
+    const sectorList = sectors.size ? [...sectors].sort() : undefined
+    const countryList = countries.size ? [...countries].sort() : undefined
     const existing = bySlug.get(slug)
     if (existing) {
       existing.claimCount = count
       existing.hasClaims = count > 0
       if (last) existing.lastClaimAt = last
+      if (sectorList) existing.sectors = sectorList
+      if (countryList) existing.countries = countryList
     } else {
       bySlug.set(slug, {
         slug, name: raw, kind: 'ransomware', hasMitre: false, claimCount: count, hasClaims: count > 0,
         ...(last ? { lastClaimAt: last } : {}),
+        ...(sectorList ? { sectors: sectorList } : {}),
+        ...(countryList ? { countries: countryList } : {}),
       })
     }
   }

@@ -378,6 +378,22 @@ describe('buildProfileIndex — card enrichment (blurb / counts / recency)', () 
     expect(by('kairos')?.lastClaimAt).toBe('2026-08-13T00:00:00Z')
   })
 
+  it('aggregates distinct target sectors (singles + digest) + countries (singles only) for the facets', () => {
+    const kairos = by('kairos')
+    // r1 single Manufacturing, r2 single "Not Found" (sentinel, dropped),
+    // r3 digest "Healthcare, Technology, Not Found" (sentinel dropped) → sorted union
+    expect(kairos?.sectors).toEqual(['Healthcare', 'Manufacturing', 'Technology'])
+    // countries: SINGLES only — r1 'US', r2 '?' (fails the code shape, dropped);
+    // the digest contributes NO country (honest-partial)
+    expect(kairos?.countries).toEqual(['US'])
+  })
+
+  it('omits sectors/countries for a group with no parseable claims', () => {
+    const axiom = by('axiom') // MITRE actor, no ransomwarelive claims
+    expect(axiom?.sectors).toBeUndefined()
+    expect(axiom?.countries).toBeUndefined()
+  })
+
   it('threads enrichment through the alias-resolved reporting pass (Midnight Blizzard → APT29)', () => {
     const mb = by('midnight blizzard')
     expect(mb?.blurb).toBe('APT29 is a Russian state-sponsored group.')
