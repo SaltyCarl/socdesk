@@ -25,6 +25,7 @@ on:
       - "collectors/sigma_hunt.py"
       - "tools/validate_hunt_kql.py"
       - "schemas/hunt_packs.schema.json"
+      - "schemas/hunt_playbooks.schema.json"
       - ".github/workflows/hunt-kql.yml"
   pull_request:
     paths:
@@ -33,6 +34,7 @@ on:
       - "collectors/sigma_hunt.py"
       - "tools/validate_hunt_kql.py"
       - "schemas/hunt_packs.schema.json"
+      - "schemas/hunt_playbooks.schema.json"
       - ".github/workflows/hunt-kql.yml"
   workflow_dispatch: {}
 

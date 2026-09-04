@@ -48,6 +48,56 @@ def load_authored_rules(authored_dir):
     return rules, warnings
 
 
+PLAYBOOKS_BLOB_BASE = "https://github.com/SaltyCarl/socdesk/blob/main/data/hunt/playbooks"
+PLAYBOOK_REQUIRED = ("id", "title", "ioc_types", "techniques", "steps")
+STEP_REQUIRED = ("id", "title", "kind", "param", "dialect", "kql")
+
+
+def load_playbooks(playbooks_dir):
+    """Returns (playbooks, warnings). Authored-local alert->KQL playbooks, re-read
+    every run (like load_authored_rules). Composes the schema-valid published
+    shape (source.url = the file's own GitHub blob) and STRIPS `rationale`.
+    A malformed file is skipped + reported, never guessed."""
+    d = Path(playbooks_dir)
+    if not d.is_dir():
+        return [], []
+    playbooks, warnings = [], []
+    for f in sorted(d.glob("*.yaml")):
+        try:
+            doc = yaml.safe_load(f.read_text(encoding="utf-8"))
+            missing = [k for k in PLAYBOOK_REQUIRED if not doc.get(k)]
+            if missing:
+                raise ValueError(f"missing {','.join(missing)}")
+            steps = []
+            for s in doc["steps"]:
+                smiss = [k for k in STEP_REQUIRED if not s.get(k)]
+                if smiss:
+                    raise ValueError(f"step {s.get('id', '?')} missing {','.join(smiss)}")
+                steps.append({
+                    "id": str(s["id"]), "title": str(s["title"])[:200],
+                    "kind": str(s["kind"]), "param": str(s["param"]),
+                    "dialect": str(s["dialect"]),
+                    "tables": [str(t) for t in s.get("tables", [])],
+                    "kql": str(s["kql"]).strip(),
+                })
+            playbooks.append({
+                "id": str(doc["id"]), "title": str(doc["title"])[:200],
+                "alert_sources": [str(a) for a in doc.get("alert_sources", [])],
+                "ioc_types": [str(t) for t in doc["ioc_types"]],
+                "techniques": [str(t) for t in doc["techniques"]],
+                "tested": str(doc.get("tested", ""))[:10],
+                "source": {
+                    "kind": "socdesk",
+                    "url": f"{PLAYBOOKS_BLOB_BASE}/{f.name}",
+                    "license": "MIT", "author": "SOCDesk",
+                },
+                "steps": steps,
+            })
+        except Exception as exc:  # noqa: BLE001 — skip + report, never guess
+            warnings.append(f"playbook {f.name}: {exc}")
+    return playbooks, warnings
+
+
 def merge_authored(hunt_payload, authored, envelope):
     """The uniform merge step (runs every cycle, fresh AND keep-prior paths):
     collector-sourced rules + authored, authored always re-read. Reassigns,

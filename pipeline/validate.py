@@ -18,6 +18,7 @@ SCHEMA_FOR = {
     "technique_tactics.json": "technique_tactics.schema.json",
     "ransomware_groups.json": "ransomware_groups.schema.json",
     "hunt_packs.json": "hunt_packs.schema.json",
+    "playbooks.json": "hunt_playbooks.schema.json",
     "relations.json": "relations.schema.json",
     "threat_ips.json": "threat_ips.schema.json",
     "community_reports.json": "community_reports.schema.json",

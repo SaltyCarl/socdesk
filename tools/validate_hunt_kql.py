@@ -96,6 +96,20 @@ def wrap(kql):
     return q + "\n| take 0"
 
 
+_SAMPLES = {"ip": "203.0.113.7", "upn": "user@example.com", "domain": "example.com",
+            "url": "https://example.com/a", "md5": "d41d8cd98f00b204e9800998ecf8427e",
+            "sha1": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+
+
+def substitute_samples(kql):
+    """Replace every {{param}} placeholder with a canonical sample so a
+    parameterized playbook step becomes a bindable query for the emulator."""
+    for param, sample in _SAMPLES.items():
+        kql = kql.replace("{{" + param + "}}", sample)
+    return kql
+
+
 def validate_rules(rules, db):
     failures = []
     for r in rules:
@@ -117,7 +131,7 @@ def rules_from_allowlist(path):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from collectors import sentinel_hunt, sigma_hunt
     from pipeline.http import http_fetch  # the real fetch the pipeline uses
-    from pipeline.hunt import load_authored_rules
+    from pipeline.hunt import load_authored_rules, load_playbooks
 
     now = datetime.now(timezone.utc)
     rules = []
@@ -134,7 +148,24 @@ def rules_from_allowlist(path):
     authored, warnings = load_authored_rules(hunt_dir / "authored")
     for w in warnings:
         print(f"authored warning: {w}")
-    return rules + authored
+    # Fold each playbook step in as a pseudo-rule, sample-substituted. HARD-FAIL
+    # on any surviving {{placeholder}}: inside a "..." literal it binds as a
+    # string and would pass CI silently, shipping a step whose IOC never injects.
+    playbooks, pb_warnings = load_playbooks(hunt_dir / "playbooks")
+    for w in pb_warnings:
+        print(f"playbook warning: {w}")
+    step_rules = []
+    for pb in playbooks:
+        for s in pb["steps"]:
+            kql = substitute_samples(s["kql"])
+            if "{{" in kql:
+                raise SystemExit(
+                    f"playbook {pb['id']}::{s['id']}: unresolved placeholder after "
+                    f"substitution — a surviving {{{{...}}}} binds as a string literal "
+                    f"and would pass CI silently")
+            step_rules.append({"id": f"{pb['id']}::{s['id']}",
+                               "dialect": s["dialect"], "kql": kql})
+    return rules + authored + step_rules
 
 
 def main():

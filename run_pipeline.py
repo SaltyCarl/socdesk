@@ -11,12 +11,12 @@ from collectors.base import iso, run_all
 from pipeline.asn import build_asn_leaderboard
 from pipeline.community import build_community_reports
 from pipeline.cves import build_cve_context, build_cve_rows, enrich_epss
-from pipeline.hunt import load_authored_rules, merge_authored
+from pipeline.hunt import load_authored_rules, load_playbooks, merge_authored
 from pipeline.history import (build_trends, daily_snapshot, prune_history,
                               snapshot_name)
 from pipeline.intel_staleness import check_intel_staleness
 from pipeline.publish import build_site_data
-from pipeline.validate import gate
+from pipeline.validate import gate, validate_payload
 
 BRIEF_SRC = Path("data/brief.json")
 GEO_CACHE_NAME = "geo_cache.json"    # IP -> {lat,lng,country,city,precision}
@@ -164,6 +164,25 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
     if merged_hp is not None:
         payloads["hunt_packs.json"] = merged_hp
 
+    # Alert->KQL hunt playbooks (authored-local, spec Hunt-Playbooks): re-read
+    # every run, published FRESH (no keep-prior — an emptied dir means the
+    # author deleted them; playbooks:[] is the honest publish). Validate each
+    # playbook individually so one bad file can't make the WHOLE catalog invalid
+    # (which gate() would then revert wholesale to last-known-good).
+    playbooks, playbook_warnings = load_playbooks(hunt_dir / "playbooks")
+    valid_playbooks = []
+    for pb in playbooks:
+        errs = validate_payload(
+            "playbooks.json",
+            {"generated_at": iso(now), "schema_version": 1, "playbooks": [pb]},
+            schemas_dir)
+        if errs:
+            playbook_warnings.append(f"playbook {pb['id']}: schema {errs[0]}")
+        else:
+            valid_playbooks.append(pb)
+    payloads["playbooks.json"] = {
+        "generated_at": iso(now), "schema_version": 1, "playbooks": valid_playbooks}
+
     # Staleness/drift guard (spec §3.4): soft warnings only, never a publish
     # blocker — run against the seed groups actually loaded above and the
     # real KEV-ransomware CVE set, so it can surface real drift instead of
@@ -213,7 +232,7 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
             state["asn_leaderboard.json"], generated_at=iso(now))
 
     published, problems = gate(payloads, state, schemas_dir)
-    warnings = problems + stale + authored_warnings
+    warnings = problems + stale + authored_warnings + playbook_warnings
     if warnings:
         published["health.json"] = dict(
             published.get("health.json", payloads["health.json"]),
