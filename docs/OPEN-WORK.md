@@ -18,10 +18,10 @@ test that closes it. File anchors are given where they save a discovery pass.
 | ✅ **1** | `column_ifexists` hardening | **DONE (2026-09-05, `baa7f17`).** The 6-step unfamiliar ladder wraps every optional/dynamic column (LocationDetails/DeviceDetail/MfaDetail/AutonomousSystemNumber/InitiatedBy/…); password-spray uses only core columns. Re-validated: binds against the real DDL AND a deliberately-broken unwrapped column FAILS the lane (exit 1). |
 | ✅ **1** | Land the 6-step ladder | **DONE (2026-09-05, `baa7f17`).** Drop-in copied in + adversarially re-validated: 6/6 steps bind against the live Kusto emulator (69/69 lane); `{{upn}}` stays visible on steps 2–6 with the existing callout. |
 | ✅ **1** | Empty state | **DONE (2026-09-05, `baa7f17`).** `HuntPlaybookPanel` renders "No SIEM playbook for `<type>` yet — IP indicators supported today." for enrichable-but-uncovered types; the wrapper gates on `status === 'ready'` so it never flashes while loading. |
-| 2 | Same ladder for `password-spray` | The three persistence steps (mailbox rules → OAuth consent → device/MFA registration) attach to the existing fan-out step. **Accept:** both IP playbooks are investigations, not detections. |
+| ✅ 2 | Same ladder for `password-spray` | **DONE (2026-09-05, `6ee13de`).** Upgraded to 5 steps: spray shape → landed accounts → the three persistence hunts (inbox rules/OAuth/device+MFA). Both IP playbooks now investigate, not just detect. |
 | ✅ 2 | Confirm the CI gate walks playbooks | **DONE (2026-09-05).** `tools/validate_hunt_kql.py` folds playbook steps into the validated set (they appear as `<id>::<step>` in the lane); negative control confirmed — a broken unwrapped column returns exit 1. |
-| 3 | Author hash + domain playbooks | Coverage is `ioc_types: [ipv4, ipv6]` in both files. `PARAM_FOR_TYPE` already maps the other families — this is new YAML, not new architecture. Suggested: hash → `DeviceFileEvents` and `EmailAttachmentInfo ⋈ AlertEvidence on SHA256`; domain → `DnsEvents` / `DeviceNetworkEvents`. |
-| 3 | Dialect toggle + copy-all | Dialect is currently a faint caveat, not a control. A Sentinel/Defender toggle is a deterministic string swap (`TimeGenerated` ↔ `Timestamp`). Add "copy whole playbook". |
+| ✅ 3 | Author hash + domain playbooks | **DONE (2026-09-05, `6ee13de`).** `file-hash-sightings` (sha256 → DeviceFileEvents/DeviceProcessEvents/DeviceImageLoadEvents) + `domain-callouts` (domain → DeviceNetworkEvents, incl. a beaconing-cadence step). Scoped to tables with committed DDL — DnsEvents/EmailAttachmentInfo/AlertEvidence have none, so those are deferred; all 5 new steps bind (77/77 lane). |
+| ◐ 3 | Dialect toggle + copy-all | **"Copy whole playbook" DONE (`6ee13de`).** Dialect toggle **DEFERRED to v2**: a bare `TimeGenerated↔Timestamp` swap leaves Sentinel-only tables (SigninLogs/OfficeActivity/AuditLogs) in "Defender" output = invalid KQL. An honest toggle needs the advanced_hunting table mappings (the AH-DDL v2 work), else it ships a broken query. |
 
 ### What makes a playbook a playbook
 
@@ -95,11 +95,11 @@ Flagged 2026-08-25 and **not re-verified since** — confirm current state befor
 | P | Item | Do / acceptance |
 |---|---|---|
 | 2 | R3 operational gaps | The dated R3 re-rating in `COMPLIANCE.md` lists these as still open: dispute/takedown path, personal-data stance, git-history retention of republished names, upstream API terms. Close them or record the accepted risk explicitly. |
-| 2 | Documentation convention vs tracked docs | `CLAUDE.md` states that no tool or generator attribution appears anywhere, including documentation; tracked docs currently contain ~75 such mentions (up from ~44). Decide one way: gitignore `docs/superpowers/` and `docs/HANDOFF.md`, or amend the convention. As-is the repo contradicts its own stated rule. |
-| 2 | Remove the superseded legacy toolbelt | `site/js/toolbelt/tools.js` is still tracked and carries a provenance header describing an internal-tool origin. It is superseded by `shared/analyzer/`. Delete it and scrub the matching references in `BACKLOG.md`. |
+| ✅ 2 | Documentation convention vs tracked docs | **DONE (2026-09-05).** Amended `CLAUDE.md` to match the owner's relaxed posture (2026-08-25): AI attribution IS permitted in internal engineering artifacts (commit trailers, `docs/`, code comments), kept OUT of the user-facing product surface. The repo no longer contradicts itself. |
+| ✅ 2 | Remove the superseded legacy toolbelt | **DONE (2026-09-05).** Deleted `site/js/toolbelt/tools.js` (the `SNAPSHOT PORT from CARL` lineage-leak); the live app never referenced it (only the dead `site/sw.js` did), and BACKLOG.md had no refs to scrub. |
 | 3 | Point the browser suite at `web/` | `site-tests/serve.js:10` still serves the legacy `site/`, so the e2e suite guards dead code and the live app has no browser coverage. Port `csp.spec.js` and `escaping.spec.js` first. |
-| 3 | Versioning and tags | Zero git tags; version strings still disagree (`web/package.json` is `0.0.0`). One `VERSION` stamped at build time; tag releases. |
-| 3 | Drop dead weight | Legacy `site/`, `design/mockups/` (~33k LOC), and an unignored root `node_modules/`. Also diff or compress the `cves.json` snapshot churn. |
+| ◐ 3 | Versioning and tags | **DONE (2026-09-05).** `web/package.json` → `0.1.0`; root `VERSION` file added (`0.1.0`); repo tagged `v0.1.0`. |
+| 3 | Drop dead weight | **DEFERRED — needs owner sign-off (large + interdependent).** Legacy `site/` deletion is coupled to the browser-suite port (site-tests serve `site/`), and `design/mockups/` (~33k LOC) is a big destructive change; both preserved in git history if removed. Root `node_modules/` is NOT tracked (0 files); `cves.json` churn is a P3 nicety. Left for an explicit go-ahead rather than deleting 33k LOC autonomously. |
 
 ---
 
