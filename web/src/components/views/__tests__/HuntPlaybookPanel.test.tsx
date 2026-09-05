@@ -46,10 +46,12 @@ describe('HuntPlaybookPanelView', () => {
     expect(html).toContain('tested 2026-09-04')
   })
 
-  it('renders nothing for a type with no matching playbook', () => {
-    expect(
-      renderToStaticMarkup(<HuntPlaybookPanelView playbooks={playbooks} iocType="sha256" iocValue="abc" />),
-    ).toBe('')
+  it('renders an honest empty state for an enrichable type with no playbook', () => {
+    const empty = renderToStaticMarkup(
+      <HuntPlaybookPanelView playbooks={playbooks} iocType="sha256" iocValue="abc" />,
+    )
+    expect(empty).toContain('No SIEM playbook for sha256 yet')
+    expect(empty).toContain('IP indicators supported today')
   })
 
   it('does not render a chip row when only one playbook matches', () => {

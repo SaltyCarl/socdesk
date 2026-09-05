@@ -34,7 +34,18 @@ export function HuntPlaybookPanelView({
 }) {
   const [selectedId, setSelectedId] = useState<string>()
   const matches = playbooksForType(playbooks, iocType)
-  if (matches.length === 0) return null
+  if (matches.length === 0) {
+    // Enrichable but uncovered (domain / hash / url today) — state it honestly
+    // rather than rendering nothing, which reads as a bug. The wrapper gates on
+    // `ready`, so this never flashes while the fetch is still loading.
+    return (
+      <section aria-label="Hunt playbooks" className="rounded-lg border border-line bg-panel p-4">
+        <p className="text-xs text-muted">
+          No SIEM playbook for {iocType} yet — IP indicators supported today.
+        </p>
+      </section>
+    )
+  }
   const selected = matches.find((p) => p.id === selectedId) ?? matches[0]
   const provenance = [
     'SOCDesk',
@@ -128,6 +139,9 @@ export function HuntPlaybookPanelView({
 /** Data wrapper — self-fetches the committed playbooks.json and renders the view
  *  (which returns null while loading / when the enriched type has no playbook). */
 export function HuntPlaybookPanel({ iocType, iocValue }: { iocType: string; iocValue: string }) {
-  const { data } = useStateData<PlaybooksPayload>('playbooks')
+  const { status, data } = useStateData<PlaybooksPayload>('playbooks')
+  // Don't flash the "no playbook" empty state while the fetch is still loading —
+  // only render once the payload is ready (or errored, treated as no data).
+  if (status !== 'ready') return null
   return <HuntPlaybookPanelView playbooks={data?.playbooks ?? []} iocType={iocType} iocValue={iocValue} />
 }
