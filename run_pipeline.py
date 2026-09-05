@@ -16,6 +16,7 @@ from pipeline.history import (build_trends, daily_snapshot, prune_history,
                               snapshot_name)
 from pipeline.intel_staleness import check_intel_staleness
 from pipeline.publish import build_site_data
+from pipeline.stories import build_stories
 from pipeline.validate import gate, validate_payload
 
 BRIEF_SRC = Path("data/brief.json")
@@ -197,6 +198,19 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
     snapshots, history_files = _history(state_dir, cve_rows, feed_count, now)
     payloads["trends.json"] = dict(
         build_trends(snapshots, cve_rows, now),
+        generated_at=iso(now), schema_version=1)
+
+    # Feed cross-source clustering (OPEN-WORK §3): group feed items sharing a
+    # primary entity + corroborated by >=2 distinct outlets into story rows, with
+    # a CVE delta from the catalog (cve_rows). Sibling payload — feed.json is
+    # unchanged. Built here (not build_site_data) because it needs trends + the
+    # composed feed; before gate() so it inherits schema validation + last-known-good.
+    payloads["stories.json"] = dict(
+        build_stories(
+            payloads.get("feed.json", {}).get("items", []),
+            cve_rows, payloads["trends.json"],
+            payloads.get("actors.json", {}).get("profiles", []),
+            payloads.get("ransomware_intel.json", {}).get("groups", [])),
         generated_at=iso(now), schema_version=1)
 
     # Community reports (Phase 3): D1 approved rows -> committed JSON, consulted

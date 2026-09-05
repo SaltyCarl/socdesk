@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "stories"],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": {"type": "string", "maxLength": 40},
+    "schema_version": {"type": "integer"},
+    "stories": {
+      "type": "array", "maxItems": 200,
+      "items": {
+        "type": "object",
+        "required": ["key", "entity", "entity_type", "title", "outlets", "member_ids", "member_count", "published_at"],
+        "additionalProperties": false,
+        "properties": {
+          "key": {"type": "string", "maxLength": 128},
+          "entity": {"type": "string", "maxLength": 128},
+          "entity_type": {"enum": ["cve", "actor", "malware"]},
+          "title": {"type": "string", "maxLength": 300},
+          "outlets": {"type": "array", "minItems": 2, "maxItems": 24, "items": {"type": "string", "maxLength": 60}},
+          "member_ids": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"type": "string", "maxLength": 40}},
+          "member_count": {"type": "integer"},
+          "published_at": {"type": "string", "maxLength": 40},
+          "severity": {"type": "string", "maxLength": 16},
+          "delta": {
+            "type": "object", "additionalProperties": false,
+            "properties": {
+              "kev": {"type": "boolean"},
+              "kev_ransomware": {"type": "boolean"},
+              "epss": {"type": "number", "minimum": 0, "maximum": 1},
+              "epss_from": {"type": "number", "minimum": 0, "maximum": 1},
+              "epss_to": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        }
+      }
+    }
+  }
+}
