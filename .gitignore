@@ -23,3 +23,6 @@ CLAUDE.md
 
 # SDD parallel-track worktrees (managed via git worktree)
 .worktrees/
+
+# never track dependency installs
+node_modules/
