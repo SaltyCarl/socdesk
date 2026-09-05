@@ -1,10 +1,66 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-09-04 (session — Hunt Playbooks Plan 2 (client) SHIPPED + live + dogfooded: `HuntPlaybookPanel` under the EscalationCard in `ResultRegion` — scenario chips filtered by IOC type, IOC-injected KQL steps, shared `KqlBlock`/`DIALECT_CAVEAT`; dogfooded live on socdesk.pages.dev) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-09-05 (session — OPEN-WORK critique close-out: §1 enrichment KQL ladder + hash/domain playbooks COMPLETE, §3 cross-source feed clustering COMPLETE (`stories.json` + Corroborated strip), §2 reconciled already-shipped, §5 hygiene + `v0.1.0` tag + dead-weight drop; §4 escalation-card PAUSED per owner, dialect toggle = v2) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-09-04 (session — Hunt Playbooks Plan 2 (client) SHIPPED + live + dogfooded)
+## 0. LATEST — 2026-09-05 (session — OPEN-WORK critique close-out: §1 enrichment KQL + §3 feed clustering COMPLETE)
+
+**Context:** large **OPEN-WORK critique** pass (`docs/OPEN-WORK.md` / SOCDesk-Open-Work-2026-09-05.pdf)
+— worked the numbered gaps top-to-bottom; each item with a plan/spec was **adversarially vetted**
+before ship. `docs/OPEN-WORK.md` reconciled to the final state.
+
+**Shipped:**
+- **§1 Enrichment KQL — COMPLETE.** The thin 2-step unfamiliar-signin playbook is now a **6-step
+  investigation ladder** (confirm → novelty → persistence: inbox rules [`OfficeActivity`] / OAuth
+  grants [`AuditLogs`] / device + MFA → token replay). Every optional column hardened with
+  `column_ifexists`; inline analyst guidance as `// Look for:` / `// Next:` KQL comments; **honest
+  empty state** ("No SIEM playbook for <type> yet"). **password-spray** upgraded to a **5-step**
+  investigation. **Two new playbooks:** file-hash-sightings (sha256 →
+  `DeviceFileEvents`/`DeviceProcessEvents`/`DeviceImageLoadEvents`) + domain-callouts
+  (`DeviceNetworkEvents` + beaconing cadence). **"Copy whole playbook"** button added. Dialect
+  toggle **DEFERRED to v2**. Commits `baa7f17` (P1), `6ee13de` (P2/P3).
+- **§2 Adversary profiles** — reconciled as **ALREADY SHIPPED** (2026-09-03/04); OPEN-WORK.md marked
+  with evidence, no new code.
+- **§3 Feed cross-source clustering — COMPLETE** (backend `8bea02b` + client `41ef417`). Spec
+  `docs/superpowers/specs/2026-09-05-feed-clustering-design.md`. `pipeline/stories.py::build_stories`
+  runs in `run_pipeline` **after trends** → sibling **`stories.json`** (`feed.json` unchanged); **24
+  live corroborated stories**. Client: a **"Corroborated"** strip leads the `/desk` briefing
+  (`StoryStrip.tsx`; top 6 by delta/outlets; KEV/EPSS-shift chips via `epssShift`/`KevBadge`;
+  `<details>` members **de-duped** from Lead/Sections).
+- **§5 Hygiene.** CLAUDE.md attribution rule amended to the relaxed posture (gitignored → local
+  guidance); deleted `site/js/toolbelt/tools.js` (CARL SNAPSHOT-PORT lineage leak); versioned to
+  **0.1.0** + `VERSION` file; **tagged `v0.1.0`**; dropped legacy `site/` + `design/mockups/` +
+  `site-tests/` (**99 files, ~40k LOC**, git-preserved, zero CI/live dep) + gitignored root
+  `node_modules/`. Commits `e46e96d` (hygiene+tag), `fbdd46d` (dead-weight).
+
+**Verified:** **§1** — all **12+** new steps Kustainer-validated (**77/77**) + a **negative control**
+confirms a broken column fails CI. **§3** — adversarially vetted, **4 ship-breaking fixes folded in**:
+dedup on the `[Outlet]` title prefix (all news shares `source="rss"`); a story needs **≥2 DISTINCT
+OUTLETS**, not ≥2 members; CVE delta from `cve_rows`/`cves.json` **not** `cve_context` (was 0/20);
+**established-actor gate** kills `play=Google-Play`. **Live-dogfooded:** top story "covered by 3 ·
+CISA KEV · The Hacker News · BleepingComputer", KEV badge + EPSS **1%→12%** shift.
+
+**Decisions:**
+- **§4 escalation-card geolocation / compare-previous = PAUSED per owner** — "pause on impossible-
+  travel alert, we already have coverage."
+- **Dialect toggle = v2** — a bare `TimeGenerated`↔`Timestamp` swap leaves Sentinel-only tables
+  invalid; needs `advanced_hunting` (AH) table mappings/DDL first.
+- **§3 stories = sibling payload** — `feed.json` never changed (additive; a missing/loading
+  `stories.json` never blocks the feed).
+
+**Open / next (owner-directed / v2):**
+- §4 escalation-card items (**paused**).
+- **§3 v2** — per-actor claim-count delta; lens/search-aware stories.
+- **Dialect toggle** + `advanced_hunting` DDL.
+- The `?s=` section deep-link for profiles.
+- **Browser-suite port to `web/`** (csp/escaping specs live in git history).
+
+See `docs/OPEN-WORK.md` (reconciled) for the full state.
+
+---
+
+## 0-RECENT — 2026-09-04 (session — Hunt Playbooks Plan 2 (client) SHIPPED + live + dogfooded)
 
 **Context:** second/final plan of **Hunt Playbooks** — makes the feature visible *end-to-end*
 (Plan 1 backend already published `data/state/playbooks.json`). Plan
