@@ -1,6 +1,7 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { cx } from '@socdesk/shared/lib/cx'
-import type { FeedItem } from './types'
+import { StoryStrip } from './StoryStrip'
+import type { FeedItem, Story } from './types'
 import { rel, safeUrl, num, pct } from './format'
 import { KevBadge, DataChip, ClaimsChip } from './Badges'
 import { EmptyState } from './states'
@@ -545,9 +546,11 @@ function LensChip({
 export function FeedView({
   items,
   generatedAt,
+  stories = [],
 }: {
   items: FeedItem[]
   generatedAt?: string
+  stories?: Story[]
 }) {
   const [filter, setFilter] = useState('all')
   const [limit, setLimit] = useState(INIT)
@@ -579,18 +582,33 @@ export function FeedView({
 
   const showBriefing = filter === 'all' && !q
 
-  // Featured lead = the single highest-priority item (only shown in briefing).
-  const lead = ranked[0] ?? null
+  // §3 corroborated stories: the highest-signal cross-source clusters (a delta or
+  // ≥3 outlets, capped) lead the briefing. Their member reports are de-duped out
+  // of the Lead/Sections so a corroborated item shows ONCE (as its story). Only
+  // affects the briefing — list/search mode keeps the flat ranked slice.
+  const featured = useMemo(
+    () => stories.filter((s) => s.delta || s.outlets.length >= 3).slice(0, 6),
+    [stories],
+  )
+  const shownMemberIds = useMemo(() => new Set(featured.flatMap((s) => s.member_ids)), [featured])
+  const itemsById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items])
+  const rankedBriefing = useMemo(
+    () => ranked.filter(({ item }) => !shownMemberIds.has(item.id)),
+    [ranked, shownMemberIds],
+  )
 
-  // Briefing sections — top rows per lens, the lead excluded from its own list.
+  // Featured lead = the highest-priority item NOT already surfaced as a story.
+  const lead = rankedBriefing[0] ?? null
+
+  // Briefing sections — top rows per lens, the lead + story members excluded.
   const sections = useMemo(() => {
     const leadId = lead?.item.id
     return LENSES.map((lens) => {
-      const inLens = ranked.filter(({ item }) => lens.categories.includes(item.category))
+      const inLens = rankedBriefing.filter(({ item }) => lens.categories.includes(item.category))
       const rows = inLens.filter(({ item }) => item.id !== leadId).slice(0, SECTION_ROWS)
       return { lens, rows, total: inLens.length }
     }).filter((s) => s.total > 0)
-  }, [ranked, lead])
+  }, [rankedBriefing, lead])
 
   // List mode — a flat, ranked slice for a selected lens and/or an active search.
   const listItems = useMemo(() => {
@@ -663,6 +681,8 @@ export function FeedView({
               {num(items.length)} reports tracked
             </p>
           </div>
+
+          {featured.length > 0 && <StoryStrip stories={featured} itemsById={itemsById} />}
 
           {lead && <Lead item={lead.item} sig={lead.sig} />}
 

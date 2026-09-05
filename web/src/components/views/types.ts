@@ -190,6 +190,35 @@ export interface PlaybooksPayload {
   playbooks: Playbook[]
 }
 
+/** A cross-source cluster: one story covered by ≥2 distinct outlets (stories.json,
+ *  OPEN-WORK §3). `delta` is present on CVE stories with catalog data. */
+export interface StoryDelta {
+  kev?: boolean
+  kev_ransomware?: boolean
+  epss?: number
+  epss_from?: number
+  epss_to?: number
+}
+
+export interface Story {
+  key: string
+  entity: string
+  entity_type: 'cve' | 'actor' | 'malware'
+  title: string
+  outlets: string[]
+  member_ids: string[]
+  member_count: number
+  published_at: string
+  severity?: string
+  delta?: StoryDelta
+}
+
+export interface StoriesPayload {
+  generated_at: string
+  schema_version: number
+  stories: Story[]
+}
+
 /** Bare ransomware-group names from ransomware.live /v2/groups
  *  (ransomware_groups.json) — the name-only directory coverage layer.
  *  Names only by design (R3): no editorial rides along. */

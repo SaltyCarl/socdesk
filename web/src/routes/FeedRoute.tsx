@@ -5,7 +5,7 @@ import { FeedView } from '../components/views/FeedView'
 import { useStateData } from '../components/views/useStateData'
 import { rel } from '../components/views/format'
 import { CountUp } from '../components/views/CountUp'
-import type { FeedPayload } from '../components/views/types'
+import type { FeedPayload, StoriesPayload } from '../components/views/types'
 
 /**
  * /feed — "The Brief". Fetches the committed feed snapshot and hands the items
@@ -16,6 +16,10 @@ import type { FeedPayload } from '../components/views/types'
 export function FeedRoute() {
   const { status, data, error } = useStateData<FeedPayload>('feed')
   const items = data?.items ?? []
+  // Corroborated stories are additive: fetched separately so a missing/loading
+  // stories payload never blocks the feed (§3). The briefing renders exactly as
+  // before when there are none.
+  const stories = useStateData<StoriesPayload>('stories').data?.stories ?? []
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,7 +42,7 @@ export function FeedRoute() {
         detail={error}
         skeleton={<SkeletonRows rows={8} />}
       >
-        <FeedView items={items} generatedAt={data?.generated_at} />
+        <FeedView items={items} generatedAt={data?.generated_at} stories={stories} />
       </AsyncGate>
     </div>
   )
