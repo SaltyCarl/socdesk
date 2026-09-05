@@ -1,93 +1,107 @@
 # Feed Cross-Source Clustering + "What Changed" — Design
 
-**Goal:** Move the Desk feed past aggregation. Today every row is 1:1 with one upstream item (`collectors/base.py:64` keys `id = sha1("{source}:{native_id}")`), so two outlets covering the same CVE/actor/campaign are two rows. Cluster items that share a **primary entity** into one **story row** carrying (a) the corroborating sources ("covered by BleepingComputer, THN, Unit 42") and (b) a computed delta ("EPSS 0.71→0.94 · now KEV-listed").
+**Goal:** Move the Desk feed past aggregation. Today every row is 1:1 with one upstream item (`collectors/base.py:64` keys `id = sha1("{source}:{native_id}")`), so two OUTLETS covering the same CVE/actor are two rows. Cluster items that share a **primary entity** AND are **corroborated by ≥2 distinct outlets** into one **story** carrying (a) the corroborating outlets ("covered by BleepingComputer, THN, Unit 42") and (b) a computed delta ("EPSS 0.71→0.94 · now KEV-listed").
 
-**Owner-approved direction (2026-09-05):** cluster key = the item's primary entity; publish a **sibling `stories.json`** (NOT a breaking `feed.json` schema change — the 1:1 rows stay intact and the story layer is additive); reuse the existing `pipeline/history.py` / `trends.json` delta logic for the "what changed" line.
+**Owner-approved direction (2026-09-05):** cluster key = primary entity; publish a **sibling `stories.json`** (no `feed.json` schema change); reuse the delta primitives.
 
-**Non-goals (v1):** no change to `feed.json`'s shape or the collector id-keying; no per-actor claim-history delta (v1 delta is CVE-only, from the trends data that already exists — actor/malware stories carry corroboration + recency, not a claim delta; that snapshot is v2); no ML/NLP topic clustering (entity-anchored only, deterministic).
+> **Revised after adversarial vet (2026-09-05, against live `data/state/*.json`).** Four ship-breaking corrections folded in: (1) all 9 news outlets share `source="rss"` — corroboration/dedup MUST key on the `[Outlet]` title prefix (`FeedView.tsx:64 OUTLET_RE`), PORTED to Python; (2) a story requires **≥2 distinct OUTLETS**, not ≥2 members — this excludes the 46 single-outlet `ransomwarelive`-only "clusters" that are leak tallies already shown on Profiles (25 of 73 clusters qualify); (3) the CVE delta comes from **`cve_rows` (cves.json catalog)** — `cve_context` covers 0/20 live CVE stories; (4) stories build in **`run_pipeline.py` after `trends.json` (line ~201)**, not in `build_site_data` (no trends there). Plus: an **established-entity gate** on actor keys (kills the "play" = Google Play false positive, per `profiles.ts:905`); schema + `SCHEMA_FOR` MUST land with the payload (a missing `SCHEMA_FOR` entry is a `KeyError` that kills the whole run, `validate.py:36`).
+
+**Non-goals (v1):** no `feed.json`/collector change; no per-actor claim-count delta (needs a history snapshot — v2); no NLP topic clustering (entity + outlet, deterministic).
 
 ---
 
 ## Global Constraints
-- Free-tier; committed-dataset pattern (schema-gated `stories.json`, `gate()` falls back to prior on INVALID only); tests assert SHAPE on fixtures, never live content.
-- **Honesty:** a story states only attributed facts — the member outlets (real `source`s) and a delta computed from committed data (trends/cve_context). No synthesized "story" narrative, no editorial. The representative title is a real member title, attributed.
-- **Additive:** `feed.json` is unchanged; `stories.json` references member ids. A client with no story data renders the feed exactly as today.
+- Free-tier; committed-dataset pattern (`stories.json` schema-gated; `gate()` falls back to prior on INVALID only); tests assert SHAPE on fixtures.
+- **Honesty:** a story states only attributed facts — real member outlets and a delta from committed catalog data. No synthesized narrative. Representative title = a real member's outlet-stripped title.
+- **Additive:** `feed.json` unchanged; a client with no story data renders the feed exactly as today.
 - react-refresh, no inline styles, `noUnusedLocals`; vitest node env.
 
 ---
 
-## §1 Cluster key — the primary entity
+## §1 Cluster key + the corroboration threshold
 
-Each feed item's cluster key is its most salient entity, chosen deterministically (a CVE anchors more tightly than an actor mention):
+Primary entity per item, deterministic (a CVE anchors more tightly than an actor mention); actor keys pass the established-entity gate:
 
 ```python
-def primary_entity(item):  # -> (etype, evalue) | None
+def primary_entity(item, established):  # -> (etype, evalue) | None
     e = item.get("entities") or {}
     if e.get("cves"):    return ("cve", e["cves"][0].upper())
-    if e.get("actors"):  return ("actor", e["actors"][0].lower())
+    # established gate (port of profiles.ts `keep`): an actor anchors a story only
+    # when it is a real tracked entity — kills "play" (Google Play) fusing news +
+    # Play-ransomware claims. `established` = actors with an ATT&CK fingerprint OR
+    # an intel seed OR >=1 leak-site claim (computed once from actors/intel/feed).
+    if e.get("actors") and e["actors"][0].lower() in established:
+        return ("actor", e["actors"][0].lower())
     if e.get("malware"): return ("malware", e["malware"][0].lower())
-    return None  # nothing to anchor on -> stays a 1:1 feed row, never a story
+    return None  # nothing to anchor -> stays a 1:1 feed row, never a story
 ```
 
-A **story** is a cluster of **≥2 feed items** sharing a primary entity (one member is just a feed row, not a story). This directly satisfies "two outlets on one story render as a single row."
+**A story = a cluster whose members span ≥2 DISTINCT OUTLETS.** Outlet is derived per member (§2), not the `source` field. This is the load-bearing rule: it keeps only genuinely cross-corroborated items (25 of 73 live clusters) and excludes single-outlet leak-tally clusters (which Profiles already aggregates). Members are the last 30 days (the feed window); cap at 12 members per story (a huge actor never becomes one giant row — the newest 12 by `published_at`).
 
 ---
 
 ## §2 `stories.json` — the sibling payload
 
-Built in `pipeline/publish.py` from the composed `feed.json` items + `trends.json` (for the delta) + `cve_context` (KEV). Schema `schemas/stories.schema.json`, added to `SCHEMA_FOR`, published every run (fresh — derived from the current feed, no keep-prior semantics needed beyond the usual gate).
+Built in `run_pipeline.py` (§4) from the composed feed items + `cve_rows` + `trends`. Schema `schemas/stories.schema.json`, added to `SCHEMA_FOR` **in the same change** (a missing entry is a run-killing `KeyError`).
 
 ```jsonc
 { "generated_at", "schema_version": 1,
   "stories": [ {
-    "key": "cve:CVE-2024-3400",        // etype:evalue
-    "entity": "CVE-2024-3400",
-    "entity_type": "cve",               // cve | actor | malware
-    "title": "...",                     // the newest member's title, [Outlet]-stripped
-    "sources": ["BleepingComputer", "The Hacker News", "Unit 42"],  // distinct outlets, display-named
-    "member_ids": ["<sha1>", ...],      // feed.json item ids this story collapses
-    "member_count": 3,
-    "published_at": "...",              // newest member
-    "severity": "high",                 // highest member severity
-    "delta": {                          // CVE stories only in v1; omitted otherwise
-      "epss_from": 0.71, "epss_to": 0.94, "kev": true, "kev_ransomware": false }
+    "key": "cve:CVE-2026-59310", "entity": "CVE-2026-59310", "entity_type": "cve",
+    "title": "...",                       // newest member's title, [Outlet]-stripped
+    "outlets": ["BleepingComputer", "The Hacker News", "Unit 42"],  // distinct, display-named
+    "member_ids": ["<sha1>", ...], "member_count": 3,
+    "published_at": "...", "severity": "high",
+    "delta": {                            // present when catalog data exists (honest-absent otherwise)
+      "kev": true, "kev_ransomware": false, "epss": 0.94,
+      "epss_from": 0.71, "epss_to": 0.94 }  // from/to only when the CVE is a trends epss_mover
   } ] }
 ```
 
-**Builder** (`pipeline/stories.py::build_stories(feed_items, trends, cve_context)`):
-1. Group `feed_items` by `primary_entity`; keep groups with `len ≥ 2`.
-2. Per group: distinct `sources` → display names (reuse the `[Outlet]` title-prefix parse + a source→outlet map); `title` = newest member's title, outlet-prefix stripped; `published_at`/`severity` = newest/max.
-3. **Delta (CVE stories):** look the entity CVE up in `trends.epss_movers` (→ `epss_from`/`epss_to`) and `cve_context[cve]` (→ `kev`/`kev_ransomware`). Omit the whole `delta` object when nothing is known (honest-absent).
-4. Sort stories by (has-delta desc, member_count desc, published_at desc).
-
-**Honesty on sources:** `sources` are the real member `source` fields mapped to human outlet names; never invented. If two members share a source, it appears once (distinct).
-
----
-
-## §3 The client — collapse members into a story row
-
-`web/src/components/.../FeedView` (the Desk feed): self-fetch `useStateData('stories')`. Build a `Set` of all `member_ids`. Render:
-- one **story row** per story — title + a "covered by N · A, B, C" corroboration line + delta chips (an `EpssMeter` from→to + a `KevBadge` when `delta.kev`), reusing the existing `WhatChanged`/`trendRows` primitives;
-- then the normal feed rows for every item whose id is **NOT** in a story (the 1:1 tail);
-- stories sort above the singleton tail (they're the corroborated, higher-signal rows).
-
-A story row expands (native `<details>`) to list its member items (each a normal row with its outlet + link), so the collapse is never lossy — the analyst can still reach every source.
-
-**Additive/safe:** if `stories.json` is missing/empty, the feed renders exactly as today (every item a row).
+**Builder** (`pipeline/stories.py`):
+- `story_outlet(item)` — PORT of `FeedView.tsx:64/93 sourceLabel`: `rss` → the `[Outlet]` prefix via `OUTLET_RE = r"^\s*\[([^\]]+)\]"`; `kev` → "CISA KEV"; `ransomwarelive` → "ransomware.live"; else the `source`. (TS can't be reused across the language boundary — this is a small Python port with a shared-shape test.)
+- `established_actors(actors, intel, feed_items)` — lowercased set with an ATT&CK fingerprint OR intel seed OR ≥1 ransomwarelive claim (mirrors `profiles.ts` `keep`).
+- `build_stories(feed_items, cve_rows, trends, actors, intel)`:
+  1. group by `primary_entity`; per group compute distinct `outlets`; DROP groups with `<2` outlets;
+  2. `title` = newest member title outlet-stripped (`OUTLET_RE` removed); `published_at`/`severity` = newest/max; `member_ids` newest-first, capped 12;
+  3. **delta (CVE only):** join `cve_rows` by the entity CVE → `kev`, `kev_ransomware`, `epss`, `cvss`; then `trends.epss_movers` for the same CVE → `epss_from`/`epss_to`. Omit `delta` when the CVE isn't in the catalog (honest-absent). Actor/malware stories carry no `delta` in v1.
+  4. sort by (has-delta desc, kev desc, member_count desc, published_at desc).
 
 ---
 
-## §4 Testing
-- **Builder (pytest):** two items sharing a CVE → one story with both sources + member_ids; a single-member entity → NO story; a CVE story joins the trends delta (epss_from/to + kev); an actor story has no `delta`; sources are distinct + display-named.
-- **Schema (pytest):** `stories.json` fixture validates; empty `stories:[]` validates; `SCHEMA_FOR` wired.
-- **Publish (pytest):** `stories.json` in `build_site_data` (or run_pipeline), built from the composed feed + trends.
-- **Client (vitest node):** given feed + stories fixtures, a story row renders the corroboration line + delta chips and the member items are NOT rendered as separate top-level rows; a feed item not in any story renders as a normal row; no stories → feed unchanged.
+## §3 The client — a "Corroborated" strip in the briefing
 
-## §5 Decomposition
-- **Plan 1 — backend:** `primary_entity` + `build_stories` + `schemas/stories.schema.json` + `SCHEMA_FOR` + publish wiring + the source→outlet display map. Ships `stories.json`, headless.
-- **Plan 2 — client:** the story-row collapse in the feed (self-fetch stories, dedupe member ids, render corroboration + delta, `<details>` member expansion).
+`FeedView` is PROP-DRIVEN and renders a BRIEFING (masthead + one Lead + category Sections capped at 5), NOT a flat list. So:
+- **Fetch in the route:** `FeedRoute.tsx` already `useStateData('feed')` — add `useStateData('stories')` and pass `stories` as a prop to `FeedView` (keeps FeedView pure + fixture-testable).
+- **Render a "Corroborated stories" section** at the TOP of the briefing (above the Lead), only in the default briefing view (`filter==='all'`, no query) and only for stories with a delta OR ≥3 outlets (the highest-signal). Each story row: the outlet-stripped title + a "covered by N · A, B, C" line + delta chips — a `KevBadge` (`Badges.tsx`) when `delta.kev` and an EPSS from→to via `epssShift`/the `trendRows` primitive (NOT `EpssMeter`, which is single-value). Native `<details>` expands to the member items (each a normal row with its outlet + link) — the collapse is never lossy.
+- **De-dup the briefing:** build a `Set(member_ids)`; exclude those ids from the Lead + Sections so a corroborated item shows once (as its story), not again as a member. If the Lead would have been a story member, the next-ranked non-member becomes the Lead.
+- In list-mode (a lens filter or a search query), stories are NOT injected (the analyst asked for a filtered/ranked list) — v1 keeps stories to the default briefing. (Lens-aware stories are a v2 refinement.)
+- **Additive/safe:** no `stories.json`, or `stories:[]` → the briefing renders exactly as today.
 
-## §6 Deferred (v2)
-- Per-actor / per-campaign claim-count delta ("3 new claims") — needs a per-entity history snapshot in `pipeline/history.py` (today it snapshots only epss/kev).
-- A cluster key that merges an item carrying BOTH a CVE and an actor into the more newsworthy of the two (v1 is CVE-first deterministic).
-- "Reports long tail" collapse + ISP-leaderboard right-sizing (OPEN-WORK §3 P3) — separate, smaller.
+---
+
+## §4 Build location (exact)
+In `run_pipeline.py`, AFTER `payloads["trends.json"]` is set (~line 200) and BEFORE `gate()` (~line 234):
+```python
+payloads["stories.json"] = build_stories(
+    payloads["feed.json"]["items"], cve_rows, payloads["trends.json"],
+    actor_list, intel_groups)
+```
+`cve_rows` (unconditional, :128), the composed scored feed items, and `trends.json` are all in scope there; `actor_list`/`intel_groups` are the ATT&CK actors + the loaded intel seed (already read for `actors.json`/`ransomware_intel.json`). Stories inherit the gate + last-known-good + dual-write into `web/public/data/state/`.
+
+---
+
+## §5 Testing
+- **Builder (pytest):** two rss items on one CVE from DIFFERENT `[Outlet]`s → one story, outlets=[both], delta from `cve_rows` (kev/epss); two items same CVE same outlet → NO story (<2 outlets); a `('actor','play')` group where `play`∉established → NO story (the false-positive gate); an established actor covered by 2 outlets → a story with no `delta`; member cap at 12; title is outlet-stripped.
+- **`story_outlet` (pytest):** `[BleepingComputer] X` → "BleepingComputer"; a kev item → "CISA KEV"; a ransomwarelive item → "ransomware.live".
+- **Schema (pytest):** `stories.json` fixture validates; `stories:[]` validates; `SCHEMA_FOR` wired (guard the KeyError).
+- **Client (vitest node):** given feed + stories props, the Corroborated section renders the corroboration line + delta chips; member items are excluded from the Lead/Sections; a non-member renders normally; no stories prop → briefing unchanged.
+
+## §6 Decomposition
+- **Plan 1 — backend:** `pipeline/stories.py` (`story_outlet`, `established_actors`, `primary_entity`, `build_stories`) + `schemas/stories.schema.json` + `SCHEMA_FOR` + the `run_pipeline.py` wiring. Ships `stories.json`, headless + gate-validated.
+- **Plan 2 — client:** `FeedRoute` fetch + the Corroborated briefing section + member de-dup + `<details>` expansion.
+
+## §7 Deferred (v2)
+- Per-actor/campaign claim-count delta ("3 new claims") — needs a per-entity history snapshot.
+- Lens/search-aware story injection (v1 = default briefing only).
+- Reports long-tail collapse + ISP-leaderboard right-sizing (OPEN-WORK §3 P3).
