@@ -1,0 +1,73 @@
+id: domain-callouts
+title: Domain — who is calling out to it?
+alert_sources: [Microsoft Defender for Endpoint]
+ioc_types: [domain]
+techniques: [T1071.001, T1071.004, T1102]
+tested: "2026-09-05"
+rationale: >
+  Scope a suspicious domain across the estate: which hosts and processes reached
+  it, and whether the pattern looks like beaconing. Scoped to DeviceNetworkEvents
+  (committed DDL); DnsEvents is not validatable here and is deferred. A domain
+  match uses `has` on RemoteUrl because the column carries a full URL — refine to
+  parse_url() in a real workspace. Original KQL; comments carry guidance.
+steps:
+  - id: domain-connections
+    title: 1. Which hosts + processes connected to this domain?
+    kind: pivot
+    param: domain
+    dialect: log_analytics
+    tables: [DeviceNetworkEvents]
+    kql: |
+      // PURPOSE: scope the blast radius — the set of devices and the initiating
+      // processes reaching the domain names the affected hosts and the malware.
+      DeviceNetworkEvents
+      | where TimeGenerated > ago(14d)
+      | where RemoteUrl has "{{domain}}"
+      | summarize Connections = count(),
+                  Devices     = dcount(DeviceName),
+                  DeviceList  = make_set(DeviceName, 50),
+                  Processes   = make_set(tostring(column_ifexists("InitiatingProcessFileName", "")), 25),
+                  RemoteIPs   = make_set(tostring(column_ifexists("RemoteIP", "")), 25),
+                  FirstSeen   = min(TimeGenerated),
+                  LastSeen    = max(TimeGenerated)
+          by RemoteUrl
+      | order by Connections desc
+      //
+      // Look for: a Processes entry that is NOT a browser — powershell, rundll32,
+      //   an unsigned binary, or a random name reaching the domain = C2, not browsing.
+      // Benign twin: chrome/msedge/firefox reaching a CDN or a legitimate SaaS
+      //   subdomain is normal traffic.
+      // Next: go to step 2 to test whether the timing looks like beaconing.
+
+  - id: domain-beaconing
+    title: 2. Does the timing look like beaconing? (per-device cadence)
+    kind: scenario
+    param: domain
+    dialect: log_analytics
+    tables: [DeviceNetworkEvents]
+    kql: |
+      // PURPOSE: separate human browsing (bursty, irregular) from C2 beaconing
+      // (regular interval, low jitter). Uses the mean/stdev of inter-connection gaps.
+      DeviceNetworkEvents
+      | where TimeGenerated > ago(14d)
+      | where RemoteUrl has "{{domain}}"
+      | sort by DeviceName asc, TimeGenerated asc
+      | extend PrevTime = prev(TimeGenerated), PrevDevice = prev(DeviceName)
+      | where DeviceName == PrevDevice
+      | extend GapSeconds = datetime_diff('second', TimeGenerated, PrevTime)
+      | summarize Beacons     = count(),
+                  MeanGapSec  = avg(GapSeconds),
+                  StdevGapSec = stdev(GapSeconds),
+                  Process     = make_set(tostring(column_ifexists("InitiatingProcessFileName", "")), 10)
+          by DeviceName
+      | where Beacons >= 10
+      | extend JitterRatio = iff(MeanGapSec > 0, StdevGapSec / MeanGapSec, 999.0)
+      | where JitterRatio < 0.3
+      | order by JitterRatio asc
+      //
+      // Look for: a LOW JitterRatio (< 0.3) with a consistent MeanGapSec — regular
+      //   call-outs at a fixed interval are the beaconing signature.
+      // Benign twin: software update checks and telemetry also beacon regularly;
+      //   the Process set tells them apart (a signed updater vs rundll32/powershell).
+      // Next: a low-jitter beacon from a non-browser process is C2 — isolate the
+      //   host, capture the process, and pivot on its file hash (file-hash playbook).

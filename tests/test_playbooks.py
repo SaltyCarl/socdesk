@@ -103,5 +103,9 @@ def test_committed_playbooks_load_and_validate():
     assert "unfamiliar-signin-properties" in ids and "password-spray" in ids
     payload = {"generated_at": "x", "schema_version": 1, "playbooks": playbooks}
     assert validate_payload("playbooks.json", payload, "schemas") == []
-    for p in playbooks:              # step 1 always opens the ladder with the IP pivot
-        assert p["steps"][0]["kind"] == "pivot" and p["steps"][0]["param"] == "ip"
+    for p in playbooks:
+        # every ladder opens with a pivot step whose param matches the IOC family
+        # it is offered for (ip for IP playbooks, sha256 / domain for the rest).
+        step0 = p["steps"][0]
+        assert step0["kind"] == "pivot"
+        assert step0["param"] in {"ip", "upn", "domain", "url", "md5", "sha1", "sha256"}

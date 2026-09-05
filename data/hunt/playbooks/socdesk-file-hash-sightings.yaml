@@ -1,0 +1,95 @@
+id: file-hash-sightings
+title: File hash — where has this binary been?
+alert_sources: [Microsoft Defender for Endpoint]
+ioc_types: [sha256]
+techniques: [T1204.002, T1105, T1574.002]
+tested: "2026-09-05"
+rationale: >
+  Scope a suspicious SHA256 across the estate: where the file landed, whether it
+  EXECUTED, and whether it was side-loaded as a module. Scoped to SHA256 (the
+  stable, collision-resistant hash) and to the Defender device tables that have
+  committed DDL — DnsEvents / EmailAttachmentInfo / AlertEvidence are not
+  validatable here and are deferred. Original KQL against the public Defender
+  advanced-hunting schema; comments carry the analyst guidance.
+steps:
+  - id: file-landings
+    title: 1. Where did this file land? (prevalence + paths)
+    kind: pivot
+    param: sha256
+    dialect: log_analytics
+    tables: [DeviceFileEvents]
+    kql: |
+      // PURPOSE: prevalence is triage. One device is contained; fifty is an
+      // incident. Paths + the process that wrote it hint at delivery.
+      DeviceFileEvents
+      | where TimeGenerated > ago(30d)
+      | where SHA256 == "{{sha256}}"
+      | summarize Devices    = dcount(DeviceName),
+                  DeviceList = make_set(DeviceName, 50),
+                  Names      = make_set(FileName, 20),
+                  Paths      = make_set(FolderPath, 20),
+                  WrittenBy  = make_set(tostring(column_ifexists("InitiatingProcessFileName", "")), 20),
+                  FirstSeen  = min(TimeGenerated),
+                  LastSeen   = max(TimeGenerated)
+      //
+      // Look for: many Devices = active spread; a FolderPath under Downloads/Temp/
+      //   AppData + a browser or Office WrittenBy = a phishing/drive-by delivery.
+      // Benign twin: a signed tool in Program Files on one admin box, written by an
+      //   installer, is usually legitimate — confirm the signer separately.
+      // Next: go to step 2 — landing is not execution. A dormant file is lower
+      //   priority than one that ran.
+
+  - id: file-executions
+    title: 2. Did it EXECUTE? (process events for this hash)
+    kind: scenario
+    param: sha256
+    dialect: log_analytics
+    tables: [DeviceProcessEvents]
+    kql: |
+      // PURPOSE: execution changes everything — now you have command lines, the
+      // parent process, and the account it ran as.
+      DeviceProcessEvents
+      | where TimeGenerated > ago(30d)
+      | where SHA256 == "{{sha256}}"
+      | project TimeGenerated, DeviceName,
+                Account = strcat(tostring(column_ifexists("AccountDomain", "")), "\\",
+                                 tostring(column_ifexists("AccountName", ""))),
+                FileName,
+                CommandLine  = tostring(column_ifexists("ProcessCommandLine", "")),
+                ParentProc   = tostring(column_ifexists("InitiatingProcessFileName", "")),
+                ParentCmd    = tostring(column_ifexists("InitiatingProcessCommandLine", ""))
+      | order by TimeGenerated asc
+      //
+      // Look for: a ParentProc of winword/excel/outlook/powershell/wscript, or a
+      //   CommandLine with encoded/download flags — that is the execution chain.
+      // Benign twin: launched by explorer.exe by a real user with a normal command
+      //   line can still be legitimate software; corroborate with the signer/prevalence.
+      // Next: if it ran, pivot on ParentProc/CommandLine for the wider chain, and
+      //   check step 3 for stealthy module loads on the same hash.
+
+  - id: file-module-loads
+    title: 3. Side-loaded as a module? (DLL/image loads)
+    kind: scenario
+    param: sha256
+    dialect: log_analytics
+    tables: [DeviceImageLoadEvents]
+    kql: |
+      // PURPOSE: catches the DLL-side-loading case where the malicious hash never
+      // appears as a process — it is loaded by a trusted, signed EXE.
+      DeviceImageLoadEvents
+      | where TimeGenerated > ago(30d)
+      | where SHA256 == "{{sha256}}"
+      | project TimeGenerated, DeviceName,
+                Module   = FileName,
+                Path     = FolderPath,
+                LoadedBy = tostring(column_ifexists("InitiatingProcessFileName", "")),
+                LoadedByPath = tostring(column_ifexists("InitiatingProcessFolderPath", ""))
+      | order by TimeGenerated asc
+      //
+      // Look for: a LoadedBy that is a legitimate signed binary loading this module
+      //   from a non-standard Path (Downloads/Temp/a user profile) = classic
+      //   DLL search-order hijack / side-loading.
+      // Benign twin: a module loaded from System32/Program Files by its own product
+      //   is normal.
+      // Next: a hit means the trusted LoadedBy process is now suspect — pivot the
+      //   investigation to that process and its host.

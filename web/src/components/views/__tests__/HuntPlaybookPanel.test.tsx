@@ -46,6 +46,10 @@ describe('HuntPlaybookPanelView', () => {
     expect(html).toContain('tested 2026-09-04')
   })
 
+  it('offers a copy-whole-playbook button', () => {
+    expect(html).toContain('Copy whole playbook')
+  })
+
   it('renders an honest empty state for an enrichable type with no playbook', () => {
     const empty = renderToStaticMarkup(
       <HuntPlaybookPanelView playbooks={playbooks} iocType="sha256" iocValue="abc" />,

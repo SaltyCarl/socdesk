@@ -3,7 +3,7 @@ import { cx } from '@socdesk/shared/lib/cx'
 import { MicroLabel } from '../ui'
 import { ExternalLink } from './ExternalLink'
 import { TechniqueChip } from './TechniqueChip'
-import { KqlBlock } from './HuntKql'
+import { KqlBlock, CopyButton } from './HuntKql'
 import { DIALECT_CAVEAT } from './huntCaveat'
 import { safeUrl } from './format'
 import { injectIoc, playbooksForType } from './playbooks'
@@ -47,6 +47,11 @@ export function HuntPlaybookPanelView({
     )
   }
   const selected = matches.find((p) => p.id === selectedId) ?? matches[0]
+  // The whole ladder as one copy target — each step's injected KQL under a
+  // banner comment, so an analyst can paste the entire investigation at once.
+  const wholePlaybook = selected.steps
+    .map((step, i) => `// ==== Step ${i + 1}: ${step.title} ====\n${injectIoc(step.kql, step.param, iocType, iocValue)}`)
+    .join('\n\n')
   const provenance = [
     'SOCDesk',
     selected.source.license,
@@ -93,7 +98,10 @@ export function HuntPlaybookPanelView({
         </div>
       )}
 
-      <p className="text-micro text-faint">{DIALECT_CAVEAT.log_analytics}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-micro text-faint">{DIALECT_CAVEAT.log_analytics}</p>
+        <CopyButton text={wholePlaybook} label="Copy whole playbook" />
+      </div>
 
       <div className="flex flex-col">
         {selected.steps.map((step, i) => {

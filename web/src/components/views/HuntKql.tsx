@@ -15,23 +15,30 @@ async function copyPlain(text: string): Promise<boolean> {
   }
 }
 
-export function CopyKqlButton({ kql }: { kql: string }) {
+/** Truth-returning copy button — shows "Copied" / "Clipboard blocked" honestly
+ *  (never claims a write that the clipboard rejected). Generic over any text so
+ *  the hunt-pack row, a playbook step, and "copy whole playbook" share it. */
+export function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
   const [state, setState] = useState<'idle' | 'copied' | 'blocked'>('idle')
-  const label = state === 'copied' ? 'Copied' : state === 'blocked' ? 'Clipboard blocked' : 'Copy KQL'
+  const shown = state === 'copied' ? 'Copied' : state === 'blocked' ? 'Clipboard blocked' : label
   return (
     <button
       type="button"
       onClick={() => {
-        void copyPlain(kql).then((ok) => {
+        void copyPlain(text).then((ok) => {
           setState(ok ? 'copied' : 'blocked')
           setTimeout(() => setState('idle'), 2000)
         })
       }}
       className="inline-flex items-center rounded-md border border-line bg-panel px-2.5 py-1 font-mono text-micro font-semibold text-muted transition-colors duration-150 ease-brand hover:border-line-bright hover:text-paper focus-visible:outline-2 focus-visible:outline-accent"
     >
-      {label}
+      {shown}
     </button>
   )
+}
+
+export function CopyKqlButton({ kql }: { kql: string }) {
+  return <CopyButton text={kql} label="Copy KQL" />
 }
 
 /** The shared "View KQL" disclosure + scrollable code block + copy button — used
