@@ -14,7 +14,7 @@
     {
       "slug": "clop", "name": "Cl0p", "aliases": ["TA505", "FIN11"],
       "first_seen": "2019-02", "raas": false,
-      "initial_access_cves": ["CVE-2023-34362", "CVE-2023-0669"],
+      "initial_access_cves": ["CVE-2021-27101", "CVE-2023-0669", "CVE-2023-27350", "CVE-2023-34362"],
       "advisory": {"id": "AA23-158A", "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-158a"},
       "advisory_date": "2023-06-07", "last_reviewed": "2026-08-24",
       "sources": [{"id": "ic3-flash", "url": "https://www.ic3.gov/CSA/2023/230607.pdf"}],
