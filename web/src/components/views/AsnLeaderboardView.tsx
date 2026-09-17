@@ -3,6 +3,7 @@ import type { AsnLeaderboardPayload, AsnNetwork } from './types'
 import { num } from './format'
 import { EmptyState } from './states'
 import { barWidthClass } from '../overview/widths'
+import { hasRankableVolume } from '../overview/aggregations'
 
 /**
  * The abuse-by-network leaderboard — autonomous systems ranked by the volume of
@@ -35,6 +36,14 @@ export function AsnLeaderboardView({ payload }: { payload: AsnLeaderboardPayload
   // Bar magnitude is relative to the busiest network (pipeline pre-sorts desc,
   // but Math.max is order-independent). Min 1 avoids a divide-by-zero.
   const maxIps = Math.max(1, ...networks.map((n) => n.ip_count ?? 0))
+  // OPEN-WORK §3: a handful of abusive IPs (often tied) can't support a rank
+  // column or bars without implying a discrimination the data doesn't have.
+  // Below the floor, the "#" column drops and the count renders plain — every
+  // other column (ISP/country/sources/examples) is real per-network fact, not
+  // ranking chrome, so it stays regardless of volume.
+  const rankable = hasRankableVolume(payload)
+  const headers = rankable ? HEADERS : HEADERS.filter((h) => h !== '#')
+  const ipsColIndex = headers.indexOf('Abusive IPs')
 
   if (!networks.length) {
     return (
@@ -57,17 +66,24 @@ export function AsnLeaderboardView({ payload }: { payload: AsnLeaderboardPayload
         </span>
       </div>
 
+      {!rankable && (
+        <p className="max-w-2xl text-micro text-faint">
+          Not enough volume yet to rank networks meaningfully — showing raw
+          counts, unranked.
+        </p>
+      )}
+
       <div className="overflow-x-auto rounded-lg border border-line">
         <table className="w-full min-w-[860px] border-collapse text-left">
           <thead>
             <tr>
-              {HEADERS.map((h, i) => (
+              {headers.map((h, i) => (
                 <th
                   key={h}
                   scope="col"
                   className={cx(
                     'border-b border-line bg-panel px-3 py-2.5 font-mono text-micro font-semibold uppercase tracking-label text-faint',
-                    i === 4 && 'text-right',
+                    i === ipsColIndex && 'text-right',
                   )}
                 >
                   {h}
@@ -81,20 +97,22 @@ export function AsnLeaderboardView({ payload }: { payload: AsnLeaderboardPayload
                 key={n.asn ?? i}
                 className="border-b border-line align-top last:border-0 transition-colors duration-150 ease-brand hover:bg-panel-soft"
               >
-                <td className="px-3 py-2.5 font-mono text-micro text-faint">{i + 1}</td>
+                {rankable && <td className="px-3 py-2.5 font-mono text-micro text-faint">{i + 1}</td>}
                 <td className="px-3 py-2.5 font-mono text-xs font-semibold text-paper">{n.asn ?? '—'}</td>
                 <td className="px-3 py-2.5 text-xs text-paper">{n.isp ?? '—'}</td>
                 <td className="px-3 py-2.5 font-mono text-micro text-muted">{n.country ?? '—'}</td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-panel-soft sm:inline-block"
-                    >
+                    {rankable && (
                       <span
-                        className={cx('block h-full rounded-full bg-accent', barWidthClass((n.ip_count ?? 0) / maxIps))}
-                      />
-                    </span>
+                        aria-hidden="true"
+                        className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-panel-soft sm:inline-block"
+                      >
+                        <span
+                          className={cx('block h-full rounded-full bg-accent', barWidthClass((n.ip_count ?? 0) / maxIps))}
+                        />
+                      </span>
+                    )}
                     <span className="font-mono text-sm tabular-nums text-paper">{num(n.ip_count)}</span>
                   </div>
                   {n.report_count ? (

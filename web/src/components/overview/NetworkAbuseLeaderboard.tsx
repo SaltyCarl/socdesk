@@ -3,7 +3,7 @@ import { num } from '../views/format'
 import type { AsnLeaderboardPayload, AsnNetwork } from '../views/types'
 import { BoardPanel, DeskLink, PanelEmpty, SourceStamp } from './board-ui'
 import { barWidthClass } from './widths'
-import { topNetworks } from './aggregations'
+import { hasRankableVolume, topNetworks } from './aggregations'
 
 /**
  * ISP Abuse Leaderboard — a compact landing teaser for the full /desk#networks
@@ -60,6 +60,7 @@ export function NetworkAbuseLeaderboard({ payload }: { payload: AsnLeaderboardPa
   const networks = payload.networks ?? []
   const rows = topNetworks(networks, TOP_N)
   const max = rows[0]?.ip_count ?? 1
+  const rankable = hasRankableVolume(payload)
 
   return (
     <BoardPanel
@@ -77,6 +78,15 @@ export function NetworkAbuseLeaderboard({ payload }: { payload: AsnLeaderboardPa
     >
       {rows.length === 0 ? (
         <PanelEmpty>No abusive-IP reports have been attributed to a network yet.</PanelEmpty>
+      ) : !rankable ? (
+        // Too little volume to rank meaningfully (OPEN-WORK §3) — a plain count
+        // reads honestly; a rank column and bars over a handful of IPs (often
+        // tied) would imply a discrimination the data doesn't have.
+        <PanelEmpty>
+          {num(payload.total_abusive_ips)} abusive IPs reported across {num(networks.length)}{' '}
+          network{networks.length === 1 ? '' : 's'} so far — not enough volume to rank
+          meaningfully yet.
+        </PanelEmpty>
       ) : (
         <div className="flex flex-col">
           {rows.map((n, i) => (

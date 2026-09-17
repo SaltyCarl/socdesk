@@ -8,7 +8,7 @@
 // Pure functions, no React, no I/O — trivially testable and reused by both the
 // stat strip and its matching panel so their numbers can never disagree.
 
-import type { AsnNetwork, Cve, FeedItem } from '../views/types'
+import type { AsnLeaderboardPayload, AsnNetwork, Cve, FeedItem } from '../views/types'
 
 /* ---------------- ransomware leak-site activity ---------------- */
 
@@ -137,4 +137,15 @@ export function patchPriority(cves: Cve[], limit = 7): Cve[] {
  */
 export function topNetworks(networks: AsnNetwork[], limit = 5): AsnNetwork[] {
   return networks.slice(0, limit)
+}
+
+/**
+ * OPEN-WORK §3 "right-size the ISP leaderboard": at a handful of abusive IPs,
+ * a rank column and volume bars imply a discrimination the data doesn't have
+ * (e.g. a 3-way tie at ip_count=2). Below this floor, both leaderboard
+ * surfaces fall back to a plain count instead of rank+bar chrome; at or above
+ * it, there is enough spread across the dataset for ranking to mean something.
+ */
+export function hasRankableVolume(payload: AsnLeaderboardPayload | null): boolean {
+  return (payload?.total_abusive_ips ?? 0) >= 20
 }
