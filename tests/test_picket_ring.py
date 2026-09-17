@@ -61,3 +61,23 @@ def test_state_is_bounded_by_pruning_old_sparse_deltas():
     for i in range(1, 400):   # 400 buckets of activity on one IP
         apply_snapshot(st, snap(i, ip={"1.1.1.1": i}), T0 + i * 1800)
     assert len(st["deltas"]["ip"]["1.1.1.1"]) <= RING_LEN
+
+
+def test_per_entity_decrease_alone_is_clamped_and_flagged():
+    st = new_state()
+    apply_snapshot(st, snap(100, ip={"1.1.1.1": 60, "2.2.2.2": 40}), T0)
+    out = apply_snapshot(st, snap(110, ip={"1.1.1.1": 50, "2.2.2.2": 60}), T0 + 1800)
+    assert out["reset"] is True
+    assert out["hits_7d"]["ip"] == {"2.2.2.2": 20}
+    assert out["ring"][-1] == 10
+
+
+def test_partial_window_slide_zero_fills_the_gap_and_keeps_older_buckets():
+    st = new_state()
+    apply_snapshot(st, snap(0), T0)
+    apply_snapshot(st, snap(5), T0 + 1800)
+    out = apply_snapshot(st, snap(12), T0 + 5 * 1800)
+    assert out["ring"][-1] == 7
+    assert out["ring"][-5] == 5
+    assert out["ring"][-4:-1] == [0, 0, 0]
+    assert sum(out["ring"]) == 12
