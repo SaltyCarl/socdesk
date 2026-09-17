@@ -72,8 +72,8 @@ Two table/type traps worth not repeating: mailbox rules live in
 | P | Item | Do / acceptance |
 |---|---|---|
 | ✅ **1** | Cross-source clustering + "what changed" | **DONE (2026-09-05, backend `8bea02b` + client `41ef417`).** Spec adversarially vetted (4 ship-breaking fixes: outlet-from-title dedup, ≥2-outlet threshold, `cve_rows` delta, build after trends). `pipeline/stories.py` → `stories.json` (24 live corroborated stories, feed.json unchanged). Client: a "Corroborated — one story, multiple sources" strip leads the `/desk` briefing (top 6 by delta/outlets), each "covered by N · outlets" + KEV/EPSS-shift chips, `<details>`-expanding to members which are de-duped from the Lead/Sections. **Live-dogfooded** — the two-outlets-one-row acceptance holds. |
-| 3 | Collapse the Reports long tail | ~55% of the feed is near-zero-scored report items stacked in the default briefing. Put them behind their filter. |
-| 3 | Right-size the ISP leaderboard | Full leaderboard chrome (rank column, bars) over ~8 data points where the maximum value is 2 — the bars cannot discriminate and the rank is a three-way tie. Either fold it into Sources as a sentence, or gate the leaderboard treatment on a data-volume threshold. |
+| ✅ 3 | Collapse the Reports long tail | **DONE (2026-09-17, `f006e5f`).** `reports` lens excluded from `FeedView`'s `sections` memo — no longer auto-stacks a section in the default briefing (was 53% of the live feed, 375/706 items). The Reports lens chip stays as the one way to reach them, unchanged. Verified live: default sections are Vulnerabilities/Ransomware/Named actors/Malware only; Reports chip still live-counts and filters. |
+| ✅ 3 | Right-size the ISP leaderboard | **DONE (2026-09-17, `80ddf01`).** Gated on `hasRankableVolume()` — `total_abusive_ips >= 20` (owner-set floor; live value is 8). Below it, the homepage teaser shows a plain sentence and the dedicated `/desk#networks` table drops the rank column + bar (keeps per-network facts: ISP/country/sources/examples). Both auto-upgrade once the dataset grows past the floor. Verified live against the committed `asn_leaderboard.json`. |
 
 ---
 
