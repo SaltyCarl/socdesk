@@ -601,9 +601,13 @@ export function FeedView({
   const lead = rankedBriefing[0] ?? null
 
   // Briefing sections — top rows per lens, the lead + story members excluded.
+  // "Reports" (OPEN-WORK §3) is deliberately excluded here: it's the pipeline's
+  // catch-all category, near-always near-zero score, and was ~55% of the feed
+  // stacking the default briefing with a long tail. It stays fully reachable
+  // via its lens chip (`lenses` below still counts it) — just not auto-shown.
   const sections = useMemo(() => {
     const leadId = lead?.item.id
-    return LENSES.map((lens) => {
+    return LENSES.filter((lens) => lens.key !== 'reports').map((lens) => {
       const inLens = rankedBriefing.filter(({ item }) => lens.categories.includes(item.category))
       const rows = inLens.filter(({ item }) => item.id !== leadId).slice(0, SECTION_ROWS)
       return { lens, rows, total: inLens.length }

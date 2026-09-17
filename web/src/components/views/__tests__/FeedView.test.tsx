@@ -126,3 +126,29 @@ describe('FeedView — corroborated stories strip (§3)', () => {
     expect(html).not.toContain('Corroborated')
   })
 })
+
+describe('FeedView — Reports long tail collapsed out of the default briefing (OPEN-WORK §3)', () => {
+  const lead: FeedItem = {
+    id: 'lead1', source: 'kev', category: 'vulnerability',
+    title: 'KEV: CVE-2026-5555 — Lead Vuln',
+    summary: 's', url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
+    entities: { cves: ['CVE-2026-5555'] }, score: 90, why: ['KEV-listed'],
+    published_at: '2026-09-02T00:00:00Z',
+  }
+  const reportItem: FeedItem = {
+    id: 'rep1', source: 'rss', category: 'report',
+    title: 'Distinctive Zero-Score Report Title XYZ',
+    summary: 's', url: 'https://example.com/rep1',
+    score: 0, published_at: '2026-09-01T00:00:00Z',
+  }
+
+  it('never stacks a Reports section in the default briefing, even when reports dominate the feed', () => {
+    const html = renderToStaticMarkup(<FeedView items={[lead, reportItem]} />)
+    expect(html).not.toContain('Distinctive Zero-Score Report Title XYZ')
+  })
+
+  it('still lists Reports as a lens chip with its live count (the one way to reach them)', () => {
+    const html = renderToStaticMarkup(<FeedView items={[lead, reportItem]} />)
+    expect(html).toContain('Reports')
+  })
+})
