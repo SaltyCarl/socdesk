@@ -321,7 +321,29 @@ All four registered in `pipeline/validate.py:SCHEMA_FOR`; the gate falls back to
 
 ---
 
-## 10. Self-review (folded in)
+## 10. Documentation deliverables (owner requirement — binding)
+
+Owner, 2026-09-17, on approving this spec: *"this design will need to be extensively documented for review and reference."* Documentation is therefore a **phase exit criterion**, shipped in the same commit series as the code it describes. A phase is not done until every item below that it touches exists and is current.
+
+| Document | Purpose / audience | Owned by phase |
+|---|---|---|
+| **`docs/PICKET.md`** (new) | **The reference.** Architecture (the §2 diagram, kept current), every payload and schema explained field-by-field with example rows, the PII-fence rules and their rationale, the delta-ring method, the lead-time methodology **and its caveat**, the candidate rule, the export-pack formats with each Microsoft limit and its Learn citation, the freshness state machine, the failure-mode table, the threat model of the box. Written for a reviewer who has not read this spec. | P1 (created), P2/P3 (extended) |
+| **`tools/picket/README.md`** (new) | **The box runbook.** Provision → harden (exact `sshd`/ufw steps, in order — the lock-out warning first) → install knock-knock (pinned tag, `.env` template) → install exporter + timer → verify (external `nmap`, first export, deploy-key push) → **rebuild-from-scratch** → **incident response** (compromise: destroy the box, rotate the export-repo deploy key, review the export repo history). | P1 |
+| **`docs/OPERATIONS.md`** | New section *"Owner one-time setup — PICKET"* (§9 steps) + the dogfood acceptance checklist, mirroring the B2 section's style. | P1, P3 |
+| **`docs/DATA-SOURCES.md`** | A `picket` entry: what it is, first-party redistribution posture, knock-knock MIT + MaxMind GeoLite2 attribution lines. | P1 |
+| **`docs/REPO-MAP.md`** | Every new module, route, component, schema, migration, Function (CLAUDE.md requires this on any structural change). | each phase |
+| **`docs/ANALYST-GUIDE.md`** | How to read the PICKET tab; what the `SOCDesk Picket` context row means and does not mean; **how to import each export** (per-product steps + the tenant prerequisites quoted from Learn). | P1, P2 |
+| **`README.md`** | Documentation-table rows for `PICKET.md` and the runbook; a feature blurb in the product register. | P1 |
+| **`web/src/routes/About.tsx` `#picket`** | Public transparency: what the sensor is, that credentials are aggregated and fenced, that upstream reports are owner-moderated, dispute contact, attributions. | P1 |
+| **`COMPLIANCE.md`** | A dated PICKET entry: first-party telemetry posture, why attacker IPs are published, the credential fence, moderated give-back, attribution obligations. | P1, P3 |
+| **`schemas/*.schema.json`** | Each new schema carries a `description` on every property (the schema *is* documentation). | P1, P2 |
+| **Module docstrings** | Every new module states the invariant it enforces (house style — see `pipeline/community.py`, `collectors/base.py`). | each phase |
+| **`BACKLOG.md` + `docs/HANDOFF.md`** | Status at each phase close-out (existing convention); the dated §0 HANDOFF block names what shipped, what was verified, and what the next phase needs. | each phase |
+| **Plan review record** | Each phase plan is adversarially vetted before build (existing practice); findings and their resolutions are folded into the plan document itself so the reasoning is reviewable later. | each phase |
+
+Optional, on request: a standalone review packet (HTML/PDF, like `docs/SOCDesk-Overview.pdf`) rendered from `PICKET.md` at a phase close-out.
+
+## 11. Self-review (folded in)
 
 - **Placeholders:** none — every limit cites a verified source (Microsoft Learn pages fetched 2026-09-17; knock-knock `monitor.py`, `.env.example`, `self_redaction.py`, `INSTALL.md` read from the repo at its 2026-09-16 HEAD). Two items are explicitly marked **build-time checks** rather than assumed: (i) which knock-knock protocols log a knock only on an authentication attempt (gates candidacy, §3.9a); (ii) which Sentinel/Defender tables have committed DDL for the KQL pack (§3.10.2). Both are cheap to verify in P1/P2 and change nothing structural.
 - **Consistency:** the same 2,000-IP, credential-submitting, last-7-days set feeds the MDE CSV, the watchlist, and the blocklist; `top_ips` in the panel is a ≤ 100 view of it; `picket_lookup` is the ≤ 5,000 superset for enrich. Candidates (§3.9) are a stricter subset (≥ 10 hits, not on abuse.ch, not benign, not recently decided). No surface derives a number a different way.
