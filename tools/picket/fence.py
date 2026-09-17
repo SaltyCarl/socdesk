@@ -14,8 +14,8 @@ MAX_CRED_LEN = 32
 MIN_CRED_HITS = 3
 
 _EMAIL_RE = re.compile(r"[^\s@]+@[^\s@]+\.[^\s@]+")
-# Account-like: pure alphanumeric words separated by @, e.g., "bob@corp"
-_ACCOUNT_RE = re.compile(r"^[a-z0-9]+@[a-z0-9]+$", re.IGNORECASE)
+# Account-like: local part (letters/digits/./_ /-) @ host part (letters/digits/./-), e.g., "bob@corp"
+_ACCOUNT_RE = re.compile(r"^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$")
 # 9+ digits allowing separators: phone numbers, card numbers, SSNs, IDs.
 _LONG_DIGITS_RE = re.compile(r"\d[\d\-\s.]{7,}\d")
 

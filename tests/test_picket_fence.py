@@ -10,6 +10,11 @@ def test_common_credentials_pass(value):
 @pytest.mark.parametrize("value", [
     "alice@example.com",            # email
     "bob@corp",                     # any '@' — could be a real account handle
+    "Bob@Corp",                     # mixed case handle@host
+    "BOB@CORP",                     # uppercase handle@host
+    "bob-smith@corp-host",          # hyphens in handle and host
+    "bob_smith@corphost",           # underscores in local part
+    "bob.smith@corp",               # dots in local part
     "+1 415 555 0199",              # phone-like digit run
     "4111 1111 1111 1111",          # card-like
     "123-45-6789 extra",            # SSN-like run inside a longer string
