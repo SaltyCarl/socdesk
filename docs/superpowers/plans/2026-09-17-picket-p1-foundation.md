@@ -1142,7 +1142,7 @@ COLLECTORS = [kev, nvd, ransomwarelive, rss, feodotracker, threatfox, picket]
 ```
 and add to the module comment: `# picket: SOCDesk's OWN honeypot telemetry (first-party, redistributable by construction) — see docs/PICKET.md.`
 
-Check the real `fetch` in `run_pipeline.py` supports `text=True` (grep `def fetch` / `text=`); the conftest fake mirrors it. If it does not, add the `text` keyword there, returning `resp.text` — a one-line change; include it in this task if needed.
+The real fetch is `pipeline/http.py:6` `http_fetch(url, *, method="GET", json=None, headers=None, text=False)` — it already supports `text=True` (returns the raw body), and the conftest fake mirrors that signature. No change needed.
 
 - [ ] **Step 5: Run to verify pass**
 
@@ -1417,7 +1417,7 @@ def test_picket_export_down_keeps_prior_with_honest_status(fake_fetch, tmp_path)
     assert any(s["source"] == "picket" and not s["ok"] for s in health["sources"])
 ```
 
-If `_pipeline_fetch` has no `extra=` parameter, add one (merge the mapping) — a minimal test-helper change, included in this task.
+`_pipeline_fetch(fake_fetch)` (`tests/test_pipeline.py:50-66`) currently takes no extra mapping. Make this exact change in the same task: give it the signature `def _pipeline_fetch(fake_fetch, extra=None):` and insert `mapping.update(extra or {})` on the line immediately before `inner = fake_fetch(mapping)`. Existing callers pass no `extra` and are unaffected.
 
 - [ ] **Step 2: Run to verify failure**
 
