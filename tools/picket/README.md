@@ -51,6 +51,23 @@ password auth — if you get this wrong and disconnect, you are locked out**
 (cloud console / rescue mode is your only way back in). Do not skip the
 verification pause.
 
+**Before running `install.sh`:** stage the exporter files on the box exactly
+as §5 lists them — the script's own step 4 runs
+`pip install -q -r /opt/socdesk/tools/picket/requirements.txt`, which requires
+those files to already be present at `/opt/socdesk/tools/picket/`. Do the copy
+now (run §5's copy block at this point, from your workstation), then continue:
+
+```bash
+# from your workstation, against the box (adjust the SSH port if you've
+# already moved it; on a fresh box it's still 22)
+ssh root@<ip> mkdir -p /opt/socdesk
+rsync -az -e "ssh -p 22" tools/picket collectors/base.py schemas/picket_export.schema.json \
+  root@<ip>:/opt/socdesk/
+```
+
+See §5 "Exporter" for the exhaustive file list this must include and the
+`collectors/__init__.py` step — come back here once the copy is done.
+
 Set the required environment variables and run the script as root on the
 fresh box:
 
@@ -150,13 +167,32 @@ above until it fails as expected.
 
 ## 5. Exporter
 
-Copy these files from this repo onto the box, under `/opt/socdesk`, preserving
-paths:
+If you haven't already (§3 tells you to do this *before* running
+`install.sh`, since its step 4 pip-installs from these files), copy the
+**entire** `tools/picket/` directory from this repo onto the box, under
+`/opt/socdesk`, preserving paths — not just `exporter.py`, all of it, because
+`exporter.py` imports the rest as `tools.picket.*`:
 
 ```
-tools/picket/                          # exporter.py, requirements.txt, systemd/, install.sh, README.md
-collectors/base.py                     # clean_text(), iso() — the exporter/assembler import these
+tools/picket/
+  exporter.py
+  assemble.py                          # assemble_export(), validate_export() — imported by exporter.py
+  fence.py                             # fence_credential(), is_public_ip() — imported by assemble.py
+  ring.py                              # apply_snapshot(), new_state() — imported by exporter.py
+  __init__.py                          # makes tools.picket importable as a package
+  requirements.txt
+  systemd/
+  install.sh
+  README.md
+collectors/base.py                     # clean_text(), iso() — assemble.py imports these
 schemas/picket_export.schema.json      # the export schema validate_export() checks against
+```
+
+```bash
+# from your workstation, run from the repo root
+ssh root@<ip> mkdir -p /opt/socdesk
+rsync -az -e "ssh -p 22" tools/picket collectors/base.py schemas/picket_export.schema.json \
+  root@<ip>:/opt/socdesk/
 ```
 
 `collectors/base.py` imports as `collectors.base`, so also create an empty
