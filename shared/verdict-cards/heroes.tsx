@@ -15,8 +15,8 @@ import { useRef, type ReactNode } from 'react'
 import type { VerdictData } from '../verdict'
 import { cx } from '../lib/cx'
 import { Chip, MicroLabel } from '../ui'
-import { WORLD, coordLabel, geoModel, greatCircleArc, project, type FlagDef, type GeoModel } from '../card/geo'
-import { cveModel, domainModel, hashModel, urlModel } from '../card/model'
+import { WORLD, coordLabel, geoAttribution, geoModel, greatCircleArc, project, type FlagDef, type GeoModel } from '../card/geo'
+import { cveModel, domainModel, hashModel, hostingChip, urlModel } from '../card/model'
 import type { CompareResult } from './CompareIp'
 
 /* ---------- shared scaffolding ------------------------------------------- */
@@ -180,6 +180,7 @@ export function IpHero({ data, compare }: { data: VerdictData; compare?: Compare
   const geo = geoModel(data.context, data.sources)
   if (!geo) return null
   const sub = [geo.city, geo.asn, geo.org].filter(Boolean).join(' · ')
+  const hosting = hostingChip(data)
   return (
     <HeroPanel label="Geolocation — context, not a verdict">
       <WorldMap geo={geo} compare={compare} />
@@ -194,9 +195,14 @@ export function IpHero({ data, compare }: { data: VerdictData; compare?: Compare
         <div className="ml-auto text-right font-mono text-micro leading-tight text-faint">
           {coordLabel(geo)}
           <br />
-          via ipinfo
+          {geoAttribution(geo)}
         </div>
       </div>
+      {hosting && (
+        <p className="font-mono text-micro text-faint">
+          Hosting/announcement location, not the operator's.
+        </p>
+      )}
     </HeroPanel>
   )
 }

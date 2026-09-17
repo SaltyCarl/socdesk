@@ -7,6 +7,7 @@ import {
   gaugeCaption,
   gaugeSegments,
   hashModel,
+  hostingChip,
   isBannerLed,
   urlModel,
 } from '../model';
@@ -135,6 +136,26 @@ describe('urlModel (the scanned page, spec §3.3)', () => {
     expect(um.scanner).toBe('urlscan');
     expect(um.verdict).toBe('malicious');
     expect(um.finalUrl).toContain('support-verify.com');
+  });
+});
+
+describe('hostingChip (AbuseIPDB usage-type flag, shared by the card and its geo hero)', () => {
+  const withUsage = (usage: string) => ({
+    sources: [
+      { name: 'AbuseIPDB', facts: [['Usage type', usage]] },
+    ],
+  }) as unknown as Parameters<typeof hostingChip>[0];
+
+  it('flags a datacenter/hosting usage type', () => {
+    expect(hostingChip(withUsage('Data Center/Web Hosting/Transit'))).toBe('hosting / datacenter');
+  });
+
+  it('is null for a residential/ISP usage type', () => {
+    expect(hostingChip(withUsage('Fixed Line ISP'))).toBeNull();
+  });
+
+  it('is null when AbuseIPDB was not consulted', () => {
+    expect(hostingChip({ sources: [] } as unknown as Parameters<typeof hostingChip>[0])).toBeNull();
   });
 });
 

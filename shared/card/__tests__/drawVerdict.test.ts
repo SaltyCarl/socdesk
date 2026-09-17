@@ -9,12 +9,15 @@ import { STUBS } from '../../verdict-cards/stubs';
 // context anyway). The context is a Proxy: every method is a no-op except
 // measureText, which returns a width proportional to the string length so the
 // wrap/measure logic exercises deterministically.
+let lastFillText: string[] = [];
+
 function makeContext() {
   return new Proxy(
     {},
     {
       get(_target, prop) {
         if (prop === 'measureText') return (s: string) => ({ width: String(s).length * 6 });
+        if (prop === 'fillText') return (s: string) => { lastFillText.push(String(s)); };
         return () => {};
       },
       set() {
@@ -61,5 +64,33 @@ describe('renderVerdictCanvas (deterministic copy-card PNG)', () => {
     const hash = STUBS.find((s) => s.id === 'hash')!.data;
     expect(() => renderVerdictCanvas(hash, { theme: 'light', now: NOW })).not.toThrow();
     expect(() => renderVerdictCanvas(hash, { theme: 'dark', now: NOW })).not.toThrow();
+  });
+
+  it('paints the client-safe caveat and the sources-queried stamp on the footer', () => {
+    lastFillText = [];
+    const ip = STUBS.find((s) => s.id === 'ip')!.data;
+    renderVerdictCanvas(ip, { theme: 'dark', now: NOW });
+    expect(lastFillText.some((s) => s.includes('Reflects third-party reputation'))).toBe(true);
+    expect(lastFillText.some((s) => /queried/i.test(s))).toBe(true);
+  });
+
+  it('ties the hosting/datacenter signal into the geo block when AbuseIPDB flags it', () => {
+    lastFillText = [];
+    const ip = STUBS.find((s) => s.id === 'ip')!.data;
+    const hostingIp = {
+      ...ip,
+      sources: ip.sources.map((s) =>
+        s.name === 'AbuseIPDB' ? { ...s, facts: [...(s.facts ?? []), ['Usage type', 'Data Center/Web Hosting/Transit'] as [string, string]] } : s,
+      ),
+    };
+    renderVerdictCanvas(hostingIp, { theme: 'dark', now: NOW });
+    expect(lastFillText.some((s) => /hosting|datacenter|announcement/i.test(s))).toBe(true);
+  });
+
+  it('attributes the geo readout to the real source, not a hard-coded "via ipinfo"', () => {
+    lastFillText = [];
+    const ip = STUBS.find((s) => s.id === 'ip')!.data;
+    renderVerdictCanvas(ip, { theme: 'dark', now: NOW });
+    expect(lastFillText).toContain('city-level · via ipinfo');
   });
 });

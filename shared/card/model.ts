@@ -14,6 +14,17 @@ export function factMap(facts?: FactRow[]): Map<string, string> {
   return new Map((facts ?? []).map(([k, v]) => [String(k).toLowerCase(), String(v)]))
 }
 
+/** Hosting / VPN / datacenter flag from AbuseIPDB's usage type — the other big
+ *  impossible-travel false-positive besides Tor (which the dual-use chip carries).
+ *  Shared by the card's chip AND its geo hero (the hero ties the two together so
+ *  a datacenter IP's flag+pin doesn't read as the operator's real location).
+ *  Context, not a verdict. */
+export function hostingChip(data: VerdictData): string | null {
+  const usage =
+    data.sources.find((s) => s.name === 'AbuseIPDB')?.facts?.find((f) => /usage type/i.test(f[0]))?.[1] ?? ''
+  return /data ?cent(er|re)|hosting|vpn|cdn|transit|cloud/i.test(usage) ? 'hosting / datacenter' : null
+}
+
 function pick(m: Map<string, string>, ...keys: string[]): string {
   for (const k of keys) {
     const v = m.get(k.toLowerCase())

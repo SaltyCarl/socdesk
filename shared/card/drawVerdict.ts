@@ -22,7 +22,7 @@
 import type { Band, VerdictData, VerdictSource } from '../verdict'
 import { CAVEAT, assessmentLine, classTag, dualUseNote, hashHeadline, isStale, predicate } from '../verdict'
 import { detectTheme, MONO, SANS, mix, THEMES, type CanvasTheme, type Palette } from './palette'
-import { WORLD, coordLabel, geoModel, greatCircleArc, project, type GeoModel } from './geo'
+import { WORLD, coordLabel, geoAttribution, geoModel, greatCircleArc, project, type GeoModel } from './geo'
 import type { CompareResult } from '../verdict-cards/CompareIp'
 import {
   cveLead,
@@ -32,6 +32,7 @@ import {
   domainModel,
   gaugeSegments,
   hashModel,
+  hostingChip,
   isBannerLed,
   type CveModel,
   type DomainModel,
@@ -70,7 +71,7 @@ function bandInk(T: Palette, band: Band): string {
 /* ---------- the card content model (pure) -------------------------------- */
 
 type Hero =
-  | { kind: 'geo'; geo: GeoModel; note: string; compare?: CompareResult | null }
+  | { kind: 'geo'; geo: GeoModel; note: string; hosting: string | null; compare?: CompareResult | null }
   | { kind: 'domain'; dm: DomainModel }
   | { kind: 'identity'; hash: HashModel }
   | { kind: 'cve'; cve: CveModel }
@@ -112,7 +113,7 @@ function heroFor(data: VerdictData, now: Date, compare?: CompareResult | null): 
   if (data.type === 'domain') return { kind: 'domain', dm: domainModel(data, now) }
   if (data.type === 'ipv4') {
     const geo = geoModel(data.context, data.sources)
-    if (geo) return { kind: 'geo', geo, note: dualUseNote(data.sources) ?? '', compare }
+    if (geo) return { kind: 'geo', geo, note: dualUseNote(data.sources) ?? '', hosting: hostingChip(data), compare }
   }
   if (data.type === 'url') {
     const scan = data.sources.find((s) => s.name === 'urlscan') ?? data.sources[0]
@@ -299,7 +300,36 @@ function paint(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, draw: bo
   /* attributed source rows */
   y = paintSources(ctx, m, T, draw, y, inner)
 
+  /* the verify caveat + queried stamp — honesty travels on every copy of the
+   * card, not just the on-screen React register (item: "copy-card carries the
+   * caveat"). */
+  y = paintFooter(ctx, m, T, draw, y, inner)
+
   return y + PAD
+}
+
+function paintFooter(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, draw: boolean, y: number, inner: number): number {
+  const mc = measurer()
+  const font = `400 9px ${SANS}`
+  const lh = 13
+  const lines = wrap(mc, m.caveat, font, inner - 10)
+  if (draw) {
+    ctx.fillStyle = T.border2
+    ctx.fillRect(PAD, y, 2, lines.length * lh + 2)
+    ctx.font = font
+    ctx.fillStyle = T.textDim
+    ctx.textAlign = 'left'
+    lines.forEach((ln, i) => ctx.fillText(ln, PAD + 10, y + 9 + i * lh))
+  }
+  y += lines.length * lh + 8
+
+  if (draw) {
+    ctx.font = `400 8.5px ${MONO}`
+    ctx.fillStyle = T.textFaint
+    ctx.textAlign = 'left'
+    ctx.fillText(`sources queried ${m.queried}`, PAD, y + 8)
+  }
+  return y + 16
 }
 
 function paintLead(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, draw: boolean, y: number, inner: number): number {
@@ -410,7 +440,7 @@ function paintGauge(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, dra
 function paintHero(ctx: CanvasRenderingContext2D, m: CardModel, T: Palette, draw: boolean, y: number, inner: number): number {
   switch (m.hero.kind) {
     case 'geo':
-      return paintGeo(ctx, m.hero.geo, T, draw, y, inner, m.hero.compare)
+      return paintGeo(ctx, m.hero.geo, T, draw, y, inner, m.hero.hosting, m.hero.compare)
     case 'domain':
       return paintDomain(ctx, m.hero.dm, T, draw, y, inner)
     case 'identity':
@@ -450,7 +480,7 @@ function geoSepLine(g: GeoModel, c: CompareResult): string {
   return `GEOGRAPHIC SEPARATION: ${a.milesLabel} · ${geoLabel(g)} → ${geoLabel(c.second)}${vel}`
 }
 
-function paintGeo(ctx: CanvasRenderingContext2D, g: GeoModel, T: Palette, draw: boolean, y: number, inner: number, compare?: CompareResult | null): number {
+function paintGeo(ctx: CanvasRenderingContext2D, g: GeoModel, T: Palette, draw: boolean, y: number, inner: number, hosting: string | null, compare?: CompareResult | null): number {
   const ipad = 12
   const contentW = inner - ipad * 2
   const mapH = contentW * (WORLD.length / WORLD[0].length)
@@ -465,7 +495,17 @@ function paintGeo(ctx: CanvasRenderingContext2D, g: GeoModel, T: Palette, draw: 
   const sepLH = 12
   const sepLines = compare ? wrap(mc, geoSepLine(g, compare), sepFont, contentW) : []
   const sepBlock = compare ? sepGap + sepLines.length * sepLH : 0
-  const geoH = ipad + 12 + 8 + mapH + 12 + 30 + sepBlock + ipad
+
+  // Hosting/datacenter honesty tie-in (OPEN-WORK §4.1) — present ONLY when
+  // AbuseIPDB's usage type flags it, so a datacenter IP's flag+pin never reads
+  // as the real operator's location without qualification.
+  const hostFont = `400 8.5px ${MONO}`
+  const hostGap = 6
+  const hostLH = 12
+  const hostLines = hosting ? wrap(mc, "Hosting/announcement location, not the operator's.", hostFont, contentW) : []
+  const hostBlock = hosting ? hostGap + hostLines.length * hostLH : 0
+
+  const geoH = ipad + 12 + 8 + mapH + 12 + 30 + sepBlock + hostBlock + ipad
 
   heroPanel(ctx, T, draw, y, inner, geoH)
 
@@ -502,7 +542,7 @@ function paintGeo(ctx: CanvasRenderingContext2D, g: GeoModel, T: Palette, draw: 
     ctx.font = `400 8.5px ${MONO}`
     ctx.fillStyle = T.textFaint
     ctx.fillText(coordLabel(g), W - PAD - ipad, gy + 12)
-    ctx.fillText('via ipinfo', W - PAD - ipad, gy + 24)
+    ctx.fillText(geoAttribution(g), W - PAD - ipad, gy + 24)
     ctx.textAlign = 'left'
   }
 
@@ -512,6 +552,15 @@ function paintGeo(ctx: CanvasRenderingContext2D, g: GeoModel, T: Palette, draw: 
     ctx.fillStyle = T.textDim
     ctx.textAlign = 'left'
     sepLines.forEach((ln, i) => ctx.fillText(ln, PAD + ipad, gy + 30 + sepGap + 9 + i * sepLH))
+  }
+
+  // the hosting/announcement honesty caption, below the sep fact (if any)
+  if (hosting && draw) {
+    ctx.font = hostFont
+    ctx.fillStyle = T.textFaint
+    ctx.textAlign = 'left'
+    const hostY = gy + 30 + sepBlock + hostGap + 9
+    hostLines.forEach((ln, i) => ctx.fillText(ln, PAD + ipad, hostY + i * hostLH))
   }
 
   return y + geoH + 12

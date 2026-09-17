@@ -74,4 +74,31 @@ describe('geoModel (derived from the STUBS fixtures, deterministic)', () => {
     const ip = dataFor('ip');
     expect(geoModel(ip.context, ip.sources)).toEqual(geoModel(ip.context, ip.sources));
   });
+
+  it('attributes the location to the context row that actually supplied it', () => {
+    const ip = dataFor('ip');
+    const g = geoModel(ip.context, ip.sources);
+    expect(g!.source).toBe('ipinfo');
+  });
+
+  it('attributes to the scored source when no context row supplies a location', () => {
+    const g = geoModel([], [{ name: 'AbuseIPDB', facts: [['Country', 'US']] }]);
+    expect(g).not.toBeNull();
+    expect(g!.source).toBe('AbuseIPDB');
+  });
+
+  it('rounds the coordinate readout to one decimal place — city-scale honesty, not fake precision', () => {
+    const ip = dataFor('ip');
+    const g = geoModel(ip.context, ip.sources)!;
+    expect(coordLabel(g)).toBe('50.1°N 8.7°E');
+  });
+
+  it('places a country outside the old 70-entry hand list at its own centroid, not the (20,0) dead zone', () => {
+    // Ghana was never in the historical hand-picked GEO table.
+    const g = geoModel([{ name: 'ipinfo', kind: 'context', facts: [['Country', 'GH']] }], []);
+    expect(g).not.toBeNull();
+    expect(g!.countryName).toBe('Ghana');
+    expect(g!.lat).not.toBe(20);
+    expect(g!.lon).not.toBe(0);
+  });
 });
