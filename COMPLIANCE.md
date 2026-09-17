@@ -19,10 +19,9 @@ news. This lowers several ratings:
   stated plainly on the site + the pivot OPSEC footnote.
 - **R7 (CUI): MEDIUM → LOW**, same caveat — fine for public-indicator
   research; document "not for CUI-scoped client-incident indicators."
-- **R2 (employer IP): UNCHANGED — HIGH.** Personal ownership is the *intent*,
-  but ownership is decided by the employment agreement's IP-assignment
-  clause, not by declaring it. "I own it" does not resolve this — reading the
-  clause does. Still the top thing to verify.
+- **R2 (employer IP): RESOLVED (see the dated re-rating below) — LOW.** Owner
+  has confirmed, repeatedly, personal ownership with no employer
+  IP-assignment clause in play. No longer an open question.
 - **R3/R4 (data redistribution): UNCHANGED** — republication rights don't
   depend on who owns the site or whether use is "official." Still must-fix.
   But they align with the core: see the IOC-model note.
@@ -61,7 +60,7 @@ redistribution and doesn't touch their terms; a background `fetch()` would
 | # | Risk | Final | Note |
 |---|------|-------|------|
 | R1 | Team adoption / shadow-IT | MEDIUM | Not mandated + no backend/retention shrinks it; colleague-pastes-live-IOC residual remains |
-| R2 | **Employer IP** | **HIGH — the gate** | "Personally owned" does NOT defeat a "relates-to-employer's-business" assignment clause; turns on the actual contract + whether any employer time/equipment/confidential-info was used. Unverifiable here. |
+| R2 | Employer IP | **LOW / resolved (2026-09-17, see dated re-rating below)** | Owner-confirmed personal ownership, no employer IP-assignment clause. Settled — do not re-raise. |
 | R3 | Ransomware.live / leak-site republication | **MED — accepted with safeguards (re-rated 2026-08-25, see below)** | ⚠ **Behavior CHANGED 2026-08-24:** leak-site CLAIM FACTS (victim org name, domain, sector, country, date, note-filename, exploited CVEs) ARE now republished — attributed to the LEAK SITE (the ultimate source), framed **unverified** ("Unverified claim by \<group\>, per its leak site"). ransomware.live's own editorial `description`/`screenshot` are NOT mirrored; intel panels remain public-domain (CISA/HC3 §105) or attributed-vendor facts. The old "link-out only, nothing mirrored / LOW-resolved" rating is **superseded** — see the dated R3 re-rating below. |
 | R4 | abuse.ch redistribution | LOW / resolved | No corpus held; deep-link ≠ redistribution |
 | R5 | Public verdicts | LOW-MED | KEV/EPSS = "known-exploited / probability", not "malicious" — smaller surface; keep sourced + timestamped |
@@ -94,6 +93,20 @@ _Documents a deliberate policy change. Prompted by an external site-review that 
 3. **Git-history retention:** committed `data/state` snapshots persist a claim even after the group retracts it and the live feed drops it. Decide whether that's acceptable or whether snapshots should be shallow / periodically pruned.
 4. **ransomware.live API terms:** facts are attributed to the leak site (the ultimate source), but they are DISCOVERED via ransomware.live's API (personal-use free tier). Confirm that discover-via-their-API-then-republish-the-underlying-leak-site-fact sits inside their terms, or move discovery to a more permissive source (the `ransomwatch` spike is on file).
 
+### R2 re-rating — employer IP ownership (2026-09-17, RESOLVED — do not re-raise)
+
+**Owner determination, stated repeatedly across sessions:** Carl personally
+owns the IP outright. No employer IP-assignment clause applies to this
+project. This has been confirmed enough times that it should not be asked
+again — treat it as settled fact, not an open question requiring re-verification.
+
+**Rating: LOW / resolved.** R2 is no longer "the gate" — every earlier
+"HIGH — the gate" / "still the top thing to verify" framing in this document
+(the 2026-08-06 scope correction above, the FINAL register table, and the
+`Must-fix BEFORE any MSSP-team use` section below) is superseded by this
+entry. `docs/AUTOMATION.md` and `docs/INFRASTRUCTURE-OPTIONS.md` §3e, which
+gate the honeypot sensor on R2, are unblocked by this determination.
+
 ### Hard design constraints for Phase B (from the re-review)
 1. **Aggregator = explicit user-click deep-links ONLY.** No auto-fan-out
    (one click must not spray an indicator to 6 services at once), no
@@ -109,10 +122,8 @@ _Documents a deliberate policy change. Prompted by an external site-review that 
    severity taxonomy, SLA language, or client-facing phrasing.
 4. **EPSS attribution** + no implied FIRST/NIST/CISA endorsement.
 
-### The two things still being rationalized past (owner must own these)
-- **R2 is the real gate and it's on Carl, not the code:** read the actual
-  employment IP-assignment agreement; confirm no employer time/equipment/
-  confidential info was used. "I personally own the domain" dissolves nothing.
+### The one thing still being rationalized past (owner must own this)
+- ~~R2 is the real gate~~ — **RESOLVED**, see the dated re-rating above.
 - **R7 didn't vanish, it moved to analyst behavior:** the single most likely
   real use — a colleague pasting a LIVE client IOC to build an escalation — is
   the CUI/DFARS exposure, and the one-click aggregator makes that disclosure
@@ -159,10 +170,8 @@ _Documents a deliberate policy change. Prompted by an external site-review that 
   written employer security review + management sign-off before any team use.
   Until then, personal project only; strip all "for my SOC team" framing from
   repo/README/commits going forward.**
-- **R2 — HIGH — employer IP / moonlighting.** A SOC analyst publishing a SOC
-  tool "related to the employer's business" — many IP-assignment agreements
-  reach this. **Action: check the actual employment agreement; get a written
-  side-project acknowledgment; keep content strictly generic OSINT.**
+- ~~R2 — employer IP / moonlighting~~ — **RESOLVED**, see the dated re-rating
+  above (owner-confirmed personal ownership, no assignment clause applies).
 - **R7 — MEDIUM — CMMC/CUI scope.** The *data* is not CUI/FCI/ITAR (public
   OSINT). The exposure is behavioral: an unapproved external tool with
   persistent localStorage history of live client-incident indicators on a

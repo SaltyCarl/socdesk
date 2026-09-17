@@ -85,8 +85,9 @@ Stop for these; do not proceed autonomously:
 - **Secrets / credentials** — Cloudflare tokens, any key. Never enter or
   fabricate them.
 - **Public deployment** of anything new, or making a private repo public.
-- **Compliance gates in COMPLIANCE.md** that require a human decision —
-  notably R2 (employment IP clause) before the honeypot phase.
+- **Compliance gates in COMPLIANCE.md** that require a human decision.
+  (R2, employer IP, is RESOLVED as of 2026-09-17 — owner-confirmed personal
+  ownership, no longer a honeypot blocker — do not re-raise it.)
 - **Anything destructive or irreversible** — force-push, history rewrite,
   deleting user data, publishing under someone's identity.
 - **Scope changes** the user must choose between (design direction, product

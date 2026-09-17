@@ -324,8 +324,10 @@ check (logon types, source host, account).
   publishable content. Bigger architectural direction → own design/spec.
 - **Give back to OSINT** — (1) **publish the curated cross-feed dataset** (dedup +
   joined + attributed) as a community resource — YES; (3) **honeypot sensor** —
-  YES, employment-IP gate LIFTED; generates real telemetry to report scanners
-  (AbuseIPDB/GreyNoise) + submit samples (MalwareBazaar). (2) open-source the
+  YES, employment-IP gate LIFTED (re-confirmed for good in `COMPLIANCE.md`'s
+  dated R2 re-rating, 2026-09-17 — settled, not to be re-raised); generates
+  real telemetry to report scanners (AbuseIPDB/GreyNoise) + submit samples
+  (MalwareBazaar). Not yet built — no collector/design exists. (2) open-source the
   analyzer engine as a standalone lib — later / well down the line.
 - **★ IOC reporting (crowdsourced abuse reporting).** Report an IP/domain/etc., AbuseIPDB/VT-style.
   Resolved the public-model risk with the **narrow contributor-identity account model**: the

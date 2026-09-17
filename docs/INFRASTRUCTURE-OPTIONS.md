@@ -132,7 +132,9 @@ Embeddings + a vector store (Qdrant is already in the agentic-platform stack)
 over years of vendor research. "Find reports describing this TTP chain."
 
 ### 3e. The honeypot sensor
-Original telemetry nobody else has (BACKLOG.md) — **gated on COMPLIANCE R2**.
+Original telemetry nobody else has (BACKLOG.md). ~~Gated on COMPLIANCE R2~~ —
+R2 resolved 2026-09-17 (owner-confirmed personal IP ownership); no longer
+blocked on compliance, just on the infra/build work below.
 
 Costs: uptime is now yours. Backups, patching, and a machine at home that the
 team depends on. Tailscale doesn't reach colleagues, so team access means
