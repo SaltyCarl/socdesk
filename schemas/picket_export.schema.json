@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "exported_at", "sensor", "totals", "ring", "top_ips", "top_usernames", "top_passwords", "top_countries", "top_isps", "by_protocol"],
+  "properties": {
+    "schema_version": {"type": "integer", "description": "Export schema version; bump on any breaking shape change."},
+    "exported_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$", "description": "UTC time the exporter ran; freshness is measured from this."},
+    "sensor": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Identity and status of the sensor box that produced this export.",
+      "required": ["id", "public_ip_sha256", "protocols", "uptime_minutes", "knockknock_version"],
+      "properties": {
+        "id": {"type": "string", "maxLength": 32, "description": "Stable identifier for this sensor box."},
+        "public_ip_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$", "description": "SHA-256 of the sensor's public IP — the plaintext IP never leaves the box."},
+        "country": {"type": "string", "maxLength": 2, "description": "ISO 3166-1 alpha-2 country code of the sensor itself, if known."},
+        "protocols": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 8}, "description": "Protocol names the sensor listens on (e.g. SSH, TELNET)."},
+        "uptime_minutes": {"type": "integer", "minimum": 0, "description": "Minutes the sensor has been continuously running."},
+        "knockknock_version": {"type": "string", "maxLength": 32, "description": "Version string of the knock-knock honeypot software in use."},
+        "ring_reset_at": {"type": "string", "maxLength": 20, "description": "Timestamp of the last counter reset (DB reset/prune), if one occurred."}
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "All-time knock totals for the sensor.",
+      "required": ["knocks_total", "since"],
+      "properties": {
+        "knocks_total": {"type": "integer", "minimum": 0, "description": "All-time count of knocks recorded by the sensor."},
+        "since": {"type": "string", "maxLength": 20, "description": "Timestamp the sensor's all-time totals have been accumulating since."}
+      }
+    },
+    "ring": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "336-bucket (7-day, 30-minute) knock-count delta ring.",
+      "required": ["bucket_minutes", "buckets"],
+      "properties": {
+        "bucket_minutes": {"const": 30, "description": "Width of each ring bucket in minutes; always 30."},
+        "buckets": {"type": "array", "minItems": 336, "maxItems": 336, "items": {"type": "integer", "minimum": 0}, "description": "336 half-hour knock counts, oldest first."}
+      }
+    },
+    "by_protocol": {
+      "type": "array",
+      "maxItems": 16,
+      "description": "Per-protocol knock totals, most active first.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["proto", "hits_7d", "hits_total"],
+        "properties": {
+          "proto": {"type": "string", "maxLength": 8, "description": "Protocol name."},
+          "hits_7d": {"type": "integer", "minimum": 0, "description": "Knocks on this protocol in the last 7 days."},
+          "hits_total": {"type": "integer", "minimum": 0, "description": "All-time knocks on this protocol."}
+        }
+      }
+    },
+    "top_ips": {
+      "type": "array",
+      "maxItems": 2000,
+      "description": "Public source IPs that knocked, most active first.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ip", "hits_7d", "hits_total", "first_seen", "last_seen", "protocols"],
+        "properties": {
+          "ip": {"type": "string", "maxLength": 45, "description": "Public source IP literal (IPv4 or IPv6)."},
+          "hits_7d": {"type": "integer", "minimum": 0, "description": "Knocks from this IP in the last 7 days."},
+          "hits_total": {"type": "integer", "minimum": 0, "description": "All-time knocks from this IP."},
+          "first_seen": {"type": "string", "maxLength": 20, "description": "Timestamp this IP was first observed."},
+          "last_seen": {"type": "string", "maxLength": 20, "description": "Timestamp this IP was last observed."},
+          "protocols": {
+            "type": "array",
+            "maxItems": 16,
+            "description": "Per-protocol hit breakdown for this IP.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["proto", "hits_7d"],
+              "properties": {
+                "proto": {"type": "string", "maxLength": 8, "description": "Protocol name."},
+                "hits_7d": {"type": "integer", "minimum": 0, "description": "attempts in the last 7 days on this protocol"}
+              }
+            }
+          },
+          "country": {"type": "string", "maxLength": 2, "description": "ISO 3166-1 alpha-2 country code for this IP, if known."},
+          "asn": {"type": "integer", "minimum": 0, "description": "Autonomous system number for this IP, if known."},
+          "isp": {"type": "string", "maxLength": 120, "description": "ISP/organization name for this IP's ASN, if known."},
+          "lat": {"type": "number", "description": "Latitude of this IP's geolocation, if resolved."},
+          "lng": {"type": "number", "description": "Longitude of this IP's geolocation, if resolved."},
+          "geo_precision": {"enum": ["city", "country"], "description": "Granularity of the resolved geolocation for this IP."}
+        }
+      }
+    },
+    "top_usernames": {"$ref": "#/$defs/credlist", "description": "aggregate values only — never paired, hits_7d ≥ 3 by schema"},
+    "top_passwords": {"$ref": "#/$defs/credlist", "description": "aggregate values only — never paired, hits_7d ≥ 3 by schema"},
+    "top_countries": {
+      "type": "array",
+      "maxItems": 50,
+      "description": "Source countries by knock volume, most active first.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["iso", "hits_7d"],
+        "properties": {
+          "iso": {"type": "string", "maxLength": 2, "description": "ISO 3166-1 alpha-2 country code."},
+          "name": {"type": "string", "maxLength": 64, "description": "Human-readable country name."},
+          "hits_7d": {"type": "integer", "minimum": 0, "description": "Knocks from this country in the last 7 days."},
+          "hits_total": {"type": "integer", "minimum": 0, "description": "All-time knocks from this country."}
+        }
+      }
+    },
+    "top_isps": {
+      "type": "array",
+      "maxItems": 50,
+      "description": "Source ISPs/organizations by knock volume, most active first.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["isp", "hits_7d"],
+        "properties": {
+          "isp": {"type": "string", "maxLength": 120, "description": "ISP/organization name."},
+          "asn": {"type": "integer", "minimum": 0, "description": "Autonomous system number for this ISP, if known."},
+          "hits_7d": {"type": "integer", "minimum": 0, "description": "Knocks from this ISP in the last 7 days."},
+          "hits_total": {"type": "integer", "minimum": 0, "description": "All-time knocks from this ISP."}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "credlist": {
+      "type": "array",
+      "maxItems": 50,
+      "description": "Top aggregate credential values, fenced and never paired.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["value", "hits_7d"],
+        "properties": {
+          "value": {"type": "string", "minLength": 1, "maxLength": 32, "description": "The fenced credential value (username or password), standalone — never paired."},
+          "hits_7d": {"type": "integer", "minimum": 3, "description": "Occurrences of this value in the last 7 days; floored at 3 so singletons never publish."},
+          "hits_total": {"type": "integer", "minimum": 0, "description": "All-time occurrences of this value."}
+        }
+      }
+    }
+  }
+}
