@@ -51,22 +51,14 @@ password auth — if you get this wrong and disconnect, you are locked out**
 (cloud console / rescue mode is your only way back in). Do not skip the
 verification pause.
 
-**Before running `install.sh`:** stage the exporter files on the box exactly
-as §5 lists them — the script's own step 4 runs
+**Before running `install.sh`:** stage the exporter files on the box — the
+script's own step 4 runs
 `pip install -q -r /opt/socdesk/tools/picket/requirements.txt`, which requires
-those files to already be present at `/opt/socdesk/tools/picket/`. Do the copy
-now (run §5's copy block at this point, from your workstation), then continue:
-
-```bash
-# from your workstation, against the box (adjust the SSH port if you've
-# already moved it; on a fresh box it's still 22)
-ssh root@<ip> mkdir -p /opt/socdesk
-rsync -az -e "ssh -p 22" tools/picket collectors/base.py schemas/picket_export.schema.json \
-  root@<ip>:/opt/socdesk/
-```
-
-See §5 "Exporter" for the exhaustive file list this must include and the
-`collectors/__init__.py` step — come back here once the copy is done.
+those files to already be present at `/opt/socdesk/tools/picket/`. Run §5
+"Exporter"'s copy block now, from your workstation, **using port 22** (at this
+point in the process the real sshd hasn't moved yet — that only happens a few
+lines below, once you run `install.sh` itself). Come back here once the copy
+is done and verified.
 
 Set the required environment variables and run the script as root on the
 fresh box:
@@ -188,11 +180,34 @@ collectors/base.py                     # clean_text(), iso() — assemble.py imp
 schemas/picket_export.schema.json      # the export schema validate_export() checks against
 ```
 
+This is the **canonical copy block** — §3 also points here rather than
+repeating it, so there's one command to keep correct, not two. Use `rsync`'s
+relative mode (`-R` / `--relative`), which recreates each source path intact
+under the destination instead of collapsing it to just its last component —
+without `-R`, `tools/picket` would land at `/opt/socdesk/picket/` (dropping
+the `tools/` segment), `collectors/base.py` at `/opt/socdesk/base.py`, and the
+schema at `/opt/socdesk/picket_export.schema.json`, none of which match what
+`exporter.py`'s imports or `SCHEMA = HERE.parent.parent / "schemas" / ...`
+resolution expect:
+
 ```bash
-# from your workstation, run from the repo root
-ssh root@<ip> mkdir -p /opt/socdesk
-rsync -az -e "ssh -p 22" tools/picket collectors/base.py schemas/picket_export.schema.json \
+# from your workstation, run from the repo root.
+# SSH_PORT is 22 if you're doing this from §3, BEFORE install.sh has run (the
+# real sshd hasn't moved yet); it's your ADMIN_SSH_PORT (2222 by default) if
+# you're doing this from here, AFTER install.sh has already hardened the box
+# (by then :22 is the knock-knock honeypot, not your real sshd).
+SSH_PORT=22   # or your ADMIN_SSH_PORT, e.g. 2222, if running after install.sh
+ssh -p "$SSH_PORT" root@<ip> mkdir -p /opt/socdesk
+rsync -azR --exclude '__pycache__' -e "ssh -p $SSH_PORT" \
+  tools/picket collectors/base.py schemas/picket_export.schema.json \
   root@<ip>:/opt/socdesk/
+```
+
+Verify the copy landed where the exporter expects before continuing — all
+four paths must list:
+
+```bash
+ssh -p "$SSH_PORT" root@<ip> 'ls /opt/socdesk/tools/picket/requirements.txt /opt/socdesk/tools/picket/assemble.py /opt/socdesk/collectors/base.py /opt/socdesk/schemas/picket_export.schema.json'
 ```
 
 `collectors/base.py` imports as `collectors.base`, so also create an empty
