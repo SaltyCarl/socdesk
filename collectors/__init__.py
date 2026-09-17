@@ -1,4 +1,4 @@
-from collectors import (attack, feodotracker, kev, nvd, ransomwarelive,
+from collectors import (attack, feodotracker, kev, nvd, picket, ransomwarelive,
                         ransomwarelive_groups, rss, sentinel_hunt, sigma_hunt,
                         threatfox)
 
@@ -17,7 +17,9 @@ from collectors import (attack, feodotracker, kev, nvd, ransomwarelive,
 # deliberate exception: these are indicators published expressly to be blocked,
 # so the IP itself is the useful, redistributable datum. They power the
 # geolocated threat-surface payload (threat_ips.json), attributed to abuse.ch.
-COLLECTORS = [kev, nvd, ransomwarelive, rss, feodotracker, threatfox]
+# picket: SOCDesk's OWN honeypot telemetry (first-party, redistributable by
+# construction) — see docs/PICKET.md.
+COLLECTORS = [kev, nvd, ransomwarelive, rss, feodotracker, threatfox, picket]
 # run only when their committed state is stale (each module's CACHE_DAYS) —
 # run_pipeline appends each one individually per its own freshness check.
 CACHED_COLLECTORS = [attack]
