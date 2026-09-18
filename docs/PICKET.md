@@ -971,7 +971,7 @@ paragraph naming knock-knock (MIT) and MaxMind GeoLite2.
 
 Per the controller's ruling on this task, no screenshots were taken and no
 `docs/img/picket/` directory or image file was created by this task — Task
-14 produces them. This document references the six paths it expects to
+14 produces them. This document references the seven paths it expects to
 exist once that task runs, each with a fixed caption:
 
 - `docs/img/picket/tab-light.png` — *"Rendered from fixture data
@@ -981,6 +981,26 @@ exist once that task runs, each with a fixed caption:
 - `docs/img/picket/teaser-dark.png` — same caption.
 - `docs/img/picket/about-light.png` — same caption.
 - `docs/img/picket/about-dark.png` — same caption.
+- `docs/img/picket/tab-silent-light.png` — *"Keep-prior silent state, 3 days
+  after the last export (fixture data): the status chip says the sensor is
+  silent and that the figures are the last received — never zero."*
+
+**Render check (2026-09-17).** HEAD build, `vite preview`, console clean
+(0 errors / 0 warnings) on `/desk#picket`, `/`, and `/about#picket`, in both
+light and dark. Two observations from the check, stated plainly:
+
+1. `PicketView` renders a faint caption under the status chip ("telemetry
+   from my own sensor — What automated bots try against an unsolicited
+   sensor — context, never a verdict…") that near-duplicates the
+   `ViewHeader` intro directly above it — copy polish, tracked in BACKLOG.
+2. The header's "Updated N ago" is `generated_at` (pipeline run time) while
+   the chip's "last export N min ago" is `sensor.export_age_minutes`,
+   stamped by the pipeline. With the fixture that reads "Updated 52d ago"
+   beside "last export 25 min ago". In production the pipeline restamps
+   every 30 min so the two agree; if the **pipeline** itself stopped, the
+   chip would keep saying "live" while the header aged — the site-wide
+   freshness strip is the existing control. P2 candidate: compute the
+   export age client-side from `sensor.exported_at`. Tracked in BACKLOG.
 
 ---
 
