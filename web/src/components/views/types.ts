@@ -480,7 +480,9 @@ export interface PicketIp {
   hits_total: number
   first_seen?: string
   last_seen: string
-  protocols: { proto: string; hits_7d: number }[]
+  /** hits_total is knock-knock's all-time per-IP, per-protocol counter — no
+   *  per-IP window exists upstream; the row's own hits_7d says if it was active. */
+  protocols: { proto: string; hits_total: number }[]
   country?: string
   asn?: number
   isp?: string

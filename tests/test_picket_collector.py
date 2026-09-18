@@ -17,6 +17,7 @@ def test_collect_returns_normalized_extra(fake_fetch):
     assert isinstance(r, CollectorResult) and r.ok and r.source == "picket"
     assert r.extra["picket"]["sensor"]["id"] == "picket-1"
     assert r.extra["picket"]["exported_at"] == "2026-07-28T11:35:00Z"
+    assert r.extra["picket"]["top_ips"][0]["protocols"] == [{"proto": "SSH", "hits_total": 900}]
 
 
 def _inert(s):

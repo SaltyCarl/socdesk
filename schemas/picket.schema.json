@@ -83,10 +83,10 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["proto", "hits_7d"],
+              "required": ["proto", "hits_total"],
               "properties": {
                 "proto": {"type": "string", "maxLength": 8, "description": "Protocol name."},
-                "hits_7d": {"type": "integer", "minimum": 0, "description": "All-time knocks from this IP on this protocol, reported only while the IP has knocked in the last 7 days (0 otherwise). knock-knock keeps no per-IP, per-protocol time window, so this is not itself a 7-day figure."}
+                "hits_total": {"type": "integer", "minimum": 0, "description": "All-time knocks from this IP on this protocol (knock-knock keeps no per-IP, per-protocol time window, so no 7-day figure exists here). Whether the IP was active this week is the parent row's hits_7d."}
               }
             }
           },

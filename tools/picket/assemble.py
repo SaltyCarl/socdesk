@@ -49,14 +49,15 @@ def assemble_export(rollups, hits7d, ring, sensor, now, proto_names, sensor_ip=N
     ip_intel.ip, so a knock from the box to itself does land in the rollups."""
     isp_by_asn = {int(r["asn"]): clean_text(r.get("isp") or "")[:120]
                   for r in rollups.get("isp_intel", []) if r.get("asn") is not None}
+    # Per-IP, per-protocol: knock-knock's cumulative counter, published as hits_total
+    # (no per-IP, per-protocol window exists upstream — R29). The parent row's
+    # hits_7d says whether the IP was active this week.
     proto_by_ip = {}
     for r in rollups.get("ip_intel_proto", []):
         pid = int(r["proto"])
         if pid not in proto_names:
             raise KeyError(f"unknown knock-knock protocol id {pid}")
-        proto_by_ip.setdefault(r["ip"], []).append(
-            {"proto": proto_names[pid],
-             "hits_7d": int(r.get("hits") or 0) if int(hits7d["ip"].get(r["ip"], 0)) > 0 else 0})
+        proto_by_ip.setdefault(r["ip"], []).append({"proto": proto_names[pid], "hits_total": int(r.get("hits") or 0)})
 
     ips = []
     for r in rollups.get("ip_intel", []):
@@ -66,7 +67,7 @@ def assemble_export(rollups, hits7d, ring, sensor, now, proto_names, sensor_ip=N
         h7 = int(hits7d["ip"].get(ip, 0))
         row = {"ip": ip, "hits_7d": h7, "hits_total": int(r.get("hits") or 0),
                "last_seen": _ts(r.get("last_seen")),
-               "protocols": sorted(proto_by_ip.get(ip, []), key=lambda p: -p["hits_7d"])[:CAP_PROTOS]}
+               "protocols": sorted(proto_by_ip.get(ip, []), key=lambda p: -p["hits_total"])[:CAP_PROTOS]}
         fs = _ts(r.get("first_seen"))
         if fs:
             row["first_seen"] = fs
@@ -82,6 +83,11 @@ def assemble_export(rollups, hits7d, ring, sensor, now, proto_names, sensor_ip=N
             row["geo_precision"] = "city"
         ips.append(row)
     ips.sort(key=lambda x: (-x["hits_7d"], -x["hits_total"], x["ip"]))
+    # The headline distinct-IP count comes from the RING, not from the capped
+    # top_ips list (which would saturate at CAP_IPS on any busy sensor). Same
+    # tests as a published row: public, and not the box's own address.
+    unique_ips_7d = sum(1 for ip, h in hits7d["ip"].items()
+                        if int(h) > 0 and is_public_ip(ip) and not (sensor_ip and ip == sensor_ip))
 
     by_proto = [{"proto": p, "hits_7d": int(hits7d["proto"].get(p, 0)),
                  "hits_total": int(t)} for p, t in _proto_totals(rollups, proto_names).items()]
@@ -91,9 +97,15 @@ def assemble_export(rollups, hits7d, ring, sensor, now, proto_names, sensor_ip=N
                   "hits_7d": int(hits7d["country"].get(r["iso_code"], 0)), "hits_total": int(r.get("hits") or 0)}
                  for r in rollups.get("country_intel", []) if r.get("iso_code")]
     countries.sort(key=lambda x: -x["hits_7d"])
-    isps = [{"isp": clean_text(r.get("isp") or "")[:120], "asn": int(r["asn"]) if r.get("asn") is not None else 0,
-             "hits_7d": int(hits7d["isp"].get(r.get("isp"), 0)), "hits_total": int(r.get("hits") or 0)}
-            for r in rollups.get("isp_intel", []) if clean_text(r.get("isp") or "")]
+    isps = []
+    for r in rollups.get("isp_intel", []):
+        name = clean_text(r.get("isp") or "")[:120]
+        if not name:
+            continue
+        row = {"isp": name, "hits_7d": int(hits7d["isp"].get(r.get("isp"), 0)), "hits_total": int(r.get("hits") or 0)}
+        if r.get("asn") is not None:            # NULL upstream is "unknown" — omitted, never 0
+            row["asn"] = int(r["asn"])
+        isps.append(row)
     isps.sort(key=lambda x: -x["hits_7d"])
 
     uptime = int(rollups.get("heartbeat_minutes") or 0)
@@ -110,7 +122,8 @@ def assemble_export(rollups, hits7d, ring, sensor, now, proto_names, sensor_ip=N
         "exported_at": iso(now),
         "sensor": sensor_out,
         "totals": {"knocks_total": int(rollups.get("knocks_total") or 0),
-                   "since": iso(now - timedelta(minutes=uptime))},
+                   "since": iso(now - timedelta(minutes=uptime)),
+                   "unique_ips_7d": unique_ips_7d},
         "ring": {"bucket_minutes": 30, "buckets": [int(x) for x in ring]},
         "by_protocol": by_proto[:CAP_PROTOS],
         "top_ips": ips[:CAP_IPS],

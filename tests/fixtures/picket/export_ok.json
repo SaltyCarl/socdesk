@@ -379,7 +379,7 @@
       "protocols": [
         {
           "proto": "SSH",
-          "hits_7d": 900
+          "hits_total": 900
         }
       ],
       "country": "CN",
@@ -398,7 +398,7 @@
       "protocols": [
         {
           "proto": "TELNET",
-          "hits_7d": 100
+          "hits_total": 100
         }
       ],
       "country": "RU",

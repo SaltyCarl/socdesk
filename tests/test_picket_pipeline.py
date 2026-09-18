@@ -37,6 +37,20 @@ def test_build_publishes_valid_payloads():
     assert p["by_protocol"][0]["share_pct"] == 90.0
     assert "MaxMind" in p["attribution"] and "knock-knock" in p["attribution"]
     assert p["collected_at"] == "2026-07-28T12:00:00Z"
+    assert p["top_ips"][0]["protocols"] == [{"proto": "SSH", "hits_total": 900}]   # R29 rename carried through
+
+
+def test_unique_ips_7d_prefers_the_export_value_and_falls_back():
+    # I2: the box counts distinct active IPs from the ring (beyond the 2,000-row cap);
+    # an older export without the key falls back to counting active top_ips rows.
+    doc = json.loads((FIX / "export_ok.json").read_text(encoding="utf-8"))
+    doc["totals"]["unique_ips_7d"] = 2500
+    ok = {"picket": CollectorResult(source="picket", extra={"picket": doc})}
+    assert pk.build_picket(ok, {}, FIXED_NOW)["picket.json"]["totals"]["unique_ips_7d"] == 2500
+    doc["totals"]["unique_ips_7d"] = 0                  # present and legitimately zero is honoured
+    assert pk.build_picket(ok, {}, FIXED_NOW)["picket.json"]["totals"]["unique_ips_7d"] == 0
+    del doc["totals"]["unique_ips_7d"]
+    assert pk.build_picket(ok, {}, FIXED_NOW)["picket.json"]["totals"]["unique_ips_7d"] == 3
 
 
 def test_ips_layer_only_has_finite_coords_and_source_picket():

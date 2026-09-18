@@ -63,13 +63,19 @@ def _panel(export, now, collected_at):
     denom = sum(p["hits_7d"] for p in export["by_protocol"])
     by_proto = [dict(p, share_pct=round(100.0 * p["hits_7d"] / denom, 1) if denom else 0.0)
                 for p in export["by_protocol"]]
+    # The box counts distinct active IPs from its ring (beyond the 2,000-row cap);
+    # an export from before the field existed falls back to counting active rows.
+    if "unique_ips_7d" in export["totals"]:
+        unique_ips_7d = int(export["totals"]["unique_ips_7d"])
+    else:
+        unique_ips_7d = sum(1 for r in export["top_ips"] if r["hits_7d"] > 0)
     return {
         "generated_at": iso(now), "schema_version": SCHEMA_VERSION, "attribution": ATTRIBUTION,
         "collected_at": collected_at,
         "sensor": sensor,
         "totals": {"knocks_total": export["totals"]["knocks_total"], "since": export["totals"]["since"],
                    "knocks_24h": sum(hourly[-24:]), "knocks_7d": k7,
-                   "unique_ips_7d": sum(1 for r in export["top_ips"] if r["hits_7d"] > 0)},
+                   "unique_ips_7d": unique_ips_7d},
         "histogram_7d": hourly,
         "by_protocol": by_proto,
         "top_ips": export["top_ips"][:CAP_TOP_IPS],
