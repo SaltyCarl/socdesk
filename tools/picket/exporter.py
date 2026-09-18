@@ -7,7 +7,7 @@ hashed here and never written. geoip2 and git are imported lazily so the pure
 parts stay testable in CI without them.
 
 Usage (see README.md):
-  exporter.py --db /path/knocks.db --state /var/lib/picket/state.json \
+  exporter.py --db /opt/knock-knock/data/knock_knock.db --state /var/lib/picket/state.json \
               --out /srv/picket-export/export.json --repo-dir /srv/picket-export \
               --sensor-id picket-1 --knockknock-dir /opt/knock-knock \
               [--geoip-db /usr/share/GeoIP/GeoLite2-Country.mmdb] [--no-push]
@@ -115,16 +115,24 @@ def _public_ip():
 
 
 def _country_by_ip(geoip_db, ips):
+    """Per-IP ISO country from a GeoLite2-Country .mmdb, or {} when GeoIP is not
+    usable. Spec §5: a missing database OMITS `country` — it never aborts the run.
+    The guard covers the module import, the reader open and every lookup, and
+    says why on stderr exactly once so journalctl shows the misconfiguration."""
     if not geoip_db:
         return {}
-    import geoip2.database  # noqa: E402  (box only)
     out = {}
-    with geoip2.database.Reader(geoip_db) as rd:
-        for ip in ips:
-            try:
-                out[ip] = rd.country(ip).country.iso_code or ""
-            except Exception:  # noqa: BLE001 — unknown IP is simply unlabelled
-                continue
+    try:
+        import geoip2.database  # noqa: E402  (box only)
+        with geoip2.database.Reader(geoip_db) as rd:
+            for ip in ips:
+                try:
+                    out[ip] = rd.country(ip).country.iso_code or ""
+                except Exception:  # noqa: BLE001 — unknown IP is simply unlabelled
+                    continue
+    except Exception as e:  # noqa: BLE001 — no module / no file / bad file: publish without country
+        print(f"geoip: {e} — publishing without country", file=sys.stderr)
+        return {}
     return out
 
 

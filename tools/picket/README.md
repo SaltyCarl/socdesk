@@ -261,7 +261,7 @@ touches the export repo — inspect it before anything goes out):
 
 ```bash
 sudo -u picket /opt/socdesk/.venv/bin/python -m tools.picket.exporter \
-  --db /opt/knock-knock/data/knocks.db --state /var/lib/picket/state.json \
+  --db /opt/knock-knock/data/knock_knock.db --state /var/lib/picket/state.json \
   --out /srv/picket-export/export.json --repo-dir /srv/picket-export \
   --sensor-id picket-1 --knockknock-dir /opt/knock-knock \
   --geoip-db /usr/share/GeoIP/GeoLite2-Country.mmdb --no-push
@@ -272,7 +272,7 @@ Then a real run (pushes):
 
 ```bash
 sudo -u picket /opt/socdesk/.venv/bin/python -m tools.picket.exporter \
-  --db /opt/knock-knock/data/knocks.db --state /var/lib/picket/state.json \
+  --db /opt/knock-knock/data/knock_knock.db --state /var/lib/picket/state.json \
   --out /srv/picket-export/export.json --repo-dir /srv/picket-export \
   --sensor-id picket-1 --knockknock-dir /opt/knock-knock \
   --geoip-db /usr/share/GeoIP/GeoLite2-Country.mmdb

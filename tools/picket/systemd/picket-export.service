@@ -7,7 +7,7 @@ User=picket
 WorkingDirectory=/opt/socdesk
 Environment=PYTHONPATH=/opt/socdesk
 ExecStart=/opt/socdesk/.venv/bin/python -m tools.picket.exporter \
-  --db /opt/knock-knock/data/knocks.db \
+  --db /opt/knock-knock/data/knock_knock.db \
   --state /var/lib/picket/state.json \
   --out /srv/picket-export/export.json --repo-dir /srv/picket-export \
   --sensor-id picket-1 --knockknock-dir /opt/knock-knock \

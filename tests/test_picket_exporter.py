@@ -2,6 +2,7 @@ import sqlite3
 import sys
 
 from tools.picket.exporter import (
+    _country_by_ip,
     knockknock_version,
     load_enabled_protocols,
     load_proto_names,
@@ -101,3 +102,13 @@ def test_knockknock_version_prefers_file_then_unknown(tmp_path):
     other = tmp_path / "other"
     other.mkdir()
     assert knockknock_version(other) == "unknown"
+
+
+def test_country_by_ip_without_database_returns_empty(tmp_path, capsys):
+    # Spec §5: "MaxMind DB missing on-box -> per-IP country omitted". A missing
+    # .mmdb (or a missing geoip2 module) must NOT abort the run — the export is
+    # still published, just without `country`, and one stderr line says why.
+    assert _country_by_ip(None, ["1.2.3.4"]) == {}                              # not configured
+    assert _country_by_ip(str(tmp_path / "missing.mmdb"), ["1.2.3.4"]) == {}   # configured, absent
+    err = capsys.readouterr().err
+    assert "geoip:" in err and "without country" in err
