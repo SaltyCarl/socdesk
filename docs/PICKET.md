@@ -373,7 +373,7 @@ definition of "since the last run").
 `5.6.7.8` = 630 (Δ = +30); `9.10.11.12` = 420 (Δ = +20). A previous snapshot
 now exists, so `total_delta = 50` is added to the ring's newest bucket
 (`ring[-1] += 50`); each IP's positive delta is appended to its sparse delta
-list. Published: `ring.buckets` = 334 zeros, then `[..., 50]`;
+list. Published: `ring.buckets` = 335 zeros, then `50`;
 `top_ips[].hits_7d`: `5.6.7.8` → 30, `9.10.11.12` → 20.
 
 **Run 3 — T+60min.** Rollup snapshot: `knocks_total = 1130` (Δ = +80);
@@ -381,7 +381,7 @@ list. Published: `ring.buckets` = 334 zeros, then `[..., 50]`;
 `9.10.11.12` = 500 (Δ = +80 — all of this run's activity was against this
 one IP). The ring slides one slot (`_advance_ring`: `ring[gap:] + [0]*gap`)
 so run 2's `50` moves back one position, and `total_delta = 80` lands in the
-new newest slot: `ring.buckets` = `[..., 0, 50, 80]`. Per-entity: `5.6.7.8`'s
+new newest slot: `ring.buckets` = 334 zeros, then `50`, then `80`. Per-entity: `5.6.7.8`'s
 delta is `0`, which is **not** appended (`apply_snapshot` skips `d <= 0`), so
 its window sum is unchanged from run 2 — still `30`. `9.10.11.12` gets a
 second delta entry, `[[run3_bucket, 80]]`, added to its existing `[[run2_bucket,
@@ -548,7 +548,7 @@ Top level (all required):
 | `asn` | integer, ≥0, optional | From `ip_intel.asn`. | `64500` |
 | `isp` | string, ≤120, optional | Joined from `isp_intel` by ASN. | `"Example Hosting"` |
 | `lat` / `lng` | number, optional | knock-knock's own city-level geolocation. | `39.9` / `116.4` |
-| `geo_precision` | `"city"` \| `"country"`, optional | `"city"` when `lat`/`lng` present; the panel payload falls back to `"country"` when absent (`pipeline/picket.py::_ips_layer` default). | `"city"` |
+| `geo_precision` | `"city"` \| `"country"`, optional | Set to `"city"` when `lat`/`lng` are present (`tools/picket/assemble.py:72-74`); omitted from `export.json` entirely otherwise — the export's own assembler never writes `"country"` into this field (see §5.3 for how `picket_ips.json`'s own default works, which is a separate function). | `"city"` |
 
 > **Footnote — the nested `protocols[].hits_7d` field.** Despite its name and
 > the schema's own description ("attempts in the last 7 days on this
@@ -595,6 +595,17 @@ block that differ from the raw export:
 | `by_protocol[]` | array, ≤16 | Adds `share_pct` to the export's `proto`/`hits_7d`/`hits_total`. | `{"proto":"SSH","hits_7d":900,"hits_total":8000,"share_pct":90.0}` |
 | `top_ips` / `top_usernames` / `top_passwords` / `top_countries` / `top_isps` | as §5.1, `top_ips` capped at 100 | Passed through from the export mostly unchanged (`top_ips` is sliced, not re-derived). | — |
 
+`picket.schema.json` tightens a few of §5.1's optional fields to required —
+the builder always populates them, so this is a schema-strictness
+difference, not a behavior difference: `hits_total` is required on
+`top_usernames`/`top_passwords` (`credlist_item`) and on `top_countries` and
+`top_isps`, and `name` is additionally required on `top_countries`
+(`schemas/picket.schema.json`'s `credlist_item.required` and
+`top_countries`/`top_isps` item `required` arrays), where
+`schemas/picket_export.schema.json` leaves `hits_total` and `name` optional
+on the corresponding items. `isp` itself is required on `top_isps` in
+**both** schemas — that one was never optional.
+
 `sensor` in `picket.json` (required: `id`, `uptime_days`, `protocols`, `status`, `export_age_minutes`, `exported_at`, `knockknock_version`):
 
 | Field | Meaning | Example |
@@ -618,7 +629,7 @@ untouched (spec §4.4). Produced in P1; not yet rendered (§2).
 | Field | Type / bound | Meaning | Example |
 |---|---|---|---|
 | `generated_at` / `schema_version` / `attribution` | as §5.2 | Envelope, same values as `picket.json`. | — |
-| `count` | integer, ≥0 | Number of rows in `ips`. | e.g. `2` (fixture has 2 IPs with finite coordinates) |
+| `count` | integer, ≥0 | Number of rows in `ips`. | e.g. `1` (of the fixture's 3 `top_ips` rows, only `5.6.7.8` has both `lat` and `lng`; `test_ips_layer_only_has_finite_coords_and_source_picket` confirms 1 row) |
 | `ips[]` | array, ≤1000 | One row per IP **with finite `lat`/`lng`** — IPs without a resolved coordinate are silently excluded from this file (not an error; `pipeline/picket.py::_ips_layer` skips non-numeric lat/lng). | — |
 
 `ips[]` row (required: `ip`, `lat`, `lng`, `source`, `hits_7d`, `first_seen`, `last_seen`, `geo_precision`):
@@ -631,7 +642,7 @@ untouched (spec §4.4). Produced in P1; not yet rendered (§2).
 | `source` | `const: "picket"` | Payload origin tag, always `"picket"` — this is how a future globe layer would distinguish these pins from `threat_ips.json`'s. | `"picket"` |
 | `hits_7d` | integer, ≥0 | Trailing-7-day knocks from this IP. | `900` |
 | `first_seen` / `last_seen` | string, ≤20 | As in `top_ips`. | — |
-| `geo_precision` | `"city"` \| `"country"` | `"country"` fallback when the export's own field was absent (`pipeline/picket.py:89`). | `"city"` |
+| `geo_precision` | `"city"` \| `"country"` | Copied from the export row's own `geo_precision` when present; defaults to **`"city"`** — not `"country"` — when absent (`r.get("geo_precision", "city")`, `pipeline/picket.py:89`). In practice this default is unreachable today: `_ips_layer` only processes rows that already passed a finite-`lat`/`lng` check (line 85), and `assemble_export` always sets `geo_precision="city"` whenever `lat`/`lng` are present (§5.1, `tools/picket/assemble.py:72-74`), so every row reaching this function already carries an explicit `"city"` value. | `"city"` |
 
 ### 5.4 knock-knock rollup column → export field
 
@@ -862,8 +873,10 @@ telemetry from my own sensor,"* a `SourceStamp` reading *"knock-knock ·
 GeoLite2,"* and a footer showing `\{knocks_7d\} knocks · \{unique_ips_7d\} IPs
 · 7 d` (or `"no export yet"`) beside a `DeskLink` to the tab. The body shows
 the same `statusCopy`, a large 24-hour knock count, the same daily sparkline
-as the tab, and, when available, a `"most from \{country\}"` line. Empty
-state: *"No sensor telemetry yet."*
+as the tab, and, when available, a `"most from \{country\} · \{protocols\}"`
+line — the sensor's own protocol list is appended after the top country,
+not just the country alone (`PicketTeaser.tsx:39`). Empty state: *"No
+sensor telemetry yet."*
 
 ### `/about#picket` — the transparency section
 
