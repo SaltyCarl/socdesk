@@ -60,8 +60,11 @@ def assemble_export(rollups, hits7d, ring, sensor, now, proto_names):
             continue
         h7 = int(hits7d["ip"].get(ip, 0))
         row = {"ip": ip, "hits_7d": h7, "hits_total": int(r.get("hits") or 0),
-               "first_seen": _ts(r.get("first_seen")), "last_seen": _ts(r.get("last_seen")),
+               "last_seen": _ts(r.get("last_seen")),
                "protocols": sorted(proto_by_ip.get(ip, []), key=lambda p: -p["hits_7d"])[:CAP_PROTOS]}
+        fs = _ts(r.get("first_seen"))
+        if fs:
+            row["first_seen"] = fs
         cc = rollups.get("country_by_ip", {}).get(ip)
         if cc:
             row["country"] = str(cc)[:2].upper()

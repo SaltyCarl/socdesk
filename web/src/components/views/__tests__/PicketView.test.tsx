@@ -11,7 +11,9 @@ const payload: PicketPayload = {
   histogram_7d: Array.from({ length: 168 }, (_, i) => (i === 167 ? 42 : 0)),
   by_protocol: [{ proto: 'SSH', hits_7d: 900, hits_total: 8000, share_pct: 90 }],
   top_ips: [{ ip: '203.0.113.5', hits_7d: 900, hits_total: 900, first_seen: '2026-07-20T01:00:00Z',
-              last_seen: '2026-07-28T11:00:00Z', protocols: [{ proto: 'SSH', hits_7d: 900 }], country: 'CN', asn: 64500, isp: 'Example Hosting' }],
+              last_seen: '2026-07-28T11:00:00Z', protocols: [{ proto: 'SSH', hits_7d: 900 }], country: 'CN', asn: 64500, isp: 'Example Hosting' },
+            { ip: '5.6.7.9', hits_7d: 12, hits_total: 12, last_seen: '2026-07-28T11:00:00Z',
+              protocols: [{ proto: 'SSH', hits_7d: 12 }] }],
   top_usernames: [{ value: 'root', hits_7d: 400, hits_total: 3000 }],
   top_passwords: [{ value: '123456', hits_7d: 200, hits_total: 1800 }],
   top_countries: [{ iso: 'CN', name: 'China', hits_7d: 500, hits_total: 4000 }],
@@ -27,6 +29,11 @@ describe('PicketView', () => {
       expect(html).toContain(s)
     }
     expect(html).not.toMatch(/text-verdict-(red|amber|green)|bg-\[var\(--tint-(red|amber|green)\)\]/)
+  })
+
+  it('renders an em dash for an IP with no first_seen, without dropping the row', () => {
+    expect(html).toContain('<td class="py-2 pr-3 font-mono text-micro text-faint">—</td>')
+    expect(html).toContain('5.6.7.9')
   })
 
   it('never renders a username:password pair', () => {

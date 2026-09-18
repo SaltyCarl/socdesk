@@ -2,6 +2,8 @@ import json
 from datetime import timedelta
 from pathlib import Path
 
+from jsonschema import Draft202012Validator
+
 from collectors.base import CollectorResult
 from pipeline import picket as pk
 from pipeline.validate import validate_payload
@@ -55,3 +57,20 @@ def test_collector_down_restamps_prior_and_degrades_status():
 
 def test_collector_down_with_no_prior_is_none():
     assert pk.build_picket({}, {}, FIXED_NOW) is None
+
+
+def test_ips_layer_omits_first_seen_when_absent():
+    doc = json.loads((FIX / "export_ok.json").read_text(encoding="utf-8"))
+    for row in doc["top_ips"]:
+        if row["ip"] == "5.6.7.8":
+            del row["first_seen"]
+    ok = {"picket": CollectorResult(source="picket", extra={"picket": doc})}
+    out = pk.build_picket(ok, {}, FIXED_NOW)
+    ips_row = next(r for r in out["picket_ips.json"]["ips"] if r["ip"] == "5.6.7.8")
+    assert "first_seen" not in ips_row
+    assert out["picket_ips.json"]["count"] == 1
+    for name, schema in (("picket.json", "schemas/picket.schema.json"),
+                          ("picket_ips.json", "schemas/picket_ips.schema.json")):
+        schema_doc = json.loads(Path(schema).read_text(encoding="utf-8"))
+        errors = list(Draft202012Validator(schema_doc).iter_errors(out[name]))
+        assert errors == []

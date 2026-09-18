@@ -75,6 +75,18 @@ def test_unknown_protocol_id_fails_loudly():
         raise AssertionError("unknown protocol id must not be guessed")
 
 
+def test_first_seen_is_omitted_when_the_rollup_has_none():
+    ip_intel = rollups()["ip_intel"] + [
+        {"ip": "5.6.7.9", "hits": 50, "first_seen": None, "last_seen": "2026-07-28 11:00:00",
+         "lat": None, "lng": None, "asn": None},
+    ]
+    out = assemble_export(rollups(ip_intel=ip_intel), hits7d(), [0] * 336, SENSOR, FIXED_NOW, PROTO)
+    row = next(r for r in out["top_ips"] if r["ip"] == "5.6.7.9")
+    assert "first_seen" not in row
+    assert row["last_seen"] == "2026-07-28T11:00:00Z"
+    assert validate_export(out, SCHEMA) == []
+
+
 def test_caps_are_enforced():
     many = [{"ip": f"203.0.{i // 250}.{i % 250 + 1}", "hits": 5, "first_seen": None, "last_seen": None,
              "lat": None, "lng": None, "asn": None} for i in range(2500)]

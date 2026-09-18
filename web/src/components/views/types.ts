@@ -478,7 +478,7 @@ export interface PicketIp {
   ip: string
   hits_7d: number
   hits_total: number
-  first_seen: string
+  first_seen?: string
   last_seen: string
   protocols: { proto: string; hits_7d: number }[]
   country?: string

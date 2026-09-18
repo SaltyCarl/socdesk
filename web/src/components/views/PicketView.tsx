@@ -117,7 +117,7 @@ export function PicketView({ payload }: { payload: PicketPayload | null }) {
                   <td className="py-2 pr-3 font-mono text-micro text-muted">{r.protocols.map((p) => p.proto).join(' · ')}</td>
                   <td className="py-2 pr-3 font-mono text-micro text-muted">{r.country ?? '—'}</td>
                   <td className="py-2 pr-3 text-xs text-muted">{r.asn ? `AS${r.asn}` : '—'}{r.isp ? ` · ${r.isp}` : ''}</td>
-                  <td className="py-2 pr-3 font-mono text-micro text-faint">{rel(r.first_seen)}</td>
+                  <td className="py-2 pr-3 font-mono text-micro text-faint">{r.first_seen ? rel(r.first_seen) : '—'}</td>
                   <td className="py-2 pr-3 font-mono text-micro text-faint">{rel(r.last_seen)}</td>
                 </tr>
               ))}

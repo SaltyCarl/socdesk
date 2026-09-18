@@ -85,8 +85,10 @@ def _ips_layer(export, now):
         if not isinstance(lat, (int, float)) or not isinstance(lng, (int, float)):
             continue
         row = {"ip": r["ip"], "lat": float(lat), "lng": float(lng), "source": "picket",
-               "hits_7d": r["hits_7d"], "first_seen": r["first_seen"], "last_seen": r["last_seen"],
+               "hits_7d": r["hits_7d"], "last_seen": r["last_seen"],
                "geo_precision": r.get("geo_precision", "city")}
+        if r.get("first_seen"):
+            row["first_seen"] = r["first_seen"]
         if r.get("country"):
             row["country"] = r["country"]
         rows.append(row)

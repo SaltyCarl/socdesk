@@ -15,7 +15,7 @@
         "id": {"type": "string", "maxLength": 32, "description": "Stable identifier for this sensor box."},
         "public_ip_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$", "description": "SHA-256 of the sensor's public IP — the plaintext IP never leaves the box."},
         "country": {"type": "string", "maxLength": 2, "description": "ISO 3166-1 alpha-2 country code of the sensor itself, if known."},
-        "protocols": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 8}, "description": "Protocol names the sensor listens on (e.g. SSH, TELNET)."},
+        "protocols": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 8}, "description": "Protocol names the sensor listens on (e.g. SSH, TNET — knock-knock's identifier for Telnet)."},
         "uptime_minutes": {"type": "integer", "minimum": 0, "description": "Minutes the sensor has been continuously running."},
         "knockknock_version": {"type": "string", "maxLength": 32, "description": "Version string of the knock-knock honeypot software in use."},
         "ring_reset_at": {"type": "string", "maxLength": 20, "description": "Timestamp of the last counter reset (DB reset/prune), if one occurred."}
@@ -63,12 +63,12 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["ip", "hits_7d", "hits_total", "first_seen", "last_seen", "protocols"],
+        "required": ["ip", "hits_7d", "hits_total", "last_seen", "protocols"],
         "properties": {
           "ip": {"type": "string", "maxLength": 45, "description": "Public source IP literal (IPv4 or IPv6)."},
           "hits_7d": {"type": "integer", "minimum": 0, "description": "Knocks from this IP in the last 7 days."},
           "hits_total": {"type": "integer", "minimum": 0, "description": "All-time knocks from this IP."},
-          "first_seen": {"type": "string", "maxLength": 20, "description": "Timestamp this IP was first observed."},
+          "first_seen": {"type": "string", "maxLength": 20, "description": "Timestamp this IP was first observed. Present only when the sensor records it — knock-knock v3 keeps no per-IP first-seen, so P1 exports omit it."},
           "last_seen": {"type": "string", "maxLength": 20, "description": "Timestamp this IP was last observed."},
           "protocols": {
             "type": "array",
@@ -80,7 +80,7 @@
               "required": ["proto", "hits_7d"],
               "properties": {
                 "proto": {"type": "string", "maxLength": 8, "description": "Protocol name."},
-                "hits_7d": {"type": "integer", "minimum": 0, "description": "attempts in the last 7 days on this protocol"}
+                "hits_7d": {"type": "integer", "minimum": 0, "description": "All-time knocks from this IP on this protocol, reported only while the IP has knocked in the last 7 days (0 otherwise). knock-knock keeps no per-IP, per-protocol time window, so this is not itself a 7-day figure."}
               }
             }
           },
