@@ -5,7 +5,7 @@ import { EmptyState } from './states'
 import { num, rel } from './format'
 import { barWidthClass } from '../overview/widths'
 import { Sparkline } from '../overview/Sparkline'
-import { histogramPoints, statusCopy, statusLabel } from './picketModel'
+import { histogramPoints, sensorStatus, statusCopy, statusLabel } from './picketModel'
 import type { PicketCred, PicketPayload } from './types'
 
 /**
@@ -65,11 +65,14 @@ export function PicketView({ payload }: { payload: PicketPayload | null }) {
   }
   const { sensor, totals, by_protocol, top_ips, top_countries, top_isps } = payload
   const maxIp = top_ips[0]?.hits_7d ?? 1
+  // Chip label, tone and copy all derive from the client-side export age, so a
+  // frozen picket.json (pipeline stopped) can never keep reading "Live".
+  const status = sensorStatus(sensor)
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-        <MicroLabel tone={sensor.status === 'live' ? 'accent' : 'muted'} tick>
-          {statusLabel(sensor.status)}
+        <MicroLabel tone={status === 'live' ? 'accent' : 'muted'} tick>
+          {statusLabel(status)}
         </MicroLabel>
         <p className="text-sm text-muted">{statusCopy(sensor)}</p>
         <p className="font-mono text-micro text-faint">
