@@ -15,6 +15,7 @@ from pipeline.hunt import load_authored_rules, load_playbooks, merge_authored
 from pipeline.history import (build_trends, daily_snapshot, prune_history,
                               snapshot_name)
 from pipeline.intel_staleness import check_intel_staleness
+from pipeline.picket import build_picket
 from pipeline.publish import build_site_data
 from pipeline.stories import build_stories
 from pipeline.validate import gate, validate_payload
@@ -138,6 +139,17 @@ def run(fetch, now, out_dir, state_dir, schemas_dir, sources_path, web_dir=None,
 
     payloads = build_site_data(results, cve_rows, health, state, now,
                                fetch=fetch, geo_cache=geo_cache)
+
+    # PICKET (first-party honeypot sensor): the collector's normalized export ->
+    # panel + globe-layer payloads. Placed before gate() for schema validation +
+    # last-known-good + dual-write. A dead sensor re-publishes the prior with an
+    # HONEST recomputed status (stale/silent) — never as zero attacks. Keyless,
+    # no D1, no read-path binding (spec 2026-09-17-picket-sensor-design §3.5).
+    ok_results = {r.source: r for r in results if r.ok}
+    picket_payloads = build_picket(ok_results, state, now)
+    if picket_payloads:
+        payloads.update(picket_payloads)
+
     sources = json.loads(Path(sources_path).read_text(encoding="utf-8"))
     payloads["sources.json"] = dict(sources, generated_at=iso(now))
 

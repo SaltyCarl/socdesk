@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 
 from run_pipeline import run
 from tests.conftest import FIXED_NOW, FIXTURES
@@ -46,7 +47,7 @@ def test_end_to_end_with_one_source_down(fake_fetch, tmp_path):
         schemas_dir="schemas", sources_path="data/sources.json")
 
 
-def _pipeline_fetch(fake_fetch):
+def _pipeline_fetch(fake_fetch, extra=None):
     """The collector mapping test_end_to_end uses, as a reusable fetch (so the
     community wiring tests exercise a REAL run() without re-listing sources)."""
     from collectors import attack, kev, nvd, rss
@@ -55,6 +56,7 @@ def _pipeline_fetch(fake_fetch):
                attack.URL: "attack/enterprise.json"}
     for f in rss.FEEDS:
         mapping[f["url"]] = rss_xml if f is rss.FEEDS[0] else ""
+    mapping.update(extra or {})
     inner = fake_fetch(mapping)
 
     def fetch(url, **kw):
@@ -177,3 +179,30 @@ def test_attack_is_fresh_requires_derived_catalogs():
     # the ATT&CK snapshot sat frozen 35 days on the generated_at version.
     restamped = dict(full, **{"actors.json": {"generated_at": iso(FIXED_NOW)}})
     assert _attack_is_fresh(restamped, FIXED_NOW) is False
+
+
+def test_picket_payloads_published_from_export(fake_fetch, tmp_path):
+    from collectors import picket as pk_col
+    fetch = _pipeline_fetch(fake_fetch, extra={pk_col.EXPORT_URL: "picket/export_ok.json"})
+    out, state = tmp_path / "o", tmp_path / "s"
+    run(fetch=fetch, now=FIXED_NOW, out_dir=out, state_dir=state,
+        schemas_dir="schemas", sources_path="data/sources.json")
+    p = json.loads((state / "picket.json").read_text(encoding="utf-8"))
+    assert p["sensor"]["status"] == "live" and p["totals"]["knocks_total"] == 9001
+    assert (state / "picket_ips.json").exists()
+    health = json.loads((state / "health.json").read_text(encoding="utf-8"))
+    assert any(s["source"] == "picket" and s["ok"] for s in health["sources"])
+
+
+def test_picket_export_down_keeps_prior_with_honest_status(fake_fetch, tmp_path):
+    from collectors import picket as pk_col
+    out, state = tmp_path / "o", tmp_path / "s"
+    run(fetch=_pipeline_fetch(fake_fetch, extra={pk_col.EXPORT_URL: "picket/export_ok.json"}),
+        now=FIXED_NOW, out_dir=out, state_dir=state, schemas_dir="schemas", sources_path="data/sources.json")
+    later = FIXED_NOW + timedelta(hours=30)
+    run(fetch=_pipeline_fetch(fake_fetch), now=later, out_dir=out, state_dir=state,   # picket URL unmapped -> error
+        schemas_dir="schemas", sources_path="data/sources.json")
+    p = json.loads((state / "picket.json").read_text(encoding="utf-8"))
+    assert p["sensor"]["status"] == "silent" and p["collected_at"] == "2026-07-28T12:00:00Z"
+    health = json.loads((state / "health.json").read_text(encoding="utf-8"))
+    assert any(s["source"] == "picket" and not s["ok"] for s in health["sources"])
