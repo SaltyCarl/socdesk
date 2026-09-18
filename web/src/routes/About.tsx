@@ -181,17 +181,18 @@ export function About() {
             <strong className="text-paper">How it reaches the site.</strong>{' '}
             A bounded export leaves the sensor, is re-checked and
             re-sanitised before publication, and refreshes every 30 minutes.
-            If the sensor falls silent, the site shows it as silent rather
-            than filling in stale numbers.
+            If the sensor falls silent, the site says so, and labels the
+            last-received figures as such.
           </P>
 
           <P>
             <strong className="text-paper">
               Upstream reporting is owner-moderated.
             </strong>{' '}
-            Nothing is reported to any third party automatically. Any report
-            to AbuseIPDB is proposed by the pipeline and approved by the
-            owner, one address at a time.
+            Nothing is reported to any third party automatically, and no
+            reporting exists yet. If it is added, any report to AbuseIPDB
+            would be proposed by the pipeline and approved by the owner, one
+            address at a time.
           </P>
 
           <P>
@@ -203,11 +204,12 @@ export function About() {
 
           <P>
             <strong className="text-paper">Attribution.</strong>{' '}
-            Picket&rsquo;s collector is built on{' '}
+            The sensor itself is{' '}
             <Link href="https://github.com/djkurlander/knock-knock">
               knock-knock
             </Link>
-            , MIT licensed. This product includes GeoLite2 data created by
+            , MIT licensed; the collector and pipeline are SOCDesk&rsquo;s
+            own. This product includes GeoLite2 data created by
             MaxMind, available from{' '}
             <Link href="https://www.maxmind.com">https://www.maxmind.com</Link>
             .

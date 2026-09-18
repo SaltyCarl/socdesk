@@ -163,7 +163,7 @@ possible knock-knock upstream contribution.
 
 ### Spec divergences
 
-Three places where the code (or the current operational state) differs from
+Four places where the code (or the current operational state) differs from
 what a literal reading of the spec would lead a reviewer to expect:
 
 1. **`ENABLED_PROTOCOLS` — resolved 2026-09-17.** Spec §3.1 states
@@ -178,18 +178,23 @@ what a literal reading of the spec would lead a reviewer to expect:
    both written and checked — still confirm the actual enabled set on the
    box (runbook §6) before relying on it as observed fact rather than
    configuration.
-2. **The per-IP `protocols[].hits_7d` field is not a 7-day figure.**
-   `schemas/picket_export.schema.json` and `schemas/picket.schema.json`
-   previously described `top_ips[].protocols[].hits_7d` as *"attempts in the
-   last 7 days on this protocol,"* which `assemble_export()`
-   (`tools/picket/assemble.py:47-54`) never actually computed — it publishes
-   that IP/protocol pair's **all-time** hit count from knock-knock's
-   `ip_intel_proto.hits` column, gated to `0` unless the IP has *any*
-   positive 7-day delta at all — it is not independently windowed per
-   protocol. See §5's field table and footnote for the exact expression. The
-   two schema descriptions were corrected on 2026-09-17 (ruling R23) to
-   state this behaviour; the code is deliberate (knock-knock has no per-IP
-   per-protocol window).
+2. **The per-IP `protocols[].hits_total` field is an all-time figure — and
+   is now named so.** `schemas/picket_export.schema.json` and
+   `schemas/picket.schema.json` originally described
+   `top_ips[].protocols[].hits_7d` as *"attempts in the last 7 days on this
+   protocol,"* which `assemble_export()` never computed — it publishes that
+   IP/protocol pair's **all-time** hit count from knock-knock's
+   `ip_intel_proto.hits` column (knock-knock keeps no per-IP, per-protocol
+   time window). Ruling R23 (2026-09-17) first corrected the two
+   descriptions; the final whole-branch review challenged that as stopping
+   short — a version-1 public contract with a field literally named `hits_7d`
+   carrying an all-time value — and ruling R29 **renamed it `hits_total`** in
+   both schemas, `tools/picket/assemble.py`, both fixtures and the TS type
+   (`web/src/components/views/types.ts::PicketIp`). The earlier "0 unless the
+   IP had any 7-day delta" gating (R3) went with the rename: the parent row's
+   own `hits_7d` is what says whether the IP was active this week.
+   `schema_version` stays `1` — no published data existed when the rename
+   landed. See §5.1's field table and footnote.
 3. **`picket_ips.json` is produced but not yet consumed.**
    `pipeline/picket.py::build_picket` writes `picket_ips.json` on every run
    in P1 (matching spec §9's P1 bullet, "producing `picket.json` (+
@@ -245,36 +250,67 @@ commented out, not `SAVE_KNOCKS=true` (runbook §4).
 web dashboard (`WEB_PORT`, default 8080). Approach "expose it publicly" was
 explicitly considered and declined by the owner (spec §0, §3.1) — the public
 value it would have provided is instead re-created inside SOCDesk itself
-(§9). `install.sh` writes `WEB_HOST=127.0.0.1` into `.env` as its best guess
-at the binding variable, but the runbook flags this as an unverified
-guess — a **build-time check**: *"knock-knock's actual variable name can
-differ by release"* (README §4) — and gives the `grep` command to confirm it
-on the pinned tag, plus the `curl` command from an external machine that must
-fail/timeout. To view the dashboard at all, the owner tunnels over SSH
+(§9). Two layers keep it private. First, the process binds to loopback:
+`v3.0.0`'s `docker-compose.host.yml` runs the dashboard as
+`uvicorn ... --host ${WEB_LISTEN:-0.0.0.0}`, so `install.sh` writes
+`WEB_LISTEN=127.0.0.1` into `.env` — the compose file honours the variable
+even though `.env.example` does not list it (the earlier `WEB_HOST` line was
+inert and is gone; final review I6). It also makes sure
+`COMPOSE_FILE=docker-compose.host.yml` is set: host networking is what puts
+port 8080 under ufw at all — under the bridge `docker-compose.yml` Docker
+publishes the port through its own iptables chain, which bypasses ufw.
+Second, the firewall has no rule for 8080. The runbook (README §4) checks
+both (`grep -nE '^(WEB_LISTEN|COMPOSE_FILE)='`, `ss -ltnp | grep :8080` →
+`127.0.0.1:8080`) and proves it from an external machine with a `curl` that
+must fail/timeout. To view the dashboard at all, the owner tunnels over SSH
 (`ssh -p 2222 -L 8080:127.0.0.1:8080 root@<ip>`) rather than opening the port.
 
-**Self-redaction.** Knock-knock has its own default behavior of not
-recording/reporting its own public IP or hostname as if it were an attacker
-fact — the runbook calls this "self-redaction" and states it "stays on (it
-is default behaviour, not a toggle)" (spec §3.1). That mechanism lives in
-knock-knock's own code, outside this repository, so it cannot be verified by
-reading this repo — it is a documented behavior of the upstream project, not
-a guarantee this repo's code enforces. What *this* repo's code does enforce,
-independently, is the second half of the same invariant: the collector
-explicitly drops any `top_ips` row whose SHA-256 matches the sensor's own
-published `public_ip_sha256` (§6) — so even if self-redaction ever failed
-on-box, the sensor's own IP still cannot reach a published payload.
+**Self-redaction — what upstream does, and what this repo does.**
+knock-knock's `self_redaction` scrubs the box's own address out of
+**credential and body text** (an attacker who types the sensor's IP into a
+password field does not get it republished). Verified against `v3.0.0`'s
+`monitor.py` on 2026-09-17: it never touches `ip_intel.ip`. So a connection
+from the box to its own public address — owner testing, a monitor, a
+compromised box probing its own honeypot — creates an ordinary `ip_intel`
+row for the sensor's IP, and the earlier wording here ("knock-knock does not
+record its own IP as an attacker fact") overstated it. The invariant is
+therefore enforced by **this** repo, twice: the exporter determines the
+box's public IPv4 first and passes it to
+`assemble_export(..., sensor_ip=...)`, which drops any `top_ips` row for it
+**before** the export is written (`tools/picket/assemble.py:65`), so the
+plaintext never reaches the public export repo; and the collector drops any
+row whose SHA-256 matches the published `public_ip_sha256`
+(`collectors/picket.py:78`, §6) as the second, independent pass. If the
+public IP cannot be determined the export is **refused** (`REFUSED
+(public-ip)`, exit 4, §4) rather than hashed from a hostname lookup that
+yields a private/loopback/CGNAT address whose hash matches nothing
+(`test_public_ip_is_empty_when_curl_yields_nothing`,
+`test_sensor_own_ip_is_dropped_on_the_box`,
+`test_main_writes_export_and_drops_the_sensors_own_ip`).
 
-**MaxMind.** Per-IP country resolution uses the free GeoLite2-Country
-database (`geoip2` Python reader), configured on-box only via
-`MAXMIND_ACCOUNT_ID` / `MAXMIND_LICENSE_KEY` in knock-knock's `.env` — never
-committed to this repository. If the database is missing, per-IP `country`
-is simply omitted (an optional schema field); knock-knock's own city-level
-`lat`/`lng` (used for `geo_precision:"city"`) is unaffected (spec §5 failure
-table, reproduced in §8). MaxMind's GeoLite2 End User License Agreement
-requires an attribution line wherever the data is used — carried in the
-published `attribution` string (`pipeline/picket.py`) and in the runbook's
-own attribution section (README §9).
+**MaxMind.** Two GeoLite2 databases are involved and they are provisioned
+differently. knock-knock's own `geoipupdate` **container** fetches
+GeoLite2-**City** and GeoLite2-**ASN** into a named Docker volume — that is
+where `lat`/`lng` (`geo_precision:"city"`) and ISP names come from — using
+`MAXMIND_ACCOUNT_ID` / `MAXMIND_LICENSE_KEY` in knock-knock's `.env`. The
+exporter's per-IP `country` comes from a **host** copy of
+GeoLite2-**Country** (`/usr/share/GeoIP/GeoLite2-Country.mmdb`, `geoip2`
+Python reader), which the container's volume does not provide; `install.sh`
+step 5 writes `/etc/GeoIP.conf` (`EditionIDs GeoLite2-Country`) from the
+same two environment variables when both are set, runs the host
+`geoipupdate` once and enables its timer — never committing either value to
+this repository (README §4). If the database is missing or unreadable, per-IP
+`country` is omitted (an optional schema field) and the export is **still
+published**: `tools/picket/exporter.py::_country_by_ip` guards the module
+import, the reader open and every lookup, prints one stderr line
+(`geoip: <reason> — publishing without country`) and returns `{}`
+(`test_country_by_ip_without_database_returns_empty`). Spec §5's failure
+row, reproduced in §8, was asserted here before it was implemented — the
+final review caught that; it is true as of the final fix wave. MaxMind's
+GeoLite2 End User License Agreement requires an attribution line wherever
+the data is used — carried in the published `attribution` string
+(`pipeline/picket.py`) and in the runbook's own attribution section (README
+§9).
 
 ### Protocol map
 
@@ -282,7 +318,7 @@ own attribution section (README §9).
 README §6.** The exporter refuses to guess protocol IDs at all — it loads
 `knock-knock`'s own `protocols/registry.py` at runtime
 (`tools/picket/exporter.py::load_proto_names`) and raises if an ID it sees in
-the rollups isn't in that map (`tools/picket/assemble.py:47-51`,
+the rollups isn't in that map (`tools/picket/assemble.py:55-59`,
 `test_unknown_protocol_id_fails_loudly`). On the pinned `v3.0.0` tag the
 registry is `protocols.registry.DEFINITIONS`, a list of `ProtocolDefinition`
 dataclasses (`.name`, `.proto_id`, ...) — there is no `PROTOCOL_META` on this
@@ -346,11 +382,31 @@ for this adapter:
   (§2 item 4 above, §5, §5.4).
 - **`.env` keys:** `ENABLED_PROTOCOLS` (comma-separated `PROTO` or
   `PROTO:PORT` entries), `SAVE_KNOCKS`, `WEB_PORT`, `SOURCE_ID`,
-  `MAXMIND_ACCOUNT_ID`, `MAXMIND_LICENSE_KEY` — no host/bind variable of any
-  name (§3's dashboard note above).
+  `MAXMIND_ACCOUNT_ID`, `MAXMIND_LICENSE_KEY`, and
+  `COMPOSE_FILE=docker-compose.host.yml` shipped **active** (host networking
+  is the default). `.env.example` lists no host/bind variable — but
+  `docker-compose.host.yml` honours `WEB_LISTEN` (`--host
+  ${WEB_LISTEN:-0.0.0.0}`), which the R24 note originally missed (final
+  review; §3's dashboard note above).
 - **No top-level `VERSION` file** exists in the repo — `knockknock_version`
   falls back to `git describe` on the box, never a file read that would
   silently succeed on every tag (§4 below).
+
+The final whole-branch review (2026-09-17) verified four more against the
+same tag, treated the same way:
+
+- **Database file:** `monitor.py` builds `DB_PATH = os.environ.get('DB_DIR',
+  'data') + '/knock_knock.db'` and compose mounts `./data:/app/data` → host
+  path `/opt/knock-knock/data/knock_knock.db` (the earlier `knocks.db` was
+  wrong and would have failed the first timer tick; C1). It is opened with
+  `PRAGMA journal_mode=WAL`, so a read-only reader also needs the `-wal` /
+  `-shm` sidecars readable (README §5, `install.sh` step 7 ACLs).
+- **GeoIP in the container:** the `geoipupdate` service fetches
+  `GeoLite2-ASN GeoLite2-City` into a **named Docker volume** — not the host,
+  and not the Country edition the exporter reads (§3 MaxMind above; C2).
+- **`self_redaction` scope:** credential/body text only, never `ip_intel.ip`
+  (§3 self-redaction above; I3).
+- **Dashboard bind:** `WEB_LISTEN`, as above (I6).
 
 ---
 
@@ -458,7 +514,7 @@ sets the run's `reset` flag to `True`
 (`tools/picket/ring.py:49-58`, `test_counter_decrease_is_clamped_and_flagged_as_reset`).
 The ring's newest bucket gets `+0`, not a bogus negative-turned-huge spike.
 The exporter then stamps `sensor.ring_reset_at` with the current time
-(`tools/picket/exporter.py:129-130`) — this is the **only** time
+(`tools/picket/exporter.py:207`) — this is the **only** time
 `ring_reset_at` is set; a normal fresh-box start (no prior `state.json`)
 does **not** set it (runbook §7: *"a fresh box starts with `new_state()` ...
 The exported `sensor.ring_reset_at` field will not be set (that only fires
@@ -483,12 +539,12 @@ nothing happened (spec §5 failure table, §8 below).
   commit (`tools/picket/exporter.py::_git_push`).
 - **Size — the refusal constant.** The exporter refuses to write an export
   larger than **`MAX_EXPORT_BYTES = 512 * 1024` bytes = 524,288 bytes
-  (512 KiB)**, defined in `tools/picket/exporter.py:32`. This matches the
+  (512 KiB)**, defined in `tools/picket/exporter.py:34`. This matches the
   spec's "≤ 512 KB" language exactly — there is no brief-vs-code discrepancy
   here, but the precise figure is 524,288 bytes, not a round decimal 512,000.
   On refusal it prints `REFUSED (size): <n> > 524288` to stderr and exits
   with status `3`, leaving the previously-pushed export standing
-  (`tools/picket/exporter.py:137-138`). Schema bounds (§5) make this
+  (`tools/picket/exporter.py:216`). Schema bounds (§5) make this
   structurally very hard to reach in practice — it is a belt-and-braces
   check, not the primary defense.
 - **The collector's own cap, on the other side.** Independently,
@@ -496,19 +552,26 @@ nothing happened (spec §5 failure table, §8 below).
   `MAX_BYTES = 2_000_000` bytes (2,000,000 bytes; decimal "2 MB", not a
   binary 2 MiB) and raises `ValueError` — treated by `run_all` as a failed
   collection, never a crash — if the fetched body is larger
-  (`collectors/picket.py:21,62-63`, `test_oversize_body_is_a_failed_collection`).
-- **The public-IP hash.** The exporter never writes the sensor's own
-  plaintext public IP anywhere. It shells out to `curl -4 -s --max-time 5
-  https://ifconfig.me` (falling back to a local DNS lookup) purely to
-  compute `sensor.public_ip_sha256 = sha256(public_ip)`
-  (`tools/picket/exporter.py:77-80,127`) — a 64-character lowercase hex
+  (`collectors/picket.py:21,101`, `test_oversize_body_is_a_failed_collection`).
+- **The public IP: a match token, not a secret.** The exporter shells out to
+  `curl -4 -s --max-time 5 https://ifconfig.me` **first**, before the
+  database is read or the ring advances (`tools/picket/exporter.py:189-191`).
+  There is no hostname fallback any more: `gethostbyname(gethostname())`
+  yields a private/loopback/CGNAT address whose hash matches nothing, so if
+  curl returns anything that is not a public IP literal the run is refused
+  (`REFUSED (public-ip)`, exit 4) and `state.json` is untouched — the next
+  successful run still sees this interval's deltas. The plaintext is used for
+  two things on the box: to drop the box's own `top_ips` rows in
+  `assemble_export(..., sensor_ip=...)` (§3), and to compute
+  `sensor.public_ip_sha256 = sha256(public_ip)` — a 64-character lowercase hex
   digest, structurally enforced by the export schema's pattern
-  `^[a-f0-9]{64}$`. The plaintext value exists only transiently in the
-  exporter process's memory; it is never written to `state.json`,
-  `export.json`, or any log line shown in the runbook. The pipeline uses
-  this hash a second time, independently, to drop any `top_ips` row whose
-  own SHA-256 matches it (§3, §6) — the sensor cannot appear as its own
-  attacker even if a knock-knock bug ever logged a connection from itself.
+  `^[a-f0-9]{64}$`. It is never written to `state.json`, `export.json`, or
+  any log line. Be precise about what that hash is: the SHA-256 of an IPv4
+  address is a **match token**, not concealment — there are only 2³²
+  inputs, enumerable in minutes — so "the plaintext never leaves the box"
+  means the export does not *state* the address, not that the hash hides it.
+  Its job is to let the collector drop a matching row a second time (§6)
+  without the pipeline ever holding the plaintext.
 - **`knockknock_version`.** No pinned tag ships a top-level `VERSION` file
   (verified directly against `v3.0.0`, §3's "Upstream verification" note),
   so `tools/picket/exporter.py::knockknock_version` tries, in order: a
@@ -523,10 +586,19 @@ nothing happened (spec §5 failure table, §8 below).
 
 If `validate_export()` finds schema errors, the exporter prints
 `REFUSED (schema): <first error>` and exits `2` — no push, and the previous
-export (already live in the export repo) stands (`tools/picket/exporter.py:132-135`,
-matching spec §5's "Export fails its own schema on-box" row, §8 below). Both
-refusal paths are checked by `journalctl -u picket-export` in the runbook's
-verification steps (README §5).
+export (already live in the export repo) stands (`tools/picket/exporter.py:213`,
+matching spec §5's "Export fails its own schema on-box" row, §8 below).
+`REFUSED (size)` exits `3` (`:216`); `REFUSED (public-ip)` exits `4` (`:191`,
+above). Two further stderr lines are **not** refusals: `geoip: … —
+publishing without country` (§3 MaxMind — the export went out without per-IP
+`country`) and `state: … unreadable … starting a fresh ring` — `load_state`
+(`:146`) replaces a truncated `state.json` (power loss mid-write) with a
+fresh ring instead of tripping every later run on `JSONDecodeError`, and
+`save_state` (`:160`) writes `state.json.tmp` + `os.replace` so the file is
+never torn again (`test_state_load_tolerates_truncated_file`,
+`test_state_is_saved_atomically_and_round_trips`). All refusal paths are
+checked by `journalctl -u picket-export` in the runbook's verification
+steps (README §5).
 
 ---
 
@@ -549,7 +621,12 @@ exist yet — it is P2 (§2, §11).
 
 ### 5.1 `export.json` — [`schemas/picket_export.schema.json`](../schemas/picket_export.schema.json)
 
-Top level (all required):
+Top level (all required). The example column quotes
+`tests/fixtures/picket/export_ok.json`, which is synthetic test data and
+**not a self-consistent run**: its ring sums to 42 while `by_protocol` sums
+to 1,000 and `top_ips` to 1,050, and it carries an `asn` no P1 export can.
+Each value only illustrates its own field's shape — do not check the
+arithmetic across the column.
 
 | Field | Type / bound | Meaning | Example (`tests/fixtures/picket/export_ok.json`) |
 |---|---|---|---|
@@ -580,8 +657,9 @@ Top level (all required):
 
 | Field | Type / bound | Meaning | Example |
 |---|---|---|---|
-| `knocks_total` | integer, ≥0 | All-time cumulative knock count, read straight from `SUM(ip_intel_proto.hits)` (`tools/picket/exporter.py:49`) — not derived from the ring. | `9001` |
+| `knocks_total` | integer, ≥0 | All-time cumulative knock count, read straight from `SUM(ip_intel_proto.hits)` (`tools/picket/exporter.py:51`) — not derived from the ring. | `9001` |
 | `since` | string, ≤20 | `exported_at` minus `uptime_minutes` — when the all-time counter has been accumulating from. | `"2026-07-25T11:35:00Z"` |
+| `unique_ips_7d` | integer, ≥0, **optional** | Distinct public source IPs (the sensor's own excluded) active in the last 7 days, counted from the ring's per-IP deltas (`tools/picket/assemble.py:89-90`) — **not** from the ≤2,000-row `top_ips` list, which would saturate on any busy sensor (final review I2). Optional so an export from before 2026-09-17 still validates; the pipeline then falls back (§5.2). | `2500` on a sensor with 2,500 active IPs while `top_ips` holds 2,000 (`test_unique_ips_7d_counts_beyond_the_top_ips_cap`); absent in the fixture |
 
 `ring` (required: `bucket_minutes`, `buckets`):
 
@@ -607,31 +685,26 @@ Top level (all required):
 | `hits_total` | integer, ≥0 | All-time knocks from this IP. | `8000` |
 | `first_seen` | string, ≤20, **optional** | Converted from knock-knock's `YYYY-MM-DD HH:MM:SS` to ISO `Z` (`tools/picket/assemble.py::_ts`) when present. knock-knock v3.0.0's `ip_intel` has no `first_seen` column at all (§2 item 4, §3, §5.4) — the exporter omits the field rather than fabricate a value, so P1 exports never carry it. | absent in P1 |
 | `last_seen` | string, ≤20 | Converted the same way; always present — `ip_intel.last_seen` does exist. | `"2026-07-28T11:00:00Z"` |
-| `protocols` | array, ≤16, each `{proto, hits_7d}` | Per-protocol breakdown for this IP. **See the footnote below** — the nested `hits_7d` here is not the same figure as the top-level `by_protocol[].hits_7d`; the schema's own description says so as of 2026-09-17 (ruling R23). | `[{"proto":"SSH","hits_7d":900}]` |
-| `country` | string, ≤2, optional | From GeoLite2-Country, keyed by IP (§3), not from knock-knock's own rollups. | `"CN"` |
-| `asn` | integer, ≥0, optional | From `ip_intel.asn`. | `64500` |
-| `isp` | string, ≤120, optional | Joined from `isp_intel` by ASN. | `"Example Hosting"` |
+| `protocols` | array, ≤16, each `{proto, hits_total}` | Per-protocol breakdown for this IP. `hits_total` is knock-knock's cumulative per-(IP, protocol) counter — **see the footnote below**; the parent row's `hits_7d` says whether the IP was active this week. | `[{"proto":"SSH","hits_total":900}]` |
+| `country` | string, ≤2, optional | From the host GeoLite2-Country database, keyed by IP (§3), not from knock-knock's own rollups; omitted when that database is missing. | `"CN"` |
+| `asn` | integer, ≥0, optional | Would be the per-IP ASN — but knock-knock v3.0.0's `ip_intel` has no `asn` column (§5.4), so P1 exports never carry it and the tab shows `—`. | absent in P1 (the fixture's `64500` is synthetic) |
+| `isp` | string, ≤120, optional | Would be joined from `isp_intel` by ASN — unreachable in P1 for the same reason. | absent in P1 (fixture value synthetic) |
 | `lat` / `lng` | number, optional | knock-knock's own city-level geolocation. | `39.9` / `116.4` |
-| `geo_precision` | `"city"` \| `"country"`, optional | Set to `"city"` when `lat`/`lng` are present (`tools/picket/assemble.py:72-74`); omitted from `export.json` entirely otherwise — the export's own assembler never writes `"country"` into this field (see §5.3 for how `picket_ips.json`'s own default works, which is a separate function). | `"city"` |
+| `geo_precision` | `"city"` \| `"country"`, optional | Set to `"city"` when `lat`/`lng` are present (`tools/picket/assemble.py:81-83`); omitted from `export.json` entirely otherwise — the export's own assembler never writes `"country"` into this field (see §5.3 for how `picket_ips.json`'s own default works, which is a separate function). | `"city"` |
 
-> **Footnote — the nested `protocols[].hits_7d` field.** Despite its name,
+> **Footnote — the nested `protocols[].hits_total` field.**
 > `assemble_export()` publishes this value as the IP/protocol pair's
 > **all-time** hit count from `ip_intel_proto.hits`
-> (`tools/picket/assemble.py:52-54`), gated to `0` unless that IP had *any*
-> positive delta anywhere in the trailing 7 days
-> (`hits7d["ip"].get(r["ip"], 0) > 0`). It is not an independently
-> time-windowed per-protocol figure the way the top-level `by_protocol[]`
-> array's `hits_7d` is — this is deliberate (knock-knock has no per-IP
-> per-protocol time window), and the schema's own `description` for this
-> field was corrected on 2026-09-17 (ruling R23) to say so, rather than the
-> misleading "attempts in the last 7 days on this protocol" it said before.
-> This flows unchanged into the published
+> (`tools/picket/assemble.py:55-61`). knock-knock has no per-IP, per-protocol
+> time window, so no 7-day figure exists here — which is why the field was
+> renamed from `hits_7d` on 2026-09-17 (ruling R29, after R23 had only
+> corrected the description; §2 item 2). The earlier gating that zeroed it
+> unless the IP had any 7-day delta is gone with the rename: the row's own
+> `hits_7d` is the activity signal. It flows unchanged into the published
 > `picket.json` (`pipeline/picket.py::_panel` copies `top_ips` verbatim) and
 > is not currently rendered as a number anywhere in the UI — `PicketView.tsx`
-> only lists the protocol *names* for a row, not this per-protocol figure
-> (`web/src/components/views/PicketView.tsx:117`) — but it is present in the
-> JSON any P2 consumer (fusion, exports) would read. See the Spec
-> divergences note in §2.
+> only lists the protocol *names* for a row — but it is present in the JSON
+> any P2 consumer (fusion, exports) would read.
 
 `top_usernames` / `top_passwords` — `$defs/credlist` (required: `value`, `hits_7d`):
 
@@ -641,7 +714,7 @@ Top level (all required):
 | `hits_7d` | integer, **≥3** | Occurrences in the last 7 days; the floor is enforced structurally by the schema's own `minimum:3`, not just in code (§6). | `400` |
 | `hits_total` | integer, ≥0, optional | All-time occurrences. | `3000` |
 
-`top_countries[]` (required: `iso`, `hits_7d`) and `top_isps[]` (required: `isp`, `hits_7d`) follow the same `{code/name, hits_7d, hits_total}` shape; see the schema file directly for the exact optional fields (`name` on countries, `asn` on ISPs).
+`top_countries[]` (required: `iso`, `hits_7d`) and `top_isps[]` (required: `isp`, `hits_7d`) follow the same `{code/name, hits_7d, hits_total}` shape; `name` is optional on countries and `asn` on ISPs — `asn` is **omitted** when `isp_intel.asn` is NULL upstream, never written as `0` (`test_isp_asn_is_omitted_when_unknown`; final review M2).
 
 ### 5.2 `picket.json` — [`schemas/picket.schema.json`](../schemas/picket.schema.json)
 
@@ -657,7 +730,7 @@ block that differ from the raw export:
 | `attribution` | string, ≤1000 | The MaxMind + knock-knock attribution and the context-not-verdict framing, verbatim from `pipeline/picket.py::ATTRIBUTION`. | *"SOCDesk PICKET: telemetry from SOCDesk's own internet-facing honeypot sensor ..."* |
 | `collected_at` | string | When the underlying export was **actually** last collected — stamped only on a real collection, carried through keep-prior (§7). | `"2026-07-28T12:00:00Z"` |
 | `sensor` | object | See below — adds `status`/`export_age_minutes`/`uptime_days` (computed), drops `public_ip_sha256`. | — |
-| `totals` | object | Adds `knocks_24h`, `knocks_7d`, `unique_ips_7d` to the export's `knocks_total`/`since`. | `knocks_7d: 42` |
+| `totals` | object | Adds `knocks_24h`, `knocks_7d`, `unique_ips_7d` to the export's `knocks_total`/`since`. `unique_ips_7d` is the export's own ring-derived value when the key is present (`pipeline/picket.py:68-71`, a legitimate `0` included); for an export without it the builder falls back to counting `top_ips` rows with `hits_7d > 0` — a figure that saturates at the 2,000-row cap, which is why the box now supplies the real one (`test_unique_ips_7d_prefers_the_export_value_and_falls_back`). | `knocks_7d: 42` |
 | `histogram_7d` | array, exactly 168 integers | Hourly knocks for the trailing 7 days, oldest first — the 336 half-hour ring buckets summed pairwise (`pipeline/picket.py::_hourly`). | 167 zeros, then `42` |
 | `by_protocol[]` | array, ≤16 | Adds `share_pct` to the export's `proto`/`hits_7d`/`hits_total`. | `{"proto":"SSH","hits_7d":900,"hits_total":8000,"share_pct":90.0}` |
 | `top_ips` / `top_usernames` / `top_passwords` / `top_countries` / `top_isps` | as §5.1, `top_ips` capped at 100 | Passed through from the export mostly unchanged (`top_ips` is sliced, not re-derived). | — |
@@ -685,7 +758,9 @@ on the corresponding items. `isp` itself is required on `top_isps` in
 `by_protocol[].share_pct` is `round(100 * hits_7d / denom, 1)` where `denom`
 is the sum of `hits_7d` across **all** `by_protocol` rows (i.e. the
 trailing-7-day total across every protocol), or `0.0` when that sum is zero
-(`pipeline/picket.py:63-65`).
+(`pipeline/picket.py:63-65`). The panel's `sensor.status`/`export_age_minutes`
+are the pipeline's stamps as of `generated_at`; the client re-derives both
+from `sensor.exported_at` on render (§7).
 
 ### 5.3 `picket_ips.json` — [`schemas/picket_ips.schema.json`](../schemas/picket_ips.schema.json)
 
@@ -710,21 +785,21 @@ untouched (spec §4.4). Produced in P1; not yet rendered (§2).
 | `hits_7d` | integer, ≥0 | Trailing-7-day knocks from this IP. | `900` |
 | `first_seen` | string, ≤20, **optional** | As in `top_ips` — carried through only when the export row has it; P1 exports never do (§2 item 4). | absent in P1 |
 | `last_seen` | string, ≤20 | As in `top_ips`; always present. | — |
-| `geo_precision` | `"city"` \| `"country"` | Copied from the export row's own `geo_precision` when present; defaults to **`"city"`** — not `"country"` — when absent (`r.get("geo_precision", "city")`, `pipeline/picket.py:89`). In practice this default is unreachable today: `_ips_layer` only processes rows that already passed a finite-`lat`/`lng` check (line 85), and `assemble_export` always sets `geo_precision="city"` whenever `lat`/`lng` are present (§5.1, `tools/picket/assemble.py:72-74`), so every row reaching this function already carries an explicit `"city"` value. | `"city"` |
+| `geo_precision` | `"city"` \| `"country"` | Copied from the export row's own `geo_precision` when present; defaults to **`"city"`** — not `"country"` — when absent (`r.get("geo_precision", "city")`, `pipeline/picket.py:95`). In practice this default is unreachable today: `_ips_layer` only processes rows that already passed a finite-`lat`/`lng` check (line 91), and `assemble_export` always sets `geo_precision="city"` whenever `lat`/`lng` are present (§5.1, `tools/picket/assemble.py:81-83`), so every row reaching this function already carries an explicit `"city"` value. | `"city"` |
 
 ### 5.4 knock-knock rollup column → export field
 
 | knock-knock rollup | Column(s) | Export field(s) | Notes |
 |---|---|---|---|
 | `ip_intel` | `ip`, `hits`, `last_seen`, `lat`, `lng` | `top_ips[].ip/hits_total/last_seen/lat/lng` | `hits_total` is this table's `hits` directly; `hits_7d` comes from the ring, not this table. knock-knock v3.0.0's `ip_intel` has no `first_seen` and no `asn` column (§2 item 4, §3's "Upstream verification" note) — `top_ips[].first_seen` is consequently always omitted in P1, and `top_ips[].asn`/`isp` are never populated per IP either, since there is no per-IP ASN upstream to join `isp_intel` against. |
-| `ip_intel_proto` | `ip`, `proto`, `hits` | `top_ips[].protocols[].proto/hits_7d` (see the §5.1 footnote), `by_protocol[].hits_total`, `totals.knocks_total` (via `SUM(hits)`) | Cumulative per (IP, protocol) pair. |
+| `ip_intel_proto` | `ip`, `proto`, `hits` | `top_ips[].protocols[].proto/hits_total` (see the §5.1 footnote), `by_protocol[].hits_total`, `totals.knocks_total` (via `SUM(hits)`) | Cumulative per (IP, protocol) pair — hence `hits_total`, never a 7-day figure. |
 | `user_intel` | `username`, `hits` | `top_usernames[]` (via the fence, §6) | `hits` is the all-time count; `hits_7d` comes from the ring. |
 | `pass_intel` | `password`, `hits` | `top_passwords[]` (via the fence, §6) | Same shape as `user_intel`. |
 | `country_intel` | `iso_code`, `country`, `hits` | `top_countries[].iso/name/hits_total` | `name` passes through `clean_text`. |
-| `isp_intel` | `isp`, `hits`, `asn` | `top_isps[].isp/hits_total/asn` | `isp` passes through `clean_text`, capped at 120 chars. The join into `top_ips[].isp` by ASN in `tools/picket/assemble.py` is unreachable code in P1, not a bug: it is gated on `ip_intel.asn`, which does not exist on this table (`ip_intel` row above), so it is never populated for any IP. |
+| `isp_intel` | `isp`, `hits`, `asn` | `top_isps[].isp/hits_total/asn` | `isp` passes through `clean_text`, capped at 120 chars; `asn` is **omitted** when the column is NULL (never `0`). The join into `top_ips[].isp` by ASN in `tools/picket/assemble.py` is unreachable code in P1, not a bug: it is gated on `ip_intel.asn`, which does not exist on this table (`ip_intel` row above), so it is never populated for any IP. |
 | `monitor_heartbeats` | `uptime_minutes` | `sensor.uptime_minutes`, `totals.since` | `since = exported_at − uptime_minutes`. |
-| GeoLite2-Country (not a knock-knock table) | — | `top_ips[].country`, keyed by IP | Resolved on-box by the exporter, joined in after reading rollups (`tools/picket/exporter.py::_country_by_ip`). |
-| the delta ring (derived, not a table) | — | `ring.buckets`, `by_protocol[].hits_7d`, `top_ips[].hits_7d`, `top_usernames/passwords[].hits_7d`, `top_countries/isps[].hits_7d` | Everything genuinely time-windowed comes from `tools/picket/ring.py`, never straight from a rollup column. |
+| GeoLite2-Country (host `.mmdb`, not a knock-knock table) | — | `top_ips[].country`, keyed by IP | Resolved on-box by the exporter, joined in after reading rollups (`tools/picket/exporter.py::_country_by_ip`); the whole field is omitted when the database is missing (§3). |
+| the delta ring (derived, not a table) | — | `ring.buckets`, `by_protocol[].hits_7d`, `top_ips[].hits_7d`, `totals.unique_ips_7d`, `top_usernames/passwords[].hits_7d`, `top_countries/isps[].hits_7d` | Everything genuinely time-windowed comes from `tools/picket/ring.py`, never straight from a rollup column. |
 
 ---
 
@@ -794,13 +869,32 @@ pipeline) both `import` `fence_credential` and `is_public_ip` from the one
 module, `tools.picket.fence` — the second pass is not an independently
 re-implemented fence that could drift from the first, it is the identical
 function running again against attacker-influenced input that has now
-crossed a trust boundary (a public GitHub raw URL, §1). `test_hostile_export_is_made_inert_and_fenced`
-exercises this against `tests/fixtures/picket/export_hostile.json` — a fixture
-containing a raw `<img src=x onerror=alert(1)//` username, an
-`alice@example.com` value, HTML-entity-encoded markup in an ISP name, and a
-private-range IP (`10.0.0.5`) mixed in among legitimate rows — and asserts
-every one of them is either stripped to inert text or dropped outright by the
-time the collector is done.
+crossed a trust boundary (a public GitHub raw URL, §1). The collector's
+second-pass sanitiser, `collectors/picket.py::normalize`, walks **every**
+string-typed property the export schema allows — `sensor.id / protocols[] /
+knockknock_version / country / ring_reset_at`, `exported_at`, `totals.since`,
+`by_protocol[].proto`, `top_ips[].last_seen / first_seen / country / isp /
+protocols[].proto`, `top_countries[].iso / name`, `top_isps[].isp`, and the
+credentials — through `clean_text()[:bound]` with each bound copied from the
+schema; it is an explicit path list, deliberately not a generic walk over the
+schema document, so a reader can check it against the schema line by line
+(final review I1 — before that wave it touched five of them).
+`test_hostile_export_is_made_inert_and_fenced` exercises this against
+`tests/fixtures/picket/export_hostile.json` — a fixture containing a raw
+`<img src=x onerror=alert(1)//` username, an `alice@example.com` value,
+HTML-entity-encoded markup in an ISP name, a private-range IP (`10.0.0.5`), a
+row for the sensor's own IP (`5.6.7.9`, matched by hash), and markup inside
+every other string the schema admits (`sensor.protocols[0]`,
+`sensor.knockknock_version`, `sensor.country`, `totals.since`,
+`by_protocol[0].proto`, `top_ips[0].protocols[0].proto / country / last_seen`,
+`top_countries[0].iso`) — each within its `maxLength` so the raw schema still
+admits the document and the sanitiser is what has to act — mixed in among
+legitimate rows. The test asserts every hostile value is stripped to inert
+text or dropped outright **and** that the legitimate rows (`1.2.3.4`, `root`,
+`Example Hosting`, `China`) survive, so an over-eager fence cannot pass by
+dropping everything (M8). A separate test appends a 33-character credential
+and asserts the whole document is **refused** (schema `maxLength: 32`), not
+trimmed (`test_overlong_credential_is_refused_not_trimmed`).
 
 **What the schema forbids structurally, independent of any code path:**
 `additionalProperties:false` on every object in all three schemas; no field
@@ -826,7 +920,7 @@ implementation: it re-stamps `generated_at` to now on both files, and, for
 against the current time** — so a sensor that was `"live"` yesterday
 correctly shows `"stale"` or `"silent"` today even though nothing about the
 underlying data changed (this is the "HONEST status" the module's own
-docstring calls out, `pipeline/picket.py:1-9,98-108`).
+docstring calls out, `pipeline/picket.py:1-9,106-116`).
 
 Status is computed by `pipeline/picket.py::sensor_status(exported_at, now)`
 from the age of the export's own `exported_at` timestamp — never from
@@ -839,15 +933,29 @@ as easily as it can fail outright:
 | `live` | `export_age_minutes < LIVE_MINUTES` (`LIVE_MINUTES = 90`) | *"Sensor reporting · last export \{age\} ago"* | A fresh `collect()` succeeded this run; `_panel()` builds a brand-new payload and `collected_at` is stamped to `now` (`pipeline/picket.py::build_picket`). |
 | `stale` | `LIVE_MINUTES ≤ export_age_minutes < SILENT_MINUTES` (`SILENT_MINUTES = 24 * 60 = 1440`) | *"Sensor stale · no export for \{age\} — figures below are the last received"* | Either a fresh collection whose own `exported_at` is already old (the box is up but its export timer stalled), computed status fresh — or, more commonly, the collector failed and `restamp_prior()` recomputed status against `now` while holding `collected_at` at the last real collection. |
 | `silent` | `export_age_minutes ≥ SILENT_MINUTES` | *"Sensor silent · no export for \{age\} — the sensor or its uplink is down; figures below are the last received"* | Same `restamp_prior()` path as `stale`, or an unparseable/garbage `exported_at` (`sensor_status` returns `("silent", 0)` as the safe default when the timestamp can't be parsed at all — `pipeline/picket.py:32-34`). |
-| *(no payload)* | Collector never succeeded once, and no prior snapshot exists in `data/state/` | *"No sensor telemetry yet. The Picket sensor has not published an export the pipeline could read. Everything else on the desk still works."* (`PicketView.tsx`'s `EmptyState`); teaser shows *"No sensor telemetry yet."* | `build_picket()` returns `None`; nothing is written for `picket.json`/`picket_ips.json` this run (`test_collector_down_with_no_prior_is_none`). |
+| *(no payload)* | Collector never succeeded once, and no prior snapshot exists in `data/state/` | *"No sensor telemetry yet. The Picket sensor has not published an export the pipeline could read. Everything else on the desk still works."* (`PicketView.tsx`'s `EmptyState`); teaser shows *"No sensor telemetry yet."* — and on the landing board a **missing** `picket.json` (HTTP 404, which is exactly this state: the pipeline writes none until the first successful export) renders that same teaser empty instead of the generic fetch-error panel (`SituationalBoard.tsx::PicketSlot`, final review I8 option b, ruling R28); any other fetch error stays an error. | `build_picket()` returns `None`; nothing is written for `picket.json`/`picket_ips.json` this run (`test_collector_down_with_no_prior_is_none`). |
 
-`export_age_minutes` is formatted for display by
-`picketModel.ts::formatAge`: under 60 minutes as `"N min"`, under 24 hours
-(1440 min) as a rounded `"N h"`, otherwise a rounded `"N d"`. The tab's status
-chip itself carries no verdict colour either — it uses the neutral `accent`
-(periwinkle) tone only when `status === 'live'`, and the plain `muted` tone
-for both `stale` and `silent` (`PicketView.tsx:71-73`) — a freshness
-indicator, not a severity one.
+The age is formatted for display by `picketModel.ts::formatAge`: under 60
+minutes as `"N min"`, under 24 hours (1440 min) as a rounded `"N h"`,
+otherwise a rounded `"N d"`.
+
+**The client ages the export too (final fix wave, ruling R28).** The
+pipeline-stamped `export_age_minutes`/`status` cannot age if the *pipeline*
+stops — a frozen `picket.json` would keep saying "live · last export 25 min
+ago" indefinitely, and the landing `FreshnessStrip` reads `health.json`,
+which the same outage freezes. So `web/src/components/views/picketModel.ts`
+recomputes on render: `exportAgeMinutes(sensor, now = Date.now())` from
+`Date.parse(sensor.exported_at)` (never negative), `sensorStatus()` from that
+age with `LIVE_MINUTES = 90` / `SILENT_MINUTES = 1440` exported as constants
+that mirror `pipeline/picket.py`, and `statusCopy()` from both. The
+pipeline's stamped figures are used only when `exported_at` does not parse.
+`PicketView` derives the chip's label *and* tone from `sensorStatus()` so
+the chip and its copy can never disagree (`picketModel.test.ts`,
+`PicketView.test.tsx` "a frozen live payload reads Silent"). The tab's status
+chip itself carries no verdict colour — it uses the neutral `accent`
+(periwinkle) tone only when the derived status is `live`, and the plain
+`muted` tone for both `stale` and `silent` — a freshness indicator, not a
+severity one.
 
 ---
 
@@ -870,13 +978,14 @@ what §4/§7's code already implements.
 | `picket_lookup.json` missing in the Function | `loadPicket` returns null (not memoized); `SOCDESK_PICKET` omits itself; the card is byte-identical to today. | pending dogfood *(also not yet buildable — `picket_lookup.json` and `loadPicket` are P2, §2, §11)* |
 | D1 read-only path unavailable in CI | Candidates published without the 30-day dedupe; `/admin` still shows decisions from its own read. | pending dogfood *(also not yet buildable — the candidate rule and D1 path are P3, §2, §11)* |
 | AbuseIPDB non-200 on approve | Nothing persisted; 502 with the upstream message + quota headers; owner retries. | pending dogfood *(also not yet buildable — P3, §2, §11)* |
-| MaxMind DB missing on-box | Per-IP `country` omitted (optional field); country/lat/lng from knock-knock's own GeoIP still present. | pending dogfood |
+| MaxMind DB missing on-box | Per-IP `country` omitted (optional field); country/lat/lng from knock-knock's own GeoIP still present. | pending dogfood — *implemented and unit-tested only in the final fix wave* (`test_country_by_ip_without_database_returns_empty`; before it, `_country_by_ip` crashed on a missing file). The runbook's first `--no-push` smoke run points `--geoip-db` at a missing file to exercise exactly this row on the real box (README §5). |
 
-The first four rows are exercisable today by unit tests even before dogfood
-— `tests/test_picket_pipeline.py::test_collector_down_restamps_prior_and_degrades_status`
+The first four rows and the last are exercisable today by unit tests even
+before dogfood —
+`tests/test_picket_pipeline.py::test_collector_down_restamps_prior_and_degrades_status`
 and `test_collector_down_with_no_prior_is_none` cover row 1's pipeline-side
 behavior directly; `tests/test_picket_ring.py::test_counter_decrease_is_clamped_and_flagged_as_reset`
-and the per-entity variant cover row 4. "Observed (dogfood)" is deliberately
+and the per-entity variant cover row 4; row 8 as noted in its cell. "Observed (dogfood)" is deliberately
 kept separate from "covered by a unit test" — a passing test proves the code
 does what it was written to do against a fixture; it is not the same claim
 as "this was seen to happen on the real box," which is what this column is
@@ -886,9 +995,8 @@ reserved for.
 
 ## 9. Surfaces
 
-Three places a person can see Picket's data today; screenshots are called
-out separately below and are **not** included in this commit (see the note
-at the end of this section).
+Three places a person can see Picket's data today; screenshots of all three
+are in `docs/img/picket/` (see the end of this section).
 
 ### `/desk#picket` — the tab
 
@@ -947,7 +1055,10 @@ the same `statusCopy`, a large 24-hour knock count, the same daily sparkline
 as the tab, and, when available, a `"most from \{country\} · \{protocols\}"`
 line — the sensor's own protocol list is appended after the top country,
 not just the country alone (`PicketTeaser.tsx:39`). Empty state: *"No
-sensor telemetry yet."*
+sensor telemetry yet."* — shown for a `null` payload and, through
+`SituationalBoard.tsx::PicketSlot`, when `picket.json` does not exist yet
+(HTTP 404); a non-404 fetch error renders the board's standard error panel
+instead (`PicketTeaser.test.tsx`, §7).
 
 ### `/about#picket` — the transparency section
 
@@ -969,10 +1080,12 @@ paragraph naming knock-knock (MIT) and MaxMind GeoLite2.
 
 ### Screenshots
 
-Per the controller's ruling on this task, no screenshots were taken and no
-`docs/img/picket/` directory or image file was created by this task — Task
-14 produces them. This document references the seven paths it expects to
-exist once that task runs, each with a fixed caption:
+Seven screenshots, rendered from fixture data via `vite preview`
+(pre-dogfood), were added by Task 14 in `4f71dac5` and live in
+`docs/img/picket/`. Note they predate the final fix wave: with the fixture's
+2026-07-28 `exported_at`, the live-app chip now reads *Silent* (client-side
+ageing, §7) where `tab-light.png`/`tab-dark.png` show *Live* — the
+screenshots document the P1 surfaces, not the current chip logic.
 
 - `docs/img/picket/tab-light.png` — *"Rendered from fixture data
   (`tests/fixtures/picket/export_ok.json`) via `vite preview`; pre-dogfood."*
@@ -994,13 +1107,13 @@ light and dark. Two observations from the check, stated plainly:
    sensor — context, never a verdict…") that near-duplicates the
    `ViewHeader` intro directly above it — copy polish, tracked in BACKLOG.
 2. The header's "Updated N ago" is `generated_at` (pipeline run time) while
-   the chip's "last export N min ago" is `sensor.export_age_minutes`,
-   stamped by the pipeline. With the fixture that reads "Updated 52d ago"
-   beside "last export 25 min ago". In production the pipeline restamps
-   every 30 min so the two agree; if the **pipeline** itself stopped, the
-   chip would keep saying "live" while the header aged — the site-wide
-   freshness strip is the existing control. P2 candidate: compute the
-   export age client-side from `sensor.exported_at`. Tracked in BACKLOG.
+   the chip's "last export N min ago" *was* `sensor.export_age_minutes`,
+   stamped by the pipeline — with the fixture that read "Updated 52d ago"
+   beside "last export 25 min ago", and if the **pipeline** itself stopped
+   the chip would have kept saying "live" while the header aged.
+   **Resolved in the final fix wave (ruling R28):** the chip now ages the
+   export client-side from `sensor.exported_at` (§7), so the two agree
+   under any outage.
 
 ---
 
@@ -1012,11 +1125,9 @@ what makes it clearly redistributable under `COMPLIANCE.md`'s
 aggregator-not-mirror rule without the case-by-case terms review that
 applies to a third-party feed: there are no third-party terms to satisfy,
 because there is no third party's data in `export.json`, `picket.json`, or
-`picket_ips.json`. (A `COMPLIANCE.md` entry documenting this posture formally
-is a separate P1 documentation deliverable per the spec's §10 table; it had
-not been added as of this writing — this document does not speak for
-`COMPLIANCE.md`, only summarizes the posture its own rules already
-establish.)
+`picket_ips.json`. The `COMPLIANCE.md` entry documenting this posture
+formally landed in `d3b9068e` (Task 13); this document summarizes the
+posture, `COMPLIANCE.md` is where it is ruled on.
 
 **Why attacker IPs are published.** Spec §3.6.5: *"a public IP that
 brute-forced an unsolicited sensor is a fact about a host, not personal
@@ -1138,4 +1249,23 @@ them, TDD throughout, oldest first:
 **Task 14 — P1 close-out.**
 
 8. `4f71dac5` — docs(picket): P1 surface screenshots from fixture data (light/dark, live/silent)
-9. docs(handoff): PICKET P1 built + verified locally — dogfood pending, P2 next — this commit (this §12 update, `docs/HANDOFF.md` §0, `BACKLOG.md`, the REPO-MAP/DATA-SOURCES Task 13 review minors, and the `data/sources.json` `picket` row), landing as the next commit after `4f71dac5`.
+9. `c34081f2` — docs(handoff): PICKET P1 built + verified locally — dogfood pending, P2 next (this §12 update, `docs/HANDOFF.md` §0, `BACKLOG.md`, the REPO-MAP/DATA-SOURCES Task 13 review minors, and the `data/sources.json` `picket` row).
+
+**2026-09-17 — Final fix wave (whole-branch review; rulings R28–R30).**
+
+The final review (`.superpowers/sdd/2026-09-17-picket-p1-foundation/final-review.md`)
+re-fetched knock-knock `v3.0.0` for every exporter assumption 12b had not
+listed and found two Criticals that would have stopped the very first timer
+tick on a real box (wrong DB filename; an unguarded GeoIP reader with no host
+database provisioned) plus eight Importants — three of them gaps in the
+feature's own honesty claims (every string re-sanitised; the sensor IP never
+published; the status chip truthful under a pipeline outage). Seven commits,
+TDD throughout, oldest first:
+
+10. `cbf63b44` — fix(picket): exporter opens knock_knock.db; a missing GeoIP database omits country instead of crashing (C1, C2 code)
+11. `2f27587b` — fix(picket): the box drops its own IP too; export refused when the public IP is unknown (I3)
+12. `d6689eff` — fix(picket): collector re-sanitises every string the export can carry; hostile fixture covers sensor/proto markup, a 33-char credential, and survivors (I1, M8)
+13. `9b107e89` — fix(picket): true unique_ips_7d from the ring; per-IP protocol counter is hits_total; asn omitted when unknown (I2, R29 rename, M2)
+14. `b17eadd2` — fix(picket): status chip ages the export client-side; landing teaser treats a missing picket.json as "no telemetry yet" (I7, I8 option b — ruling R28)
+15. `3d8aa900` — fix(picket): runbook — sshd drop-in + socket handling, HTTPS clone with SSH push, per-OS packages, WEB_LISTEN, GeoIP.conf, ACLs, atomic state (I4, I5, I6, C2 runbook, M11, M12, M14)
+16. docs(picket): PICKET.md, About, OPERATIONS and BACKLOG reflect the final fix wave — this document itself (M6, M7, the C2 doc claims, review recommendations 3–5), landing as the next commit after `3d8aa900`. The out-of-scope Minors (M1, M4, M9, M10, M13) are in `BACKLOG.md` "Picket follow-ups", P2-tagged.
