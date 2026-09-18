@@ -5,16 +5,16 @@
     "id": "picket-1",
     "public_ip_sha256": "a36280fd42fff756a1ed626d6cacd01b2b1a351aba2d9d5bb8cf4e0ae132d23f",
     "protocols": [
-      "SSH",
+      "<b>SSH",
       "TELNET"
     ],
     "uptime_minutes": 4320,
-    "knockknock_version": "1.9.0",
-    "country": "DE"
+    "knockknock_version": "1.9.0<script>alert(1)</script>",
+    "country": "D<"
   },
   "totals": {
     "knocks_total": 9001,
-    "since": "2026-07-25T11:35:00Z"
+    "since": "<b>2026-07-25T11:35Z"
   },
   "ring": {
     "bucket_minutes": 30,
@@ -359,7 +359,7 @@
   },
   "by_protocol": [
     {
-      "proto": "SSH",
+      "proto": "SSH<b>",
       "hits_7d": 900,
       "hits_total": 8000
     },
@@ -375,14 +375,14 @@
       "hits_7d": 900,
       "hits_total": 8000,
       "first_seen": "2026-07-20T01:00:00Z",
-      "last_seen": "2026-07-28T11:00:00Z",
+      "last_seen": "<b>2026-07-28T11:00Z",
       "protocols": [
         {
-          "proto": "SSH",
+          "proto": "<i>SSH",
           "hits_7d": 900
         }
       ],
-      "country": "CN",
+      "country": "C>",
       "asn": 64500,
       "isp": "Example Hosting",
       "lat": 39.9,
@@ -465,7 +465,7 @@
   ],
   "top_countries": [
     {
-      "iso": "CN",
+      "iso": "C<",
       "name": "China",
       "hits_7d": 500,
       "hits_total": 4000
