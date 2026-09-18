@@ -88,20 +88,28 @@ for each keyword and the `Include sshd_config.d/*.conf` comes first, so
 `00-picket.conf` wins over both `sshd_config` and any provider cloud-init
 drop-in (`50-cloud-init.conf: PasswordAuthentication yes` is common). On
 Ubuntu 24.04 sshd is socket-activated and `Port` would be ignored, so the
-script disables `ssh.socket` and enables `ssh.service` instead. It then prints
-the **effective** configuration and **stops at a prompt**:
+script follows Ubuntu's documented revert: disable `ssh.socket`, remove the
+`ssh.service.d/00-socket.conf` and `ssh.socket.d/addresses.conf` drop-ins that
+tie the service back to the socket, `daemon-reload`, then enable
+`ssh.service` on its own. It then prints the **configured** values, the
+**listening** ports, and **stops at a prompt**:
 
 ```
->> EFFECTIVE sshd config (sshd -T) — this is what is actually enforced:
+>> CONFIGURED sshd values (sshd -T reads the config, not the sockets):
 port 2222
 passwordauthentication no
 kbdinteractiveauthentication no
 permitrootlogin prohibit-password
 allowusers root
+>> LISTENING sshd ports (this is what is actually enforced — expect :2222, not :22):
+LISTEN 0 128 0.0.0.0:2222 ... users:(("sshd",...))
 ```
 
-If those five lines do not read like that, do not press enter. Before
-pressing enter:
+`sshd -T` alone is not proof: on a socket-activated host it prints `port
+2222` while the daemon still inherits `:22` from the socket. The `ss` line
+is the check that matters — if it shows `:22` (or the script prints
+`WARNING: ssh.socket is still active`), do not press enter. Before pressing
+enter:
 
 ```bash
 # from a SECOND terminal, do not close the first
@@ -109,9 +117,11 @@ ssh -p 2222 root@<ip>
 ```
 
 Only press enter in the first terminal once that second connection succeeds.
-If it fails, fix `/etc/ssh/sshd_config.d/00-picket.conf` from the still-open
-first session, `sshd -t && systemctl restart ssh`, re-check `sshd -T` — do
-not disconnect it.
+If it fails, work from the still-open first session — do not disconnect it:
+a wrong directive → fix `/etc/ssh/sshd_config.d/00-picket.conf`, `sshd -t &&
+systemctl restart ssh`; still on `:22` (Ubuntu) → `systemctl is-active
+ssh.socket` must say `inactive`; if not, repeat the four revert commands above
+by hand and `systemctl restart ssh.service`, then re-check `ss -ltnp | grep sshd`.
 
 After the script finishes (firewall + knock-knock + exporter steps), confirm
 the box exposes only what it should, from an **external** machine (not the
@@ -170,6 +180,13 @@ Sanity-check the containers came up clean:
 ```bash
 cd /opt/knock-knock && docker compose logs -f
 ```
+
+Confirm the running image is the **locally built** `KK_TAG` checkout, not a
+pulled `:latest`: the compose file names both `image: ghcr.io/…:latest` and
+`build: .`, which is why `install.sh` runs `docker compose up -d --build`.
+`docker compose images` must show an image built on this host (created at
+install time) — if it shows a pulled digest, run `docker compose build &&
+docker compose up -d` before trusting the exporter's registry match.
 
 Confirm knock-knock is not writing per-knock rows (rollups only — this is
 what makes the exporter's SQLite reads safe to publish from):

@@ -60,14 +60,22 @@ sshd -t                                 # syntax-check before touching the runni
 if systemctl is-enabled ssh.socket >/dev/null 2>&1; then
   # Ubuntu 24.04: sshd is socket-activated and `Port` in sshd_config is IGNORED —
   # hand the listener back to sshd itself. Your current session survives this.
+  # Ubuntu's documented revert: the 00-socket.conf drop-in ties ssh.service back to
+  # ssh.socket, so it must go (with the socket's address override) before the service
+  # is enabled on its own — otherwise sshd inherits the :22 listener and ignores Port.
   systemctl disable --now ssh.socket
+  rm -f /etc/systemd/system/ssh.service.d/00-socket.conf /etc/systemd/system/ssh.socket.d/addresses.conf
+  systemctl daemon-reload
   systemctl enable --now ssh.service
   systemctl restart ssh.service
 else
   systemctl restart ssh 2>/dev/null || systemctl restart sshd
 fi
-echo ">> EFFECTIVE sshd config (sshd -T) — this is what is actually enforced:"
+echo ">> CONFIGURED sshd values (sshd -T reads the config, not the sockets):"
 sshd -T | grep -Ei '^(port|passwordauthentication|kbdinteractiveauthentication|permitrootlogin|allowusers) ' || true
+echo ">> LISTENING sshd ports (this is what is actually enforced — expect :${ADMIN_SSH_PORT}, not :22):"
+ss -ltnp | grep -E 'sshd' || true
+systemctl is-active ssh.socket >/dev/null 2>&1 && echo ">> WARNING: ssh.socket is still active — sshd is still on :22; re-run this step" || true
 echo ">> sshd now on ${ADMIN_SSH_PORT}, key-only, admitting only '${ADMIN_USER}'."
 echo ">> TEST IT FROM ANOTHER TERMINAL BEFORE CONTINUING:  ssh -p ${ADMIN_SSH_PORT} ${ADMIN_USER}@<ip>"
 read -r -p "Press enter when verified"
@@ -98,7 +106,9 @@ if [ -n "${MAXMIND_ACCOUNT_ID:-}" ] && [ -n "${MAXMIND_LICENSE_KEY:-}" ]; then
   sed -i '/^MAXMIND_ACCOUNT_ID=/d; /^MAXMIND_LICENSE_KEY=/d' .env
   printf 'MAXMIND_ACCOUNT_ID=%s\nMAXMIND_LICENSE_KEY=%s\n' "${MAXMIND_ACCOUNT_ID}" "${MAXMIND_LICENSE_KEY}" >> .env
 fi
-docker compose up -d
+# --build makes the pin explicit: the compose file names both `image: …:latest` and
+# `build: .`, and only a local build is guaranteed to be the checked-out KK_TAG.
+docker compose up -d --build
 
 # 5. HOST GeoLite2-Country for the exporter's per-IP `country`. knock-knock's container
 #    fetches GeoLite2-ASN + GeoLite2-City into a named Docker volume — not the host,
@@ -145,7 +155,8 @@ sudo -Hu picket git config --global user.email picket@socdesk.io
 
 # 9. export repo: keyless read-only HTTPS clone (the repo is public), pushes over SSH
 #    with the deploy key. GIT_TERMINAL_PROMPT=0 fails fast instead of asking for a password.
-[ -d /srv/picket-export/.git ] || GIT_TERMINAL_PROMPT=0 sudo -Hu picket git clone -q "${EXPORT_REPO_HTTPS}" /srv/picket-export
+#    (`env` carries the variable past sudo's env_reset; a bare VAR=x prefix would be stripped.)
+[ -d /srv/picket-export/.git ] || sudo -Hu picket env GIT_TERMINAL_PROMPT=0 git clone -q "${EXPORT_REPO_HTTPS}" /srv/picket-export
 sudo -Hu picket git -C /srv/picket-export remote set-url --push origin "${EXPORT_REPO}"
 chown -R picket:picket /srv/picket-export /var/lib/picket
 
