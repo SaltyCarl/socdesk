@@ -166,29 +166,30 @@ possible knock-knock upstream contribution.
 Three places where the code (or the current operational state) differs from
 what a literal reading of the spec would lead a reviewer to expect:
 
-1. **`ENABLED_PROTOCOLS` is not written by `install.sh`.** Spec §3.1 states
+1. **`ENABLED_PROTOCOLS` — resolved 2026-09-17.** Spec §3.1 states
    "`ENABLED_PROTOCOLS` = the core eight ... in P1" as a settled decision.
-   `tools/picket/install.sh` copies knock-knock's own `.env.example` and only
-   explicitly sets `WEB_HOST`, `SOURCE_ID`, and comments out `SAVE_KNOCKS` —
-   it never writes an `ENABLED_PROTOCOLS` line. The core-eight set is
-   therefore whatever the pinned tag's `.env.example` ships as its default,
-   not something this repo's tooling enforces. Confirm the actual enabled
-   set on the box (runbook §6) before relying on "the core eight" as a fact
-   rather than an intent.
-2. **The per-IP `protocols[].hits_7d` field is not a 7-day figure.** Both
+   As of Task 12b, `tools/picket/install.sh` writes
+   `ENABLED_PROTOCOLS=SSH,TNET,FTP,RDP,SMB,SIP,HTTP,SMTP` whenever the line
+   is unset in knock-knock's `.env`, and `tools/picket/README.md` §4 adds a
+   "Protocol set" check (`grep -n '^ENABLED_PROTOCOLS' /opt/knock-knock/.env`)
+   so the box is verified, not just installed. `TNET` is knock-knock's own
+   identifier for Telnet, not a typo (§3 below). This was previously an
+   unenforced intent, not something this repo's tooling wrote; it is now
+   both written and checked — still confirm the actual enabled set on the
+   box (runbook §6) before relying on it as observed fact rather than
+   configuration.
+2. **The per-IP `protocols[].hits_7d` field is not a 7-day figure.**
    `schemas/picket_export.schema.json` and `schemas/picket.schema.json`
-   describe `top_ips[].protocols[].hits_7d` as *"attempts in the last 7 days
-   on this protocol."* `assemble_export()`
-   (`tools/picket/assemble.py:47-54`) actually publishes that IP/protocol
-   pair's **all-time** hit count from knock-knock's `ip_intel_proto.hits`
-   column, gated to `0` unless the IP has *any* positive 7-day delta at all
-   — it is not independently windowed per protocol. See §5's field table and
-   footnote for the exact expression. This is a genuine discrepancy between
-   the schema's own description and the code's behavior, not a spec-vs-code
-   gap; it is flagged here because a reviewer reading only the schema would
-   draw the wrong conclusion, and because the existing test fixtures happen
-   to use equal all-time/7-day values (`tests/test_picket_assemble.py`), so
-   the gap is invisible to current test coverage.
+   previously described `top_ips[].protocols[].hits_7d` as *"attempts in the
+   last 7 days on this protocol,"* which `assemble_export()`
+   (`tools/picket/assemble.py:47-54`) never actually computed — it publishes
+   that IP/protocol pair's **all-time** hit count from knock-knock's
+   `ip_intel_proto.hits` column, gated to `0` unless the IP has *any*
+   positive 7-day delta at all — it is not independently windowed per
+   protocol. See §5's field table and footnote for the exact expression. The
+   two schema descriptions were corrected on 2026-09-17 (ruling R23) to
+   state this behaviour; the code is deliberate (knock-knock has no per-IP
+   per-protocol window).
 3. **`picket_ips.json` is produced but not yet consumed.**
    `pipeline/picket.py::build_picket` writes `picket_ips.json` on every run
    in P1 (matching spec §9's P1 bullet, "producing `picket.json` (+
@@ -198,6 +199,16 @@ what a literal reading of the spec would lead a reviewer to expect:
    criterion, spec §9), not a contradiction, but the §2 diagram in the spec
    does not visually distinguish "payload produced" from "payload consumed,"
    so it is easy to misread. The diagram above marks this explicitly.
+4. **`first_seen` per IP is optional.** knock-knock v3.0.0's `ip_intel` has
+   no `first_seen` (nor `asn`) column — verified directly against the pinned
+   tag (§3's "Upstream verification" note below). The exporter omits
+   `first_seen` from a `top_ips` row rather than fabricate it
+   (`tools/picket/assemble.py`), and `pipeline/picket.py::_ips_layer` carries
+   that omission into `picket_ips.json`; all three schemas make the field
+   optional (`required` no longer lists it), and the tab shows `—` for a row
+   that lacks it (§9). `top_ips[].asn`/`isp` are likewise absent in P1: there
+   is no per-IP ASN column upstream either — `isp_intel.asn` is a per-ISP
+   value, not something knock-knock joins onto a row per IP.
 
 ---
 
@@ -272,16 +283,23 @@ README §6.** The exporter refuses to guess protocol IDs at all — it loads
 `knock-knock`'s own `protocols/registry.py` at runtime
 (`tools/picket/exporter.py::load_proto_names`) and raises if an ID it sees in
 the rollups isn't in that map (`tools/picket/assemble.py:47-51`,
-`test_unknown_protocol_id_fails_loudly`). What follows is what the spec and
-runbook already establish about each protocol; the integer `proto_id` values
-themselves only exist on the box and are not reproduced here (the runbook
-gives the exact command to dump them: `python3 -c "from protocols.registry
-import PROTOCOL_META; print(...)"`, README §6).
+`test_unknown_protocol_id_fails_loudly`). On the pinned `v3.0.0` tag the
+registry is `protocols.registry.DEFINITIONS`, a list of `ProtocolDefinition`
+dataclasses (`.name`, `.proto_id`, ...) — there is no `PROTOCOL_META` on this
+tag at all (see "Upstream verification" below). `sensor.protocols` in the
+published export is **not** the whole registry: it is `ENABLED_PROTOCOLS`
+from knock-knock's `.env`, intersected with the registry
+(`tools/picket/exporter.py::load_enabled_protocols`) — the set the sensor is
+actually listening on, not every protocol knock-knock ships code for. What
+follows is what the spec and runbook already establish about each protocol;
+the integer `proto_id` values themselves only exist on the box and are not
+reproduced here (the runbook gives the exact command to dump them, README
+§6).
 
 | Protocol | Port(s) (README §3, expected `nmap` result) | Is a knock an auth attempt or a bare connect? |
 |---|---|---|
 | SSH | 22/tcp | **To confirm.** Spec §3.9(a) lists SSH unconditionally among the credential-bearing protocols the give-back candidate rule counts on, i.e. the spec's working assumption is "auth attempt" — but the runbook explicitly requires an on-box `grep -RniE 'record_knock\|log_knock\|on_connect\|on_auth' protocols/*.py` check (README §6) before that assumption is relied on. |
-| TELNET | 23/tcp | **To confirm**, same basis as SSH — spec §3.9(a) assumes auth-attempt; not yet verified on the box. |
+| TNET (Telnet) | 23/tcp | **To confirm**, same basis as SSH — spec §3.9(a) assumes auth-attempt; not yet verified on the box. |
 | FTP | 21/tcp | **To confirm**, same basis as SSH — spec §3.9(a) assumes auth-attempt; not yet verified on the box. |
 | RDP | 3389/tcp | **To confirm**, same basis as SSH — spec §3.9(a) assumes auth-attempt; not yet verified on the box. |
 | SMB | 445/tcp | **To confirm**, same basis as SSH — spec §3.9(a) assumes auth-attempt; not yet verified on the box. |
@@ -293,10 +311,41 @@ The optional IoT/OT set (MQTT, Node-RED, Modbus, S7, SNMP) is **not enabled
 in P1** at all (spec §3.1: "a later owner toggle") and so has no protocol-map
 entry here.
 
+Row labels above are knock-knock's own identifier strings (`.name` on each
+`ProtocolDefinition`) — `TNET` is not a typo for Telnet, it is what the
+registry and the published `sensor.protocols`/`top_ips[].protocols[].proto`
+fields actually say.
+
 Per README §6, the protocol-ID map and the per-module
 auth-attempt-vs-bare-connect answer, once actually confirmed on the box, are
 recorded back into this section — this document, not just the runbook, is
 where "future exporter runs and readers of the export" are meant to find it.
+
+**Upstream verification (2026-09-17).** Controller ruling R24 checked the
+pinned upstream directly (`raw.githubusercontent.com`, tag `v3.0.0`) rather
+than trusting the earlier assumed shape. Five facts, treated as ground truth
+for this adapter:
+
+- **Tags that exist:** `v3.0.0` (latest), `v2.0.1`, `v2.0.0`,
+  `v2.0.0-beta.2`, `v2.0.0-beta-1`, `v1.0.1`, `v1.0.0`, `pre-backup`.
+  `v1.9.0` does **not** exist — the earlier runbook pinned it, which would
+  have failed `git clone --branch v1.9.0` on the very first provisioning
+  step; fixed in this task (runbook §3).
+- **Registry shape:** `protocols/registry.py` defines
+  `DEFINITIONS = [SSH, TNET, FTP, RDP, HTTP, SMTP, SMB, SIP, MQTT, NRED,
+  MODB, S7, SNMP]`, each a `protocol_api.ProtocolDefinition` frozen
+  dataclass with `name`/`proto_id` fields (e.g. Telnet is `name="TNET",
+  proto_id=1`). There is no `PROTOCOL_META` anywhere in `v3.0.0`.
+- **`ip_intel` columns:** `ip, hits, last_seen, lat, lng,
+  hits_since_cleared, ban_until, ban_count` — no `first_seen`, no `asn`
+  (§2 item 4 above, §5, §5.4).
+- **`.env` keys:** `ENABLED_PROTOCOLS` (comma-separated `PROTO` or
+  `PROTO:PORT` entries), `SAVE_KNOCKS`, `WEB_PORT`, `SOURCE_ID`,
+  `MAXMIND_ACCOUNT_ID`, `MAXMIND_LICENSE_KEY` — no host/bind variable of any
+  name (§3's dashboard note above).
+- **No top-level `VERSION` file** exists in the repo — `knockknock_version`
+  falls back to `git describe` on the box, never a file read that would
+  silently succeed on every tag (§4 below).
 
 ---
 
@@ -455,6 +504,15 @@ nothing happened (spec §5 failure table, §8 below).
   this hash a second time, independently, to drop any `top_ips` row whose
   own SHA-256 matches it (§3, §6) — the sensor cannot appear as its own
   attacker even if a knock-knock bug ever logged a connection from itself.
+- **`knockknock_version`.** No pinned tag ships a top-level `VERSION` file
+  (verified directly against `v3.0.0`, §3's "Upstream verification" note),
+  so `tools/picket/exporter.py::knockknock_version` tries, in order: a
+  `VERSION` file in `knockknock_dir` (kept as the fast path in case a future
+  tag ever adds one); else `git describe --tags --always` run against
+  `knockknock_dir` (returns the pinned `KK_TAG`, e.g. `v3.0.0`, once
+  `install.sh`'s `git clone --branch "${KK_TAG}"` has made `knockknock_dir` a
+  git checkout); else the literal string `"unknown"` — never a guess, and
+  never fabricated (`test_knockknock_version_prefers_file_then_unknown`).
 
 ### What happens on refusal or a network problem
 
@@ -508,7 +566,7 @@ Top level (all required):
 | `id` | string, ≤32 | Stable sensor identifier. | `"picket-1"` |
 | `public_ip_sha256` | string, `^[a-f0-9]{64}$` | SHA-256 of the box's own public IP — the plaintext never leaves the box (§4). | `"aaaa...aaaa"` (64 chars) |
 | `country` | string, ≤2, optional | ISO 3166-1 alpha-2 of the sensor itself. | `"DE"` |
-| `protocols` | array, ≤16 items, each ≤8 chars | Protocol names the sensor listens on. | `["SSH","TELNET"]` |
+| `protocols` | array, ≤16 items, each ≤8 chars | The enabled set from knock-knock's `.env` (`ENABLED_PROTOCOLS`), intersected with the registry — not the whole registry (§3). | `["SSH","TELNET"]` |
 | `uptime_minutes` | integer, ≥0 | Continuous uptime. | `4320` (3 days) |
 | `knockknock_version` | string, ≤32 | knock-knock version string. | `"1.9.0"` |
 | `ring_reset_at` | string, ≤20, optional | Set only when a counter decrease was clamped (§4). | absent in the fixture |
@@ -535,30 +593,34 @@ Top level (all required):
 | `hits_7d` | integer, ≥0 | Trailing-7-day knocks on this protocol (a true ring sum — see the §2 footnote on the *nested per-IP* field, which is different). | `900` |
 | `hits_total` | integer, ≥0 | All-time knocks on this protocol. | `8000` |
 
-`top_ips[]` (required: `ip`, `hits_7d`, `hits_total`, `first_seen`, `last_seen`, `protocols`):
+`top_ips[]` (required: `ip`, `hits_7d`, `hits_total`, `last_seen`, `protocols`):
 
 | Field | Type / bound | Meaning | Example |
 |---|---|---|---|
 | `ip` | string, ≤45 | Public source IP literal (IPv4 or IPv6; never CIDR). | `"5.6.7.8"` |
 | `hits_7d` | integer, ≥0 | Trailing-7-day knocks from this IP (a true ring sum). | `900` |
 | `hits_total` | integer, ≥0 | All-time knocks from this IP. | `8000` |
-| `first_seen` / `last_seen` | string, ≤20 | Timestamps, converted from knock-knock's `YYYY-MM-DD HH:MM:SS` to ISO `Z` (`tools/picket/assemble.py::_ts`). | `"2026-07-20T01:00:00Z"` / `"2026-07-28T11:00:00Z"` |
-| `protocols` | array, ≤16, each `{proto, hits_7d}` | Per-protocol breakdown for this IP. **See the footnote below** — the nested `hits_7d` here is not what its name or the schema description say it is. | `[{"proto":"SSH","hits_7d":900}]` |
+| `first_seen` | string, ≤20, **optional** | Converted from knock-knock's `YYYY-MM-DD HH:MM:SS` to ISO `Z` (`tools/picket/assemble.py::_ts`) when present. knock-knock v3.0.0's `ip_intel` has no `first_seen` column at all (§2 item 4, §3, §5.4) — the exporter omits the field rather than fabricate a value, so P1 exports never carry it. | absent in P1 |
+| `last_seen` | string, ≤20 | Converted the same way; always present — `ip_intel.last_seen` does exist. | `"2026-07-28T11:00:00Z"` |
+| `protocols` | array, ≤16, each `{proto, hits_7d}` | Per-protocol breakdown for this IP. **See the footnote below** — the nested `hits_7d` here is not the same figure as the top-level `by_protocol[].hits_7d`; the schema's own description says so as of 2026-09-17 (ruling R23). | `[{"proto":"SSH","hits_7d":900}]` |
 | `country` | string, ≤2, optional | From GeoLite2-Country, keyed by IP (§3), not from knock-knock's own rollups. | `"CN"` |
 | `asn` | integer, ≥0, optional | From `ip_intel.asn`. | `64500` |
 | `isp` | string, ≤120, optional | Joined from `isp_intel` by ASN. | `"Example Hosting"` |
 | `lat` / `lng` | number, optional | knock-knock's own city-level geolocation. | `39.9` / `116.4` |
 | `geo_precision` | `"city"` \| `"country"`, optional | Set to `"city"` when `lat`/`lng` are present (`tools/picket/assemble.py:72-74`); omitted from `export.json` entirely otherwise — the export's own assembler never writes `"country"` into this field (see §5.3 for how `picket_ips.json`'s own default works, which is a separate function). | `"city"` |
 
-> **Footnote — the nested `protocols[].hits_7d` field.** Despite its name and
-> the schema's own description ("attempts in the last 7 days on this
-> protocol"), `assemble_export()` publishes this value as the IP/protocol
-> pair's **all-time** hit count from `ip_intel_proto.hits`
+> **Footnote — the nested `protocols[].hits_7d` field.** Despite its name,
+> `assemble_export()` publishes this value as the IP/protocol pair's
+> **all-time** hit count from `ip_intel_proto.hits`
 > (`tools/picket/assemble.py:52-54`), gated to `0` unless that IP had *any*
 > positive delta anywhere in the trailing 7 days
 > (`hits7d["ip"].get(r["ip"], 0) > 0`). It is not an independently
 > time-windowed per-protocol figure the way the top-level `by_protocol[]`
-> array's `hits_7d` is. This flows unchanged into the published
+> array's `hits_7d` is — this is deliberate (knock-knock has no per-IP
+> per-protocol time window), and the schema's own `description` for this
+> field was corrected on 2026-09-17 (ruling R23) to say so, rather than the
+> misleading "attempts in the last 7 days on this protocol" it said before.
+> This flows unchanged into the published
 > `picket.json` (`pipeline/picket.py::_panel` copies `top_ips` verbatim) and
 > is not currently rendered as a number anywhere in the UI — `PicketView.tsx`
 > only lists the protocol *names* for a row, not this per-protocol figure
@@ -629,10 +691,10 @@ untouched (spec §4.4). Produced in P1; not yet rendered (§2).
 | Field | Type / bound | Meaning | Example |
 |---|---|---|---|
 | `generated_at` / `schema_version` / `attribution` | as §5.2 | Envelope, same values as `picket.json`. | — |
-| `count` | integer, ≥0 | Number of rows in `ips`. | e.g. `1` (of the fixture's 3 `top_ips` rows, only `5.6.7.8` has both `lat` and `lng`; `test_ips_layer_only_has_finite_coords_and_source_picket` confirms 1 row) |
+| `count` | integer, ≥0 | Number of rows in `ips`. | e.g. `1` (of the fixture's 3 `top_ips` rows, only `5.6.7.8` has both `lat` and `lng`; `test_ips_layer_omits_first_seen_when_absent` asserts `count == 1` directly — `test_ips_layer_only_has_finite_coords_and_source_picket` only asserts the row list is non-empty) |
 | `ips[]` | array, ≤1000 | One row per IP **with finite `lat`/`lng`** — IPs without a resolved coordinate are silently excluded from this file (not an error; `pipeline/picket.py::_ips_layer` skips non-numeric lat/lng). | — |
 
-`ips[]` row (required: `ip`, `lat`, `lng`, `source`, `hits_7d`, `first_seen`, `last_seen`, `geo_precision`):
+`ips[]` row (required: `ip`, `lat`, `lng`, `source`, `hits_7d`, `last_seen`, `geo_precision`):
 
 | Field | Type / bound | Meaning | Example |
 |---|---|---|---|
@@ -641,19 +703,20 @@ untouched (spec §4.4). Produced in P1; not yet rendered (§2).
 | `lat` / `lng` | number, -90..90 / -180..180 | Resolved geolocation. | `39.9` / `116.4` |
 | `source` | `const: "picket"` | Payload origin tag, always `"picket"` — this is how a future globe layer would distinguish these pins from `threat_ips.json`'s. | `"picket"` |
 | `hits_7d` | integer, ≥0 | Trailing-7-day knocks from this IP. | `900` |
-| `first_seen` / `last_seen` | string, ≤20 | As in `top_ips`. | — |
+| `first_seen` | string, ≤20, **optional** | As in `top_ips` — carried through only when the export row has it; P1 exports never do (§2 item 4). | absent in P1 |
+| `last_seen` | string, ≤20 | As in `top_ips`; always present. | — |
 | `geo_precision` | `"city"` \| `"country"` | Copied from the export row's own `geo_precision` when present; defaults to **`"city"`** — not `"country"` — when absent (`r.get("geo_precision", "city")`, `pipeline/picket.py:89`). In practice this default is unreachable today: `_ips_layer` only processes rows that already passed a finite-`lat`/`lng` check (line 85), and `assemble_export` always sets `geo_precision="city"` whenever `lat`/`lng` are present (§5.1, `tools/picket/assemble.py:72-74`), so every row reaching this function already carries an explicit `"city"` value. | `"city"` |
 
 ### 5.4 knock-knock rollup column → export field
 
 | knock-knock rollup | Column(s) | Export field(s) | Notes |
 |---|---|---|---|
-| `ip_intel` | `ip`, `hits`, `first_seen`, `last_seen`, `lat`, `lng`, `asn` | `top_ips[].ip/hits_total/first_seen/last_seen/lat/lng/asn` | `hits_total` is this table's `hits` directly; `hits_7d` comes from the ring, not this table. |
+| `ip_intel` | `ip`, `hits`, `last_seen`, `lat`, `lng` | `top_ips[].ip/hits_total/last_seen/lat/lng` | `hits_total` is this table's `hits` directly; `hits_7d` comes from the ring, not this table. knock-knock v3.0.0's `ip_intel` has no `first_seen` and no `asn` column (§2 item 4, §3's "Upstream verification" note) — `top_ips[].first_seen` is consequently always omitted in P1, and `top_ips[].asn`/`isp` are never populated per IP either, since there is no per-IP ASN upstream to join `isp_intel` against. |
 | `ip_intel_proto` | `ip`, `proto`, `hits` | `top_ips[].protocols[].proto/hits_7d` (see the §5.1 footnote), `by_protocol[].hits_total`, `totals.knocks_total` (via `SUM(hits)`) | Cumulative per (IP, protocol) pair. |
 | `user_intel` | `username`, `hits` | `top_usernames[]` (via the fence, §6) | `hits` is the all-time count; `hits_7d` comes from the ring. |
 | `pass_intel` | `password`, `hits` | `top_passwords[]` (via the fence, §6) | Same shape as `user_intel`. |
 | `country_intel` | `iso_code`, `country`, `hits` | `top_countries[].iso/name/hits_total` | `name` passes through `clean_text`. |
-| `isp_intel` | `isp`, `hits`, `asn` | `top_isps[].isp/hits_total/asn`, joined into `top_ips[].isp` by ASN | `isp` passes through `clean_text`, capped at 120 chars. |
+| `isp_intel` | `isp`, `hits`, `asn` | `top_isps[].isp/hits_total/asn` | `isp` passes through `clean_text`, capped at 120 chars. The join into `top_ips[].isp` by ASN in `tools/picket/assemble.py` is unreachable code in P1, not a bug: it is gated on `ip_intel.asn`, which does not exist on this table (`ip_intel` row above), so it is never populated for any IP. |
 | `monitor_heartbeats` | `uptime_minutes` | `sensor.uptime_minutes`, `totals.since` | `since = exported_at − uptime_minutes`. |
 | GeoLite2-Country (not a knock-knock table) | — | `top_ips[].country`, keyed by IP | Resolved on-box by the exporter, joined in after reading rollups (`tools/picket/exporter.py::_country_by_ip`). |
 | the delta ring (derived, not a table) | — | `ring.buckets`, `by_protocol[].hits_7d`, `top_ips[].hits_7d`, `top_usernames/passwords[].hits_7d`, `top_countries/isps[].hits_7d` | Everything genuinely time-windowed comes from `tools/picket/ring.py`, never straight from a rollup column. |
@@ -847,9 +910,12 @@ no account — same no-account read path as every other Desk tab) and renders
   `share_pct` as both a bar width and a percentage label.
 - A "Top sources · 7 d" table: IP, Attempts (bar + count), Protocols (names
   only, joined — see the §5.1 footnote for why the underlying per-protocol
-  figure isn't shown), Country, `ASN · ISP`, First seen, Last seen. Column
-  headers use `scope="col"` (house accessibility convention, commit
-  `3c5e6d7b`).
+  figure isn't shown), Country, `ASN · ISP`, First seen, Last seen. `First
+  seen` renders `—` for a row that has no `first_seen` at all — every row in
+  P1, since knock-knock v3.0.0 keeps no per-IP first-seen (§2 item 4, §5) —
+  and `ASN · ISP` renders `—` the same way, for the same underlying reason
+  (no per-IP ASN upstream, §5.4). Column headers use `scope="col"` (house
+  accessibility convention, commit `3c5e6d7b`).
 - Side-by-side "Usernames tried · 7 d" and "Passwords tried · 7 d" blocks
   (`CredList`) — each row is one aggregate value with a bar and a count;
   never a pair. Empty-state copy when a list has nothing above the floor:
@@ -1019,3 +1085,18 @@ Full commit range (`git log --oneline f532b53..HEAD`, oldest first):
 17. `ea4cb430` — feat(picket): /about#picket transparency section
 
 This document itself lands as the next commit after `ea4cb430`.
+
+**2026-09-17 — Task 12b — knock-knock v3.0.0 box-side contract fixes (ruling R24).**
+
+The controller verified the pinned upstream (`raw.githubusercontent.com`, tag
+`v3.0.0`) directly and found four defects that would stop the exporter on its
+first run against a real box (a non-existent pinned tag, a non-existent
+`PROTOCOL_META` registry API, `ip_intel` columns that don't match what the
+exporter selected, and an unenforced `ENABLED_PROTOCOLS`), plus a `first_seen`
+honesty gap (knock-knock keeps no per-IP first-seen at all). Four commits fix
+them, TDD throughout, oldest first:
+
+1. `d1242be0` — fix(picket): exporter matches knock-knock v3.0.0 — DEFINITIONS registry, ip_intel columns, enabled protocols, version
+2. `52b44cc7` — fix(picket): first_seen is optional end-to-end — knock-knock keeps no per-IP first-seen
+3. `6739bd7d` — fix(picket): runbook pins a real knock-knock tag and sets the P1 protocol set
+4. docs(picket): PICKET.md — knock-knock v3.0.0 corrections (registry, columns, TNET, optional first_seen) — this document itself, landing as the next commit after `6739bd7d`.
