@@ -6,6 +6,7 @@ import { VulnsRoute } from './VulnsRoute'
 import { HealthRoute } from './HealthRoute'
 import { SourcesRoute } from './SourcesRoute'
 import { AsnLeaderboardRoute } from './AsnLeaderboardRoute'
+import { PicketRoute } from './PicketRoute'
 
 /**
  * The data desk — a single route that hosts the data surfaces behind an
@@ -38,6 +39,7 @@ const TABS = [
   { key: 'health', label: 'Health' },
   { key: 'sources', label: 'Sources' },
   { key: 'networks', label: 'ISP Abuse Leaderboard' },
+  { key: 'picket', label: 'Picket' },
 ] as const
 
 const KEYS = TABS.map((t) => t.key) as readonly string[]
@@ -111,6 +113,7 @@ export function DataDeskRoute() {
         {tab === 'health' && <HealthRoute />}
         {tab === 'sources' && <SourcesRoute />}
         {tab === 'networks' && <AsnLeaderboardRoute />}
+        {tab === 'picket' && <PicketRoute />}
       </div>
     </div>
   )
