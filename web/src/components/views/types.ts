@@ -461,3 +461,86 @@ export interface AsnLeaderboardPayload {
   truncated?: boolean
   networks: AsnNetwork[]
 }
+
+/* ---- PICKET — SOCDesk's own honeypot sensor telemetry. Aggregates only;
+   never a username:password pair (spec §3.6). ---- */
+
+export type PicketStatus = 'live' | 'stale' | 'silent'
+
+export interface PicketProtocolShare {
+  proto: string
+  hits_7d: number
+  hits_total: number
+  share_pct: number
+}
+
+export interface PicketIp {
+  ip: string
+  hits_7d: number
+  hits_total: number
+  first_seen: string
+  last_seen: string
+  protocols: { proto: string; hits_7d: number }[]
+  country?: string
+  asn?: string
+  isp?: string
+  lat?: number
+  lng?: number
+  geo_precision?: string
+}
+
+export interface PicketCred {
+  value: string
+  hits_7d: number
+  hits_total: number
+}
+
+export interface PicketCountry {
+  iso: string
+  name: string
+  hits_7d: number
+  hits_total: number
+}
+
+export interface PicketIsp {
+  isp: string
+  asn: string
+  hits_7d: number
+  hits_total: number
+}
+
+export interface PicketSensor {
+  id: string
+  country?: string
+  uptime_days: number
+  protocols: string[]
+  status: PicketStatus
+  export_age_minutes: number
+  exported_at: string
+  knockknock_version: string
+  ring_reset_at?: string
+}
+
+export interface PicketTotals {
+  knocks_total: number
+  since: string
+  knocks_24h: number
+  knocks_7d: number
+  unique_ips_7d: number
+}
+
+export interface PicketPayload {
+  generated_at?: string
+  schema_version?: number
+  attribution?: string
+  collected_at?: string
+  sensor: PicketSensor
+  totals: PicketTotals
+  histogram_7d: number[]
+  by_protocol: PicketProtocolShare[]
+  top_ips: PicketIp[]
+  top_usernames: PicketCred[]
+  top_passwords: PicketCred[]
+  top_countries: PicketCountry[]
+  top_isps: PicketIsp[]
+}
