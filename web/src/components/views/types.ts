@@ -482,7 +482,7 @@ export interface PicketIp {
   last_seen: string
   protocols: { proto: string; hits_7d: number }[]
   country?: string
-  asn?: string
+  asn?: number
   isp?: string
   lat?: number
   lng?: number
@@ -504,7 +504,7 @@ export interface PicketCountry {
 
 export interface PicketIsp {
   isp: string
-  asn: string
+  asn?: number
   hits_7d: number
   hits_total: number
 }
