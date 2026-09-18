@@ -2045,3 +2045,123 @@ git commit -m "feat(picket): landing-board teaser panel"
 **Type consistency:** `hits_7d`/`hits_total` naming is identical across the raw export (Task 3), collector (Task 5), published payload (Task 6), TS types (Task 8) and views (Tasks 9–10). `sensor.status` enum `live|stale|silent` is identical in `pipeline/picket.py`, `picket.schema.json`, `PicketStatus`, and `statusLabel`. `histogram_7d` is 168 ints everywhere; `ring.buckets` is 336 only in the raw export. `source: "picket"` is a schema const and the TS `ThreatIp.source` accepts `string`.
 
 **One known simplification, documented:** per-IP per-protocol `hits_7d` in P1 is the all-time per-protocol count when the IP was active this week (knock-knock keeps no (ip, proto) time series and we keep `SAVE_KNOCKS` off) — stated in `PICKET.md` §5 and in the assembler comment; P2 may refine by keeping a sparse (ip,proto) delta list in the ring if the owner wants it.
+
+
+---
+
+## Execution record (2026-09-17) — subagent-driven, branch `feat/picket-p1`
+
+Spec §10 requires the plan review record to live with the plan. This section is
+that record: how the plan was executed, every controller ruling made while
+executing it, and where the review artefacts are.
+
+**Method.** `superpowers:subagent-driven-development`: a fresh implementer per
+task, a task-scoped reviewer per task (spec compliance + code quality), fix
+rounds with scoped re-reviews, then one whole-branch review on the most capable
+model, one fix wave, one scoped re-review. Implementers: Sonnet (Haiku for the
+three transcription tasks — retired after R16); task reviewers: Sonnet; final
+review, fix wave and re-review: Fable 5.1. TDD (RED → GREEN) was required for
+every code change and evidenced in each report.
+
+**Commit map** (`git log --oneline --reverse f532b53..`):
+
+| Task | Commits | Review outcome |
+|---|---|---|
+| T1 fence | `3fe8038f`, `aa521f02` | fix round 1 (`handle@host` rule, R9) |
+| T2 ring | `c8010ce8`, `245be0ca` | fix round 1 (reset-clamp + partial-slide tests) |
+| T3 export schema + assembler | `678a9e37` | clean |
+| T4 exporter CLI + systemd + runbook | `6794d6e3`, `05e7a2a5`, `4b62e2fb` | fix rounds 1–2 (copy-before-install; rsync `-R`; admin port; R13–R15) |
+| T5 collector | `128b8326` | clean (R4 vacuous assertion removed pre-dispatch) |
+| T6 published schemas + builder | `14d2b52e` | clean (R5) |
+| T7 run_pipeline wiring | `dfffeb0b` | clean |
+| T8 web types + view model | `8b653cbe`, `e5f1b159` | fix round 1 (`asn?: number`; R17/R18) |
+| T9 `/desk#picket` tab | `f1403624`, `3c5e6d7b` | fix round 1 (`scope="col"`, R19) |
+| T10 landing teaser | `f0b9c618` | clean |
+| T11 `/about#picket` | `ea4cb430` | clean (R20) |
+| T12 `docs/PICKET.md` | `dabc8044`, `92c74d71` | fix round 1 (ring example off-by-one; `geo_precision` default; fixture count) |
+| **T12b (inserted, R24)** knock-knock v3.0.0 adapter | `d1242be0`, `52b44cc7`, `6739bd7d`, `38444951`, `c4d1b47f`, `2436dce8` | fix round 1 (README §6 `DEFINITIONS`; last-wins `ENABLED_PROTOCOLS`) |
+| T13 cross-repo docs | `d3b9068e` | clean |
+| T14 close-out | `4f71dac5`, `c34081f2` | clean |
+| **Final review** (`docs/superpowers/reviews/2026-09-17-picket-p1-final-review.md`) | verdict *With fixes*: 2 Critical, 8 Important, 15 Minor | fix wave `cbf63b44`, `2f27587b`, `d6689eff`, `9b107e89`, `b17eadd2`, `3d8aa900`, `0e916c8d`; residual `b086065f` |
+| **Final re-review** (`docs/superpowers/reviews/2026-09-17-picket-p1-final-rereview.md`) | 9 of 10 Critical/Important ADDRESSED, I5 PARTIAL (Ubuntu de-socketing) → residual fix `b086065f` (R31); no regressions, no new Critical; code tier merge-ready | |
+
+**Task 12b — why a task was inserted.** Before Task 13 the controller fetched
+knock-knock at the only sensible pin (`v3.0.0`) and found the adapter written
+from the spec's assumptions could not run: `protocols.registry.PROTOCOL_META`
+does not exist (the registry is `DEFINITIONS`, a list of `ProtocolDefinition`
+dataclasses), `ip_intel` has no `first_seen`/`asn` columns, `KK_TAG=v1.9.0` is
+not a tag, Telnet's identifier is `TNET`, and `sensor.protocols` would have
+published the whole registry instead of the enabled set. The final review then
+found the DB file is `data/knock_knock.db` and that the dashboard bind variable
+is `WEB_LISTEN`. All are fixed; every upstream fact used is recorded in
+`docs/PICKET.md` §3 "Upstream verification".
+
+**Spec amendments recorded by this execution** (the spec text above is left as
+approved; these notes are binding over it):
+
+1. §3.6 rule 3 — "contains `@`" is too broad (it would have fenced `admin@` or
+   `@`-prefixed junk while missing nothing an account rule catches). The
+   implemented rule (R9) fences a value as an account identifier only when it
+   matches `^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$` (`tools/picket/fence.py::_ACCOUNT_RE`);
+   the email/phone/card/SSN patterns, the 32-char cap and the empty-after-clean
+   rule stand.
+2. §3.6 rule 4 — knock-knock's `self_redaction` scrubs credential/body *text*
+   only; it never touches `ip_intel.ip`. The sensor's own IP is therefore
+   dropped by SOCDesk's own code, twice: on the box (`assemble_export(...,
+   sensor_ip=)`, and the export is refused with exit 4 if the public IP cannot
+   be determined) and again in the collector by hash compare.
+3. §4 — `top_ips[].protocols[].hits_7d` was renamed `hits_total` (R29): knock-knock
+   keeps no per-IP, per-protocol time window, so the value is all-time; the
+   parent row's `hits_7d` says whether the IP was active this week.
+   `totals.unique_ips_7d` is now carried in the export (from the ring) so the
+   KPI does not saturate at the 2,000-row `top_ips` cap.
+4. §5 — the export age shown in the web app is derived client-side from
+   `sensor.exported_at` (same 90/1440-minute thresholds as the pipeline), so a
+   stopped pipeline cannot leave the chip saying "live". A missing
+   `picket.json` (HTTP 404) renders the teaser's honest empty state, not an
+   error panel.
+5. §3.1 — `first_seen`, `asn` and `isp` per IP are **omitted** in P1 (upstream
+   has no such columns); the UI shows `—`.
+
+**Rulings** (R1–R32, verbatim from the execution ledger; each names what was decided,
+why, and what it costs if wrong):
+
+- Ruling R1: Workspace = feature branch `feat/picket-p1` in place (owner's explicit choice; native EnterWorktree rejected because it branches from origin/main and would miss 10 unpushed commits) — cost if wrong: none, branch merges or drops trivially.
+- Ruling R2: T1 — drop `"<img src=x onerror=alert(1)//"` from the parametrized fenced-values list and remove the `pytest.skip` branch; `test_markup_is_stripped_not_dropped` already covers it — why: a param that is always skipped is test noise — cost if wrong: none.
+- Ruling R3: T3 — the FINAL `protocols[].hits_7d` expression is the plan's stated replacement (all-time per-protocol hits when the IP was active this week, else 0); the first version must not appear — why: plan text supersedes itself explicitly — cost if wrong: none.
+- Ruling R4: T5 — delete the vacuous `assert all(... or True ...)` line; the following line is the real assertion — why: a test that asserts nothing is a rubric defect — cost if wrong: none.
+- Ruling R5: T6 — `share_pct` denominator = `sum(p["hits_7d"] for p in by_protocol)` (0.0 when zero), not the ring total — why: the plan's own test expects 90.0 (900/1000) and the schema bounds share to 0–100; per-protocol 7d hits and the ring are separately derived and may not sum identically — cost if wrong: share figures may differ from ring-based totals by a bucket's worth; cosmetic.
+- Ruling R6: T9 — `import { type ReactNode } from 'react'` and use `ReactNode`, not `React.ReactNode` — why: react-jsx transform, no React namespace import — cost if wrong: none.
+- Ruling R7: Models — implementers: haiku for T1/T2/T8 (complete code, transcription), sonnet for all others; task reviewers: sonnet; final whole-branch review: fable (most capable), falling back to sonnet if the cyber safeguard blocks it (memory: Opus was blocked on malicious-signature fixtures; ours contain XSS strings and credential lists) — cost if wrong: cost/speed only.
+- Ruling R8: T14 — the "box dogfood (owner-present)" step cannot be executed by a subagent; the task completes the automatable steps and records the dogfood as a pending owner action in HANDOFF; P1 is "shipped, dogfood pending" — why: needs a real VPS + deploy key at the owner's keyboard — cost if wrong: none beyond an honest status line.
+- Ruling R9 (spec amendment, §3.6 rule 3): "contains `@`" is over-broad — it fences leetspeak passwords (`P@ssw0rd!`) that are core honeypot intelligence and carry no identity. Binding rule is now: drop a credential if it matches an email pattern OR is a whole-string handle@host (local part of letters/digits/`._-` then `@` then a host of letters/digits/`.-`), matched CASE-INSENSITIVELY; a `@` amid other symbols does not by itself fence a value. Email regex, 32-char cap, digit-run rule and hits_7d ≥ 3 floor are unchanged. Spec text to be amended in the Task 12/13 docs pass — why: the spec's intent (never publish identity-like values) is served; its literal rule discards real intel — cost if wrong: a handle-like value that dodges both patterns could publish; mitigated by the ≥3 floor (a stuffing-list credential rarely repeats 3× in a week) and the cap.
+- Ruling R10: fix the trailer by `git commit --amend -m` on 5ad4e50 (message only, clean tree, BEFORE staging code fixes), then land the code fix as a new commit. The branch is private and unpushed; the amend is reflog-reversible and rewrites no shared history, so it is not the destructive class. Re-review package will span BASE f532b53..HEAD (the amended commit + fix) because FIX_BASE 5ad4e50 no longer exists after the amend — why: an interactive rebase is forbidden and a mixed-trailer branch is worse than one amend now — cost if wrong: one rewritten private SHA; the re-reviewer re-reads a ~4 KB diff it has effectively seen.
+- Ruling R11 (⚠️ resolved, not a gap): an entity present in `prev[kind]` but absent from the new snapshot is ignored (not clamped/flagged). knock-knock's *_intel rollups are cumulative PRIMARY-KEY tables — rows persist for the DB's life and only vanish on a reset/prune, which the total-decrease clamp already flags. Spec §3.3 invariants do not require per-entity disappearance handling — why: no realistic input produces it independently of a reset — cost if wrong: a pruned-row entity's stale sparse deltas age out of the 7-day window naturally; nothing is published incorrectly.
+- Ruling R12 (plan defect, ratified): the plan used `203.0.113.5` (RFC 5737 TEST-NET-3) as "the public IP that survives filtering", but CPython's `ipaddress` marks the documentation ranges `is_private=True` (confirmed on this .venv), so `is_public_ip` drops it and the brief's test cannot pass. Implementer's swap to `5.6.7.8` in tests/test_picket_assemble.py and tests/fixtures/picket/export_ok.json is ACCEPTED as the binding literal. Forward consequence: Task 5's smuggled sensor-IP literal `203.0.113.77` (also TEST-NET-3) would be dropped by `is_public_ip` before the sha256 check ever ran, making that test vacuous — Task 5 must use a genuinely public literal (e.g. `5.6.7.9`) for the smuggled IP so the hash-rejection path is what drops it. Tasks 9/10 use the literal only as display data (no filtering in TS) — unaffected. — cost if wrong: none; test data only.
+- Ruling R13 (plan omission, ratified): the runbook MUST include, for the `picket` service user, pre-trusting GitHub's host key (`ssh-keyscan -t ed25519 github.com >> ~picket/.ssh/known_hosts`) and a git identity (`git config` user.name/user.email) — without them `_git_push` would hang on host-key confirmation or fail on commit. Treat these as required runbook content, not scope creep — cost if wrong: none (documentation).
+- Ruling R14 (fix shape): keep the spec §10 / brief Step 6 nine-section outline and ORDER (plan-mandated); fix the sequencing by (a) adding an explicit prerequisite block at the top of §3: copy the files listed in §5 to /opt/socdesk BEFORE running install.sh, and (b) making §5's copy list exhaustive: the entire tools/picket/ directory (exporter.py, assemble.py, fence.py, ring.py, __init__.py, requirements.txt, systemd/, install.sh, README.md) + collectors/base.py + an empty collectors/__init__.py + schemas/picket_export.schema.json — why: reordering the mandated outline would contradict the spec; a prerequisite pointer preserves both the outline and execution correctness — cost if wrong: none (docs).
+- Ruling R15 (controller-identified, folded into round 2 because the same command is being rewritten): README §5's post-hardening rsync uses `-e "ssh -p 22"` — after install.sh, :22 is the knock-knock honeypot and the admin sshd is on ADMIN_SSH_PORT; the §5 command must use the admin port, §3's (pre-hardening) may use 22 — cost if wrong: none (docs).
+- Ruling R16 (model policy): both haiku implementers (T1, T8) substituted their own model name in the mandated trailer; every sonnet implementer complied. No further haiku dispatches for anything that commits in this plan (Tasks 9–14 are already sonnet). Reviewers keep treating reports as untrusted (the T8 report's attribution claim was false) — cost if wrong: cost/speed only.
+- Ruling R17: T8's fix round (trailer amend + any review findings) goes to a FRESH sonnet implementer with the brief + report paths, not a resume of the haiku implementer — the skill's rounds-1–3 resume rule assumes a compliant worker; this one substituted the trailer and falsely reported it verified (R16 pattern). Cost if wrong: one extra context rebuild on a ~160-line diff.
+- Ruling R18 (plan defect, ratified): `histogramPoints` uses `Math.max(1, Math.floor(hist.length / 24))` — the plan's snippet (bare floor) returns [] for 3 values, contradicting the plan's own test "3 values → 1 point". The implementer's version is the binding behaviour. Cost if wrong: none.
+- Ruling R19 (plan-mandated finding, ruled): accept the reviewer — add `scope="col"` to every `<th>` in PicketView's sources table. The plan's Task 9 template omitted it; the spec is silent; house a11y convention (every sibling data table) is the tie-breaker. Cost if wrong: none.
+- Ruling R20 (T11 pre-dispatch): bump About.tsx `UPDATED` to '2026-09-17' — why: the file's own header says the stamp changes "only when the policy does", and a new disclosure section is a policy change; the brief is silent. Cost if wrong: one string.
+- Ruling R21 (T12 plan defect, ruled): PICKET.md items that depend on box dogfood (protocol map "as confirmed on the box", §8 "real behaviour observed in dogfood", §9 screenshots "with a real picket.json") cannot be produced by a subagent (R8). T12 writes the protocol map from `tools/picket/README.md` §6 + knock-knock's registry, marked "pre-dogfood; confirm on the box"; §8 carries the spec §5 table with an "observed" column left as "pending dogfood"; §9 screenshots move to Task 14's local render check — T12 links `docs/img/picket/{tab,teaser,about}-{light,dark}.png` and T14 produces them from `vite preview` with a fixture-generated picket.json, captioned as fixture data. Cost if wrong: dangling image links between T12 and T14 (same session).
+- Ruling R22 (T12 finding (b), plan omission, ratified): spec §3.1 requires `ENABLED_PROTOCOLS` = SSH,TELNET,FTP,RDP,SMB,SIP,HTTP,SMTP in P1; `tools/picket/install.sh` and README §4 are silent (grep: no matches). Fix in T13 as its own `fix(picket)` commit: README §4 gains a "Set the protocol set" step (the core eight; syntax per the pinned tag's `.env.example`, verify on the box like WEB_HOST); install.sh appends only a comment reminder to .env when the key is unset (a guessed value could break startup — unlike WEB_HOST a wrong value is not harmless); PICKET.md §2 divergence #1 updated to say so. Cost if wrong: an extra owner step in the runbook.
+- Ruling R23 (T12 finding (a), schema-doc defect, ratified): the assembler's expression is the R3-mandated one (knock-knock's ip_intel_proto has no per-IP time window) — code stays; the two `description` strings (`schemas/picket_export.schema.json:83`, `schemas/picket.schema.json:89`) are corrected to describe it: all-time knocks from this IP on this protocol, reported only while the IP knocked in the last 7 days, 0 otherwise. PICKET.md §2 divergence #2 / §5.1 footnote reworded from "schema claims otherwise" to "schema documents this". Fix in T13 as its own `fix(picket)` commit. Cost if wrong: none (documentation strings; no validator change).
+- Ruling R24 (controller upstream verification, 2026-09-17 — plan defects in T4/T5/T6, ratified): checked knock-knock at the only sane pin (v3.0.0) via raw.githubusercontent.com. Findings: (1) `tools/picket/exporter.py:72` imports `protocols.registry.PROTOCOL_META` — does not exist; v3.0.0 exposes `DEFINITIONS` (list of ProtocolDefinition with .name/.proto_id) → ImportError on first run; (2) `exporter.py:42` SELECTs `first_seen, asn` from `ip_intel` — v3.0.0's table has neither → OperationalError on first run; `first_seen` is REQUIRED by all three schemas and read unguarded by `pipeline/picket.py:88` and `PicketView.tsx:120` → make optional end-to-end, omit rather than fabricate; (3) README:69 pins `KK_TAG=v1.9.0` — no such tag (v3.0.0 is latest) → clone fails; (4) `exporter.py:128` publishes `sensor.protocols` = the whole registry (13 protocols) not the enabled set → read `ENABLED_PROTOCOLS` from knock-knock's .env (syntax confirmed: `SSH,TNET,FTP,RDP,SMB,SIP,HTTP,SMTP`, `PROTO:PORT` allowed) and intersect; (5) no `VERSION` file upstream → `git describe --tags --always` fallback; (6) knock-knock's Telnet id is `TNET` not `TELNET` (fixtures unchanged — synthetic; schema examples/doc corrected). Inserted **Task 12b** (brief task-12b-brief.md, 4 commits, TDD) before T13. Cost if wrong: a redundant adapter change the dogfood would have forced anyway.
+- Ruling R25: accept the `GIT_CEILING_DIRECTORIES` deviation as the binding implementation (prevents describing an unrelated ancestor repo; no change for /opt/knock-knock). Cost if wrong: none.
+- Ruling R26 (T14 amendment): Task 14 re-briefed as task-14-brief-amended.md — Steps 1–2 done by the controller (suites + render check, screenshots on disk), Step 3 owner-present (R8), Step 4 split into two commits: `docs(picket): P1 surface screenshots from fixture data (light/dark, live/silent)` and `docs(handoff): PICKET P1 built + verified locally — dogfood pending, P2 next` (the plan's "foundation live" subject is not true until the box runs). BACKLOG gains three follow-ups (duplicate caption; client-side export age; dev-only import cycle). Cost if wrong: wording.
+- Ruling R27: fold the two T13 Minors + a `picket` row in `data/sources.json` into Task 14 Commit 2 (Steps 3b/3c of the amended brief); the sources row is added only if the schema shape is unambiguous, else skipped with NEEDS_CONTEXT on that sub-item. Cost if wrong: one data row to revert.
+- Ruling R28: I8 → option (b): a 404 for picket.json renders the teaser's honest empty ("No sensor telemetry yet."), other errors keep the gate's error UI. Why: an error panel on the public landing page for the whole dogfood period is a product consequence the house 404-pattern did not anticipate; (b) also covers a future rollback. Cost if wrong: 3–6 lines.
+- Ruling R29: accept the R23 challenge — rename `top_ips[].protocols[].hits_7d` → `hits_total` in both schemas, assembler, fixtures, TS, docs; `schema_version` stays 1 (no published data exists). Why: a field named hits_7d carrying an all-time value in a v1 public contract is a naming lie that P2 consumers would inherit; zero consumers today. Cost if wrong: a rename in fixtures/tests.
+- Ruling R30: final fix wave = ONE dispatch, 7 commits (final-fix-brief.md), implementer **fable** (one tier above the sonnet implementers: two Criticals in shell hardening + a multi-file contract change; fable already read the hostile fixtures unblocked). In scope: C1 C2 I1–I8 R29 M2 M6 M7 M8 M11(bugs) M12 M14; to BACKLOG: M1 M3(note) M4 M5 M9(+) M10 M13 M15. Then one scoped re-review (sonnet), adjudicate residuals. Cost if wrong: cost/speed.
+- Ruling R31 (residual adjudication): N1 + N2 + N3 are controller-fixed directly (≈10 lines of runbook: the two drop-in removals + daemon-reload, `ss -ltnp` in the printed check + README §3 expected output/recovery text, `env` through sudo, `--build` on compose up + `docker compose images` dogfood check) in one commit — a further dispatch cycle for a 4-line shell fix costs more than it protects; `bash -n` is the gate, as for every runbook line. N4: no action (real screenshots come from dogfood). Cost if wrong: a re-review of ~10 lines.
+- Ruling R32 (controller, close-out): no `.gitattributes` existed and `core.autocrlf=true` on the dev machine; box-side files are `w/lf` today only because the implementer wrote them — any checkout would rewrite `install.sh`/systemd units to CRLF and the runbook's rsync would ship a script that fails on `\r`. Added `.gitattributes` (`*.sh`, `tools/picket/**`, `collectors/base.py` → `text eol=lf`) + a README §5 line-endings check. Cost if wrong: none.
+
+**State at close.** Branch `feat/picket-p1`, unpushed; suites at HEAD: pytest
+279, web vitest 354 (39 files), shared vitest 536 (32 files), `tsc -b && vite
+build` clean, ESLint clean, `bash -n tools/picket/install.sh` clean. The
+sensor box has **not** been provisioned — the owner dogfood in
+`docs/OPERATIONS.md` ("Owner one-time setup — PICKET") is the real gate, and
+`tools/picket/install.sh` has been syntax-checked but never executed.
