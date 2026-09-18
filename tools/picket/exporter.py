@@ -3,8 +3,10 @@
 Reads knock-knock's SQLite rollups (never per-knock rows), feeds the delta
 ring, assembles + validates export.json, and pushes it to the public
 data-only repo SaltyCarl/socdesk-picket-export. The plaintext public IP is
-hashed here and never written. geoip2 and git are imported lazily so the pure
-parts stay testable in CI without them.
+used here to drop the box's own rows and is written only as a SHA-256 match
+token; if it cannot be determined the run is REFUSED (exit 4) before the ring
+consumes the tick. geoip2 and git are imported lazily so the pure parts stay
+testable in CI without them.
 
 Usage (see README.md):
   exporter.py --db /opt/knock-knock/data/knock_knock.db --state /var/lib/picket/state.json \
@@ -16,7 +18,6 @@ import argparse
 import hashlib
 import json
 import os
-import socket
 import sqlite3
 import subprocess
 import sys
@@ -25,6 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from tools.picket.assemble import assemble_export, validate_export
+from tools.picket.fence import is_public_ip
 from tools.picket.ring import apply_snapshot, new_state
 
 HERE = Path(__file__).resolve().parent
@@ -109,9 +111,14 @@ def knockknock_version(knockknock_dir):
 
 
 def _public_ip():
+    """The box's public IPv4 as seen from outside, or "" when it cannot be determined.
+    No hostname fallback: gethostbyname(gethostname()) yields a private/loopback/CGNAT
+    address whose hash matches nothing, which silently blinds the pipeline's second
+    pass. Anything that is not a public IP literal (an error page, an empty body)
+    is "" so main() refuses rather than publish a wrong token."""
     out = subprocess.run(["curl", "-4", "-s", "--max-time", "5", "https://ifconfig.me"],
                          capture_output=True, text=True, check=False).stdout.strip()
-    return out or socket.gethostbyname(socket.gethostname())
+    return out if is_public_ip(out) else ""
 
 
 def _country_by_ip(geoip_db, ips):
@@ -153,6 +160,12 @@ def main(argv=None):
     ap.add_argument("--geoip-db", default=None); ap.add_argument("--no-push", action="store_true")
     a = ap.parse_args(argv)
 
+    # First, before the ring consumes this tick: without the public IP the box
+    # cannot drop its own rows and the hash would be a token for nothing.
+    public_ip = _public_ip()
+    if not public_ip:
+        print("REFUSED (public-ip): could not determine the sensor's public address", file=sys.stderr); return 4
+
     now = datetime.now(timezone.utc)
     proto_names = load_proto_names(a.knockknock_dir)
     conn = sqlite3.connect(f"file:{a.db}?mode=ro", uri=True)
@@ -166,12 +179,13 @@ def main(argv=None):
     state_path.write_text(json.dumps(state, separators=(",", ":")))
 
     version = knockknock_version(a.knockknock_dir)
-    sensor = {"id": a.sensor_id, "public_ip_sha256": hashlib.sha256(_public_ip().encode()).hexdigest(),
+    sensor = {"id": a.sensor_id, "public_ip_sha256": hashlib.sha256(public_ip.encode()).hexdigest(),
               "protocols": load_enabled_protocols(a.knockknock_dir, set(proto_names.values())), "knockknock_version": version}
     if ring_out["reset"]:
         sensor["ring_reset_at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    export = assemble_export(rollups, ring_out["hits_7d"], ring_out["ring"], sensor, now, proto_names)
+    export = assemble_export(rollups, ring_out["hits_7d"], ring_out["ring"], sensor, now, proto_names,
+                             sensor_ip=public_ip)
     errors = validate_export(export, SCHEMA)
     if errors:
         print("REFUSED (schema): " + errors[0], file=sys.stderr); return 2

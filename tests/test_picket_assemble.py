@@ -87,6 +87,29 @@ def test_first_seen_is_omitted_when_the_rollup_has_none():
     assert validate_export(out, SCHEMA) == []
 
 
+def test_sensor_own_ip_is_dropped_on_the_box():
+    # I3: upstream self_redaction scrubs credential/body TEXT only, never ip_intel.ip,
+    # so a knock from the box to its own address lands in the rollups. The box-side
+    # pass must drop it — otherwise the plaintext sensor IP is published in the
+    # public export repo and only the pipeline's hash compare hides it downstream.
+    # 5.6.7.9 is a genuinely public literal (TEST-NET ranges are is_private in
+    # ipaddress and would be dropped by is_public_ip regardless — a vacuous test).
+    ip_intel = rollups()["ip_intel"] + [
+        {"ip": "5.6.7.9", "hits": 12, "first_seen": None, "last_seen": "2026-07-28 11:00:00",
+         "lat": None, "lng": None, "asn": None},
+    ]
+    h = hits7d(); h["ip"]["5.6.7.9"] = 12
+    without = assemble_export(rollups(ip_intel=ip_intel), h, [0] * 336, SENSOR, FIXED_NOW, PROTO)
+    assert "5.6.7.9" in [r["ip"] for r in without["top_ips"]]   # published when it is NOT the sensor
+    out = assemble_export(rollups(ip_intel=ip_intel), h, [0] * 336, SENSOR, FIXED_NOW, PROTO,
+                          sensor_ip="5.6.7.9")
+    ips = [r["ip"] for r in out["top_ips"]]
+    assert "5.6.7.9" not in ips                          # the sensor's own address
+    assert ips == ["5.6.7.8"]                            # other public rows survive
+    assert out["sensor"]["public_ip_sha256"] == SENSOR["public_ip_sha256"]
+    assert validate_export(out, SCHEMA) == []
+
+
 def test_caps_are_enforced():
     many = [{"ip": f"203.0.{i // 250}.{i % 250 + 1}", "hits": 5, "first_seen": None, "last_seen": None,
              "lat": None, "lng": None, "asn": None} for i in range(2500)]

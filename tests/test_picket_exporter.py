@@ -1,8 +1,13 @@
+import hashlib
+import json
 import sqlite3
 import sys
+from types import SimpleNamespace
 
+from tools.picket import exporter
 from tools.picket.exporter import (
     _country_by_ip,
+    _public_ip,
     knockknock_version,
     load_enabled_protocols,
     load_proto_names,
@@ -22,8 +27,8 @@ CREATE TABLE monitor_heartbeats (id INTEGER PRIMARY KEY, uptime_minutes INTEGER 
 """
 
 
-def _db():
-    c = sqlite3.connect(":memory:")
+def _db(path=":memory:"):
+    c = sqlite3.connect(str(path))
     c.executescript(DDL)
     c.execute("INSERT INTO ip_intel (ip,hits,last_seen,lat,lng) VALUES ('203.0.113.5',900,'2026-07-28 11:00:00',39.9,116.4)")
     c.execute("INSERT INTO ip_intel_proto (ip,proto,hits) VALUES ('203.0.113.5',1,900)")
@@ -102,6 +107,74 @@ def test_knockknock_version_prefers_file_then_unknown(tmp_path):
     other = tmp_path / "other"
     other.mkdir()
     assert knockknock_version(other) == "unknown"
+
+
+def _knockknock_dir(tmp_path):
+    """A minimal knock-knock checkout: just the v3 registry main() reads."""
+    kk = tmp_path / "knock-knock"
+    (kk / "protocols").mkdir(parents=True)
+    (kk / "protocols" / "__init__.py").write_text("")
+    (kk / "protocols" / "registry.py").write_text(
+        "from types import SimpleNamespace as _D\nDEFINITIONS = [_D(name=\"SSH\", proto_id=1)]\n"
+    )
+    return kk
+
+
+def _main_argv(tmp_path, kk):
+    return ["--db", str(tmp_path / "knock_knock.db"), "--state", str(tmp_path / "state.json"),
+            "--out", str(tmp_path / "export.json"), "--repo-dir", str(tmp_path),
+            "--sensor-id", "picket-1", "--knockknock-dir", str(kk), "--no-push"]
+
+
+def test_public_ip_is_empty_when_curl_yields_nothing(monkeypatch):
+    # I3: a hostname-derived address is NOT the public IP — it is usually private or
+    # loopback, so its hash matches nothing and the pipeline's second pass is blind.
+    monkeypatch.setattr(exporter.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout=""))
+    assert _public_ip() == ""
+    monkeypatch.setattr(exporter.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout="<html>rate limited</html>"))
+    assert _public_ip() == ""                              # not an IP literal either
+    monkeypatch.setattr(exporter.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout="10.0.0.7\n"))
+    assert _public_ip() == ""                              # a private address is not the PUBLIC ip
+    monkeypatch.setattr(exporter.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout="5.6.7.9\n"))
+    assert _public_ip() == "5.6.7.9"
+
+
+def test_main_refuses_when_public_ip_unknown(tmp_path, monkeypatch, capsys):
+    _db(tmp_path / "knock_knock.db").close()
+    kk = _knockknock_dir(tmp_path)
+    monkeypatch.setattr(exporter, "_public_ip", lambda: "")
+    _clean_protocols_module(kk)
+    try:
+        rc = exporter.main(_main_argv(tmp_path, kk))
+    finally:
+        _clean_protocols_module(kk)
+    assert rc == 4
+    assert "REFUSED (public-ip)" in capsys.readouterr().err
+    assert not (tmp_path / "export.json").exists()       # nothing written ...
+    assert not (tmp_path / "state.json").exists()        # ... and the ring did not consume this tick
+
+
+def test_main_writes_export_and_drops_the_sensors_own_ip(tmp_path, monkeypatch):
+    # Two genuinely public rows on top of _db()'s 203.0.113.5 (a TEST-NET address,
+    # which is_public_ip drops as is_private — so it never appears either way).
+    c = _db(tmp_path / "knock_knock.db")
+    c.execute("INSERT INTO ip_intel (ip,hits,last_seen) VALUES ('5.6.7.8',12,'2026-07-28 11:00:00')")
+    c.execute("INSERT INTO ip_intel (ip,hits,last_seen) VALUES ('5.6.7.9',3,'2026-07-28 11:00:00')")
+    c.execute("INSERT INTO ip_intel_proto (ip,proto,hits) VALUES ('5.6.7.8',1,12)")
+    c.execute("INSERT INTO ip_intel_proto (ip,proto,hits) VALUES ('5.6.7.9',1,3)")
+    c.commit(); c.close()
+    kk = _knockknock_dir(tmp_path)
+    monkeypatch.setattr(exporter, "_public_ip", lambda: "5.6.7.9")   # the box's own address
+    _clean_protocols_module(kk)
+    try:
+        rc = exporter.main(_main_argv(tmp_path, kk))
+    finally:
+        _clean_protocols_module(kk)
+    assert rc == 0
+    export = json.loads((tmp_path / "export.json").read_text(encoding="utf-8"))
+    assert [r["ip"] for r in export["top_ips"]] == ["5.6.7.8"]
+    assert export["sensor"]["public_ip_sha256"] == hashlib.sha256(b"5.6.7.9").hexdigest()
+    assert (tmp_path / "state.json").exists()
 
 
 def test_country_by_ip_without_database_returns_empty(tmp_path, capsys):

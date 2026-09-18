@@ -1,10 +1,11 @@
 """Rollups + ring → the raw export document (spec §4.1).
 
-Runs on the box. Applies the credential fence and public-IP test FIRST TIME
-(the collector applies them a second time), joins per-IP protocol hits and
-ISP names, converts knock-knock's 'YYYY-MM-DD HH:MM:SS' timestamps to ISO Z,
-enforces every cap, and validates against schemas/picket_export.schema.json
-before anything is written. Unknown protocol ids raise — never guessed.
+Runs on the box. Applies the credential fence, the public-IP test and the
+sensor's-own-IP drop FIRST TIME (the collector applies all three a second
+time — the last one by hash), joins per-IP protocol hits and ISP names,
+converts knock-knock's 'YYYY-MM-DD HH:MM:SS' timestamps to ISO Z, enforces
+every cap, and validates against schemas/picket_export.schema.json before
+anything is written. Unknown protocol ids raise — never guessed.
 """
 import json
 from datetime import timedelta
@@ -41,7 +42,11 @@ def _credlist(rows, key, hits7d_kind):
     return out[:CAP_CREDS]
 
 
-def assemble_export(rollups, hits7d, ring, sensor, now, proto_names):
+def assemble_export(rollups, hits7d, ring, sensor, now, proto_names, sensor_ip=None):
+    """`sensor_ip` is the box's own plaintext public address: any rollup row for it
+    is dropped HERE, before the plaintext could reach the public export repo.
+    knock-knock's self_redaction scrubs credential/body text only, never
+    ip_intel.ip, so a knock from the box to itself does land in the rollups."""
     isp_by_asn = {int(r["asn"]): clean_text(r.get("isp") or "")[:120]
                   for r in rollups.get("isp_intel", []) if r.get("asn") is not None}
     proto_by_ip = {}
@@ -56,7 +61,7 @@ def assemble_export(rollups, hits7d, ring, sensor, now, proto_names):
     ips = []
     for r in rollups.get("ip_intel", []):
         ip = str(r.get("ip") or "").strip()
-        if not is_public_ip(ip):
+        if not is_public_ip(ip) or (sensor_ip and ip == sensor_ip):
             continue
         h7 = int(hits7d["ip"].get(ip, 0))
         row = {"ip": ip, "hits_7d": h7, "hits_total": int(r.get("hits") or 0),
