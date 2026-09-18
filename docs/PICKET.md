@@ -1130,3 +1130,12 @@ them, TDD throughout, oldest first:
 
 5. `c4d1b47f` — fix(picket): last ENABLED_PROTOCOLS assignment wins (dotenv semantics)
 6. docs(picket): runbook §6 protocol-map command reads DEFINITIONS; PICKET.md sensor.protocols example uses TNET — this document itself, landing as the next commit after `c4d1b47f`.
+
+**Task 13 — cross-repo docs.**
+
+7. `d3b9068e` — docs(picket): OPERATIONS/DATA-SOURCES/REPO-MAP/ANALYST-GUIDE/README/COMPLIANCE for P1
+
+**Task 14 — P1 close-out.**
+
+8. `4f71dac5` — docs(picket): P1 surface screenshots from fixture data (light/dark, live/silent)
+9. docs(handoff): PICKET P1 built + verified locally — dogfood pending, P2 next — this commit (this §12 update, `docs/HANDOFF.md` §0, `BACKLOG.md`, the REPO-MAP/DATA-SOURCES Task 13 review minors, and the `data/sources.json` `picket` row), landing as the next commit after `4f71dac5`.

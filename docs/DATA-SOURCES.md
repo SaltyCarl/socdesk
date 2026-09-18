@@ -155,7 +155,7 @@ collector raises only if every feed fails.
 | | |
 |---|---|
 | Provides | Counts of automated break-in attempts against SOCDesk's own internet-facing honeypot sensor — by source IP, protocol, country, and network (ASN/ISP) — plus two separate aggregate top-N credential lists (usernames, passwords; never paired) |
-| Endpoint | `collectors/picket.py` → a keyless `raw.githubusercontent.com` GET of `export.json` from the public, data-only repo `SaltyCarl/socdesk-picket-export`, pushed by the sensor box every 30 minutes |
+| Endpoint | `collectors/picket.py` → a keyless `raw.githubusercontent.com` GET of `export.json` from the public, data-only repo `SaltyCarl/socdesk-picket-export`, regenerated every 30 minutes by the sensor box and pushed only when it changed (the exporter's push is idempotent — see `tools/picket/exporter.py::_git_push`) |
 | Terms | First-party telemetry — SOCDesk's own observations, not a redistribution of anyone else's corpus, so there are no third-party data-reuse terms to satisfy. Two attributions still apply: knock-knock (MIT, github.com/djkurlander/knock-knock — the honeypot software the sensor runs) and MaxMind GeoLite2 ("This product includes GeoLite2 data created by MaxMind, available from https://www.maxmind.com."), required wherever the GeoLite2 database is used |
 | Cadence | Every pipeline run (the export itself refreshes on the box's own 30-minute timer, six minutes ahead of the pipeline's `:11`/`:41` cron) |
 | Published as | `picket.json` (the `/desk#picket` panel and the landing-board teaser) and `picket_ips.json` (globe-layer rows — produced in P1, not yet rendered anywhere) |

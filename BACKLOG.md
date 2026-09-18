@@ -172,6 +172,14 @@ in-place IOC pivot; Gallery → internal-only (dropped from the public nav); and
   as a generic label; candidate rename to "Cockpit" / "Surface" (tie to the page's
   "Live threat surface" kicker). Left as-is — renaming the primary tab is the owner's call.
   Otherwise the audit verdict was: site copy is clean, analyst-grade (zero slop-word hits).
+- **Picket follow-ups (P1 close-out, 2026-09-17):** `PicketView` renders a faint caption
+  under the status chip that near-duplicates the `ViewHeader` intro directly above it —
+  copy polish; compute export age client-side from `sensor.exported_at` (the
+  pipeline-stamped `export_age_minutes` cannot age if the pipeline itself stops); dev-only
+  test-collection import cycle `tools/picket/assemble.py ↔ collectors/picket.py ↔
+  collectors/__init__.py` (running `tests/test_picket_exporter.py` alone errors — the box
+  ships only `collectors/base.py`, so not a shipped defect) — fix by lazy-importing
+  `tools.picket.assemble` inside `collectors/picket.py`.
 
 ### Ransomware / TI-uplift follow-ups (owner-directed 2026-08-24)
 _Shipped this lane: **Track A** CVE cheap-wins + hardening → LIVE. **Track B-A′** CISA-sourced ransomware **triage profile** → LIVE. **RANSOMWARE PROFILE REBUILD** (attributed named-victim layer w/ logos via same-origin favicon proxy + the digest-carries-claims coverage fix, re-seed by activity + provenance, associated-malware, staleness guard, 3-lens SOC/Data/UX review) → LIVE 2026-08-25. **HC3 ACTIVE-CREW DEPTH** (HHS HC3 as a 2nd public-domain intel source; Qilin seeded; schema gov-gate `(cisa|hhs).gov`; source-aware render via `intelSource.ts`) → LIVE 2026-08-25. Also LIVE 2026-08-25: **Nav/IA simplification** (Analyzer→omnibar + command chip + expand-link, Profiles→**Threat Intelligence**, retire Desk→Actors, Networks→**ISP Abuse Leaderboard**, drop Toolbelt), **3-lens profile refinements**, **landing** (climbing-CVE→lookup links + ISP Abuse Leaderboard homepage section), **copy audit** (verdict: clean; 4 tweaks). Specs/plans/reviews in `docs/superpowers/` + `.superpowers/sdd/`; spike `docs/research/vendor-sourcing-spike.md`._
@@ -323,11 +331,12 @@ check (logon types, source host, account).
   ASN **abuse-leaderboard rankings**, trend views, cross-feed dedup — original,
   publishable content. Bigger architectural direction → own design/spec.
 - **Give back to OSINT** — (1) **publish the curated cross-feed dataset** (dedup +
-  joined + attributed) as a community resource — YES; (3) **honeypot sensor** —
-  YES, employment-IP gate LIFTED (re-confirmed for good in `COMPLIANCE.md`'s
-  dated R2 re-rating, 2026-09-17 — settled, not to be re-raised); generates
-  real telemetry to report scanners (AbuseIPDB/GreyNoise) + submit samples
-  (MalwareBazaar). Not yet built — no collector/design exists. (2) open-source the
+  joined + attributed) as a community resource — YES; (3) **honeypot sensor
+  ("Picket")** — P1 BUILT on branch `feat/picket-p1` (2026-09-17), owner dogfood
+  pending; see `docs/PICKET.md` and `docs/OPERATIONS.md` "Owner one-time setup —
+  PICKET". Employment-IP question settled (COMPLIANCE.md R2 re-rating,
+  2026-09-17 — not to be re-raised). P2 = fusion + Knock→Block exports; P3 =
+  owner-moderated AbuseIPDB give-back (nothing automatic). (2) open-source the
   analyzer engine as a standalone lib — later / well down the line.
 - **★ IOC reporting (crowdsourced abuse reporting).** Report an IP/domain/etc., AbuseIPDB/VT-style.
   Resolved the public-model risk with the **narrow contributor-identity account model**: the

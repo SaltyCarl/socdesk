@@ -28,7 +28,7 @@ data/state/           COMMITTED last-known-good payloads + daily history snapsho
 data/entities/        actor / malware / vendor dictionaries used for extraction
 site/                 LEGACY superseded static site (history only; not deployed)
 site-tests/  tests/   Playwright (site/) + pytest (pipeline), fixture-backed
-tools/picket/          box-side exporter (delta ring, fence, assembler, systemd timer) + the sensor runbook
+tools/picket/         box-side exporter (delta ring, fence, assembler, systemd timer) + the sensor runbook
 ```
 
 ## `web/src/routes/` (registered in `App.tsx`'s ROUTES)

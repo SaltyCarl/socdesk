@@ -1,10 +1,103 @@
 # SOCDesk — Session Handoff
 
-**Written:** 2026-08-08 · **Updated:** 2026-09-05 (session — OPEN-WORK critique close-out: §1 enrichment KQL ladder + hash/domain playbooks COMPLETE, §3 cross-source feed clustering COMPLETE (`stories.json` + Corroborated strip), §2 reconciled already-shipped, §5 hygiene + `v0.1.0` tag + dead-weight drop; §4 escalation-card PAUSED per owner, dialect toggle = v2) · **Read §0 first.**
+**Written:** 2026-08-08 · **Updated:** 2026-09-17 (session — PICKET P1: honeypot sensor foundation built + reviewed; box dogfood pending; P2 next) · **Read §0 first.**
 
 ---
 
-## 0. LATEST — 2026-09-05 (session — OPEN-WORK critique close-out: §1 enrichment KQL + §3 feed clustering COMPLETE)
+## 0. LATEST — 2026-09-17 (session — PICKET P1 SHIPPED TO BRANCH: honeypot sensor foundation built + reviewed; dogfood pending)
+
+**Context:** the owner chose to build the long-planned first-party honeypot
+("Picket"): spec `docs/superpowers/specs/2026-09-17-picket-sensor-design.md`,
+plan `docs/superpowers/plans/2026-09-17-picket-p1-foundation.md`, executed
+subagent-driven on branch `feat/picket-p1` (26 commits, `3fe8038f..d3b9068e`,
+plus this close-out). Design: knock-knock (MIT, pinned `v3.0.0`) as the
+sensor engine on a disposable VPS; an on-box exporter (30-min delta ring,
+credential PII fence, bounded schema) pushes a raw export to the public
+data-only repo `SaltyCarl/socdesk-picket-export`; the keyless collector
+re-fences and the pipeline publishes `picket.json` + `picket_ips.json` with
+an honest live/stale/silent status; surfaces: `/desk#picket` tab, landing
+teaser, `/about#picket`.
+
+**Shipped (branch, unpushed):**
+- **Fence + ring + assembler + exporter/runbook (T1–T4).** Credential PII
+  fence + public-IP filter (shared by box and pipeline); the 30-minute delta
+  ring that derives a 7-day time series without per-knock storage; the
+  bounded raw export schema + fenced assembler; the exporter CLI, systemd
+  timer, box bootstrap, and runbook. Commits `3fe8038f`, `aa521f02`,
+  `c8010ce8`, `245be0ca`, `678a9e37`, `6794d6e3`, `05e7a2a5`, `4b62e2fb`.
+- **Collector + pipeline + wiring (T5–T7).** Keyless collector with a
+  second-pass sanitizer/fence; `picket.json` + `picket_ips.json` schemas
+  and builder with honest stale/silent handling; wired into `run_pipeline`
+  (gate + keep-prior + dual-write). Commits `128b8326`, `14d2b52e`,
+  `dfffeb0b`.
+- **Web types/model/tab/teaser/about (T8–T11).** TS types + pure view
+  model; `/desk#picket` tab (status, histogram, protocols, sources, fenced
+  credentials); landing-board teaser panel; `/about#picket` transparency
+  section. Commits `8b653cbe`, `e5f1b159`, `f1403624`, `3c5e6d7b`,
+  `f0b9c618`, `ea4cb430`.
+- **`docs/PICKET.md` reference (T12).** ~1,100-line architecture / contracts
+  / fence / freshness / surfaces reference. Commits `dabc8044`, `92c74d71`.
+- **knock-knock v3.0.0 adapter fixes (T12b).** The controller verified the
+  pinned upstream tag directly and found four box-breaking defects: the
+  exporter now reads the `DEFINITIONS` registry (not the non-existent
+  `PROTOCOL_META`), matches the real `ip_intel` columns, enforces
+  `ENABLED_PROTOCOLS` (last assignment wins — dotenv semantics), and treats
+  `first_seen` as optional end-to-end (knock-knock v3 keeps no per-IP
+  first-seen); the runbook pins `KK_TAG=v3.0.0`. Commits `d1242be0`,
+  `52b44cc7`, `6739bd7d`, `38444951`, `c4d1b47f`, `2436dce8`.
+- **Cross-repo docs (T13).** OPERATIONS / DATA-SOURCES / REPO-MAP /
+  ANALYST-GUIDE / README / COMPLIANCE updated for P1. Commit `d3b9068e`.
+- **Close-out (T14, this session).** Screenshots + `PICKET.md` render-check
+  note. Commit `4f71dac5`.
+
+**Verified:** pytest **267 passed**; web vitest **345 passed** (39 files);
+shared vitest **536 passed** (32 files); `npm run build` clean (`tsc -b &&
+vite build`, only the pre-existing >500 kB chunk note); `npm run lint` exit
+0; `bash -n tools/picket/install.sh` clean. Local render check (HEAD build,
+`vite preview`, fixture-derived `picket.json`/`picket_ips.json`): console
+clean (0 errors / 0 warnings) on `/desk#picket`, `/`, `/about#picket` in
+light + dark; 7 screenshots committed under `docs/img/picket/`. Every task
+reviewed by a fresh reviewer with fix rounds on T9, T12, T12b, and clean
+re-reviews. The controller independently verified knock-knock `v3.0.0`
+upstream directly (tags, `protocols/registry.py`, `monitor.py` table DDL,
+`.env.example`) — that verification is what forced T12b.
+
+**Decisions:**
+1. Spec §3.6 rule 3 tightened — a credential is fenced as an account only
+   when it matches `handle@host` (`_ACCOUNT_RE`), not merely "contains `@`"
+   (ledger R9).
+2. `top_ips[].protocols[].hits_7d` is all-time-gated-on-7-day-activity by
+   design — knock-knock keeps no per-IP/protocol window — and the schema
+   descriptions now say so (R23).
+3. `first_seen`/`asn`/`isp` per IP are **omitted** in P1 (knock-knock v3 has
+   no such columns) — never fabricated; the tab shows `—`.
+4. `sensor.protocols` = the `ENABLED_PROTOCOLS` set from `.env` intersected
+   with the registry, last assignment wins.
+5. Fixtures keep `TELNET` as synthetic data; the box publishes
+   knock-knock's `TNET`.
+6. Documentation is a phase exit criterion (spec §10) — `docs/PICKET.md`
+   (~1,100 lines) is the reference.
+7. The close-out subject says "built + verified locally", not "live" (R26).
+
+**Open / next:** **Owner dogfood (the real gate)** — `docs/OPERATIONS.md`
+"Owner one-time setup — PICKET" + its acceptance checklist;
+`tools/picket/README.md` is the runbook (provision → harden → `install.sh` with
+`KK_TAG=v3.0.0` → verify → first export within 30 min → `picket.json` on
+the next cron → `/desk#picket` renders → timer kill → stale/silent →
+restore). Record the protocol-map answers in `PICKET.md` §3 and dogfood
+observations in §8. Then **merge `feat/picket-p1` → main** (owner decision;
+branch is unpushed). **P2** (spec §3.7–3.10): lead-time membership,
+`SOCDESK_PICKET` enrich context row, ISP-leaderboard third source, globe
+layer consuming `picket_ips.json`, Knock→Block export pack (MDE indicators
+CSV, Sentinel watchlist + KQL, Entra banned passwords, plain blocklist).
+**P3:** owner-moderated AbuseIPDB give-back. Small follow-ups (BACKLOG):
+PicketView duplicate caption; client-side export age; the dev-only
+isolation-import cycle `tools.picket.assemble ↔ collectors.picket ↔
+collectors/__init__`.
+
+---
+
+## 0-RECENT — 2026-09-05 (session — OPEN-WORK critique close-out: §1 enrichment KQL + §3 feed clustering COMPLETE)
 
 **Context:** large **OPEN-WORK critique** pass (`docs/OPEN-WORK.md` / SOCDesk-Open-Work-2026-09-05.pdf)
 — worked the numbered gaps top-to-bottom; each item with a plan/spec was **adversarially vetted**
