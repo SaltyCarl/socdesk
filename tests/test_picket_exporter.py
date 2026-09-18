@@ -11,9 +11,12 @@ from tools.picket.exporter import (
     knockknock_version,
     load_enabled_protocols,
     load_proto_names,
+    load_state,
     read_rollups,
+    save_state,
     snapshot_from_rollups,
 )
+from tools.picket.ring import new_state
 
 DDL = """
 CREATE TABLE user_intel (username TEXT PRIMARY KEY, hits INTEGER, last_seen DATETIME);
@@ -175,6 +178,26 @@ def test_main_writes_export_and_drops_the_sensors_own_ip(tmp_path, monkeypatch):
     assert [r["ip"] for r in export["top_ips"]] == ["5.6.7.8"]
     assert export["sensor"]["public_ip_sha256"] == hashlib.sha256(b"5.6.7.9").hexdigest()
     assert (tmp_path / "state.json").exists()
+
+
+def test_state_load_tolerates_truncated_file(tmp_path, capsys):
+    # M14: a power loss mid-write used to leave a truncated state.json that made
+    # EVERY later run raise JSONDecodeError — a bricked exporter the site could only
+    # report as "silent". A corrupt file is logged once and the ring starts fresh.
+    path = tmp_path / "state.json"
+    path.write_text('{"ver', encoding="utf-8")
+    assert load_state(path) == new_state()
+    assert "state" in capsys.readouterr().err
+    assert load_state(tmp_path / "absent.json") == new_state()      # first run: no file at all
+
+
+def test_state_is_saved_atomically_and_round_trips(tmp_path):
+    path = tmp_path / "nested" / "state.json"
+    state = new_state(); state["last_bucket"] = 42
+    save_state(path, state)
+    assert load_state(path) == state
+    assert not path.with_suffix(".json.tmp").exists()                # temp file replaced, not left behind
+    assert sorted(p.name for p in path.parent.iterdir()) == ["state.json"]
 
 
 def test_country_by_ip_without_database_returns_empty(tmp_path, capsys):

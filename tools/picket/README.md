@@ -46,34 +46,62 @@ ssh root@<ip>
 
 ## 3. Harden, in order
 
-`install.sh` is idempotent but **step 1 changes your SSH port and disables
+`install.sh` is idempotent but **step 2 changes your SSH port and disables
 password auth — if you get this wrong and disconnect, you are locked out**
 (cloud console / rescue mode is your only way back in). Do not skip the
-verification pause.
+verification pause. Run it **interactively** (it pauses with `read`; a
+non-TTY stdin aborts it under `set -e`).
 
 **Before running `install.sh`:** stage the exporter files on the box — the
-script's own step 4 runs
+script's own step 6 runs
 `pip install -q -r /opt/socdesk/tools/picket/requirements.txt`, which requires
-those files to already be present at `/opt/socdesk/tools/picket/`. Run §5
+those files to already be present at `/opt/socdesk/tools/picket/` (the script
+checks and stops with a clear message if they are not). Run §5
 "Exporter"'s copy block now, from your workstation, **using port 22** (at this
 point in the process the real sshd hasn't moved yet — that only happens a few
 lines below, once you run `install.sh` itself). Come back here once the copy
 is done and verified.
 
-Set the required environment variables and run the script as root on the
-fresh box:
+Set the environment variables and run the script as root on the fresh box.
+The script's header comment lists every variable it reads:
 
 ```bash
 export ADMIN_SSH_PORT=2222                    # optional, defaults to 2222
+export ADMIN_USER=root                        # optional, defaults to root — the ONE account sshd will admit (AllowUsers)
 export ADMIN_ALLOW_CIDR=203.0.113.9/32        # REQUIRED: your admin source IP/CIDR
 export KK_TAG=v3.0.0                          # REQUIRED: pinned knock-knock release tag — list them first: git ls-remote --tags https://github.com/djkurlander/knock-knock.git
-export EXPORT_REPO=git@github.com:SaltyCarl/socdesk-picket-export.git   # optional, this is the default
-bash tools/picket/install.sh
+export EXPORT_REPO=git@github.com:SaltyCarl/socdesk-picket-export.git          # optional (default): SSH push URL, used with the deploy key
+export EXPORT_REPO_HTTPS=https://github.com/SaltyCarl/socdesk-picket-export.git # optional (default): keyless read-only clone URL
+export MAXMIND_ACCOUNT_ID=<id>                # optional pair (§4): set both and the script writes knock-knock's .env
+export MAXMIND_LICENSE_KEY=<key>              #   AND /etc/GeoIP.conf and fetches GeoLite2-Country; unset -> country omitted
+bash /opt/socdesk/tools/picket/install.sh
 ```
 
-Step 1 of the script moves real sshd to `ADMIN_SSH_PORT`, disables password
-auth, restarts sshd, then **stops and prints a prompt**. Before pressing
-enter:
+The script installs packages **first** (step 1 — Docker from Docker's own apt
+repo on both target OSes, `sudo`, `ufw`, `acl`, `unattended-upgrades`,
+`geoipupdate`), so a package failure can never strand a half-hardened box.
+Step 2 then writes `/etc/ssh/sshd_config.d/00-picket.conf` — `Port
+ADMIN_SSH_PORT`, `PasswordAuthentication no`, `KbdInteractiveAuthentication
+no`, `PermitRootLogin prohibit-password`, `AllowUsers ADMIN_USER` — as a
+drop-in rather than editing `sshd_config`: sshd keeps the first value it reads
+for each keyword and the `Include sshd_config.d/*.conf` comes first, so
+`00-picket.conf` wins over both `sshd_config` and any provider cloud-init
+drop-in (`50-cloud-init.conf: PasswordAuthentication yes` is common). On
+Ubuntu 24.04 sshd is socket-activated and `Port` would be ignored, so the
+script disables `ssh.socket` and enables `ssh.service` instead. It then prints
+the **effective** configuration and **stops at a prompt**:
+
+```
+>> EFFECTIVE sshd config (sshd -T) — this is what is actually enforced:
+port 2222
+passwordauthentication no
+kbdinteractiveauthentication no
+permitrootlogin prohibit-password
+allowusers root
+```
+
+If those five lines do not read like that, do not press enter. Before
+pressing enter:
 
 ```bash
 # from a SECOND terminal, do not close the first
@@ -81,8 +109,9 @@ ssh -p 2222 root@<ip>
 ```
 
 Only press enter in the first terminal once that second connection succeeds.
-If it fails, fix `/etc/ssh/sshd_config` from the still-open first session —
-do not disconnect it.
+If it fails, fix `/etc/ssh/sshd_config.d/00-picket.conf` from the still-open
+first session, `sshd -t && systemctl restart ssh`, re-check `sshd -T` — do
+not disconnect it.
 
 After the script finishes (firewall + knock-knock + exporter steps), confirm
 the box exposes only what it should, from an **external** machine (not the
@@ -104,13 +133,37 @@ protocol IDs and `.env` shape stay stable between exporter runs. Do not
 `git pull` inside `/opt/knock-knock` to "update"; re-provision with a new
 `KK_TAG` instead.
 
-MaxMind values in `/opt/knock-knock/.env` (GeoLite2 free tier — see
-[Attribution obligations](#9-attribution-obligations)):
+**MaxMind (GeoLite2 free tier — see
+[Attribution obligations](#9-attribution-obligations)).** Two separate
+databases are in play, and they are provisioned differently:
+
+- knock-knock's **own** `geoipupdate` container fetches GeoLite2-**City** and
+  GeoLite2-**ASN** into a named Docker volume — that is where `lat`/`lng` and
+  ISP names come from. It reads `MAXMIND_ACCOUNT_ID` / `MAXMIND_LICENSE_KEY`
+  from `/opt/knock-knock/.env`.
+- the **exporter's** per-IP `country` comes from a **host** copy of
+  GeoLite2-**Country** at `/usr/share/GeoIP/GeoLite2-Country.mmdb`, fetched
+  by the host `geoipupdate` package from `/etc/GeoIP.conf`. The container's
+  volume is not visible to the exporter, and it is the wrong edition anyway.
+
+The simplest path: export `MAXMIND_ACCOUNT_ID` and `MAXMIND_LICENSE_KEY`
+**before** `install.sh` (§3) — the script writes both places and runs
+`geoipupdate` once. If you add them later: edit `/opt/knock-knock/.env` and
+then `cd /opt/knock-knock && docker compose restart` (the container reads its
+`.env` at start, not live), and write `/etc/GeoIP.conf` by hand:
 
 ```
-MAXMIND_ACCOUNT_ID=<your account id>
-MAXMIND_LICENSE_KEY=<your license key>
+AccountID <your account id>
+LicenseKey <your license key>
+EditionIDs GeoLite2-Country
+DatabaseDirectory /usr/share/GeoIP
 ```
+
+then `geoipupdate && systemctl enable --now geoipupdate.timer`. Until the
+`.mmdb` exists and is readable by `picket`, the exporter still publishes — it
+logs one line per run, `geoip: <reason> — publishing without country`, and
+every `top_ips[]` row simply has no `country` key (spec §5, the optional
+field). `lat`/`lng` from knock-knock's own City database are unaffected.
 
 Sanity-check the containers came up clean:
 
@@ -140,10 +193,20 @@ also accepts `PROTO:PORT` entries such as `HTTP:80,HTTP:443`; the exporter
 publishes exactly this set as `sensor.protocols`. The optional IoT/OT set
 (`MQTT,NRED,MODB,S7,SNMP`) is a later owner toggle — do not enable in P1.
 
-Confirm the dashboard is **not** reachable from outside — it must only be
-bound to localhost:
+**Dashboard binding — two layers.** knock-knock `v3.0.0`'s
+`docker-compose.host.yml` runs the dashboard as
+`uvicorn ... --host ${WEB_LISTEN:-0.0.0.0}`; `.env.example` does not list the
+variable, but the compose file honours it. `install.sh` writes
+`WEB_LISTEN=127.0.0.1` (the first layer — the process itself only listens on
+loopback) and makes sure `COMPOSE_FILE=docker-compose.host.yml` is set (host
+networking, which is what puts port 8080 under ufw at all: under the bridge
+`docker-compose.yml`, Docker publishes `8080:8080` through its own iptables
+chain, which **bypasses ufw**). The §3 firewall — no rule for 8080 — is the
+second layer. Check both, then prove it from outside:
 
 ```bash
+grep -nE '^(WEB_LISTEN|COMPOSE_FILE)=' /opt/knock-knock/.env   # expected: WEB_LISTEN=127.0.0.1 and COMPOSE_FILE=docker-compose.host.yml
+ss -ltnp | grep ':8080'                                        # expected: 127.0.0.1:8080, never 0.0.0.0:8080 or *:8080
 curl -m 3 http://<ip>:8080          # from an EXTERNAL machine — must fail/timeout
 ```
 
@@ -154,29 +217,10 @@ ssh -p 2222 -L 8080:127.0.0.1:8080 root@<ip>
 # then open http://127.0.0.1:8080 locally
 ```
 
-**Build-time check — confirm the bind variable name on the pinned tag.**
-knock-knock `v3.0.0`'s `.env.example` defines no host/bind variable at all, so
-the `WEB_HOST=127.0.0.1` line `install.sh` writes is a no-op on that tag; the
-firewall rules in §3 (no rule for 8080) are the control that keeps the
-dashboard private, and the external `curl` check below is how you prove it.
-`install.sh` writes `WEB_HOST=127.0.0.1` into `.env` as a guess; knock-knock's
-actual variable name can differ by release. Verify it explicitly before
-trusting that the dashboard is bound to localhost:
-
-```bash
-cd /opt/knock-knock
-grep -RniE 'host|bind|0\.0\.0\.0' .env.example docker-compose.yml
-```
-
-If the pinned tag uses a different variable name (e.g. `DASHBOARD_HOST`,
-`FLASK_RUN_HOST`) than `WEB_HOST`, edit `/opt/knock-knock/.env` to use the
-correct name, `docker compose up -d` again, and re-run the `curl` check
-above until it fails as expected.
-
 ## 5. Exporter
 
 If you haven't already (§3 tells you to do this *before* running
-`install.sh`, since its step 4 pip-installs from these files), copy the
+`install.sh`, since its step 6 pip-installs from these files), copy the
 **entire** `tools/picket/` directory from this repo onto the box, under
 `/opt/socdesk`, preserving paths — not just `exporter.py`, all of it, because
 `exporter.py` imports the rest as `tools.picket.*`:
@@ -226,41 +270,78 @@ four paths must list:
 ssh -p "$SSH_PORT" root@<ip> 'ls /opt/socdesk/tools/picket/requirements.txt /opt/socdesk/tools/picket/assemble.py /opt/socdesk/collectors/base.py /opt/socdesk/schemas/picket_export.schema.json'
 ```
 
-`collectors/base.py` imports as `collectors.base`, so also create an empty
-package marker next to it (no `collectors/__init__.py` stub is copied from
-this repo — create it fresh on the box):
+`collectors/base.py` imports as `collectors.base`, so an empty package marker
+must sit next to it — `install.sh` step 6 creates
+`/opt/socdesk/collectors/__init__.py` if the copy did not bring one (nothing
+in this repo's `collectors/__init__.py` is wanted on the box; it imports every
+collector).
+
+**The export repo.** `install.sh` clones it read-only over HTTPS (keyless — the
+repo is public) and sets the **push** URL to SSH, so the clone always
+succeeds on a fresh box and only the push needs the deploy key. Two
+prerequisites on the GitHub side: the repo exists and is **non-empty**
+(initialise it with a README so `main` exists — `git push` from the clone
+tracks `origin/main`), and the deploy key below is registered.
+
+**The deploy key** is generated by `install.sh` step 8, as the unprivileged
+`picket` user, together with GitHub's host key in `known_hosts` and the git
+identity (`picket <picket@socdesk.io>`). The script prints the public key at
+the end; to see it again:
 
 ```bash
-mkdir -p /opt/socdesk/collectors
-touch /opt/socdesk/collectors/__init__.py
-```
-
-Generate the exporter's own deploy key (as the unprivileged `picket` user
-`install.sh` created) and register it, **write-enabled**, on the export repo:
-
-```bash
-sudo -u picket ssh-keygen -t ed25519 -C picket -f /var/lib/picket/.ssh/id_ed25519 -N ""
 cat /var/lib/picket/.ssh/id_ed25519.pub
 ```
 
-Add that public key at `github.com/SaltyCarl/socdesk-picket-export` →
-**Settings → Deploy keys → Add deploy key** → paste it → check **Allow write
-access**.
+Add it at `github.com/SaltyCarl/socdesk-picket-export` → **Settings → Deploy
+keys → Add deploy key** → paste → check **Allow write access**. Write-scoped,
+on this one repo only — never a key with broader scope. Until it is
+registered, every timer run ends in a `git push` error in
+`journalctl -u picket-export`; that error is the signal, not a fault, and the
+**first successful push is the confirmation** that the key is live.
 
-Trust GitHub's host key for the `picket` user before the first push (`git
-clone`/`git push` will otherwise hang on the unknown-host prompt):
+**Pre-checks before the first run** — the exporter opens the database
+read-only as `picket`, which needs three things to be true:
 
 ```bash
-sudo -u picket ssh-keyscan -t ed25519 github.com >> /var/lib/picket/.ssh/known_hosts
-sudo -u picket git config --global user.email "picket@socdesk.io"
-sudo -u picket git config --global user.name "SOCDesk PICKET exporter"
+ls -l /opt/knock-knock/data/knock_knock.db*       # expected: knock_knock.db plus -wal and -shm once knock-knock has run
+getfacl /opt/knock-knock/data/knock_knock.db | grep picket   # expected: user:picket:r--
+sudo -Hu picket python3 -c "import sqlite3; print(sqlite3.connect('file:/opt/knock-knock/data/knock_knock.db?mode=ro', uri=True).execute('select count(*) from ip_intel').fetchone())"
 ```
 
-First run by hand with `--no-push` (writes `export.json` locally, never
-touches the export repo — inspect it before anything goes out):
+The file is `knock_knock.db` — knock-knock v3.0.0's `monitor.py` builds the
+path as `DB_DIR` (default `data`) + `/knock_knock.db`, mounted from
+`./data:/app/data`; `DB_DIR` is the one upstream variable that could move it.
+knock-knock opens it in **WAL** mode (`PRAGMA journal_mode=WAL`), so a reader
+needs the `-wal` and `-shm` files to be readable too, not just the main file —
+`install.sh` step 7 sets `u:picket:r` on `knock_knock.db*` and a **default**
+ACL on the directory so the sidecar files knock-knock creates later inherit
+it. If `knock_knock.db` did not exist yet when the script ran, re-apply
+`setfacl -m u:picket:r /opt/knock-knock/data/knock_knock.db*` before the
+first run. (A read-only connection on SQLite ≥ 3.22 copes with a read-only
+`-shm` by keeping the WAL index in heap memory; a torn read across a
+concurrent commit is retried on the next timer tick, never published.)
+
+**Box smoke — two `--no-push` runs, nothing leaves the box.** First with the
+GeoIP database deliberately pointed at a missing file: this proves the C2
+behaviour (a missing MaxMind DB omits `country`, it does not crash) and, on a
+box without `/etc/GeoIP.conf`, is simply the normal run:
 
 ```bash
-sudo -u picket /opt/socdesk/.venv/bin/python -m tools.picket.exporter \
+sudo -Hu picket /opt/socdesk/.venv/bin/python -m tools.picket.exporter \
+  --db /opt/knock-knock/data/knock_knock.db --state /var/lib/picket/state.json \
+  --out /srv/picket-export/export.json --repo-dir /srv/picket-export \
+  --sensor-id picket-1 --knockknock-dir /opt/knock-knock \
+  --geoip-db /nonexistent.mmdb --no-push; echo "exit $?"
+grep -c '"country"' /srv/picket-export/export.json || true
+```
+
+Expected: `exit 0`, one stderr line `geoip: ... — publishing without
+country`, and the `grep` count is `0` (no row carries `country`). Then the
+real `--no-push` run (writes `export.json` locally, never touches the export
+repo — inspect it before anything goes out):
+
+```bash
+sudo -Hu picket /opt/socdesk/.venv/bin/python -m tools.picket.exporter \
   --db /opt/knock-knock/data/knock_knock.db --state /var/lib/picket/state.json \
   --out /srv/picket-export/export.json --repo-dir /srv/picket-export \
   --sensor-id picket-1 --knockknock-dir /opt/knock-knock \
@@ -268,10 +349,15 @@ sudo -u picket /opt/socdesk/.venv/bin/python -m tools.picket.exporter \
 cat /srv/picket-export/export.json
 ```
 
+Note the exporter first asks `https://ifconfig.me` for the box's public IPv4
+(to drop the box's own rows and to publish `sensor.public_ip_sha256`); if that
+lookup yields nothing usable it prints `REFUSED (public-ip): ...` and exits
+`4` without touching `state.json` — outbound HTTPS must work.
+
 Then a real run (pushes):
 
 ```bash
-sudo -u picket /opt/socdesk/.venv/bin/python -m tools.picket.exporter \
+sudo -Hu picket /opt/socdesk/.venv/bin/python -m tools.picket.exporter \
   --db /opt/knock-knock/data/knock_knock.db --state /var/lib/picket/state.json \
   --out /srv/picket-export/export.json --repo-dir /srv/picket-export \
   --sensor-id picket-1 --knockknock-dir /opt/knock-knock \
@@ -286,9 +372,19 @@ journalctl -u picket-export -f
 journalctl -u picket-export --since "-1h"
 ```
 
-A `REFUSED (schema): ...` or `REFUSED (size): ...` line means the exporter
-declined to publish rather than push something invalid — check the message,
-fix the underlying data, and let the next timer tick retry.
+A `REFUSED (schema): ...` (exit 2), `REFUSED (size): ...` (exit 3) or
+`REFUSED (public-ip): ...` (exit 4) line means the exporter declined to
+publish rather than push something invalid — check the message, fix the
+underlying cause, and let the next timer tick retry. A `geoip: ...` line is
+not a refusal: the export went out without per-IP `country` (§4). A
+`state: ... unreadable ... starting a fresh ring` line means `state.json` was
+corrupt (e.g. power loss) and the 7-day ring restarted from empty — `hits_7d`
+figures read low for up to 7 days, as after a rebuild (§7).
+
+**Dogfood note — SMTP.** Hetzner and Oracle Cloud block inbound 25/tcp by
+default on new accounts/instances; expect the SMTP protocol to show zero
+knocks until the provider unblocks the port. That is the provider, not the
+sensor.
 
 ## 6. Confirm the protocol map
 
@@ -340,8 +436,9 @@ records.
 Signs the box itself (not just the honeypot service) may be compromised:
 unexpected outbound connections beyond the export repo push, processes you
 didn't start, modified `install.sh`/`exporter.py` on disk, unexpected changes
-to `/etc/ssh/sshd_config` or `ufw` rules, or a `picket-export` timer run that
-pushed something you didn't expect.
+to `/etc/ssh/sshd_config.d/00-picket.conf` (or `sshd -T` no longer showing
+the §3 lines) or `ufw` rules, or a `picket-export` timer run that pushed
+something you didn't expect.
 
 If you see any of these:
 

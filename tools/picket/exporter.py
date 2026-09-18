@@ -143,6 +143,30 @@ def _country_by_ip(geoip_db, ips):
     return out
 
 
+def load_state(path):
+    """The ring state, or a fresh one. A truncated/corrupt file (power loss mid-write
+    before save_state was atomic) is logged once and replaced — never a bricked
+    exporter that every later run trips over."""
+    path = Path(path)
+    if not path.exists():
+        return new_state()
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as e:
+        print(f"state: {path} unreadable ({e}) — starting a fresh ring", file=sys.stderr)
+        return new_state()
+
+
+def save_state(path, state):
+    """Write-to-temp + os.replace so state.json is always either the old or the
+    new document, never a torn one."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(state, separators=(",", ":")), encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def _git_push(repo_dir, out_path):
     subprocess.run(["git", "-C", repo_dir, "add", Path(out_path).name], check=True)
     if subprocess.run(["git", "-C", repo_dir, "diff", "--cached", "--quiet"]).returncode == 0:
@@ -172,11 +196,9 @@ def main(argv=None):
     rollups = read_rollups(conn)
     rollups["country_by_ip"] = _country_by_ip(a.geoip_db, [r["ip"] for r in rollups["ip_intel"]])
 
-    state_path = Path(a.state)
-    state = json.loads(state_path.read_text()) if state_path.exists() else new_state()
+    state = load_state(a.state)
     ring_out = apply_snapshot(state, snapshot_from_rollups(rollups, proto_names), int(time.time()))
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    state_path.write_text(json.dumps(state, separators=(",", ":")))
+    save_state(a.state, state)
 
     version = knockknock_version(a.knockknock_dir)
     sensor = {"id": a.sensor_id, "public_ip_sha256": hashlib.sha256(public_ip.encode()).hexdigest(),
