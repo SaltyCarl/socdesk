@@ -66,7 +66,7 @@ fresh box:
 ```bash
 export ADMIN_SSH_PORT=2222                    # optional, defaults to 2222
 export ADMIN_ALLOW_CIDR=203.0.113.9/32        # REQUIRED: your admin source IP/CIDR
-export KK_TAG=v1.9.0                          # REQUIRED: pinned knock-knock release tag
+export KK_TAG=v3.0.0                          # REQUIRED: pinned knock-knock release tag — list them first: git ls-remote --tags https://github.com/djkurlander/knock-knock.git
 export EXPORT_REPO=git@github.com:SaltyCarl/socdesk-picket-export.git   # optional, this is the default
 bash tools/picket/install.sh
 ```
@@ -128,6 +128,18 @@ grep -n '^SAVE_KNOCKS' /opt/knock-knock/.env
 Expected: the line is commented out (`# SAVE_KNOCKS off: rollups only`), not
 `SAVE_KNOCKS=true`.
 
+**Protocol set.** Confirm `install.sh` wrote the P1 protocol set:
+
+```bash
+grep -n '^ENABLED_PROTOCOLS' /opt/knock-knock/.env
+```
+
+Expected: `ENABLED_PROTOCOLS=SSH,TNET,FTP,RDP,SMB,SIP,HTTP,SMTP` — the spec's
+P1 "core eight"; `TNET` is knock-knock's identifier for Telnet; knock-knock
+also accepts `PROTO:PORT` entries such as `HTTP:80,HTTP:443`; the exporter
+publishes exactly this set as `sensor.protocols`. The optional IoT/OT set
+(`MQTT,NRED,MODB,S7,SNMP`) is a later owner toggle — do not enable in P1.
+
 Confirm the dashboard is **not** reachable from outside — it must only be
 bound to localhost:
 
@@ -143,6 +155,10 @@ ssh -p 2222 -L 8080:127.0.0.1:8080 root@<ip>
 ```
 
 **Build-time check — confirm the bind variable name on the pinned tag.**
+knock-knock `v3.0.0`'s `.env.example` defines no host/bind variable at all, so
+the `WEB_HOST=127.0.0.1` line `install.sh` writes is a no-op on that tag; the
+firewall rules in §3 (no rule for 8080) are the control that keeps the
+dashboard private, and the external `curl` check below is how you prove it.
 `install.sh` writes `WEB_HOST=127.0.0.1` into `.env` as a guess; knock-knock's
 actual variable name can differ by release. Verify it explicitly before
 trusting that the dashboard is bound to localhost:

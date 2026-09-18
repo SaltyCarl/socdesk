@@ -29,6 +29,7 @@ cd /opt/knock-knock
 [ -f .env ] || cp .env.example .env
 grep -q '^WEB_HOST=' .env || echo 'WEB_HOST=127.0.0.1' >> .env      # verify the var name on the pinned tag (README)
 grep -q '^SOURCE_ID=' .env || echo 'SOURCE_ID=picket-1' >> .env
+grep -q '^ENABLED_PROTOCOLS=' .env || echo 'ENABLED_PROTOCOLS=SSH,TNET,FTP,RDP,SMB,SIP,HTTP,SMTP' >> .env   # spec §3.1 core eight; TNET is knock-knock's id for Telnet
 sed -i 's/^SAVE_KNOCKS=.*/# SAVE_KNOCKS off: rollups only/' .env
 docker compose up -d
 
