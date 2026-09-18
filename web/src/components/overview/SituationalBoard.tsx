@@ -8,6 +8,7 @@ import type {
   CvePayload,
   FeedPayload,
   HealthPayload,
+  PicketPayload,
   TrendsPayload,
 } from '../views/types'
 import { OverviewStats } from './OverviewStats'
@@ -16,6 +17,7 @@ import { RansomwareActivity } from './RansomwareActivity'
 import { NamedActorActivity } from './NamedActorActivity'
 import { PatchPriority } from './PatchPriority'
 import { NetworkAbuseLeaderboard } from './NetworkAbuseLeaderboard'
+import { PicketTeaser } from './PicketTeaser'
 import { FreshnessStrip } from './FreshnessStrip'
 import { aggregateRansomware, namedActorReports } from './aggregations'
 import { useInView } from './useInView'
@@ -136,6 +138,7 @@ export function SituationalBoard() {
   const feed = useStateData<FeedPayload>('feed')
   const health = useStateData<HealthPayload>('health')
   const networks = useStateData<AsnLeaderboardPayload>('asn_leaderboard')
+  const picket = useStateData<PicketPayload>('picket')
 
   const items = useMemo(() => feed.data?.items ?? [], [feed.data])
   const ransom = useMemo(() => aggregateRansomware(items), [items])
@@ -193,6 +196,16 @@ export function SituationalBoard() {
         skeleton={<Skeleton className="h-64 w-full rounded-lg" />}
       >
         <NetworkAbuseLeaderboard payload={networks.data ?? { networks: [] }} />
+      </Gate>
+
+      {/* first-party sensor teaser for /desk#picket; light picket.json */}
+      <Gate
+        status={picket.status}
+        label="the Picket sensor"
+        detail={picket.error}
+        skeleton={<Skeleton className="h-48 w-full rounded-lg" />}
+      >
+        <PicketTeaser payload={picket.data} />
       </Gate>
 
       {/* secondary lane: who's reported on · what to patch · did collection run */}
