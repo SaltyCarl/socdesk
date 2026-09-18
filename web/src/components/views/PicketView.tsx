@@ -107,7 +107,7 @@ export function PicketView({ payload }: { payload: PicketPayload | null }) {
           <table className="w-full min-w-[720px] text-left">
             <thead>
               <tr>{['IP', 'Attempts', 'Protocols', 'Country', 'ASN · ISP', 'First seen', 'Last seen'].map((h) => (
-                <th key={h} className="border-b border-line py-2 pr-3 font-mono text-micro font-semibold uppercase tracking-label text-faint">{h}</th>))}</tr>
+                <th key={h} scope="col" className="border-b border-line py-2 pr-3 font-mono text-micro font-semibold uppercase tracking-label text-faint">{h}</th>))}</tr>
             </thead>
             <tbody>
               {top_ips.map((r) => (
