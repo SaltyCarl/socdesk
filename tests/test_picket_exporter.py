@@ -88,6 +88,13 @@ def test_load_enabled_protocols_falls_back_to_registry_when_unset(tmp_path):
     assert load_enabled_protocols(tmp_path, {"SSH", "TNET"}) == sorted({"SSH", "TNET"})
 
 
+def test_load_enabled_protocols_last_assignment_wins(tmp_path):
+    (tmp_path / ".env").write_text(
+        "ENABLED_PROTOCOLS=SSH,TNET\nENABLED_PROTOCOLS=HTTP,SMTP\n"
+    )
+    assert load_enabled_protocols(tmp_path, {"SSH", "TNET", "HTTP", "SMTP"}) == ["HTTP", "SMTP"]
+
+
 def test_knockknock_version_prefers_file_then_unknown(tmp_path):
     (tmp_path / "VERSION").write_text("3.0.0\n")
     assert knockknock_version(tmp_path) == "3.0.0"

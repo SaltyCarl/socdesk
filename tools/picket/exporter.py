@@ -79,17 +79,18 @@ def load_proto_names(knockknock_dir):
 def load_enabled_protocols(knockknock_dir, registry_names):
     """The protocols the sensor actually listens on = ENABLED_PROTOCOLS in knock-knock's
     .env (PROTO or PROTO:PORT entries, comma-separated), intersected with the registry.
-    Unset/empty -> every registry name (dogfood confirms knock-knock's own default)."""
+    If assigned more than once, the LAST assignment wins, as with shell sourcing /
+    dotenv. Unset/empty -> every registry name (dogfood confirms knock-knock's own default)."""
     env = Path(knockknock_dir) / ".env"
     names = set()
     if env.exists():
         for line in env.read_text(encoding="utf-8", errors="replace").splitlines():
             if line.startswith("ENABLED_PROTOCOLS="):
+                names = set()
                 for tok in line.split("=", 1)[1].split(","):
                     name = tok.strip().split(":", 1)[0].upper()
                     if name in registry_names:
                         names.add(name)
-                break
     return sorted(names) if names else sorted(registry_names)
 
 
