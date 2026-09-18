@@ -39,7 +39,7 @@ def _rows(conn, sql):
 
 def read_rollups(conn):
     return {
-        "ip_intel": _rows(conn, "SELECT ip,hits,first_seen,last_seen,lat,lng,asn FROM ip_intel"),
+        "ip_intel": _rows(conn, "SELECT ip,hits,last_seen,lat,lng FROM ip_intel"),
         "ip_intel_proto": _rows(conn, "SELECT ip,proto,hits FROM ip_intel_proto"),
         "user_intel": _rows(conn, "SELECT username,hits FROM user_intel"),
         "pass_intel": _rows(conn, "SELECT password,hits FROM pass_intel"),
@@ -67,11 +67,44 @@ def snapshot_from_rollups(rollups, proto_names):
 
 
 def load_proto_names(knockknock_dir):
-    """knock-knock's own registry is the source of truth for proto_id -> name."""
+    """knock-knock's own registry is the source of truth for proto_id -> name.
+    v3.0.0 exposes `protocols.registry.DEFINITIONS`, a list of ProtocolDefinition
+    dataclasses (name, proto_id, ...). Protocol modules import `protocol_api` from
+    the repo root, hence the sys.path insert."""
     sys.path.insert(0, str(knockknock_dir))
-    from protocols.registry import PROTOCOL_META  # noqa: E402  (knock-knock module)
-    return {int(meta["definition"].proto_id): name
-            for name, meta in PROTOCOL_META.items() if meta.get("definition")}
+    from protocols.registry import DEFINITIONS  # noqa: E402  (knock-knock module)
+    return {int(d.proto_id): str(d.name) for d in DEFINITIONS}
+
+
+def load_enabled_protocols(knockknock_dir, registry_names):
+    """The protocols the sensor actually listens on = ENABLED_PROTOCOLS in knock-knock's
+    .env (PROTO or PROTO:PORT entries, comma-separated), intersected with the registry.
+    Unset/empty -> every registry name (dogfood confirms knock-knock's own default)."""
+    env = Path(knockknock_dir) / ".env"
+    names = set()
+    if env.exists():
+        for line in env.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("ENABLED_PROTOCOLS="):
+                for tok in line.split("=", 1)[1].split(","):
+                    name = tok.strip().split(":", 1)[0].upper()
+                    if name in registry_names:
+                        names.add(name)
+                break
+    return sorted(names) if names else sorted(registry_names)
+
+
+def knockknock_version(knockknock_dir):
+    """VERSION file if the tag ships one, else `git describe --tags --always`, else 'unknown'."""
+    p = Path(knockknock_dir) / "VERSION"
+    if p.exists():
+        return p.read_text().strip()[:32]
+    # GIT_CEILING_DIRECTORIES stops upward repo discovery at knockknock_dir's own
+    # parent, so a knockknock_dir that isn't itself a git checkout reports "unknown"
+    # instead of accidentally describing some unrelated ancestor repository.
+    env = {**os.environ, "GIT_CEILING_DIRECTORIES": str(Path(knockknock_dir).resolve().parent)}
+    out = subprocess.run(["git", "-C", str(knockknock_dir), "describe", "--tags", "--always"],
+                         capture_output=True, text=True, check=False, env=env).stdout.strip()
+    return out[:32] or "unknown"
 
 
 def _public_ip():
@@ -123,9 +156,9 @@ def main(argv=None):
     state_path.parent.mkdir(parents=True, exist_ok=True)
     state_path.write_text(json.dumps(state, separators=(",", ":")))
 
-    version = (Path(a.knockknock_dir) / "VERSION").read_text().strip() if (Path(a.knockknock_dir) / "VERSION").exists() else "unknown"
+    version = knockknock_version(a.knockknock_dir)
     sensor = {"id": a.sensor_id, "public_ip_sha256": hashlib.sha256(_public_ip().encode()).hexdigest(),
-              "protocols": sorted(proto_names.values()), "knockknock_version": version}
+              "protocols": load_enabled_protocols(a.knockknock_dir, set(proto_names.values())), "knockknock_version": version}
     if ring_out["reset"]:
         sensor["ring_reset_at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
