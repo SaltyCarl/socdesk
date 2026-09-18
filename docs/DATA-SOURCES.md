@@ -150,6 +150,32 @@ the item wherever it is copied. Summaries are capped at 500 characters by the
 item builder and by the schema. One dead feed does not kill the pool; the
 collector raises only if every feed fails.
 
+### SOCDesk Picket (first-party honeypot)
+
+| | |
+|---|---|
+| Provides | Counts of automated break-in attempts against SOCDesk's own internet-facing honeypot sensor — by source IP, protocol, country, and network (ASN/ISP) — plus two separate aggregate top-N credential lists (usernames, passwords; never paired) |
+| Endpoint | `collectors/picket.py` → a keyless `raw.githubusercontent.com` GET of `export.json` from the public, data-only repo `SaltyCarl/socdesk-picket-export`, pushed by the sensor box every 30 minutes |
+| Terms | First-party telemetry — SOCDesk's own observations, not a redistribution of anyone else's corpus, so there are no third-party data-reuse terms to satisfy. Two attributions still apply: knock-knock (MIT, github.com/djkurlander/knock-knock — the honeypot software the sensor runs) and MaxMind GeoLite2 ("This product includes GeoLite2 data created by MaxMind, available from https://www.maxmind.com."), required wherever the GeoLite2 database is used |
+| Cadence | Every pipeline run (the export itself refreshes on the box's own 30-minute timer, six minutes ahead of the pipeline's `:11`/`:41` cron) |
+| Published as | `picket.json` (the `/desk#picket` panel and the landing-board teaser) and `picket_ips.json` (globe-layer rows — produced in P1, not yet rendered anywhere) |
+| Finding | New `COMPLIANCE.md` entry, "PICKET — first-party honeypot telemetry" |
+
+Every candidate username/password value passes a PII fence
+(`tools/picket/fence.py`) twice — once on the box before the export is
+pushed, once again in the collector after the export crosses the trust
+boundary of a public raw URL — before publication: aggregate values only,
+never a `(username, password)` pair, a `hits_7d ≥ 3` floor, and identity-like
+values (email addresses, account handles, long digit runs) dropped outright.
+A public IP that brute-forced the sensor is published as a fact about that
+host's behaviour on the open internet — the same posture the ASN leaderboard
+already takes with abuse.ch/community IPs — never a verdict on its owner or
+operator. A silent or stalled sensor is shown as `stale`/`silent`, honestly,
+never as a silent zero. See [docs/PICKET.md](PICKET.md) for the full
+architecture, data contracts, and the fence's exact rules, and
+[tools/picket/README.md](../tools/picket/README.md) for the sensor box
+runbook.
+
 ---
 
 ## Reached by link only — never mirrored

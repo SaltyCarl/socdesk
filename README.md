@@ -78,6 +78,7 @@ capabilities now live in `web/`, `shared/`, and `lib/`.
 | Vulnerability triage table with watchlist, KEV filter, sortable columns | `web/src/routes/VulnsRoute.tsx`, `web/src/components/views/VulnsView.tsx` |
 | ATT&CK actor and malware profiles, resolvable by name or alias | `collectors/attack.py`, `web/src/routes/ActorProfileRoute.tsx`, `web/src/components/views/ProfileDirectory.tsx`, `web/src/components/views/ActorProfile.tsx` |
 | Collection health per source, with last-known-good retention | `pipeline/validate.py`, `web/src/routes/HealthRoute.tsx`, `web/src/components/views/HealthView.tsx` |
+| **Picket** — counts from SOCDesk's own honeypot sensor (source IP / protocol / country / network); context, never a verdict; sensor status (`live`/`stale`/`silent`) shown honestly | `docs/PICKET.md`, `web/src/routes/PicketRoute.tsx`, `web/src/components/views/PicketView.tsx` |
 
 #### Legacy — `site/` only (historical, not on the live site)
 
@@ -246,6 +247,8 @@ verdict on the operator.
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Runbook — local runs, cron, reading health, collector failures, deploy, rollback, service-worker versioning |
 | [docs/DATA-SOURCES.md](docs/DATA-SOURCES.md) | Every source: what it gives, its terms, why it is redistributed or link-only, cadence, governing finding |
 | [docs/ANALYST-GUIDE.md](docs/ANALYST-GUIDE.md) | How to use the tool, what a verdict does and does not mean, and the tool's limits |
+| [docs/PICKET.md](docs/PICKET.md) | SOCDesk's own honeypot sensor: architecture, data contracts, the credential fence, freshness, surfaces |
+| [tools/picket/README.md](tools/picket/README.md) | Sensor box runbook — provision, harden, install, verify, rebuild, incident response |
 | [COMPLIANCE.md](COMPLIANCE.md) | Licensing and legal findings, risk register, launch gates. Read before adding any data source |
 | [docs/RELATIONSHIPS.md](docs/RELATIONSHIPS.md) | The entity relationship index and the reasoning behind not drawing a node-link graph |
 | [docs/INFRASTRUCTURE-OPTIONS.md](docs/INFRASTRUCTURE-OPTIONS.md) | What each step up the infrastructure ladder would unlock, cost, and take away |

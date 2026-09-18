@@ -107,6 +107,67 @@ again — treat it as settled fact, not an open question requiring re-verificati
 entry. `docs/AUTOMATION.md` and `docs/INFRASTRUCTURE-OPTIONS.md` §3e, which
 gate the honeypot sensor on R2, are unblocked by this determination.
 
+### PICKET — first-party honeypot telemetry (2026-09-17)
+
+**What is published, and why it is redistributable.** PICKET is SOCDesk's
+own honeypot sensor: a small internet-facing box that runs nothing but
+knock-knock (MIT, github.com/djkurlander/knock-knock) and exists to be
+attacked. Every row it publishes — knock counts by IP/protocol/country/
+network, plus two aggregate credential top-N lists — is SOCDesk's own
+first-party observation, not a redistribution of anyone else's corpus. That
+is what makes it clearly redistributable under this file's aggregator-not-
+mirror rule without a case-by-case terms review: there are no third-party
+terms in play, because there is no third party's data in `export.json`,
+`picket.json`, or `picket_ips.json`.
+
+**Why attacker IPs are published.** A public IP that scanned or
+brute-forced an unsolicited sensor is a fact about that host's behaviour on
+the open internet — not personal data, and not a claim about its owner or
+operator. SOCDesk already publishes third-party abuse IPs on this same
+footing (the ASN leaderboard's abuse.ch/community IPs, `threat_ips.json`);
+PICKET applies the identical framing to IPs the sensor observed directly —
+first-party observation, if anything a stronger footing than a third-party
+report.
+
+**The credential fence is the no-PII control.** Usernames and passwords
+bots submit are published as two separate aggregate top-N lists — never as
+the `(username, password)` pairs actually submitted, and never below a
+floor of 3 occurrences in the trailing 7 days. Values that look like a real
+identity (an email address, an account-handle pattern, a long digit run)
+are dropped before publication outright, not merely flagged. The rule runs
+twice, independently, on the same code path: once on the box before the
+export is pushed, once again in the collector after the export crosses the
+trust boundary of a public GitHub raw URL (`tools/picket/fence.py`,
+imported by both `tools/picket/assemble.py` and `collectors/picket.py`).
+
+**No per-knock records.** With `SAVE_KNOCKS` off, the box keeps only
+knock-knock's cumulative rollup counters, never a per-connection log; the
+exporter derives its own 7-day time series from a small delta ring instead.
+There is no per-knock database anywhere in this architecture for a
+compromise of the box, or of the export repo, to expose.
+
+**Dispute path.** `abuse@socdesk.io` — the same address used for the
+community-reports dispute path. The posture is unconditional: removal is
+the response, with no adjudication process promised beyond the owner acting
+on the request.
+
+**Attribution obligations.** Carried in-band in the published payload's own
+`attribution` string, and repeated in the sensor runbook and on
+`/about#picket`:
+- knock-knock — MIT License, © the knock-knock project contributors
+  (github.com/djkurlander/knock-knock). SOCDesk runs it unmodified, at a
+  pinned release tag.
+- MaxMind GeoLite2 — "This product includes GeoLite2 data created by
+  MaxMind, available from https://www.maxmind.com."
+
+**Upstream reporting is owner-moderated only.** Nothing here reports an IP
+to AbuseIPDB or anywhere else automatically. A moderated give-back queue —
+the owner reviewing report candidates in `/admin` and approving each one
+individually before it reaches AbuseIPDB — is a stated policy for a later
+phase (P3), not a capability that exists today.
+
+**Rating: LOW — first-party data, no third-party redistribution**
+
 ### Hard design constraints for Phase B (from the re-review)
 1. **Aggregator = explicit user-click deep-links ONLY.** No auto-fan-out
    (one click must not spray an indicator to 6 services at once), no

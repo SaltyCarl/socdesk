@@ -28,6 +28,7 @@ data/state/           COMMITTED last-known-good payloads + daily history snapsho
 data/entities/        actor / malware / vendor dictionaries used for extraction
 site/                 LEGACY superseded static site (history only; not deployed)
 site-tests/  tests/   Playwright (site/) + pytest (pipeline), fixture-backed
+tools/picket/          box-side exporter (delta ring, fence, assembler, systemd timer) + the sensor runbook
 ```
 
 ## `web/src/routes/` (registered in `App.tsx`'s ROUTES)
@@ -36,10 +37,11 @@ site-tests/  tests/   Playwright (site/) + pytest (pipeline), fixture-backed
 - `Lookup.tsx` (`/lookup`) — standalone escalation-card view; reads/writes `#q=` deep links; redirects command-shaped values to `/analyzer`.
 - `PowerShellAnalyzer.tsx` (`/analyzer`) — bare textarea over `usePsAnalysis`; renders the shared `AnalyzerResult`.
 - `DataDeskRoute.tsx` (`/desk`) — tabbed shell composing feed / vulnerabilities / health / sources / networks; each tab is a `*Route.tsx` → `components/views/*View.tsx`.
-- `FeedRoute` / `VulnsRoute` / `HealthRoute` / `SourcesRoute` / `AsnLeaderboardRoute` — the `/desk` tabs (`networks`, labeled "ISP Abuse Leaderboard", ranks abusive-IP volume by ASN/ISP). The Actors and Toolbelt tabs were retired in the IA cut: Actors duplicated the `/actor` entity directory below (a superset — same profiles plus ransomware/CISA-intel/reporting it never had); Toolbelt was a stub whose one live tool, Base64 decode, already linked out to `/analyzer`. Both stale hashes fall back to the default `feed` tab.
+- `FeedRoute` / `VulnsRoute` / `HealthRoute` / `SourcesRoute` / `AsnLeaderboardRoute` / `PicketRoute` — the `/desk` tabs (`networks`, labeled "ISP Abuse Leaderboard", ranks abusive-IP volume by ASN/ISP; `picket`, labeled "Picket", SOCDesk's own honeypot sensor telemetry — see [PICKET.md](PICKET.md)). The Actors and Toolbelt tabs were retired in the IA cut: Actors duplicated the `/actor` entity directory below (a superset — same profiles plus ransomware/CISA-intel/reporting it never had); Toolbelt was a stub whose one live tool, Base64 decode, already linked out to `/analyzer`. Both stale hashes fall back to the default `feed` tab.
 - `ActorProfileRoute.tsx` (`/actor`) — a single ATT&CK actor/malware profile + directory, resolvable by name/alias.
 - `Gallery.tsx` (`/gallery`, `nav:false`) — the design-system craft-review surface (internal; hidden from the top-nav, reachable by direct URL).
 - `Privacy.tsx` (`/privacy`, `nav:false`) — the disclosure page.
+- `About.tsx` (`/about`, `nav:false`) — the transparency page: what SOCDesk is and does, plus disclosure sections with anchors `#community-reports` and `#picket`.
 - `lookupModel.ts` — pure helpers: `readLookupQuery` (decode `#q=`), `cveToVerdict` (CVE catalog row → `VerdictData`).
 
 ## `web/src/components/`
@@ -49,8 +51,8 @@ site-tests/  tests/   Playwright (site/) + pytest (pipeline), fixture-backed
 - **`hero/`** — `useGlobe3` / `GlobeStage3` (three.js globe + `suspend`/`resume` yield), `heroLayers` / `useHeroPins` / `pins` (real-data pin model), `enrichFly` (omnibox → globe-landing seam), `TipCard`.
 - **`palette/`** — `CommandPalette`, `commands.ts` (`submitLookup` — the shared route-to-`/lookup`-or-`/analyzer` entry every non-cockpit surface uses), `classify` (delegates to `detectType`), `fuzzy`, `recents`.
 - **`lookup/`** — `useLookup` (the one indicator→resolution hook shared by `/lookup` + the cockpit), `LookupStates`, `useEffectiveTheme`.
-- **`views/`** — one `*View.tsx` per `/desk` tab + `useStateData` (snapshot fetcher) + async-gate/skeleton primitives + `profiles`/`relations` ATT&CK lookups.
-- **`overview/`** — the Overview "situational board" (`OverviewStats`, `WhatChanged`, `RansomwareActivity`, `NetworkAbuseLeaderboard`, `NamedActorActivity`, `PatchPriority`, `FreshnessStrip`, `Sparkline`) via `aggregations.ts`.
+- **`views/`** — one `*View.tsx` per `/desk` tab (including `PicketView.tsx`) + `picketModel.ts` (Picket's own view model: status copy, age formatting, the 168-hour histogram downsampled to daily points) + `useStateData` (snapshot fetcher) + async-gate/skeleton primitives + `profiles`/`relations` ATT&CK lookups.
+- **`overview/`** — the Overview "situational board" (`OverviewStats`, `WhatChanged`, `RansomwareActivity`, `NetworkAbuseLeaderboard`, `NamedActorActivity`, `PatchPriority`, `PicketTeaser`, `FreshnessStrip`, `Sparkline`) via `aggregations.ts`.
 - **`ui/`, `shell/`** — web-only chrome: `Topbar`, `ThemeToggle`; `Shell` (frame), `Omnibox`, `MobileNav`, `PageContainer`.
 
 ## `shared/` (`@socdesk/shared/*`)
@@ -63,5 +65,19 @@ site-tests/  tests/   Playwright (site/) + pytest (pipeline), fixture-backed
 - **`card/`** — the canvas/geo layer: `model` (view-model), `geo` (landmask), `palette` (canvas hex mirror of `tokens.css`), `travel` (great-circle math), `drawVerdict` (the Copy-card PNG).
 - **`ui/`, `lib/`** — framework-agnostic primitives (`Button`/`Card`/`Chip`/`MicroLabel`/`Divider`, `SdMonogram`) + `cx` / `motion` / `theme`.
 - **`tokens.css`** — the design-token source of truth (mirrored as literal hexes in `card/palette.ts` for canvas).
+
+## Python: `collectors/` · `pipeline/` · `schemas/` (PICKET additions)
+
+- **`collectors/picket.py`** — keyless collector: fetches the sensor's `export.json`, re-validates it against the raw schema, and re-applies the credential/IP fence as a second, independent pass.
+- **`pipeline/picket.py`** — builds `picket.json` (the panel) and `picket_ips.json` (globe-layer rows); computes sensor status (`live`/`stale`/`silent`) and the keep-prior restamp.
+- **`schemas/picket_export.schema.json`** — the box → export-repo contract (`export.json`).
+- **`schemas/picket.schema.json`** — the published panel payload's contract (`picket.json`).
+- **`schemas/picket_ips.schema.json`** — the published globe-layer contract (`picket_ips.json`).
+- **`tools/picket/exporter.py`** — the on-box CLI: reads knock-knock's SQLite rollups, maintains the 7-day delta ring, assembles and pushes `export.json`.
+- **`tools/picket/ring.py`** — the 30-minute delta ring (`apply_snapshot`, `new_state`) that turns cumulative counters into a time series without per-knock storage.
+- **`tools/picket/assemble.py`** — builds and schema-validates `export.json` from the rollups + the delta ring.
+- **`tools/picket/fence.py`** — the credential PII fence and the public-IP filter, imported by both the box (`assemble.py`) and the pipeline (`collectors/picket.py`).
+- **`tools/picket/install.sh`** — box provisioning/hardening script (ufw, Docker, knock-knock at a pinned tag, exporter + systemd timer).
+- **`tools/picket/README.md`** — the sensor box runbook: provision, harden, install, verify, rebuild, incident response.
 
 > Keep this current as part of any structural change (new route, new component dir, moved module). A stale map is worse than none.

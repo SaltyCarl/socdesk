@@ -135,7 +135,7 @@ the repo.
 
 | Field | Meaning |
 |---|---|
-| `source` | Collector slug — `kev`, `nvd`, `ransomwarelive`, `rss`, `attack`, plus `epss` from the enrichment step |
+| `source` | Collector slug — `kev`, `nvd`, `ransomwarelive`, `rss`, `attack`, `picket`, plus `epss` from the enrichment step |
 | `ok` | The collector returned without raising |
 | `error` | Truncated exception text, or partial-failure detail |
 | `items` | Feed items plus every list in `extra` — a rough volume signal, not a row count |
@@ -426,6 +426,55 @@ Run against the deployed site once `env.KV` is bound and the WAF rule is on.
       still serve.
 - [ ] **KV write budget sanity:** after a day of normal traffic, KV Analytics
       shows writes far under 1,000/day.
+
+### Owner one-time setup — PICKET (the honeypot sensor)
+
+PICKET is a physical/VPS setup, not a Cloudflare toggle. Nothing below is a
+repository secret — the credentials involved are the sensor box's own
+knock-knock `.env` and a deploy key scoped to one export repository. For the
+full architecture and data contracts, see [docs/PICKET.md](PICKET.md); for the
+exact commands (harden, install, verify, rebuild, incident response), see
+[tools/picket/README.md](../tools/picket/README.md) — this section is the
+owner's one-time checklist, not a duplicate of that runbook.
+
+1. **VPS.** One small instance you don't mind being scanned constantly — a
+   Hetzner CX22 (or similar small x86 instance) or Oracle Cloud's Always Free
+   ARM (Ampere A1) instance. DNS is not required.
+2. **MaxMind.** A free GeoLite2 account, giving `MAXMIND_ACCOUNT_ID` /
+   `MAXMIND_LICENSE_KEY` — set in the box's own knock-knock `.env` only, never
+   committed to this repository. Per-IP country resolution is simply omitted
+   if this step is skipped.
+3. **The export repo.** Create the public, data-only repo
+   `SaltyCarl/socdesk-picket-export`, then add the box's SSH key as a deploy
+   key **with write access to that repo only** — never a key with broader
+   scope, and never a key on any repo but this one.
+4. **Run the runbook.** Move real `sshd` to a high port, then follow
+   `tools/picket/README.md` start to finish: harden (ufw, the SSH-port move —
+   read the lock-out warning first), install knock-knock at a pinned release
+   tag, install the exporter and its systemd timer, then verify with the
+   runbook's own `nmap`/`curl` checks.
+
+**Costs:** roughly €4/mo, or $0 on Oracle's Always Free tier. No new SaaS, and
+no GitHub Actions secret — the deploy key lives only on the box and in the
+export repo's own Settings.
+
+#### Dogfood acceptance (manual — the real gate)
+
+- [ ] External `nmap -Pn -p-` against the box shows only the honeypot ports
+      plus the admin SSH port — nothing else.
+- [ ] The knock-knock dashboard is unreachable from outside (external `curl`
+      to its port fails/times out).
+- [ ] The first export lands in the export repo within 30 minutes of the
+      timer starting.
+- [ ] `picket.json` appears in `data/state/` on the next pipeline cron after
+      the export lands.
+- [ ] `/desk#picket` renders the tab against that live data.
+- [ ] Killing the exporter timer shows `stale` within 90 minutes and
+      `silent` after 24 hours; restoring it returns to `live`.
+- [ ] The first `picket` row appears in `health.json`.
+- [ ] The runbook §6 protocol-map command
+      (`python3 -c "from protocols.registry import DEFINITIONS; print({d.name: d.proto_id for d in DEFINITIONS})"`)
+      prints the `{name: proto_id}` map on the box.
 
 ### Custom domain
 
