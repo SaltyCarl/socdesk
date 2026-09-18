@@ -280,6 +280,13 @@ rsync -azR --exclude '__pycache__' -e "ssh -p $SSH_PORT" \
   root@<ip>:/opt/socdesk/
 ```
 
+**Line endings.** The repo's `.gitattributes` pins LF for `tools/picket/**`
+and `*.sh`, so a Windows checkout (`core.autocrlf=true`) cannot turn the
+script into a CRLF file — but check before you copy, once:
+`git ls-files --eol tools/picket/install.sh` must show `w/lf`. A CRLF
+`install.sh` fails on the box with `$'\r': command not found`; a CRLF systemd
+unit is rejected outright.
+
 Verify the copy landed where the exporter expects before continuing — all
 four paths must list:
 

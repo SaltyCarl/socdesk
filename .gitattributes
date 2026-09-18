@@ -1,0 +1,7 @@
+# Box-side files are rsynced from a developer checkout (often Windows,
+# core.autocrlf=true) to a Linux VPS and executed there. A CRLF shell script
+# fails on `\r`; a CRLF systemd unit is rejected. Pin LF so a checkout can
+# never turn the runbook into a broken script (PICKET P1 ruling R32).
+*.sh                    text eol=lf
+tools/picket/**         text eol=lf
+collectors/base.py      text eol=lf
