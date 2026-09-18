@@ -290,7 +290,12 @@ tag at all (see "Upstream verification" below). `sensor.protocols` in the
 published export is **not** the whole registry: it is `ENABLED_PROTOCOLS`
 from knock-knock's `.env`, intersected with the registry
 (`tools/picket/exporter.py::load_enabled_protocols`) — the set the sensor is
-actually listening on, not every protocol knock-knock ships code for. What
+actually listening on, not every protocol knock-knock ships code for. If
+`.env` assigns `ENABLED_PROTOCOLS` more than once, the last assignment wins
+(dotenv semantics) — the same rule shell sourcing and `python-dotenv` use, so
+an operator who fixes the set by appending a corrected line rather than
+editing in place gets the correction, not the stale first value
+(`test_load_enabled_protocols_last_assignment_wins`). What
 follows is what the spec and runbook already establish about each protocol;
 the integer `proto_id` values themselves only exist on the box and are not
 reproduced here (the runbook gives the exact command to dump them, README
@@ -566,7 +571,7 @@ Top level (all required):
 | `id` | string, ≤32 | Stable sensor identifier. | `"picket-1"` |
 | `public_ip_sha256` | string, `^[a-f0-9]{64}$` | SHA-256 of the box's own public IP — the plaintext never leaves the box (§4). | `"aaaa...aaaa"` (64 chars) |
 | `country` | string, ≤2, optional | ISO 3166-1 alpha-2 of the sensor itself. | `"DE"` |
-| `protocols` | array, ≤16 items, each ≤8 chars | The enabled set from knock-knock's `.env` (`ENABLED_PROTOCOLS`), intersected with the registry — not the whole registry (§3). | `["SSH","TELNET"]` |
+| `protocols` | array, ≤16 items, each ≤8 chars | The enabled set from knock-knock's `.env` (`ENABLED_PROTOCOLS`), intersected with the registry — not the whole registry (§3). | `["SSH","TNET"]` (the fixture file still says TELNET — synthetic data; the box publishes knock-knock's identifiers) |
 | `uptime_minutes` | integer, ≥0 | Continuous uptime. | `4320` (3 days) |
 | `knockknock_version` | string, ≤32 | knock-knock version string. | `"1.9.0"` |
 | `ring_reset_at` | string, ≤20, optional | Set only when a counter decrease was clamped (§4). | absent in the fixture |
@@ -1100,3 +1105,8 @@ them, TDD throughout, oldest first:
 2. `52b44cc7` — fix(picket): first_seen is optional end-to-end — knock-knock keeps no per-IP first-seen
 3. `6739bd7d` — fix(picket): runbook pins a real knock-knock tag and sets the P1 protocol set
 4. docs(picket): PICKET.md — knock-knock v3.0.0 corrections (registry, columns, TNET, optional first_seen) — this document itself, landing as the next commit after `6739bd7d`.
+
+**Fix round 1 (review findings).**
+
+5. `c4d1b47f` — fix(picket): last ENABLED_PROTOCOLS assignment wins (dotenv semantics)
+6. docs(picket): runbook §6 protocol-map command reads DEFINITIONS; PICKET.md sensor.protocols example uses TNET — this document itself, landing as the next commit after `c4d1b47f`.

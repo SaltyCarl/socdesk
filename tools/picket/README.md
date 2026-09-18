@@ -299,7 +299,7 @@ tag before you rely on it, and keep a copy of the output:
 
 ```bash
 cd /opt/knock-knock
-python3 -c "from protocols.registry import PROTOCOL_META; print({n: m['definition'].proto_id for n,m in PROTOCOL_META.items()})"
+python3 -c "from protocols.registry import DEFINITIONS; print({d.name: d.proto_id for d in DEFINITIONS})"
 ```
 
 **Build-time check — auth-attempt vs. bare-connect logging.** Per spec §3.9,
