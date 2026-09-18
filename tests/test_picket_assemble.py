@@ -1,0 +1,168 @@
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
+from tools.picket.assemble import assemble_export, validate_export
+from tests.conftest import FIXED_NOW
+
+FIX = Path(__file__).parent / "fixtures" / "picket"
+SCHEMA = Path("schemas/picket_export.schema.json")
+PROTO = {1: "SSH", 2: "TELNET"}
+SENSOR = {"id": "picket-1", "public_ip_sha256": "a" * 64, "protocols": ["SSH", "TELNET"],
+          "knockknock_version": "1.9.0", "country": "DE"}
+
+
+def rollups(**over):
+    base = {
+        "ip_intel": [
+            {"ip": "5.6.7.8", "hits": 900, "first_seen": "2026-07-20 01:00:00",
+             "last_seen": "2026-07-28 11:00:00", "lat": 39.9, "lng": 116.4, "asn": 64500},
+            {"ip": "10.0.0.7", "hits": 50, "first_seen": None, "last_seen": None, "lat": None, "lng": None, "asn": None},
+        ],
+        "ip_intel_proto": [{"ip": "5.6.7.8", "proto": 1, "hits": 900}],
+        "user_intel": [{"username": "root", "hits": 400}, {"username": "alice@example.com", "hits": 9}],
+        "pass_intel": [{"password": "123456", "hits": 200}, {"password": "once", "hits": 1}],
+        "country_intel": [{"iso_code": "CN", "country": "China", "hits": 500}],
+        "isp_intel": [{"isp": "Example <b>Hosting</b>", "hits": 300, "asn": 64500}],
+        "heartbeat_minutes": 4320, "knocks_total": 9001,
+        "country_by_ip": {"5.6.7.8": "CN"},
+    }
+    base.update(over)
+    return base
+
+
+def hits7d():
+    return {"proto": {"SSH": 900}, "ip": {"5.6.7.8": 900, "10.0.0.7": 50},
+            "user": {"root": 400, "alice@example.com": 9},
+            "pass": {"123456": 200, "once": 1}, "country": {"CN": 500}, "isp": {"Example <b>Hosting</b>": 300}}
+
+
+def test_fixture_validates():
+    doc = json.loads((FIX / "export_ok.json").read_text(encoding="utf-8"))
+    assert validate_export(doc, SCHEMA) == []
+
+
+def test_assembled_export_validates_and_is_fenced():
+    out = assemble_export(rollups(), hits7d(), [0] * 335 + [42], SENSOR, FIXED_NOW, PROTO)
+    assert validate_export(out, SCHEMA) == []
+    ips = [r["ip"] for r in out["top_ips"]]
+    assert ips == ["5.6.7.8"]                           # private IP dropped
+    assert out["top_ips"][0]["country"] == "CN"
+    assert out["top_ips"][0]["protocols"] == [{"proto": "SSH", "hits_total": 900}]   # R29: all-time, named so
+    assert out["top_ips"][0]["first_seen"] == "2026-07-20T01:00:00Z"
+    assert [u["value"] for u in out["top_usernames"]] == ["root"]   # email fenced
+    assert [p["value"] for p in out["top_passwords"]] == ["123456"] # singleton fenced (<3)
+    assert out["top_isps"][0]["isp"] == "Example Hosting"          # markup stripped
+    # unique_ips_7d comes from the ring, public IPs only: 5.6.7.8 yes, 10.0.0.7 no
+    assert out["totals"] == {"knocks_total": 9001, "since": "2026-07-25T12:00:00Z", "unique_ips_7d": 1}
+    assert out["exported_at"] == "2026-07-28T12:00:00Z"
+    assert out["sensor"]["uptime_minutes"] == 4320
+    assert "ring_reset_at" not in out["sensor"]
+
+
+def test_reset_marker_is_carried():
+    sensor = dict(SENSOR, ring_reset_at="2026-07-28T11:30:00Z")
+    out = assemble_export(rollups(), hits7d(), [0] * 336, sensor, FIXED_NOW, PROTO)
+    assert out["sensor"]["ring_reset_at"] == "2026-07-28T11:30:00Z"
+
+
+def test_unknown_protocol_id_fails_loudly():
+    bad = rollups(ip_intel_proto=[{"ip": "5.6.7.8", "proto": 99, "hits": 1}])
+    try:
+        assemble_export(bad, hits7d(), [0] * 336, SENSOR, FIXED_NOW, PROTO)
+    except KeyError as e:
+        assert "99" in str(e)
+    else:
+        raise AssertionError("unknown protocol id must not be guessed")
+
+
+def test_first_seen_is_omitted_when_the_rollup_has_none():
+    ip_intel = rollups()["ip_intel"] + [
+        {"ip": "5.6.7.9", "hits": 50, "first_seen": None, "last_seen": "2026-07-28 11:00:00",
+         "lat": None, "lng": None, "asn": None},
+    ]
+    out = assemble_export(rollups(ip_intel=ip_intel), hits7d(), [0] * 336, SENSOR, FIXED_NOW, PROTO)
+    row = next(r for r in out["top_ips"] if r["ip"] == "5.6.7.9")
+    assert "first_seen" not in row
+    assert row["last_seen"] == "2026-07-28T11:00:00Z"
+    assert validate_export(out, SCHEMA) == []
+
+
+def test_sensor_own_ip_is_dropped_on_the_box():
+    # I3: upstream self_redaction scrubs credential/body TEXT only, never ip_intel.ip,
+    # so a knock from the box to its own address lands in the rollups. The box-side
+    # pass must drop it — otherwise the plaintext sensor IP is published in the
+    # public export repo and only the pipeline's hash compare hides it downstream.
+    # 5.6.7.9 is a genuinely public literal (TEST-NET ranges are is_private in
+    # ipaddress and would be dropped by is_public_ip regardless — a vacuous test).
+    ip_intel = rollups()["ip_intel"] + [
+        {"ip": "5.6.7.9", "hits": 12, "first_seen": None, "last_seen": "2026-07-28 11:00:00",
+         "lat": None, "lng": None, "asn": None},
+    ]
+    h = hits7d(); h["ip"]["5.6.7.9"] = 12
+    without = assemble_export(rollups(ip_intel=ip_intel), h, [0] * 336, SENSOR, FIXED_NOW, PROTO)
+    assert "5.6.7.9" in [r["ip"] for r in without["top_ips"]]   # published when it is NOT the sensor
+    out = assemble_export(rollups(ip_intel=ip_intel), h, [0] * 336, SENSOR, FIXED_NOW, PROTO,
+                          sensor_ip="5.6.7.9")
+    ips = [r["ip"] for r in out["top_ips"]]
+    assert "5.6.7.9" not in ips                          # the sensor's own address
+    assert ips == ["5.6.7.8"]                            # other public rows survive
+    assert out["sensor"]["public_ip_sha256"] == SENSOR["public_ip_sha256"]
+    assert without["totals"]["unique_ips_7d"] == 2 and out["totals"]["unique_ips_7d"] == 1
+    assert validate_export(out, SCHEMA) == []
+
+
+def _many_active_ips(n):
+    # 203.0.{0..9}.x — public literals (only 203.0.113.0/24 is TEST-NET / is_private).
+    return [{"ip": f"203.0.{i // 250}.{i % 250 + 1}", "hits": 5, "first_seen": None, "last_seen": None,
+             "lat": None, "lng": None, "asn": None} for i in range(n)]
+
+
+def test_caps_are_enforced():
+    many = _many_active_ips(2500)
+    h = hits7d(); h["ip"] = {r["ip"]: 5 for r in many}
+    out = assemble_export(rollups(ip_intel=many, ip_intel_proto=[]), h, [0] * 336, SENSOR, FIXED_NOW, PROTO)
+    assert len(out["top_ips"]) == 2000 and validate_export(out, SCHEMA) == []
+
+
+def test_unique_ips_7d_counts_beyond_the_top_ips_cap():
+    # I2: the headline "Distinct IPs · 7 d" must come from the ring, not from the
+    # <=2000-row top_ips list — a busy SSH honeypot would otherwise read a flat 2,000.
+    many = _many_active_ips(2500)
+    h = hits7d(); h["ip"] = {r["ip"]: 5 for r in many}
+    h["ip"]["10.0.0.7"] = 50                              # private: active in the ring, never counted
+    h["ip"]["203.0.99.1"] = 0                             # in the ring's keys but inactive: not counted
+    out = assemble_export(rollups(ip_intel=many, ip_intel_proto=[]), h, [0] * 336, SENSOR, FIXED_NOW, PROTO)
+    assert len(out["top_ips"]) == 2000
+    assert out["totals"]["unique_ips_7d"] == 2500
+    assert validate_export(out, SCHEMA) == []
+
+
+def test_per_ip_protocol_counter_is_all_time_and_named_hits_total():
+    # R29: the per-IP, per-protocol number is knock-knock's cumulative counter (no
+    # per-IP window exists upstream). It is emitted as hits_total for every published
+    # row — the old "0 unless active this week" gating (R3) is gone with the rename;
+    # the parent row's hits_7d is what says whether the IP was active.
+    ip_intel = rollups()["ip_intel"] + [
+        {"ip": "5.6.7.9", "hits": 7, "first_seen": None, "last_seen": "2026-07-20 11:00:00",
+         "lat": None, "lng": None, "asn": None},
+    ]
+    proto = rollups()["ip_intel_proto"] + [{"ip": "5.6.7.9", "proto": 1, "hits": 7}]
+    out = assemble_export(rollups(ip_intel=ip_intel, ip_intel_proto=proto), hits7d(), [0] * 336,
+                          SENSOR, FIXED_NOW, PROTO)                     # 5.6.7.9 has no 7-day hits
+    inactive = next(r for r in out["top_ips"] if r["ip"] == "5.6.7.9")
+    assert inactive["hits_7d"] == 0
+    assert inactive["protocols"] == [{"proto": "SSH", "hits_total": 7}]
+    assert all("hits_7d" not in p for r in out["top_ips"] for p in r["protocols"])
+    assert validate_export(out, SCHEMA) == []
+
+
+def test_isp_asn_is_omitted_when_unknown():
+    # M2: isp_intel.asn is nullable upstream; a NULL is "unknown", never 0.
+    out = assemble_export(rollups(isp_intel=[{"isp": "No ASN Hosting", "hits": 5, "asn": None},
+                                             {"isp": "Example Hosting", "hits": 300, "asn": 64500}]),
+                          hits7d(), [0] * 336, SENSOR, FIXED_NOW, PROTO)
+    by_name = {i["isp"]: i for i in out["top_isps"]}
+    assert "asn" not in by_name["No ASN Hosting"]
+    assert by_name["Example Hosting"]["asn"] == 64500
+    assert validate_export(out, SCHEMA) == []

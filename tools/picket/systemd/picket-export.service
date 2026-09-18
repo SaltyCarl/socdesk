@@ -1,0 +1,14 @@
+[Unit]
+Description=SOCDesk PICKET exporter (knock-knock rollups -> export.json -> data repo)
+After=network-online.target docker.service
+[Service]
+Type=oneshot
+User=picket
+WorkingDirectory=/opt/socdesk
+Environment=PYTHONPATH=/opt/socdesk
+ExecStart=/opt/socdesk/.venv/bin/python -m tools.picket.exporter \
+  --db /opt/knock-knock/data/knock_knock.db \
+  --state /var/lib/picket/state.json \
+  --out /srv/picket-export/export.json --repo-dir /srv/picket-export \
+  --sensor-id picket-1 --knockknock-dir /opt/knock-knock \
+  --geoip-db /usr/share/GeoIP/GeoLite2-Country.mmdb

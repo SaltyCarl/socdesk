@@ -24,6 +24,8 @@ SCHEMA_FOR = {
     "threat_ips.json": "threat_ips.schema.json",
     "community_reports.json": "community_reports.schema.json",
     "asn_leaderboard.json": "asn_leaderboard.schema.json",
+    "picket.json": "picket.schema.json",
+    "picket_ips.json": "picket_ips.schema.json",
 }
 
 

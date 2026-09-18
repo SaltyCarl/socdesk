@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "PICKET globe-layer payload: geolocated source IPs from the honeypot sensor's trailing-7-day activity.",
+  "required": ["generated_at", "schema_version", "attribution", "count", "ips"],
+  "properties": {
+    "generated_at": {"type": "string", "description": "UTC timestamp this payload was generated/published."},
+    "schema_version": {"type": "integer", "description": "Published payload schema version; bump on any breaking shape change."},
+    "attribution": {"type": "string", "maxLength": 1000, "description": "Attribution and provenance notice for this payload's data and geolocation source."},
+    "count": {"type": "integer", "minimum": 0, "description": "Number of rows in ips."},
+    "ips": {
+      "type": "array",
+      "maxItems": 1000,
+      "description": "Geolocated source IPs observed by the sensor, most active first.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ip", "lat", "lng", "source", "hits_7d", "last_seen", "geo_precision"],
+        "properties": {
+          "ip": {"type": "string", "maxLength": 45, "description": "Public source IP literal (IPv4 or IPv6)."},
+          "country": {"type": "string", "maxLength": 2, "description": "ISO 3166-1 alpha-2 country code for this IP, if known."},
+          "lat": {"type": "number", "minimum": -90, "maximum": 90, "description": "Latitude of this IP's resolved geolocation."},
+          "lng": {"type": "number", "minimum": -180, "maximum": 180, "description": "Longitude of this IP's resolved geolocation."},
+          "source": {"const": "picket", "description": "Payload origin tag for this row, always \"picket\"."},
+          "hits_7d": {"type": "integer", "minimum": 0, "description": "Knocks from this IP in the last 7 days."},
+          "first_seen": {"type": "string", "maxLength": 20, "description": "Timestamp this IP was first observed. Present only when the sensor records it — knock-knock v3 keeps no per-IP first-seen, so P1 exports omit it."},
+          "last_seen": {"type": "string", "maxLength": 20, "description": "Timestamp this IP was last observed."},
+          "geo_precision": {"enum": ["city", "country"], "description": "Granularity of the resolved geolocation for this IP."}
+        }
+      }
+    }
+  }
+}

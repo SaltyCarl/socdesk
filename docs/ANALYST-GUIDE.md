@@ -359,6 +359,53 @@ signal chip (KEV / EPSS / CVSS / claim count) is parsed from the pipeline's real
 > flag it notable); a right-hand detail panel; and an **Export JSON** of the
 > visible rows. (`/` still works in the live tool — it opens the command palette.)
 
+## The Picket tab
+
+`/desk#picket` shows telemetry from SOCDesk's own honeypot: a small
+internet-facing server that runs nothing but
+[knock-knock](https://github.com/djkurlander/knock-knock), an open-source
+honeypot, and exists to be attacked. Every inbound connection that gets far
+enough for knock-knock to record it is a **knock**. Nobody has a legitimate
+reason to connect to it, so what shows up here is a live sample of what
+automated scanning and brute-force tooling actually does on the open
+internet, right now.
+
+**Status.** A chip at the top reads `live` (an export landed in the last 90
+minutes), `stale` (90 minutes to 24 hours), or `silent` (24 hours or more) —
+never a blank page and never a silent zero. A stale or silent sensor still
+shows the last figures it collected, and says so.
+
+**Knocks, by protocol, by source.** Three counts (knocks in the last 24
+hours, knocks in the last 7 days, distinct IPs in the last 7 days), a
+seven-day sparkline, a per-protocol share of the trailing week, and a "Top
+sources" table of the IPs that knocked most, with their protocols, country,
+network, and first/last-seen times. `First seen` and `ASN · ISP` render as
+`—` for every row today — knock-knock's underlying database keeps neither a
+per-IP first-seen timestamp nor a per-IP ASN, and the tab shows that gap
+honestly rather than guessing at it.
+
+**Usernames and passwords tried.** Two separate top-N lists — usernames bots
+tried, passwords bots tried — never the pairs they were actually submitted
+as, and never anything below 3 occurrences in the trailing week. Anything
+that looks like a real identity (an email address, an account-handle
+pattern, a long digit run) is dropped before it is published, on the box and
+again in the pipeline. Read a value on these lists as "a commodity
+credential automated tooling tries against everything," not as evidence of
+one specific compromise.
+
+**What this tells you, and what it doesn't.** A Picket hit means an address
+was scanning or brute-forcing an *unsolicited* server that exists purely as
+bait — that is a fact about that address's behavior on the open internet, not
+a verdict on the network or operator it belongs to, and it is not evidence
+about your own environment. Nothing here says whether that IP has touched
+anything you run; correlating Picket's numbers against your own logs is
+planned for a later phase, not present today. Read it the way you'd read the
+ASN leaderboard: context that sharpens a prioritization call, never a block
+decision by itself.
+
+For the full data contract, the credential fence's exact rules, and the
+sensor's threat model, see [docs/PICKET.md](PICKET.md).
+
 ## The shift handoff
 
 > Legacy — the `n`-to-flag handoff digest is part of the older `site/` app, not
@@ -456,10 +503,14 @@ on a shared workstation, and use it before handing the screen to anyone.
 Be direct about the limits — an escalation built on a misunderstanding of them
 is worse than no escalation.
 
-1. **It is aggregation and routing, not proprietary intelligence.** SOCDesk
-   generates no telemetry, runs no sensors, and detects nothing. Its value is
-   that it gets you to the right public sources fast and writes up what they
-   said.
+1. **It is aggregation and routing, not proprietary intelligence — with one
+   exception.** For lookups and the feed, SOCDesk generates no telemetry of
+   its own and detects nothing on your systems; its value is that it gets you
+   to the right public sources fast and writes up what they said. The
+   exception is the Picket tab (above): SOCDesk's own honeypot sensor, which
+   does generate first-party telemetry — but a Picket hit is a fact about an
+   internet-wide scanner's behavior against unsolicited bait, not a detection
+   on anything you run.
 2. **A tally is not a clearance, and it is not SOCDesk's own verdict.** The
    escalation card counts what independent public sources reported — *N of M
    flagged* — it confirms nothing itself, and *0 of M* means "no adverse

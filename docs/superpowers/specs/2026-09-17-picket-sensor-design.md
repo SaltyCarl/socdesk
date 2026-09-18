@@ -135,6 +135,8 @@ Attackers replay credential-stuffing lists that can contain real people's emails
 2. **Floor:** `hits_7d ≥ 3`. A singleton credential could be one real leaked credential replayed once.
 3. **Drop** any value that: contains `@`; matches an email, phone, card-number, or SSN-like pattern; is longer than 32 chars; or is empty after `clean_text`.
 4. **Sensor self-identifiers** (public IP, hostname, domain) are redacted on-box by knock-knock's `self_redaction` and additionally rejected by the collector (any row whose value contains the sensor's own IP — carried in the export as `sensor.public_ip_sha256`, never plaintext — is dropped).
+
+> **Amended in execution (2026-09-17)** — binding over the two rules above; full record in the P1 plan's "Execution record": rule 3's "contains `@`" is implemented as the account-identifier regex `^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$` (`tools/picket/fence.py::_ACCOUNT_RE`, ruling R9); rule 4's on-box redaction is SOCDesk's own — knock-knock's `self_redaction` scrubs credential/body text only and never touches `ip_intel.ip`, so `assemble_export(..., sensor_ip=)` drops the sensor's row on the box and the exporter refuses (exit 4) when the public IP cannot be determined; the collector's hash compare is the second pass.
 5. **Attacker IPs are published.** They are the point of the dataset (as the ASN leaderboard already does for abuse.ch/community IPs) — a public IP that brute-forced an unsolicited sensor is a fact about a host, not personal data; framing per §1.4.
 6. **Entra banned-password export** (§3.10) additionally filters to 4–16 chars and case-dedupes.
 
@@ -189,6 +191,8 @@ Generated every run by `pipeline/picket.py` into `data/state/picket/` (dual-writ
 ---
 
 ## 4. Schemas (all `additionalProperties:false`, every string bounded)
+
+> **Amended in execution (2026-09-17)** — the shipped schemas (`schemas/picket_export.schema.json`, `schemas/picket.schema.json`, `schemas/picket_ips.schema.json`) are authoritative over the sketches below. Differences: `top_ips[].protocols[].hits_7d` is named **`hits_total`** (knock-knock keeps no per-IP, per-protocol time window — ruling R29); `first_seen` is optional on `top_ips[]` and `picket_ips.json` rows (upstream `ip_intel` has no such column; `asn`/`isp` per IP are likewise absent in P1); `totals.unique_ips_7d` is carried in the export from the ring so the KPI does not saturate at the `top_ips` cap. Every property carries a `description`; see `docs/PICKET.md` §5 for the field tables.
 
 ### 4.1 `schemas/picket_export.schema.json` — the RAW box→repo contract (validated on-box before push AND by the collector after fetch)
 ```json

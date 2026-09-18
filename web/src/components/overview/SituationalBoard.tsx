@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import { MicroLabel } from '../ui'
-import { useStateData, type AsyncStatus } from '../views/useStateData'
+import { useStateData, type AsyncState, type AsyncStatus } from '../views/useStateData'
 import { AsyncGate, Skeleton, SkeletonRows } from '../views/states'
 import { day, rel } from '../views/format'
 import type {
@@ -8,6 +8,7 @@ import type {
   CvePayload,
   FeedPayload,
   HealthPayload,
+  PicketPayload,
   TrendsPayload,
 } from '../views/types'
 import { OverviewStats } from './OverviewStats'
@@ -16,6 +17,7 @@ import { RansomwareActivity } from './RansomwareActivity'
 import { NamedActorActivity } from './NamedActorActivity'
 import { PatchPriority } from './PatchPriority'
 import { NetworkAbuseLeaderboard } from './NetworkAbuseLeaderboard'
+import { PicketTeaser } from './PicketTeaser'
 import { FreshnessStrip } from './FreshnessStrip'
 import { aggregateRansomware, namedActorReports } from './aggregations'
 import { useInView } from './useInView'
@@ -129,6 +131,26 @@ function Gate({
   )
 }
 
+/**
+ * The Picket gate. No picket.json exists until the sensor's first successful
+ * export — the pipeline writes none — so an HTTP 404 is the teaser's honest
+ * "no telemetry yet", not a fetch failure (and the same holds for a rollback
+ * that deletes the file). Every other error stays the standard error state.
+ */
+export function PicketSlot({ picket }: { picket: AsyncState<PicketPayload> }) {
+  const missing = picket.status === 'error' && /\b404\b/.test(picket.error ?? '')
+  return (
+    <Gate
+      status={missing ? 'ready' : picket.status}
+      label="the Picket sensor"
+      detail={picket.error}
+      skeleton={<Skeleton className="h-48 w-full rounded-lg" />}
+    >
+      <PicketTeaser payload={missing ? null : picket.data} />
+    </Gate>
+  )
+}
+
 /* ---------------- the board ---------------- */
 
 export function SituationalBoard() {
@@ -136,6 +158,7 @@ export function SituationalBoard() {
   const feed = useStateData<FeedPayload>('feed')
   const health = useStateData<HealthPayload>('health')
   const networks = useStateData<AsnLeaderboardPayload>('asn_leaderboard')
+  const picket = useStateData<PicketPayload>('picket')
 
   const items = useMemo(() => feed.data?.items ?? [], [feed.data])
   const ransom = useMemo(() => aggregateRansomware(items), [items])
@@ -194,6 +217,9 @@ export function SituationalBoard() {
       >
         <NetworkAbuseLeaderboard payload={networks.data ?? { networks: [] }} />
       </Gate>
+
+      {/* first-party sensor teaser for /desk#picket; light picket.json */}
+      <PicketSlot picket={picket} />
 
       {/* secondary lane: who's reported on · what to patch · did collection run */}
       <div className="flex flex-col gap-4">

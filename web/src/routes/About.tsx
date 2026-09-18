@@ -15,7 +15,7 @@ import { ViewHeader } from '../components/views/ViewFrame'
  * policy does.
  */
 
-const UPDATED = '2026-08-24'
+const UPDATED = '2026-09-17'
 const ABUSE = 'abuse@socdesk.io'
 
 function P({ children }: { children: ReactNode }) {
@@ -142,6 +142,77 @@ export function About() {
             email <Link href={`mailto:${ABUSE}`}>{ABUSE}</Link> with the
             indicator. The owner can un-approve the entry, which removes it from
             the published dataset at the next update.
+          </P>
+        </Section>
+
+        <Section
+          id="picket"
+          eyebrow="SOCDESK · PICKET"
+          title="Telemetry from my own sensor"
+        >
+          <Panel className="border-[var(--edge-accent)] bg-[var(--tint-accent)]">
+            <MicroLabel tone="accent" tick>
+              In short
+            </MicroLabel>
+            <p className="mt-2 text-base text-paper">
+              Picket is an internet-facing honeypot SOCDesk runs itself. It
+              records what automated bots try against a server nobody invited
+              them to — and publishes counts. It is context, never a
+              verdict on any network or operator.
+            </p>
+          </Panel>
+
+          <P>
+            <strong className="text-paper">What is collected.</strong> Picket
+            publishes attempt counts by IP address, protocol, source country,
+            and source network — plus the most-tried usernames and the
+            most-tried passwords, each as its own aggregate list, never as
+            pairs. Entries below a publication floor are dropped, and any
+            value that looks like a real identity is dropped too.
+          </P>
+
+          <P>
+            <strong className="text-paper">What is not collected.</strong>{' '}
+            There are no victims, no per-attempt logs, and no traffic from
+            real users — the sensor serves nothing.
+          </P>
+
+          <P>
+            <strong className="text-paper">How it reaches the site.</strong>{' '}
+            A bounded export leaves the sensor, is re-checked and
+            re-sanitised before publication, and refreshes every 30 minutes.
+            If the sensor falls silent, the site says so, and labels the
+            last-received figures as such.
+          </P>
+
+          <P>
+            <strong className="text-paper">
+              Upstream reporting is owner-moderated.
+            </strong>{' '}
+            Nothing is reported to any third party automatically, and no
+            reporting exists yet. If it is added, any report to AbuseIPDB
+            would be proposed by the pipeline and approved by the owner, one
+            address at a time.
+          </P>
+
+          <P>
+            <strong className="text-paper">Disputes and removal.</strong> If
+            an entry concerns your network or address and you believe it is
+            wrong, email <Link href={`mailto:${ABUSE}`}>{ABUSE}</Link>.
+            Removal is the response.
+          </P>
+
+          <P>
+            <strong className="text-paper">Attribution.</strong>{' '}
+            The sensor itself is{' '}
+            <Link href="https://github.com/djkurlander/knock-knock">
+              knock-knock
+            </Link>
+            , MIT licensed; the collector and pipeline are SOCDesk&rsquo;s
+            own. This product includes GeoLite2 data created by
+            MaxMind, available from{' '}
+            <Link href="https://www.maxmind.com">https://www.maxmind.com</Link>
+            .
           </P>
         </Section>
       </div>

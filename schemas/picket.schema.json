@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "PICKET honeypot panel payload (P1). Later phases add known_to, lead_time, report_candidates, exports, reported_upstream additively.",
+  "required": ["generated_at", "schema_version", "attribution", "collected_at", "sensor", "totals", "histogram_7d", "by_protocol", "top_ips", "top_usernames", "top_passwords", "top_countries", "top_isps"],
+  "properties": {
+    "generated_at": {"type": "string", "description": "UTC timestamp this payload was generated/published."},
+    "schema_version": {"type": "integer", "description": "Published payload schema version; bump on any breaking shape change."},
+    "attribution": {"type": "string", "maxLength": 1000, "description": "Attribution and provenance notice for this payload's data and geolocation source."},
+    "collected_at": {"type": "string", "description": "UTC timestamp of the last REAL collection from the sensor export; carried through keep-prior when the collector is down."},
+    "sensor": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Identity and health of the honeypot sensor that produced this data.",
+      "required": ["id", "uptime_days", "protocols", "status", "export_age_minutes", "exported_at", "knockknock_version"],
+      "properties": {
+        "id": {"type": "string", "maxLength": 32, "description": "Stable identifier for this sensor box."},
+        "country": {"type": "string", "maxLength": 2, "description": "ISO 3166-1 alpha-2 country code of the sensor itself, if known."},
+        "uptime_days": {"type": "integer", "minimum": 0, "description": "Days the sensor has been continuously running."},
+        "protocols": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 8}, "description": "Protocol names the sensor listens on (e.g. SSH, TNET — knock-knock's identifier for Telnet)."},
+        "status": {"enum": ["live", "stale", "silent"], "description": "Freshness of the sensor's export: live (recent), stale (overdue), or silent (long overdue/unreachable)."},
+        "export_age_minutes": {"type": "integer", "minimum": 0, "description": "Minutes since the underlying export was produced, as of generated_at."},
+        "exported_at": {"type": "string", "description": "UTC timestamp the underlying export was produced by the sensor."},
+        "knockknock_version": {"type": "string", "maxLength": 32, "description": "Version string of the knock-knock honeypot software in use."},
+        "ring_reset_at": {"type": "string", "maxLength": 20, "description": "Timestamp of the last counter reset (DB reset/prune) on the sensor, if one occurred."}
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Aggregate knock counts for the sensor.",
+      "required": ["knocks_total", "since", "knocks_24h", "knocks_7d", "unique_ips_7d"],
+      "properties": {
+        "knocks_total": {"type": "integer", "minimum": 0, "description": "All-time count of knocks recorded by the sensor."},
+        "since": {"type": "string", "maxLength": 20, "description": "Timestamp the sensor's all-time totals have been accumulating since."},
+        "knocks_24h": {"type": "integer", "minimum": 0, "description": "Knocks recorded in the last 24 hours."},
+        "knocks_7d": {"type": "integer", "minimum": 0, "description": "Knocks recorded in the last 7 days."},
+        "unique_ips_7d": {"type": "integer", "minimum": 0, "description": "Count of distinct source IPs seen in the last 7 days."}
+      }
+    },
+    "histogram_7d": {
+      "type": "array",
+      "minItems": 168,
+      "maxItems": 168,
+      "items": {"type": "integer", "minimum": 0},
+      "description": "Hourly knock counts for the trailing 7 days (168 hours), oldest first."
+    },
+    "by_protocol": {
+      "type": "array",
+      "maxItems": 16,
+      "description": "Per-protocol knock share over the trailing 7 days, most active first.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["proto", "hits_7d", "hits_total", "share_pct"],
+        "properties": {
+          "proto": {"type": "string", "maxLength": 8, "description": "Protocol name."},
+          "hits_7d": {"type": "integer", "minimum": 0, "description": "Knocks on this protocol in the last 7 days."},
+          "hits_total": {"type": "integer", "minimum": 0, "description": "All-time knocks on this protocol."},
+          "share_pct": {"type": "number", "minimum": 0, "maximum": 100, "description": "This protocol's share of the last-7-days knock total, as a percentage."}
+        }
+      }
+    },
+    "top_ips": {
+      "type": "array",
+      "maxItems": 100,
+      "description": "Public source IPs that knocked, most active first.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ip", "hits_7d", "hits_total", "last_seen", "protocols"],
+        "properties": {
+          "ip": {"type": "string", "maxLength": 45, "description": "Public source IP literal (IPv4 or IPv6)."},
+          "hits_7d": {"type": "integer", "minimum": 0, "description": "Knocks from this IP in the last 7 days."},
+          "hits_total": {"type": "integer", "minimum": 0, "description": "All-time knocks from this IP."},
+          "first_seen": {"type": "string", "maxLength": 20, "description": "Timestamp this IP was first observed. Present only when the sensor records it — knock-knock v3 keeps no per-IP first-seen, so P1 exports omit it."},
+          "last_seen": {"type": "string", "maxLength": 20, "description": "Timestamp this IP was last observed."},
+          "protocols": {
+            "type": "array",
+            "maxItems": 16,
+            "description": "Per-protocol hit breakdown for this IP.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["proto", "hits_total"],
+              "properties": {
+                "proto": {"type": "string", "maxLength": 8, "description": "Protocol name."},
+                "hits_total": {"type": "integer", "minimum": 0, "description": "All-time knocks from this IP on this protocol (knock-knock keeps no per-IP, per-protocol time window, so no 7-day figure exists here). Whether the IP was active this week is the parent row's hits_7d."}
+              }
+            }
+          },
+          "country": {"type": "string", "maxLength": 2, "description": "ISO 3166-1 alpha-2 country code for this IP, if known."},
+          "asn": {"type": "integer", "minimum": 0, "description": "Autonomous system number for this IP, if known."},
+          "isp": {"type": "string", "maxLength": 120, "description": "ISP/organization name for this IP's ASN, if known."},
+          "lat": {"type": "number", "description": "Latitude of this IP's geolocation, if resolved."},
+          "lng": {"type": "number", "description": "Longitude of this IP's geolocation, if resolved."},
+          "geo_precision": {"enum": ["city", "country"], "description": "Granularity of the resolved geolocation for this IP."}
+        }
+      }
+    },
+    "top_usernames": {
+      "type": "array",
+      "maxItems": 50,
+      "description": "Top aggregate usernames attempted, fenced and never paired with a password.",
+      "items": {"$ref": "#/$defs/credlist_item"}
+    },
+    "top_passwords": {
+      "type": "array",
+      "maxItems": 50,
+      "description": "Top aggregate passwords attempted, fenced and never paired with a username.",
+      "items": {"$ref": "#/$defs/credlist_item"}
+    },
+    "top_countries": {
+      "type": "array",
+      "maxItems": 50,
+      "description": "Source countries by knock volume, most active first.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["iso", "name", "hits_7d", "hits_total"],
+        "properties": {
+          "iso": {"type": "string", "maxLength": 2, "description": "ISO 3166-1 alpha-2 country code."},
+          "name": {"type": "string", "maxLength": 64, "description": "Human-readable country name."},
+          "hits_7d": {"type": "integer", "minimum": 0, "description": "Knocks from this country in the last 7 days."},
+          "hits_total": {"type": "integer", "minimum": 0, "description": "All-time knocks from this country."}
+        }
+      }
+    },
+    "top_isps": {
+      "type": "array",
+      "maxItems": 50,
+      "description": "Source ISPs/organizations by knock volume, most active first.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["isp", "hits_7d", "hits_total"],
+        "properties": {
+          "isp": {"type": "string", "maxLength": 120, "description": "ISP/organization name."},
+          "asn": {"type": "integer", "minimum": 0, "description": "Autonomous system number for this ISP, if known."},
+          "hits_7d": {"type": "integer", "minimum": 0, "description": "Knocks from this ISP in the last 7 days."},
+          "hits_total": {"type": "integer", "minimum": 0, "description": "All-time knocks from this ISP."}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "credlist_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "hits_7d", "hits_total"],
+      "properties": {
+        "value": {"type": "string", "minLength": 1, "maxLength": 32, "description": "The fenced credential value (username or password), standalone — never paired."},
+        "hits_7d": {"type": "integer", "minimum": 3, "description": "Occurrences of this value in the last 7 days; floored at 3 so singletons never publish."},
+        "hits_total": {"type": "integer", "minimum": 0, "description": "All-time occurrences of this value."}
+      }
+    }
+  }
+}
